@@ -1,0 +1,9 @@
+---
+# Look for `AssertionFailed` events and fail if Echidna sees any.
+checkAsserts: true
+
+corpusDir: "corpus"
+codeSize: 0x600000 # = 6,291,456
+
+propMaxGas: 12500000
+testMaxGas: 12500000
