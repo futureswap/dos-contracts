@@ -14,7 +14,6 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: "18.x"
-        shell: bash
       - name: Run Compile
         run: npm hardhat compile
       - name: Run Tests
