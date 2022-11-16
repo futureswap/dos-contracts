@@ -9,7 +9,13 @@ const config: HardhatUserConfig = {
         settings: {
           optimizer: {
             enabled: true,
+            runs: 200,
+            details: {
+              yul: true,
+            },
           },
+
+          viaIR: false,
         },
       },
       {
@@ -17,7 +23,12 @@ const config: HardhatUserConfig = {
         settings: {
           optimizer: {
             enabled: true,
+            runs: 200,
+            details: {
+              yul: true,
+            },
           },
+          viaIR: false,
         },
       },
     ],
