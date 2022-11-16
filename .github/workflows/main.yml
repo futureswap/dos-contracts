@@ -21,15 +21,16 @@ jobs:
       - name: "Install the dependencies"
         run: "npm install install --hardhat"
 
-      # - name: "Lint the code"
-      #   run: "yarn lint"
+      - name: "Lint the code"
+        run: "npm run prettier"
 
-      # - name: "Add lint summary"
-      #   run: |
-      #     echo "## Lint results" >> $GITHUB_STEP_SUMMARY
-      #     echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
-      # - name: "Compile the contracts and generate the TypeChain bindings"
-      #   run: "yarn typechain"
+      - name: "Add lint summary"
+        run: |
+          echo "## Lint results" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+
+      - name: "Compile the contracts and generate the TypeChain bindings"
+        run: "npm run typechain"
 
       - name: "Test the contracts and generate the coverage report"
         run: "npm run coverage"

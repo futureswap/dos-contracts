@@ -2,9 +2,12 @@
   "name": "DOS",
   "scripts": {
     "node": "npx hardhat node",
-    "test": "npx hardhat test",    
+    "test": "npx hardhat test",
     "compile": "npx hardhat compile",
-    "coverage": "npx hardhat coverage"    
+    "coverage": "npx hardhat coverage",
+    "typechain": "npx hardhat typechain",
+    "prettier": "prettier *.md \"{docs,.github}/**/*.{md,yml}\" \"scripts/**/*.ts\"",
+    "format": "prettier --write \"contracts/**/*.sol\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"./*.ts\" \"./*.json\""
   },
   "devDependencies": {
     "@chainlink/contracts": "^0.5.1",
