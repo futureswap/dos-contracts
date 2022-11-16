@@ -15,8 +15,8 @@ jobs:
         with:
           node-version: "18.x"
       - name: Run Compile
-        run: npm hardhat compile
+        run: npm run compile
       - name: Run Tests
-        run: npm hardhat test
+        run: npm run test
       - name: Run Coverage
-        run: npm hardhat coverage
+        run: npm run coverage
