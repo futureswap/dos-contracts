@@ -13,8 +13,8 @@ import {
   MockValueOracle__factory,
   UniV3Oracle__factory,
 } from "../../typechain-types";
-import { numberToHexString, toWei } from "../utils/Numbers";
-import { getEventParams } from "../utils/Events";
+import { numberToHexString, toWei } from "../../lib/Numbers";
+import { getEventParams, getEvents, getEventsTx } from "../../lib/Events";
 import { expect } from "chai";
 import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 
@@ -124,21 +124,16 @@ describe("UniswapOracle", function () {
           recipient: owner.address,
           deadline: ethers.constants.MaxUint256,
         };
-        const { tokenId, liquidity, amount0, amount1 } = await getEventParams(
-          await posManager.mint(mintParams),
-          posManager,
-          "IncreaseLiquidity"
+        const { IncreaseLiquidity } = await getEventsTx(
+          posManager.mint(mintParams),
+          posManager
         );
-        console.log({
-          tokenId: tokenId.toBigInt(),
-          liquidity: liquidity.toBigInt(),
-          amount0: amount0.toBigInt(),
-          amount1: amount1.toBigInt(),
-        });
         expect(
-          Number((await uniOracle.calcValue(tokenId)).toBigInt())
+          Number(
+            (await uniOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt()
+          )
         ).to.approximately(
-          Number(amount0.toBigInt() * 100n + amount1.toBigInt()),
+          Number(IncreaseLiquidity.amount0 * 100n + IncreaseLiquidity.amount1),
           0.1
         );
       }
@@ -156,21 +151,16 @@ describe("UniswapOracle", function () {
           recipient: owner.address,
           deadline: ethers.constants.MaxUint256,
         };
-        const { tokenId, liquidity, amount0, amount1 } = await getEventParams(
-          await posManager.mint(mintParams),
-          posManager,
-          "IncreaseLiquidity"
+        const { IncreaseLiquidity } = await getEventsTx(
+          posManager.mint(mintParams),
+          posManager
         );
-        console.log({
-          tokenId: tokenId.toBigInt(),
-          liquidity: liquidity.toBigInt(),
-          amount0: amount0.toBigInt(),
-          amount1: amount1.toBigInt(),
-        });
         expect(
-          Number((await uniOracle.calcValue(tokenId)).toBigInt())
+          Number(
+            (await uniOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt()
+          )
         ).to.approximately(
-          Number(amount0.toBigInt() * 100n + amount1.toBigInt()),
+          Number(IncreaseLiquidity.amount0 * 100n + IncreaseLiquidity.amount1),
           0.1
         );
       }
@@ -188,21 +178,16 @@ describe("UniswapOracle", function () {
           recipient: owner.address,
           deadline: ethers.constants.MaxUint256,
         };
-        const { tokenId, liquidity, amount0, amount1 } = await getEventParams(
-          await posManager.mint(mintParams),
-          posManager,
-          "IncreaseLiquidity"
+        const { IncreaseLiquidity } = await getEventsTx(
+          posManager.mint(mintParams),
+          posManager
         );
-        console.log({
-          tokenId: tokenId.toBigInt(),
-          liquidity: liquidity.toBigInt(),
-          amount0: amount0.toBigInt(),
-          amount1: amount1.toBigInt(),
-        });
         expect(
-          Number((await uniOracle.calcValue(tokenId)).toBigInt())
+          Number(
+            (await uniOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt()
+          )
         ).to.approximately(
-          Number(amount0.toBigInt() * 100n + amount1.toBigInt()),
+          Number(IncreaseLiquidity.amount0 * 100n + IncreaseLiquidity.amount1),
           0.1
         );
       }
