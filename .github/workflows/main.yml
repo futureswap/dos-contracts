@@ -22,7 +22,7 @@ jobs:
         run: "npm install install --hardhat"
 
       - name: "Lint the code"
-        run: "npm run prettier"
+        run: "npm run format"
 
       - name: "Add lint summary"
         run: |
