@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.12;
+pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -90,10 +90,10 @@ library PortfolioLib {
         return AssetShare.wrap(shares);
     }
 
-    function extractNft(
-        Portfolio storage p,
-        uint256 nftPortfolioIdx
-    ) internal returns (NFT storage) {
+    function extractNft(Portfolio storage p, uint256 nftPortfolioIdx)
+        internal
+        returns (NFT storage)
+    {
         FsUtils.Assert(nftPortfolioIdx < p.nfts.length);
         NFT storage extractedNft = p.nfts[nftPortfolioIdx];
 
@@ -121,10 +121,11 @@ library PortfolioLib {
         p.nftPortfolioIdxs[nft.nftContract][nft.tokenId] = p.nfts.length;
     }
 
-    function computeAsset(
-        Shares storage p,
-        AssetShare shares
-    ) internal view returns (int256 asset) {
+    function computeAsset(Shares storage p, AssetShare shares)
+        internal
+        view
+        returns (int256 asset)
+    {
         int256 s = AssetShare.unwrap(shares);
         if (s == 0) return 0;
         FsUtils.Assert(p.totalShares != 0);
@@ -197,9 +198,15 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         return collateral >= debt;
     }
 
-    function computePosition(
-        address portfolio
-    ) public view returns (int256 totalValue, int256 collateral, int256 debt) {
+    function computePosition(address portfolio)
+        public
+        view
+        returns (
+            int256 totalValue,
+            int256 collateral,
+            int256 debt
+        )
+    {
         Portfolio storage p = portfolios[portfolio];
         AssetIdx[] memory assetIndices = p.getAssets();
         totalValue = 0;
@@ -237,10 +244,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
     }
 
-    function depositNft(
-        address nftContract,
-        uint256 tokenId
-    )
+    function depositNft(address nftContract, uint256 tokenId)
         external
         onlyPortfolio
         onlyRegisteredNft(nftContract, tokenId)
@@ -272,10 +276,11 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         // TODO: require appropriate reserve
     }
 
-    function claimNft(
-        address nftContract,
-        uint256 tokenId
-    ) external onlyPortfolio onlyDepositNftOwner(nftContract, tokenId) {
+    function claimNft(address nftContract, uint256 tokenId)
+        external
+        onlyPortfolio
+        onlyDepositNftOwner(nftContract, tokenId)
+    {
         ERC721(nftContract).safeTransferFrom(address(this), msg.sender, tokenId);
 
         Portfolio storage p = portfolios[msg.sender];
@@ -283,7 +288,11 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         p.extractNft(nftPortfolioIdx);
     }
 
-    function transfer(AssetIdx asset, address to, uint256 amount) external onlyPortfolio {
+    function transfer(
+        AssetIdx asset,
+        address to,
+        uint256 amount
+    ) external onlyPortfolio {
         require(portfolios[to].owner != address(0), "Invalid receiver");
         if (amount == 0) return;
         transferAsset(asset, msg.sender, to, FsMath.safeCastToSigned(amount));
@@ -299,22 +308,39 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         transferNft(nftPortfolioIdx, msg.sender, to);
     }
 
-    function transferAsset(AssetIdx assetIdx, address from, address to, int256 amount) internal {
+    function transferAsset(
+        AssetIdx assetIdx,
+        address from,
+        address to,
+        int256 amount
+    ) internal {
         updateBalance(assetIdx, from, -amount);
         updateBalance(assetIdx, to, amount);
     }
 
-    function transferNft(uint256 nftPortfolioIdx, address from, address to) internal {
+    function transferNft(
+        uint256 nftPortfolioIdx,
+        address from,
+        address to
+    ) internal {
         NFT storage nft = portfolios[from].extractNft(nftPortfolioIdx);
         portfolios[to].insertNft(nft);
     }
 
-    function transferAllAsset(AssetIdx assetIdx, address from, address to) internal {
+    function transferAllAsset(
+        AssetIdx assetIdx,
+        address from,
+        address to
+    ) internal {
         int256 amount = clearBalance(assetIdx, from);
         updateBalance(assetIdx, to, amount);
     }
 
-    function updateBalance(AssetIdx assetIdx, address acct, int256 amount) internal {
+    function updateBalance(
+        AssetIdx assetIdx,
+        address acct,
+        int256 amount
+    ) internal {
         updateInterest(assetIdx);
         Portfolio storage p = portfolios[acct];
         AssetShare shares = p.assetShares[assetIdx];
@@ -534,9 +560,9 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     }
 
     function onERC721Received(
-        address /* operator */,
-        address /* from */,
-        uint256 /* tokenId */,
+        address, /* operator */
+        address, /* from */
+        uint256, /* tokenId */
         bytes memory /* data */
     ) public virtual override returns (bytes4) {
         return this.onERC721Received.selector;

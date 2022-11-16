@@ -1,5 +1,11 @@
 {
-  "name": "hardhat-project",
+  "name": "DOS",
+  "scripts": {
+    "node": "npx hardhat node",
+    "test": "npx hardhat test",    
+    "compile": "npx hardhat compile",
+    "coverage": "npx hardhat coverage"    
+  },
   "devDependencies": {
     "@chainlink/contracts": "^0.5.1",
     "@nomicfoundation/hardhat-toolbox": "^2.0.0",
