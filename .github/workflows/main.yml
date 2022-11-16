@@ -14,11 +14,11 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: "18.x"
-      - run: yarn --ignore-scripts
+      - run: npm --ignore-scripts
         shell: bash
       - name: Run Compile
-        run: yarn hardhat compile
+        run: npm hardhat compile
       - name: Run Tests
-        run: yarn hardhat test
+        run: npm hardhat test
       - name: Run Coverage
-        run: yarn hardhat coverage
+        run: npm hardhat coverage
