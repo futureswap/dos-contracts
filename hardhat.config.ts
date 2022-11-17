@@ -4,7 +4,7 @@ import "@nomicfoundation/hardhat-toolbox";
 
 import { config as dotEnvConfig } from "dotenv";
 
-import { createStripFn, preprocessCode } from "./lib/hardhat/removeStripBlocks";
+import { preprocessCode } from "./lib/hardhat/preprocess";
 
 dotEnvConfig({ path: "./.env" });
 
