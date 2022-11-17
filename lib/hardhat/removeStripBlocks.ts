@@ -1,5 +1,5 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { checkDefined, checkState } from "common/src/preconditions";
+import { checkDefined, checkState } from "../../lib/preconditions";
 import { exec } from "child_process";
 
 export const createStripFn = (
@@ -43,6 +43,7 @@ export const createStripFn = (
   return async (hre: HardhatRuntimeEnvironment) => {
     if (!shouldStripFn(hre)) return undefined;
     if (gitCommitHash === undefined) {
+      // TODO make sure for prod builds we build from clean master
       gitCommitHash = await new Promise((resolve, reject) => {
         exec('git log -1 --format=format:"%H"', (error, stdout, stderr) => {
           if (error) reject(error);
