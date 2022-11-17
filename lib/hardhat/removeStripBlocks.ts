@@ -2,8 +2,8 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { checkDefined, checkState } from "../../lib/preconditions";
 import { exec } from "child_process";
 
-export const createStripFn = (
-  shouldStripFn: (hre: HardhatRuntimeEnvironment) => boolean
+export const preprocessCode = (
+  isLocalBuild: (hre: HardhatRuntimeEnvironment) => boolean
 ) => {
   let inStrip = false;
   let absolutePath = "";
@@ -41,7 +41,14 @@ export const createStripFn = (
   };
 
   return async (hre: HardhatRuntimeEnvironment) => {
-    if (!shouldStripFn(hre)) return undefined;
+    if (isLocalBuild(hre)) return undefined;
+    if (await new Promise((resolve, reject) => 
+      exec('git status --porcelain"', (error, stdout, stderr) => {
+      if (error) reject(error);
+      return stdout;
+    })) !== "") {
+      throw new Error("Repo not clean");
+    }
     if (gitCommitHash === undefined) {
       // TODO make sure for prod builds we build from clean master
       gitCommitHash = await new Promise((resolve, reject) => {
