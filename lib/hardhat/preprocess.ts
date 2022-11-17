@@ -47,30 +47,29 @@ export const preprocessCode = (
 
     // Make sure the repo is clean
     if (await new Promise((resolve, reject) => 
-      exec('git status --porcelain"', (error, stdout, stderr) => {
+      exec('git status --porcelain', (error, stdout, stderr) => {
       if (error) reject(error);
-      return stdout;
+      resolve(stdout);
     })) !== "") {
       throw new Error("Repo not clean");
     }
     // Make sure the repo is on master
     if (await new Promise((resolve, reject) => 
-      exec('git rev-parse --abbrev-ref HEAD"', (error, stdout, stderr) => {
+      exec('git rev-parse --abbrev-ref HEAD', (error, stdout, stderr) => {
       if (error) reject(error);
-      return stdout;
+      resolve(stdout);
     })) !== "master") {
       throw new Error("Not on master");
     }
-    /*
     // Make sure the repo is synced with github
     if (await new Promise((resolve, reject) => 
-      exec('git fetch origin master && git rev-parse --abbrev-ref HEAD"', (error, stdout, stderr) => {
+      exec('git fetch origin master > /dev/null && git log origin/master..master', (error, stdout, stderr) => {
       if (error) reject(error);
-      return stdout;
-    })) !== "master") {
-      throw new Error("Not on master");
+      resolve(stdout);
+    })) !== "") {
+      throw new Error("Master branch not pushed to github");
     }
-    */
+
     if (gitCommitHash === undefined) {
       // TODO make sure for prod builds we build from clean master
       gitCommitHash = await new Promise((resolve, reject) => {
