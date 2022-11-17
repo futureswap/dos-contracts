@@ -9,7 +9,7 @@ import { preprocessCode } from "./lib/hardhat/preprocess";
 dotEnvConfig({ path: "./.env" });
 
 // Account mnemonics and infura api keys should be stored in .env file
-// as to not expose them through github. 
+// as to not expose them through github.
 const getEnvVariable = (varName: string) => {
   return process.env[varName] || "";
 };
@@ -160,10 +160,7 @@ export default {
   ...config,
   preprocess: {
     eachLine: preprocessCode((hre: HardhatRuntimeEnvironment) => {
-      return (
-        hre.network.name === "hardhat" ||
-        hre.network.name === "localhost"
-      );
+      return hre.network.name === "hardhat" || hre.network.name === "localhost";
     }),
   },
 };
