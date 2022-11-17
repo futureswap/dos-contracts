@@ -1,18 +1,11 @@
 import uniV3FactJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json";
-import posManagerJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json";
+import uniNFTManager from "@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json";
 import tokenPosDescJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungibleTokenPositionDescriptor.sol/NonfungibleTokenPositionDescriptor.json";
 import nftDescJSON from "@uniswap/v3-periphery/artifacts/contracts/libraries/NFTDescriptor.sol/NFTDescriptor.json";
 import uniswapPoolJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
 
 import { ContractFactory, BigNumberish, Contract, Signer, ethers } from "ethers";
-import { getEventParams } from "common/src/Events";
-import { IERC20 } from "typechain-types";
-
-interface Pool {
-  token0: IERC20;
-  token1: IERC20;
-  fee: string;
-}
+import { cleanResult, getEventParams } from "./Events";
 
 export async function deployUniswapPool(
   uniswapFactory: Contract,
@@ -47,8 +40,9 @@ export async function deployUniswapPool(
     uniswapPoolJSON.abi,
     uniswapFactory.signer
   );
-  // Price of token0 in token1 = 100;
-  pool.initialize(Math.sqrt(price) * 2 ** 96);
+
+  const Q96 = 2 ** 96;
+  await pool.initialize(BigInt(Math.sqrt(price) * Q96));
 
   return pool;
 }
@@ -76,8 +70,8 @@ export async function deployUniswapFactory(weth: string, signer: Signer) {
     signer
   ).deploy(weth, ethers.constants.MaxInt256);
   const uniswapNFTManager = await new ContractFactory(
-    posManagerJSON.abi,
-    posManagerJSON.bytecode,
+    uniNFTManager.abi,
+    uniNFTManager.bytecode,
     signer
   ).deploy(uniswapFactory.address, weth, tokenDescriptor.address);
   return { uniswapFactory, uniswapNFTManager }

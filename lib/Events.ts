@@ -36,7 +36,7 @@ function cleanValue(v: unknown): any {
   return x;
 }
 
-function clean(r: ethers.utils.Result) {
+export function cleanResult(r: ethers.utils.Result) {
   const x: {[key: string]: any} = {};
   Object.entries(r).slice(r.length).forEach(([key, value]) => {
     if (value) {
@@ -55,7 +55,7 @@ export function getEvents(
   const logs = receipt.logs.filter((log) => log.address.toLowerCase() == contractAddress);
   const desc = logs.map((log) => eventContract.interface.parseLog(log));
   const events: {[key: string]: {[key: string]: any}} = {};
-  desc.forEach((desc) => { events[desc.name] = clean(desc.args); });
+  desc.forEach((desc) => { events[desc.name] = cleanResult(desc.args); });
   return events;
 };
 
