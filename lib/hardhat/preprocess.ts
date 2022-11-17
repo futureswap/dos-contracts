@@ -2,8 +2,8 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { checkDefined, checkState } from "../../lib/preconditions";
 import { exec } from "child_process";
 
-export const createStripFn = (
-  shouldStripFn: (hre: HardhatRuntimeEnvironment) => boolean
+export const preprocessCode = (
+  isLocalBuild: (hre: HardhatRuntimeEnvironment) => boolean
 ) => {
   let inStrip = false;
   let absolutePath = "";
@@ -41,7 +41,36 @@ export const createStripFn = (
   };
 
   return async (hre: HardhatRuntimeEnvironment) => {
-    if (!shouldStripFn(hre)) return undefined;
+    if (isLocalBuild(hre)) return undefined;
+    // We are building for deployment on external chains so we like
+    // to include the correct git hashes into the contracts.
+
+    // Make sure the repo is clean
+    if (await new Promise((resolve, reject) => 
+      exec('git status --porcelain"', (error, stdout, stderr) => {
+      if (error) reject(error);
+      return stdout;
+    })) !== "") {
+      throw new Error("Repo not clean");
+    }
+    // Make sure the repo is on master
+    if (await new Promise((resolve, reject) => 
+      exec('git rev-parse --abbrev-ref HEAD"', (error, stdout, stderr) => {
+      if (error) reject(error);
+      return stdout;
+    })) !== "master") {
+      throw new Error("Not on master");
+    }
+    /*
+    // Make sure the repo is synced with github
+    if (await new Promise((resolve, reject) => 
+      exec('git fetch origin master && git rev-parse --abbrev-ref HEAD"', (error, stdout, stderr) => {
+      if (error) reject(error);
+      return stdout;
+    })) !== "master") {
+      throw new Error("Not on master");
+    }
+    */
     if (gitCommitHash === undefined) {
       // TODO make sure for prod builds we build from clean master
       gitCommitHash = await new Promise((resolve, reject) => {

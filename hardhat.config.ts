@@ -4,16 +4,28 @@ import "@nomicfoundation/hardhat-toolbox";
 
 import { config as dotEnvConfig } from "dotenv";
 
-import { createStripFn } from "./lib/hardhat/removeStripBlocks";
+import { preprocessCode } from "./lib/hardhat/preprocess";
 
 dotEnvConfig({ path: "./.env" });
 
+// Account mnemonics and infura api keys should be stored in .env file
+// as to not expose them through github.
 const getEnvVariable = (varName: string) => {
   return process.env[varName] || "";
 };
 
 const TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
+
+// Mnemonic for futureswap work accounts these are individual for each
+// employee. These accounts carry real ETH for executing TX's but should
+// never carry to much and should have no special role in the system.
+// Employees should keep these accounts secure, but a compromise is not an issue.
+const PROD_MNEMONIC = getEnvVariable("PROD_MNEMONIC");
+// Mnemonic for futureswap work accounts on testnets. This one is just shared
+// among employees. This should be kept secret as well but obvious is not
+// important if compromised.
+const DEV_MNEMONIC = getEnvVariable("DEV_MNEMONIC");
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -76,37 +88,54 @@ const config: HardhatUserConfig = {
     },
     ethereum: {
       url: getEnvVariable("ETHEREUM_RPC_URL"),
-      chainId: Number(getEnvVariable("ETHEREUM_CHAINID")),
+      chainId: 1,
       // Can be used to override gas estimation. This is useful if
       // we want to speedup tx.
       // gasPrice: 30000000000,
       accounts: {
         count: 200,
-        mnemonic: getEnvVariable("PROD_MNEMONIC"),
+        mnemonic: PROD_MNEMONIC,
       },
     },
     goerli: {
-      url: getEnvVariable("GOERLI_RPC_URL"),
-      chainId: Number(getEnvVariable("GOERLI_CHAINID")),
+      url: "https://goerli.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+      chainId: 5,
       accounts: {
         count: 200,
-        mnemonic: getEnvVariable("DEV_MNEMONIC"),
+        mnemonic: DEV_MNEMONIC,
       },
     },
     arbitrum: {
-      url: getEnvVariable("ARBITRUM_RPC_URL"),
-      chainId: Number(getEnvVariable("ARBITRUM_CHAINID")),
+      url: "https://arb1.arbitrum.io/rpc",
+      chainId: 42161,
       accounts: {
         count: 200,
-        mnemonic: getEnvVariable("PROD_MNEMONIC"),
+        mnemonic: PROD_MNEMONIC,
+      },
+    },
+    arbitrum_goerli: {
+      url: "https://goerli-rollup.arbitrum.io/rpc",
+      chainId: 421613,
+      accounts: {
+        count: 200,
+        mnemonic: DEV_MNEMONIC,
       },
     },
     avalanche: {
-      url: getEnvVariable("AVALANCHE_RPC_URL"),
-      chainId: Number(getEnvVariable("AVALANCHE_CHAINID")),
+      url: "https://api.avax.network/ext/bc/C/rpc",
+      chainId: 43114,
       accounts: {
         count: 200,
-        mnemonic: getEnvVariable("PROD_MNEMONIC"),
+        mnemonic: PROD_MNEMONIC,
+      },
+      gasPrice: 60000000000,
+    },
+    fuji: {
+      url: "https://api.avax-test.network/ext/bc/C/rpc",
+      chainId: 43113,
+      accounts: {
+        count: 200,
+        mnemonic: DEV_MNEMONIC,
       },
       gasPrice: 60000000000,
     },
@@ -130,12 +159,8 @@ const config: HardhatUserConfig = {
 export default {
   ...config,
   preprocess: {
-    eachLine: createStripFn((hre: HardhatRuntimeEnvironment) => {
-      return (
-        hre.network.name !== "hardhat" &&
-        hre.network.name !== "localhost" &&
-        hre.network.name !== "etheno"
-      );
+    eachLine: preprocessCode((hre: HardhatRuntimeEnvironment) => {
+      return hre.network.name === "hardhat" || hre.network.name === "localhost";
     }),
   },
 };
