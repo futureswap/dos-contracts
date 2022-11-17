@@ -14,8 +14,8 @@ import {
   TestNFT__factory,
   MockNFTOracle__factory,
 } from "../../typechain-types";
-import { toWei } from "../utils/Numbers";
-import { getEventParams } from "../utils/Events";
+import { toWei } from "../../lib/Numbers";
+import { getEventParams } from "../../lib/Events";
 import { BigNumber, Contract, Signer } from "ethers";
 
 describe("DOS", function () {
