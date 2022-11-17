@@ -7,7 +7,10 @@ import {
 } from "../../typechain-types";
 import { toWei } from "../../lib/Numbers";
 import { getEventsTx } from "../../lib/Events";
-import { deployUniswapFactory, deployUniswapPool } from "../../lib/deploy_uniswap";
+import {
+  deployUniswapFactory,
+  deployUniswapPool,
+} from "../../lib/deploy_uniswap";
 import { expect } from "chai";
 import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 
@@ -16,7 +19,10 @@ describe("UniswapOracle", function () {
     const [owner] = await ethers.getSigners();
 
     const weth = await new WETH9__factory(owner).deploy();
-    const { uniswapFactory, uniswapNFTManager } = await deployUniswapFactory(weth.address, owner);
+    const { uniswapFactory, uniswapNFTManager } = await deployUniswapFactory(
+      weth.address,
+      owner
+    );
 
     let token0 = await new TestERC20__factory(owner).deploy("USDC", "USDC", 6);
     let token1 = await new TestERC20__factory(owner).deploy("UNI", "UNI", 18);
@@ -31,7 +37,12 @@ describe("UniswapOracle", function () {
     assetValueOracle0.setPrice(toWei(100));
     assetValueOracle1.setPrice(toWei(1));
 
-    const pool = deployUniswapPool(uniswapFactory, token0.address, token1.address, 100);
+    const pool = deployUniswapPool(
+      uniswapFactory,
+      token0.address,
+      token1.address,
+      100
+    );
 
     const uniOracle = await new UniV3Oracle__factory(owner).deploy(
       uniswapFactory.address,
@@ -56,8 +67,14 @@ describe("UniswapOracle", function () {
 
       await token0.mint(owner.address, toWei(10));
       await token1.mint(owner.address, toWei(1000));
-      await token0.approve(uniswapNFTManager.address, ethers.constants.MaxUint256);
-      await token1.approve(uniswapNFTManager.address, ethers.constants.MaxUint256);
+      await token0.approve(
+        uniswapNFTManager.address,
+        ethers.constants.MaxUint256
+      );
+      await token1.approve(
+        uniswapNFTManager.address,
+        ethers.constants.MaxUint256
+      );
       {
         const mintParams = {
           token0: token0.address,
