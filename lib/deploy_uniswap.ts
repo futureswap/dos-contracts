@@ -4,7 +4,13 @@ import tokenPosDescJSON from "@uniswap/v3-periphery/artifacts/contracts/Nonfungi
 import nftDescJSON from "@uniswap/v3-periphery/artifacts/contracts/libraries/NFTDescriptor.sol/NFTDescriptor.json";
 import uniswapPoolJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
 
-import { ContractFactory, BigNumberish, Contract, Signer, ethers } from "ethers";
+import {
+  ContractFactory,
+  BigNumberish,
+  Contract,
+  Signer,
+  ethers,
+} from "ethers";
 import { cleanResult, getEventParams } from "./Events";
 
 export async function deployUniswapPool(
@@ -74,10 +80,15 @@ export async function deployUniswapFactory(weth: string, signer: Signer) {
     uniNFTManager.bytecode,
     signer
   ).deploy(uniswapFactory.address, weth, tokenDescriptor.address);
-  return { uniswapFactory, uniswapNFTManager }
+  return { uniswapFactory, uniswapNFTManager };
 }
 
-export async function provideLiquidity(uniswapNFTManager: Contract, uniswapPool: Contract, amount0Desired: bigint, amount1Desired: bigint) {
+export async function provideLiquidity(
+  uniswapNFTManager: Contract,
+  uniswapPool: Contract,
+  amount0Desired: bigint,
+  amount1Desired: bigint
+) {
   const token0 = await uniswapPool.token0();
   const token1 = await uniswapPool.token1();
   const fee = await uniswapPool.fee();
@@ -100,5 +111,10 @@ export async function provideLiquidity(uniswapNFTManager: Contract, uniswapPool:
     uniswapNFTManager,
     "IncreaseLiquidity"
   );
-  return { tokenId: tokenId.toBigInt() as bigint, liquidity: liquidity.toBigInt() as bigint, amount0: amount0.toBigInt() as bigint, amount1: amount1.toBigInt() as bigint };
+  return {
+    tokenId: tokenId.toBigInt() as bigint,
+    liquidity: liquidity.toBigInt() as bigint,
+    amount0: amount0.toBigInt() as bigint,
+    amount1: amount1.toBigInt() as bigint,
+  };
 }
