@@ -63,7 +63,7 @@ export const preprocessCode = (
           if (error) reject(error);
           resolve(stdout);
         })
-      )) !== "master"
+      )) !== "master\n"
     ) {
       throw new Error("Not on master");
     }
