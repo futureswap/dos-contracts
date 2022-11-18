@@ -30,19 +30,22 @@ export const getEventParams = async (
 function cleanValue(v: unknown): any {
   if (v === null || v === undefined) throw new Error("Null");
   if (v instanceof ethers.BigNumber) return v.toBigInt();
-  if (typeof(v) !== "object") return v;
-  let x: {[key: string]: any} = {};
-  Object.entries(v).forEach(([key, value]) => x[key] = cleanValue(value));
+  if (typeof v !== "object") return v;
+  let x: { [key: string]: any } = {};
+  Object.entries(v).forEach(([key, value]) => (x[key] = cleanValue(value)));
   return x;
 }
 
 export function cleanResult(r: ethers.utils.Result) {
-  const x: {[key: string]: any} = {};
-  Object.entries(r).slice(r.length).forEach(([key, value]) => {
-    if (value) {
-      x[key] = cleanValue(value); (value instanceof ethers.BigNumber) ? value.toBigInt() : value;
-    }
-  });
+  const x: { [key: string]: any } = {};
+  Object.entries(r)
+    .slice(r.length)
+    .forEach(([key, value]) => {
+      if (value) {
+        x[key] = cleanValue(value);
+        value instanceof ethers.BigNumber ? value.toBigInt() : value;
+      }
+    });
   return x;
 }
 
@@ -52,12 +55,16 @@ export function getEvents(
   contractAddress?: string
 ) {
   contractAddress = (contractAddress || eventContract.address).toLowerCase();
-  const logs = receipt.logs.filter((log) => log.address.toLowerCase() == contractAddress);
+  const logs = receipt.logs.filter(
+    (log) => log.address.toLowerCase() == contractAddress
+  );
   const desc = logs.map((log) => eventContract.interface.parseLog(log));
-  const events: {[key: string]: {[key: string]: any}} = {};
-  desc.forEach((desc) => { events[desc.name] = cleanResult(desc.args); });
+  const events: { [key: string]: { [key: string]: any } } = {};
+  desc.forEach((desc) => {
+    events[desc.name] = cleanResult(desc.args);
+  });
   return events;
-};
+}
 
 export async function getEventsTx(
   tx: Promise<ContractTransaction>,
@@ -65,7 +72,7 @@ export async function getEventsTx(
   contractAddress?: string
 ) {
   return getEvents(await (await tx).wait(), eventContract, contractAddress);
-};
+}
 
 const filterLogsWithTopics = (
   logs: ethers.providers.Log[],

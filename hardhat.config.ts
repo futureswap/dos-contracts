@@ -1,5 +1,6 @@
 import { HardhatUserConfig } from "hardhat/config";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
+import "hardhat-preprocessor";
 import "@nomicfoundation/hardhat-toolbox";
 
 import { config as dotEnvConfig } from "dotenv";
