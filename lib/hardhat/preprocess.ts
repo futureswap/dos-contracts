@@ -67,7 +67,7 @@ export const preprocessCode = (
     ) {
       throw new Error("Not on master");
     }
-    // Make sure the repo is synced with github
+    // Make sure the repo is pushed on github
     if (
       (await new Promise((resolve, reject) =>
         exec(
