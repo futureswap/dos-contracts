@@ -71,44 +71,49 @@ library PortfolioLib {
         p.bitmask[idx >> 8] |= (1 << (idx & 255));
     }
 
-    function extractPosition(Shares storage p, AssetShare shares) internal returns (int256 asset) {
-        asset = computeAsset(p, shares);
-        p.totalAsset -= asset;
-        p.totalShares -= AssetShare.unwrap(shares);
+    function extractPosition(
+        Shares storage balance,
+        AssetShare sharesAmount
+    ) internal returns (int256 assetAmount) {
+        assetAmount = computeAsset(balance, sharesAmount);
+        balance.totalAsset -= assetAmount;
+        balance.totalShares -= AssetShare.unwrap(sharesAmount);
     }
 
-    function insertPosition(Shares storage p, int256 asset) internal returns (AssetShare) {
-        int256 shares;
-        if (p.totalShares == 0) {
-            FsUtils.Assert(p.totalAsset == 0);
-            shares = asset;
+    function insertPosition(
+        Shares storage balance,
+        int256 assetAmount
+    ) internal returns (AssetShare) {
+        int256 sharesAmount;
+        if (balance.totalShares == 0) {
+            FsUtils.Assert(balance.totalAsset == 0);
+            sharesAmount = assetAmount;
         } else {
-            shares = (p.totalShares * asset) / p.totalAsset;
+            sharesAmount = (balance.totalShares * assetAmount) / balance.totalAsset;
         }
-        p.totalAsset += asset;
-        p.totalShares += shares;
-        return AssetShare.wrap(shares);
+        balance.totalAsset += assetAmount;
+        balance.totalShares += sharesAmount;
+        return AssetShare.wrap(sharesAmount);
     }
 
     function extractNft(
         Portfolio storage p,
         uint256 nftPortfolioIdx
-    ) internal returns (NFT storage) {
+    ) internal returns (NFT memory) {
         FsUtils.Assert(nftPortfolioIdx < p.nfts.length);
-        NFT storage extractedNft = p.nfts[nftPortfolioIdx];
+        NFT memory extractedNft = p.nfts[nftPortfolioIdx];
 
         if (nftPortfolioIdx == p.nfts.length - 1) {
             p.nfts.pop();
-            p.nftPortfolioIdxs[extractedNft.nftContract][extractedNft.tokenId] = 0;
         } else {
             p.nfts[nftPortfolioIdx] = p.nfts[p.nfts.length - 1];
             p.nfts.pop();
-            p.nftPortfolioIdxs[extractedNft.nftContract][extractedNft.tokenId] = 0;
 
             NFT storage movedNft = p.nfts[nftPortfolioIdx];
             // `+ 1` below is to avoid setting 0 "no value" for an actual member of p.nfts array
             p.nftPortfolioIdxs[movedNft.nftContract][movedNft.tokenId] = nftPortfolioIdx + 1;
         }
+        delete p.nftPortfolioIdxs[extractedNft.nftContract][extractedNft.tokenId];
 
         return extractedNft;
     }
@@ -122,13 +127,13 @@ library PortfolioLib {
     }
 
     function computeAsset(
-        Shares storage p,
-        AssetShare shares
-    ) internal view returns (int256 asset) {
-        int256 s = AssetShare.unwrap(shares);
-        if (s == 0) return 0;
-        FsUtils.Assert(p.totalShares != 0);
-        return (p.totalAsset * s) / p.totalShares;
+        Shares storage balance,
+        AssetShare sharesAmountWrapped
+    ) internal view returns (int256 assetAmount) {
+        int256 sharesAmount = AssetShare.unwrap(sharesAmountWrapped);
+        if (sharesAmount == 0) return 0;
+        FsUtils.Assert(balance.totalShares != 0);
+        return (balance.totalAsset * sharesAmount) / balance.totalShares;
     }
 }
 
@@ -212,7 +217,12 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
 
     function computePosition(
         address portfolio
-    ) public view returns (int256 totalValue, int256 collateral, int256 debt) {
+    )
+        public
+        view
+        portfolioExists(portfolio)
+        returns (int256 totalValue, int256 collateral, int256 debt)
+    {
         Portfolio storage p = portfolios[portfolio];
         AssetIdx[] memory assetIndices = p.getAssets();
         totalValue = 0;
@@ -298,8 +308,11 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         p.extractNft(nftPortfolioIdx);
     }
 
-    function transfer(AssetIdx asset, address to, uint256 amount) external onlyPortfolio {
-        require(portfolios[to].owner != address(0), "Invalid receiver");
+    function transfer(
+        AssetIdx asset,
+        address to,
+        uint256 amount
+    ) external onlyPortfolio portfolioExists(to) {
         if (amount == 0) return;
         transferAsset(asset, msg.sender, to, FsMath.safeCastToSigned(amount));
     }
@@ -320,7 +333,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     }
 
     function transferNft(uint256 nftPortfolioIdx, address from, address to) internal {
-        NFT storage nft = portfolios[from].extractNft(nftPortfolioIdx);
+        NFT memory nft = portfolios[from].extractNft(nftPortfolioIdx);
         portfolios[to].insertNft(nft);
     }
 
@@ -349,13 +362,13 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         return asset;
     }
 
-    function liquidate(address portfolio) external onlyPortfolio {
+    function liquidate(address portfolio) external onlyPortfolio portfolioExists(portfolio) {
         (int256 totalValue, int256 collateral, int256 debt) = computePosition(portfolio);
         require(collateral < debt, "Portfolio is not liquidatable");
         AssetIdx[] memory portfolioAssets = portfolios[portfolio].getAssets();
         for (uint256 i = 0; i < portfolioAssets.length; i++) {
-            AssetIdx assetId = portfolioAssets[i];
-            transferAllAsset(assetId, portfolio, msg.sender);
+            AssetIdx assetIdx = portfolioAssets[i];
+            transferAllAsset(assetIdx, portfolio, msg.sender);
         }
         if (portfolios[portfolio].nfts.length > 0) {
             // traversing nfts array backwards because transferNft modifies it (extracting elements)

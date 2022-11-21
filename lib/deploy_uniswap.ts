@@ -11,7 +11,7 @@ import {
   Signer,
   ethers,
 } from "ethers";
-import { cleanResult, getEventParams } from "./Events";
+import { getEventParams } from "./Events";
 
 export async function deployUniswapPool(
   uniswapFactory: Contract,
@@ -19,8 +19,6 @@ export async function deployUniswapPool(
   token1: string,
   price: number
 ) {
-  if (BigInt(token1) < BigInt(token0)) [token0, token1] = [token1, token0];
-
   const feeTier: {
     fee: BigNumberish;
     tickSpacing?: BigNumberish;
@@ -84,6 +82,7 @@ export async function deployUniswapFactory(weth: string, signer: Signer) {
 }
 
 export async function provideLiquidity(
+  owner: { address: string },
   uniswapNFTManager: Contract,
   uniswapPool: Contract,
   amount0Desired: bigint,

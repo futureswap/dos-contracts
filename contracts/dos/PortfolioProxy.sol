@@ -3,6 +3,7 @@ pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/proxy/Proxy.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "../lib/FsUtils.sol";
 import "../interfaces/IDOS.sol";
 
@@ -42,7 +43,7 @@ contract PortfolioProxy is Proxy {
 
 // Calls to the contract not coming from DOS itself are routed to this logic
 // contract. This allows for flexible extra addition to your portfolio.
-contract PortfolioLogic {
+contract PortfolioLogic is IERC721Receiver {
     address public immutable dos;
 
     constructor(address _dos) {
@@ -61,5 +62,14 @@ contract PortfolioLogic {
 
     function executeBatch(IDOS.Call[] memory calls) external onlyOwner {
         IDOS(dos).executeBatch(calls);
+    }
+
+    function onERC721Received(
+        address /* operator */,
+        address /* from */,
+        uint256 /* tokenId */,
+        bytes memory /* data */
+    ) public virtual override returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 }

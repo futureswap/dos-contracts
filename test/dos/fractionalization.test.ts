@@ -4,7 +4,7 @@ import { expect } from "chai";
 import {
   DOS,
   DOS__factory,
-  MockValueOracle__factory,
+  MockAssetOracle__factory,
   PortfolioLogic__factory,
   TestERC20__factory,
   WETH9__factory,
@@ -13,7 +13,7 @@ import {
 } from "../../typechain-types";
 import { toWei } from "../../lib/Numbers";
 import { getEventParams } from "../../lib/Events";
-import { BigNumber, Contract, Signer } from "ethers";
+import { Signer } from "ethers";
 import { makeCallWithValue } from "../../lib/Calls";
 
 describe("Fractionalization", function () {
@@ -29,8 +29,8 @@ describe("Fractionalization", function () {
     const weth = await new WETH9__factory(owner).deploy();
     const nft = await new TestNFT__factory(owner).deploy();
 
-    const usdcOracle = await new MockValueOracle__factory(owner).deploy();
-    const wethOracle = await new MockValueOracle__factory(owner).deploy();
+    const usdcOracle = await new MockAssetOracle__factory(owner).deploy(18);
+    const wethOracle = await new MockAssetOracle__factory(owner).deploy(18);
 
     await usdcOracle.setPrice(toWei(1));
     await wethOracle.setPrice(toWei(100));
@@ -91,7 +91,7 @@ describe("Fractionalization", function () {
     return PortfolioLogic__factory.connect(portfolio as string, signer);
   }
 
-  const onehundredInWei = toWei(100, 6);
+  const oneHundredUsdc = toWei(100, 6);
 
   describe("Fractional Reserve Leverage tests", () => {
     it("Check fractional reserve after user borrows", async () => {
@@ -102,13 +102,13 @@ describe("Fractionalization", function () {
       //setup 1st user
       const portfolio1 = await CreatePortfolio(dos, user);
       expect(await portfolio1.owner()).to.equal(user.address);
-      await usdc.mint(portfolio1.address, onehundredInWei);
+      await usdc.mint(portfolio1.address, oneHundredUsdc);
       await portfolio1.executeBatch([
         makeCallWithValue(usdc, "approve", [
           dos.address,
           ethers.constants.MaxUint256,
         ]),
-        makeCallWithValue(dos, "depositAsset", [0, onehundredInWei]),
+        makeCallWithValue(dos, "depositAsset", [0, oneHundredUsdc]),
       ]); //deposits 100 USDC
 
       //setup 2nd user
@@ -146,13 +146,13 @@ describe("Fractionalization", function () {
       //setup first user
       const portfolio1 = await CreatePortfolio(dos, user);
       expect(await portfolio1.owner()).to.equal(user.address);
-      await usdc.mint(portfolio1.address, onehundredInWei);
+      await usdc.mint(portfolio1.address, oneHundredUsdc);
       await portfolio1.executeBatch([
         makeCallWithValue(usdc, "approve", [
           dos.address,
           ethers.constants.MaxUint256,
         ]),
-        makeCallWithValue(dos, "depositAsset", [0, onehundredInWei]),
+        makeCallWithValue(dos, "depositAsset", [0, oneHundredUsdc]),
       ]); //deposits 100 USDC
 
       //setup 2nd user
@@ -197,13 +197,13 @@ describe("Fractionalization", function () {
       //setup 1st user
       const portfolio1 = await CreatePortfolio(dos, user);
       expect(await portfolio1.owner()).to.equal(user.address);
-      await usdc.mint(portfolio1.address, onehundredInWei);
+      await usdc.mint(portfolio1.address, oneHundredUsdc);
       await portfolio1.executeBatch([
         makeCallWithValue(usdc, "approve", [
           dos.address,
           ethers.constants.MaxUint256,
         ]),
-        makeCallWithValue(dos, "depositAsset", [0, onehundredInWei]),
+        makeCallWithValue(dos, "depositAsset", [0, oneHundredUsdc]),
       ]); //deposits 100 USDC
 
       //setup 2nd user
