@@ -197,20 +197,19 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         return collateral >= debt;
     }
 
-   function isDosOverLeveraged() public view returns (bool) {        
-        int256 leverage = config.fractionalReserveLeverage;        
+    function isDosOverLeveraged() public view returns (bool) {
+        int256 leverage = config.fractionalReserveLeverage;
         for (uint256 i = 0; i < assetInfos.length; i++) {
             int256 totalDebt = assetInfos[i].debt.totalAsset;
             int256 reserve = assetInfos[i].collateral.totalAsset + totalDebt;
             FsUtils.Assert(
                 IERC20(assetInfos[i].assetContract).balanceOf(address(this)) >= uint256(reserve)
-            );   
-            bool isDosOverLev = reserve >= -totalDebt / leverage;                                 
-            if(!isDosOverLev) return false;                            
+            );
+            bool isDosOverLev = reserve >= -totalDebt / leverage;
+            if (!isDosOverLev) return false;
         }
-        return true;                
+        return true;
     }
-    
 
     function computePosition(
         address portfolio
@@ -253,7 +252,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     }
 
     // TODO @derek - add method for withdraw
-    
+
     function depositNft(
         address nftContract,
         uint256 tokenId
@@ -282,9 +281,9 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
     }
 
-    function claim(AssetIdx assetIdx, uint256 amount) external onlyPortfolio {        
+    function claim(AssetIdx assetIdx, uint256 amount) external onlyPortfolio {
         ERC20Info storage assetInfo = getERC20Info(assetIdx);
-        IDOSERC20(assetInfo.dosContract).burn(msg.sender, amount);        
+        IDOSERC20(assetInfo.dosContract).burn(msg.sender, amount);
         IERC20(assetInfo.assetContract).safeTransfer(msg.sender, amount);
         // TODO: require appropriate reserve
     }
@@ -537,7 +536,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
 
     function setConfig(Config calldata _config) external onlyOwner {
         config = _config;
-    }   
+    }
 
     function viewBalance(address portfolio, AssetIdx assetIdx) external view returns (int256) {
         // TODO(gerben) interest computation
