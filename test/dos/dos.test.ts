@@ -1,44 +1,64 @@
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { ethers } from "hardhat";
-import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
-import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
-import "@nomicfoundation/hardhat-chai-matchers";
-import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   DOS,
   DOS__factory,
-  MockValueOracle__factory,
+  MockAssetOracle__factory,
   PortfolioLogic__factory,
   TestERC20__factory,
   WETH9__factory,
   TestNFT__factory,
+  TestNFT2__factory,
   MockNFTOracle__factory,
+  PortfolioLogic,
+  TestNFT,
+  MockNFTOracle,
+  TestERC20,
+  WETH9,
 } from "../../typechain-types";
-import { toWei } from "../../lib/Numbers";
+import { toWei, toWeiUsdc } from "../../lib/Numbers";
 import { getEventParams } from "../../lib/Events";
-import { BigNumber, Contract, Signer } from "ethers";
+import { BigNumber, Signer } from "ethers";
 import { makeCallWithValue } from "../../lib/Calls";
+
+const USDC_DECIMALS = 6;
+const WETH_DECIMALS = 18;
+
+const tenThousandUsdc = toWeiUsdc(10_000);
+const oneEth = toWei(1);
 
 describe("DOS", function () {
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
   async function deployDOSFixture() {
-    const [owner, user, user2] = await ethers.getSigners();
+    const [owner, user, user2, user3] = await getFixedGasSigners(10_000_000);
 
     const usdc = await new TestERC20__factory(owner).deploy(
       "USD Coin",
       "USDC",
-      18
+      USDC_DECIMALS // 6
     );
+
     const weth = await new WETH9__factory(owner).deploy();
     const nft = await new TestNFT__factory(owner).deploy();
+    const unregisteredNft = await new TestNFT2__factory(owner).deploy();
 
-    const usdcOracle = await new MockValueOracle__factory(owner).deploy();
-    const wethOracle = await new MockValueOracle__factory(owner).deploy();
+    const usdcOracle = await new MockAssetOracle__factory(owner).deploy(
+      USDC_DECIMALS // 6
+    );
+    const wethOracle = await new MockAssetOracle__factory(owner).deploy(
+      WETH_DECIMALS // 18
+    );
 
-    await usdcOracle.setPrice(toWei(1));
-    await wethOracle.setPrice(2000 * 1000000);
+    await wethOracle.setPrice(toWei(1)); // 1, because 1 WETH == 1 ETH
+    const setEthPriceInUsdc = async (price: number) =>
+      await usdcOracle.setPrice(toWei(1 / price));
+    const usdcToWei = async (usdcAmount: number) =>
+      (toWei(usdcAmount) * (await usdcOracle.price()).toBigInt()) / 10n ** 18n;
+    await setEthPriceInUsdc(2_000);
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();
 
@@ -54,424 +74,720 @@ describe("DOS", function () {
       fractionalReserveLeverage: 9,
     });
 
-    // No interest which would include time sensitive calculations
-    await dos.addERC20Asset(
-      usdc.address,
-      "USD Coin",
-      "USDC",
-      6,
-      usdcOracle.address,
-      toWei(0.9),
-      toWei(0.9),
-      0
-    );
     await dos.addERC20Asset(
       weth.address,
       "Wrapped ETH",
       "WETH",
-      18,
+      WETH_DECIMALS, // 18
       wethOracle.address,
       toWei(0.9),
       toWei(0.9),
-      0
+      0 // No interest which would include time sensitive calculations
     );
+    const wethAssetIdx = 0; // index of the element created above in DOS.assetsInfo array
+
+    await dos.addERC20Asset(
+      usdc.address,
+      "USD Coin",
+      "USDC",
+      USDC_DECIMALS, // 6
+      usdcOracle.address,
+      toWei(0.9),
+      toWei(0.9),
+      0 // No interest which would include time sensitive calculations
+    );
+    const usdcAssetIdx = 1; // index of the element created above in DOS.assetsInfo array
+
+    await dos.addNftInfo(nft.address, nftOracle.address, toWei(0.5));
 
     return {
       owner,
       user,
       user2,
+      user3, // default provided by hardhat users (signers)
       usdc,
-      weth,
       usdcOracle,
+      usdcAssetIdx, // usdc asset
+      weth,
       wethOracle,
+      wethAssetIdx, // weth asset
       nft,
-      nftOracle,
+      nftOracle, // some registered nft
+      unregisteredNft, // some unregistered nft
       dos,
+      setEthPriceInUsdc,
+      usdcToWei,
     };
   }
 
-  async function CreatePortfolio(dos: DOS, signer: Signer) {
-    const { portfolio } = await getEventParams(
-      await dos.connect(signer).createPortfolio(),
-      dos,
-      "PortfolioCreated"
-    );
-    return PortfolioLogic__factory.connect(portfolio as string, signer);
-  }
-
-  const tenthoushandUSD = toWei(10000, 6);
-
   describe("Dos tests", () => {
     it("User can create portfolio", async () => {
-      const { owner, user, dos } = await loadFixture(deployDOSFixture);
+      const { user, dos } = await loadFixture(deployDOSFixture);
 
       const portfolio = await CreatePortfolio(dos, user);
       expect(await portfolio.owner()).to.equal(user.address);
     });
 
     it("User can deposit money", async () => {
-      const { owner, user, dos, usdc } = await loadFixture(deployDOSFixture);
+      const { user, dos, usdc, usdcAssetIdx } = await loadFixture(
+        deployDOSFixture
+      );
       const portfolio = await CreatePortfolio(dos, user);
 
-      await usdc.mint(portfolio.address, tenthoushandUSD);
+      await depositAsset(dos, portfolio, usdc, usdcAssetIdx, tenThousandUsdc);
 
-      await portfolio.executeBatch([
-        makeCallWithValue(usdc, "approve", [
-          dos.address,
-          ethers.constants.MaxUint256,
-        ]),
-        makeCallWithValue(dos, "depositAsset", [0, tenthoushandUSD]),
-      ]);
-      expect(await usdc.balanceOf(dos.address)).to.equal(tenthoushandUSD);
-      expect(await dos.viewBalance(portfolio.address, 0)).to.equal(
-        tenthoushandUSD
+      expect((await getBalances(dos, portfolio)).usdc).to.equal(
+        tenThousandUsdc
       );
+      expect(await usdc.balanceOf(dos.address)).to.equal(tenThousandUsdc);
     });
 
     it("User can transfer money", async () => {
-      const { owner, user, user2, dos, usdc } = await loadFixture(
+      const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(
         deployDOSFixture
       );
-      const portfolio = await CreatePortfolio(dos, user);
-      const portfolio2 = await CreatePortfolio(dos, user2);
+      const sender = await CreatePortfolio(dos, user);
+      const receiver = await CreatePortfolio(dos, user2);
+      await depositAsset(dos, sender, usdc, usdcAssetIdx, tenThousandUsdc);
 
-      await usdc.mint(portfolio.address, tenthoushandUSD);
-
-      await portfolio.executeBatch([
-        makeCallWithValue(usdc, "approve", [
-          dos.address,
-          ethers.constants.MaxUint256,
-        ]),
-        makeCallWithValue(dos, "depositAsset", [0, tenthoushandUSD]),
+      await sender.executeBatch([
         makeCallWithValue(dos, "transfer", [
-          0,
-          portfolio2.address,
-          tenthoushandUSD,
+          usdcAssetIdx,
+          receiver.address,
+          tenThousandUsdc,
         ]),
       ]);
-      expect(await dos.viewBalance(portfolio.address, 0)).to.equal(toWei(0));
-      expect(await dos.viewBalance(portfolio2.address, 0)).to.equal(
-        tenthoushandUSD
-      );
+
+      expect((await getBalances(dos, sender)).usdc).to.equal(0);
+      expect((await getBalances(dos, receiver)).usdc).to.equal(tenThousandUsdc);
     });
 
     it("User can deposit and transfer money in arbitrary order", async () => {
-      const { owner, user, user2, dos, usdc } = await loadFixture(
+      const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(
         deployDOSFixture
       );
-      const portfolio = await CreatePortfolio(dos, user);
-      const portfolio2 = await CreatePortfolio(dos, user2);
+      const sender = await CreatePortfolio(dos, user);
+      const receiver = await CreatePortfolio(dos, user2);
+      await usdc.mint(sender.address, tenThousandUsdc);
 
-      await usdc.mint(portfolio.address, tenthoushandUSD);
-
-      await portfolio.executeBatch([
+      await sender.executeBatch([
         makeCallWithValue(usdc, "approve", [
           dos.address,
           ethers.constants.MaxUint256,
         ]),
         makeCallWithValue(dos, "transfer", [
-          0,
-          portfolio2.address,
-          tenthoushandUSD,
+          usdcAssetIdx,
+          receiver.address,
+          tenThousandUsdc,
         ]),
-        makeCallWithValue(dos, "depositAsset", [0, tenthoushandUSD]),
+        makeCallWithValue(dos, "depositAsset", [usdcAssetIdx, tenThousandUsdc]),
       ]);
-      expect(await dos.viewBalance(portfolio.address, 0)).to.equal(0n);
-      expect(await dos.viewBalance(portfolio2.address, 0)).to.equal(
-        tenthoushandUSD
-      );
+
+      expect((await getBalances(dos, sender)).usdc).to.equal(0);
+      expect((await getBalances(dos, receiver)).usdc).to.equal(tenThousandUsdc);
     });
 
     it("User cannot send more then they own", async () => {
-      const { owner, user, user2, dos, usdc } = await loadFixture(
+      const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(
         deployDOSFixture
       );
-      const portfolio = await CreatePortfolio(dos, user);
-      const portfolio2 = await CreatePortfolio(dos, user2);
+      const sender = await CreatePortfolio(dos, user);
+      const receiver = await CreatePortfolio(dos, user2);
+      await depositAsset(dos, sender, usdc, usdcAssetIdx, toWeiUsdc(10_000));
 
-      await usdc.mint(portfolio.address, tenthoushandUSD);
+      const transferTx = sender.executeBatch([
+        makeCallWithValue(dos, "transfer", [
+          usdcAssetIdx,
+          receiver.address,
+          toWeiUsdc(20_000),
+        ]),
+      ]);
 
-      await expect(
-        portfolio.executeBatch([
-          makeCallWithValue(usdc, "approve", [
-            dos.address,
-            ethers.constants.MaxUint256,
-          ]),
-          makeCallWithValue(dos, "transfer", [
-            0,
-            portfolio2.address,
-            tenthoushandUSD + tenthoushandUSD,
-          ]),
-          makeCallWithValue(dos, "depositAsset", [0, tenthoushandUSD]),
-        ])
-      ).to.be.revertedWith("Result of operation is not sufficient liquid");
+      await expect(transferTx).to.be.revertedWith(
+        "Result of operation is not sufficient liquid"
+      );
     });
 
     it("User can send more asset then they have", async () => {
-      const { owner, user, user2, dos, usdc, weth } = await loadFixture(
+      const { user, user2, dos, usdc, weth, wethAssetIdx, usdcAssetIdx } =
+        await loadFixture(deployDOSFixture);
+      const sender = await CreatePortfolio(dos, user);
+      await depositAsset(dos, sender, usdc, usdcAssetIdx, tenThousandUsdc);
+      const receiver = await CreatePortfolio(dos, user2);
+      // Put weth in system so we can borrow weth
+      const someOther = await CreatePortfolio(dos, user);
+      await depositAsset(dos, someOther, weth, wethAssetIdx, toWei(2));
+
+      await sender.executeBatch([
+        makeCallWithValue(dos, "transfer", [
+          wethAssetIdx,
+          receiver.address,
+          oneEth,
+        ]),
+      ]);
+
+      const senderBalances = await getBalances(dos, sender);
+      const receiverBalances = await getBalances(dos, receiver);
+      expect(senderBalances.usdc).to.equal(tenThousandUsdc);
+      expect(senderBalances.weth).to.equal(-oneEth);
+      expect(receiverBalances.usdc).to.equal(0);
+      expect(receiverBalances.weth).to.equal(oneEth);
+    });
+
+    it("Non-solvent position can be liquidated", async () => {
+      // prettier-ignore
+      const {
+        user, user2,
+        dos,
+        usdc, usdcAssetIdx,
+        weth, wethAssetIdx,
+        usdcToWei, setEthPriceInUsdc
+      } = await loadFixture(deployDOSFixture);
+      const liquidatable = await CreatePortfolio(dos, user);
+      await depositAsset(
+        dos,
+        liquidatable,
+        usdc,
+        usdcAssetIdx,
+        tenThousandUsdc
+      );
+      const liquidator = await CreatePortfolio(dos, user2);
+      // ensure that liquidator would have enough collateral to compensate
+      // negative balance of collateral/debt obtained from liquidatable
+      await depositAsset(dos, liquidator, usdc, usdcAssetIdx, tenThousandUsdc);
+      // Put WETH in system so we can borrow weth
+      const someOther = await CreatePortfolio(dos, user);
+      await depositAsset(dos, someOther, weth, wethAssetIdx, toWei(2));
+      await setEthPriceInUsdc(2_000);
+
+      // generate a debt on liquidatable
+      await liquidatable.executeBatch([
+        makeCallWithValue(dos, "transfer", [
+          wethAssetIdx,
+          someOther.address,
+          oneEth,
+        ]),
+      ]);
+      // make liquidatable debt overcome collateral. Now it can be liquidated
+      await setEthPriceInUsdc(9_000);
+      await liquidator.executeBatch([
+        makeCallWithValue(dos, "liquidate", [liquidatable.address]),
+      ]);
+
+      const liquidatableBalances = await getBalances(dos, liquidatable);
+      const liquidatorBalances = await getBalances(dos, liquidator);
+      // 10_000 - balance in USDC; 9_000 - debt of 1 ETH; 0.8 - liqFraction
+      const liquidationOddMoney = await usdcToWei((10_000 - 9_000) * 0.8); // 800 USDC in ETH
+      expect(liquidatableBalances.usdc).to.equal(0);
+      expect(liquidatableBalances.weth).to.be.approximately(
+        liquidationOddMoney,
+        1000
+      );
+      expect(liquidatorBalances.usdc).to.equal(toWeiUsdc(20_000)); // own 10k + 10k of liquidatable
+      expect(liquidatorBalances.weth).to.be.approximately(
+        toWei(-1) - liquidationOddMoney,
+        1000
+      );
+    });
+
+    it("Solvent position can not be liquidated", async () => {
+      const { user, user2, dos, usdc, weth, usdcAssetIdx, wethAssetIdx } =
+        await loadFixture(deployDOSFixture);
+      const nonLiquidatable = await CreatePortfolio(dos, user);
+      const liquidator = await CreatePortfolio(dos, user2);
+      // Put WETH in system so we can borrow weth
+      const other = await CreatePortfolio(dos, user);
+      await depositAsset(dos, other, weth, wethAssetIdx, toWei(0.25));
+      await depositAsset(
+        dos,
+        nonLiquidatable,
+        usdc,
+        usdcAssetIdx,
+        tenThousandUsdc
+      );
+      await nonLiquidatable.executeBatch([
+        makeCallWithValue(dos, "transfer", [
+          wethAssetIdx,
+          other.address,
+          oneEth,
+        ]),
+      ]);
+
+      const liquidationTx = liquidator.executeBatch([
+        makeCallWithValue(dos, "liquidate", [nonLiquidatable.address]),
+      ]);
+
+      await expect(liquidationTx).to.be.revertedWith(
+        "Portfolio is not liquidatable"
+      );
+    });
+  });
+
+  describe("#computePosition", () => {
+    it("when portfolio doesn't exist should return 0", async () => {
+      const { dos } = await loadFixture(deployDOSFixture);
+      const nonPortfolioAddress = "0xb4A50D202ca799AA07d4E9FE11C2919e5dFe4220";
+
+      const computeTx = dos.computePosition(nonPortfolioAddress);
+
+      expect(computeTx).to.be.revertedWith("Recipient portfolio doesn't exist");
+    });
+
+    it("when portfolio is empty should return 0", async () => {
+      const { dos, user } = await loadFixture(deployDOSFixture);
+      const portfolio = await CreatePortfolio(dos, user);
+
+      const [totalValue, collateral, debt] = await dos.computePosition(
+        portfolio.address
+      );
+
+      expect(totalValue).to.equal(0);
+      expect(collateral).to.equal(0);
+      expect(debt).to.equal(0);
+    });
+
+    it("when portfolio has an asset should return the asset value", async () => {
+      const { dos, user, usdc, usdcAssetIdx, usdcToWei } = await loadFixture(
+        deployDOSFixture
+      );
+      const portfolio = await CreatePortfolio(dos, user);
+      await depositAsset(dos, portfolio, usdc, usdcAssetIdx, toWeiUsdc(10_000));
+
+      const position = await dos.computePosition(portfolio.address);
+
+      const [total, collateral, debt] = position;
+      expect(total).to.be.approximately(await usdcToWei(10_000), 1000);
+      // collateral factor is defined in setupDos, and it's 0.9
+      expect(collateral).to.be.approximately(await usdcToWei(9000), 1000);
+      expect(debt).to.equal(0);
+    });
+
+    it("when portfolio has multiple assets should return total assets value", async () => {
+      const { dos, user, usdc, weth, usdcAssetIdx, wethAssetIdx, usdcToWei } =
+        await loadFixture(deployDOSFixture);
+      const portfolio = await CreatePortfolio(dos, user);
+
+      await Promise.all([
+        depositAsset(dos, portfolio, usdc, usdcAssetIdx, toWeiUsdc(10_000)),
+        depositAsset(dos, portfolio, weth, wethAssetIdx, toWei(1)),
+      ]);
+
+      const position = await dos.computePosition(portfolio.address);
+      const [total, collateral, debt] = position;
+      expect(total).to.equal(await usdcToWei(12_000));
+      // collateral factor is defined in setupDos, and it's 0.9. 12 * 0.9 = 10.8
+      expect(collateral).to.be.approximately(await usdcToWei(10_800), 1000);
+      expect(debt).to.equal(0);
+    });
+
+    it("when portfolio has an NFT should return the NFT value", async () => {
+      const { dos, user, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const portfolio = await CreatePortfolio(dos, user);
+
+      await depositNft(dos, portfolio, nft, nftOracle, toWei(10));
+
+      const position = await dos.computePosition(portfolio.address);
+      const [total, collateral, debt] = position;
+      expect(total).to.equal(toWei(10));
+      // collateral factor is defined in setupDos, and it's 0.5
+      expect(collateral).to.equal(toWei(5));
+      expect(debt).to.equal(0);
+    });
+
+    it("when portfolio has a few NFTs should return the total NFTs value", async () => {
+      const { dos, user, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const portfolio = await CreatePortfolio(dos, user);
+
+      await Promise.all([
+        depositNft(dos, portfolio, nft, nftOracle, toWei(1)),
+        depositNft(dos, portfolio, nft, nftOracle, toWei(2)),
+        depositNft(dos, portfolio, nft, nftOracle, toWei(3)),
+      ]);
+
+      const position = await dos.computePosition(portfolio.address);
+      const [total, collateral, debt] = position;
+      expect(total).to.equal(toWei(6)); // 1 + 2 + 3
+      // collateral factor is defined in setupDos, and it's 0.5
+      expect(collateral).to.be.approximately(toWei(3), 1000);
+      expect(debt).to.equal(0);
+    });
+
+    it("when portfolio has assets and NFTs should return their total value", async () => {
+      const {
+        dos,
+        user,
+        usdc,
+        usdcAssetIdx,
+        weth,
+        wethAssetIdx,
+        nft,
+        nftOracle,
+      } = await loadFixture(deployDOSFixture);
+      const portfolio = await CreatePortfolio(dos, user);
+
+      await Promise.all([
+        depositNft(dos, portfolio, nft, nftOracle, toWei(1)),
+        depositNft(dos, portfolio, nft, nftOracle, toWei(2)),
+        depositNft(dos, portfolio, nft, nftOracle, toWei(3)),
+        depositAsset(dos, portfolio, usdc, usdcAssetIdx, toWeiUsdc(10_000)),
+        depositAsset(dos, portfolio, weth, wethAssetIdx, toWei(1)),
+      ]);
+
+      const position = await dos.computePosition(portfolio.address);
+      const [total, collateral, debt] = position;
+      expect(total).to.equal(toWei(12));
+      // collateral factor is defined in setupDos,
+      // and it's 0.5 for nft and 0.9 for assets.
+      expect(collateral).to.be.approximately(toWei(8.4), 1000);
+      expect(debt).to.equal(0);
+    });
+
+    it("tests with debt");
+  });
+
+  describe("#liquidate", () => {
+    it("when called directly on DOS should revert", async () => {
+      const { user, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const portfolio = await CreatePortfolio(dos, user);
+      await depositNft(dos, portfolio, nft, nftOracle);
+
+      const depositNftTx = dos.liquidate(portfolio.address);
+
+      await expect(depositNftTx).to.be.revertedWith(
+        "Only portfolio can execute"
+      );
+    });
+
+    it("when portfolio to liquidate doesn't exist should revert", async () => {
+      const { dos, user, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const portfolio = await CreatePortfolio(dos, user);
+      await depositNft(dos, portfolio, nft, nftOracle);
+      const nonPortfolioAddress = "0xb4A50D202ca799AA07d4E9FE11C2919e5dFe4220";
+
+      const liquidateTx = portfolio.executeBatch([
+        makeCallWithValue(dos, "liquidate", [nonPortfolioAddress]),
+      ]);
+
+      await expect(liquidateTx).to.be.revertedWith(
+        "Recipient portfolio doesn't exist"
+      );
+    });
+
+    it("when portfolio to liquidate is empty should revert");
+
+    it("when collateral is below debt should revert");
+
+    it("when collateral is equal to debt should revert");
+
+    it(
+      "when collateral is smaller then debt should transfer all assets and all NFTs of the portfolio to the caller"
+    );
+  });
+
+  describe("#depositNft", () => {
+    it(
+      "when user owns the NFT " +
+        "should change ownership of the NFT from the user to DOS " +
+        "and add NFT to the user DOS portfolio",
+      async () => {
+        const { user, dos, nft, nftOracle } = await loadFixture(
+          deployDOSFixture
+        );
+        const portfolio = await CreatePortfolio(dos, user);
+        const tokenId = await depositUserNft(dos, portfolio, nft, nftOracle);
+
+        expect(await nft.ownerOf(tokenId)).to.eql(dos.address);
+        const userNfts = await dos.viewNfts(portfolio.address);
+        expect(userNfts).to.eql([[nft.address, tokenId]]);
+      }
+    );
+
+    it(
+      "when portfolio owns the NFT " +
+        "should change ownership of the NFT from portfolio to DOS " +
+        "and add NFT to the user DOS portfolio",
+      async () => {
+        const { user, dos, nft, nftOracle } = await loadFixture(
+          deployDOSFixture
+        );
+        const portfolio = await CreatePortfolio(dos, user);
+
+        const tokenId = await depositNft(dos, portfolio, nft, nftOracle);
+
+        expect(await nft.ownerOf(tokenId)).to.eql(dos.address);
+        const userNfts = await dos.viewNfts(portfolio.address);
+        expect(userNfts).to.eql([[nft.address, tokenId]]);
+      }
+    );
+
+    it("when NFT contract is not registered should revert the deposit", async () => {
+      const { user, dos, unregisteredNft, nftOracle } = await loadFixture(
+        deployDOSFixture
+      );
+      const portfolio = await CreatePortfolio(dos, user);
+
+      const txRevert = depositNft(dos, portfolio, unregisteredNft, nftOracle);
+
+      await expect(txRevert).to.be.revertedWith(
+        "Cannot add NFT of unknown NFT contract"
+      );
+    });
+
+    it("when user is not an owner of NFT should revert the deposit", async () => {
+      const { user, user2, dos, nft, nftOracle } = await loadFixture(
         deployDOSFixture
       );
       const portfolio = await CreatePortfolio(dos, user);
       const portfolio2 = await CreatePortfolio(dos, user2);
+      const tokenId = await depositNft(dos, portfolio, nft, nftOracle);
 
-      await usdc.mint(portfolio.address, tenthoushandUSD);
-
-      // Put WETH in system so we can borrow weth
-      const portfolio3 = await CreatePortfolio(dos, user);
-      await weth.mint(portfolio3.address, toWei(0.25));
-      await portfolio3.executeBatch([
-        makeCallWithValue(weth, "approve", [
-          dos.address,
-          ethers.constants.MaxUint256,
-        ]),
-        makeCallWithValue(dos, "depositAsset", [1, toWei(0.25)]),
+      const depositNftTx = portfolio2.executeBatch([
+        makeCallWithValue(dos, "depositNft", [nft.address, tokenId]),
       ]);
 
-      const oneEth = toWei(1);
-
-      await portfolio.executeBatch([
-        makeCallWithValue(usdc, "approve", [
-          dos.address,
-          ethers.constants.MaxUint256,
-        ]),
-        makeCallWithValue(dos, "transfer", [1, portfolio2.address, oneEth]),
-        makeCallWithValue(dos, "depositAsset", [0, tenthoushandUSD]),
-      ]);
-      expect(await dos.viewBalance(portfolio.address, 0)).to.equal(
-        tenthoushandUSD
+      await expect(depositNftTx).to.be.revertedWith(
+        "NFT must be owned the the user or user's portfolio"
       );
-      expect(await dos.viewBalance(portfolio.address, 1)).to.equal(-oneEth);
-      expect(await dos.viewBalance(portfolio2.address, 0)).to.equal(0);
-      expect(await dos.viewBalance(portfolio2.address, 1)).to.equal(oneEth);
     });
 
-    it("Non-solvent position can be liquidated", async () => {
-      const { owner, user, user2, dos, usdc, weth, wethOracle } =
-        await loadFixture(deployDOSFixture);
-      const portfolio = await CreatePortfolio(dos, user);
-      const portfolio2 = await CreatePortfolio(dos, user2);
+    it("when called directly on DOS should revert the deposit", async () => {
+      const { user, dos, nft } = await loadFixture(deployDOSFixture);
+      const mintTx = await nft.mint(user.address);
+      const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
+      const tokenId = mintEventArgs[0] as BigNumber;
+      await (await nft.connect(user).approve(dos.address, tokenId)).wait();
 
-      // Put WETH in system so we can borrow weth
-      const portfolio3 = await CreatePortfolio(dos, user);
-      await weth.mint(portfolio3.address, toWei(0.25));
-      await portfolio3.executeBatch([
-        makeCallWithValue(weth, "approve", [
-          dos.address,
-          ethers.constants.MaxUint256,
-        ]),
-        makeCallWithValue(dos, "depositAsset", [1, toWei(0.25)]),
-      ]);
+      const depositNftTx = dos.depositNft(nft.address, tokenId);
 
-      await usdc.mint(portfolio.address, tenthoushandUSD);
-      const oneEth = toWei(1);
-
-      await portfolio.executeBatch([
-        makeCallWithValue(usdc, "approve", [
-          dos.address,
-          ethers.constants.MaxUint256,
-        ]),
-        makeCallWithValue(dos, "transfer", [1, portfolio2.address, oneEth]),
-        makeCallWithValue(dos, "depositAsset", [0, tenthoushandUSD]),
-      ]);
-      expect(await dos.viewBalance(portfolio.address, 0)).to.equal(
-        tenthoushandUSD
+      await expect(depositNftTx).to.be.revertedWith(
+        "Only portfolio can execute"
       );
-      expect(await dos.viewBalance(portfolio.address, 1)).to.equal(-oneEth);
-      expect(await dos.viewBalance(portfolio2.address, 0)).to.equal(0);
-      expect(await dos.viewBalance(portfolio2.address, 1)).to.equal(oneEth);
-
-      // Increase price of eth such that first portfolio is illiquid
-      await wethOracle.setPrice(9000 * 1000000);
-
-      await portfolio2.executeBatch([
-        makeCallWithValue(dos, "liquidate", [portfolio.address]),
-      ]);
-
-      expect(await dos.viewBalance(portfolio.address, 0)).to.equal(
-        toWei(800, 6)
-      );
-      expect(await dos.viewBalance(portfolio.address, 1)).to.equal(0);
-      expect(await dos.viewBalance(portfolio2.address, 0)).to.equal(
-        tenthoushandUSD - toWei(800, 6)
-      );
-      expect(await dos.viewBalance(portfolio2.address, 1)).to.equal(0);
-    });
-
-    it("Solvent position can be liquidated", async () => {
-      const { owner, user, user2, dos, usdc, weth, wethOracle } =
-        await loadFixture(deployDOSFixture);
-      const portfolio = await CreatePortfolio(dos, user);
-      const portfolio2 = await CreatePortfolio(dos, user2);
-
-      // Put WETH in system so we can borrow weth
-      const portfolio3 = await CreatePortfolio(dos, user);
-      await weth.mint(portfolio3.address, toWei(0.25));
-      await portfolio3.executeBatch([
-        makeCallWithValue(weth, "approve", [
-          dos.address,
-          ethers.constants.MaxUint256,
-        ]),
-        makeCallWithValue(dos, "depositAsset", [1, toWei(0.25)]),
-      ]);
-
-      await usdc.mint(portfolio.address, tenthoushandUSD);
-
-      const oneEth = toWei(1);
-
-      await portfolio.executeBatch([
-        makeCallWithValue(usdc, "approve", [
-          dos.address,
-          ethers.constants.MaxUint256,
-        ]),
-        makeCallWithValue(dos, "transfer", [1, portfolio2.address, oneEth]),
-        makeCallWithValue(dos, "depositAsset", [0, tenthoushandUSD]),
-      ]);
-      expect(await dos.viewBalance(portfolio.address, 0)).to.equal(
-        tenthoushandUSD
-      );
-      expect(await dos.viewBalance(portfolio.address, 1)).to.equal(-oneEth);
-      expect(await dos.viewBalance(portfolio2.address, 0)).to.equal(0);
-      expect(await dos.viewBalance(portfolio2.address, 1)).to.equal(oneEth);
-
-      await expect(
-        portfolio2.executeBatch([
-          makeCallWithValue(dos, "liquidate", [portfolio.address]),
-        ])
-      ).to.be.revertedWith("Portfolio is not liquidatable");
     });
   });
 
-  describe("NFT", () => {
-    describe("depositNft", () => {
-      it(
-        "when user owns the NFT " +
-          "should change ownership of the NFT from the user to DOS " +
-          "and add NFT to the user DOS portfolio",
-        async () => {
-          const { user, dos, nft, nftOracle } = await loadFixture(
-            deployDOSFixture
-          );
-          const portfolio = await CreatePortfolio(dos, user);
-          await (
-            await dos.addNftInfo(nft.address, nftOracle.address, toWei(0.5))
-          ).wait();
-          const mintTx = await nft.mint(user.address);
-          const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
-          const tokenId = mintEventArgs[0] as BigNumber;
-          await (await nft.connect(user).approve(dos.address, tokenId)).wait();
+  describe("#claimNft", () => {
+    it("when called not with portfolio should revert", async () => {
+      const { user, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const portfolio = await CreatePortfolio(dos, user);
+      const tokenId = await depositNft(dos, portfolio, nft, nftOracle);
 
-          const depositNftTx = await portfolio.executeBatch([
-            makeCallWithValue(dos, "depositNft", [nft.address, tokenId]),
-          ]);
-          await depositNftTx.wait();
+      const claimNftTx = dos.connect(user).claimNft(nft.address, tokenId);
 
-          expect(await nft.ownerOf(tokenId)).to.eql(dos.address);
-          const userNfts = await dos.viewNfts(portfolio.address);
-          expect(userNfts).to.eql([[nft.address, tokenId]]);
-        }
+      await expect(claimNftTx).to.be.revertedWith("Only portfolio can execute");
+    });
+
+    it("when user is not the owner of the deposited NFT should revert", async () => {
+      const { user, user2, dos, nft, nftOracle } = await loadFixture(
+        deployDOSFixture
       );
+      const ownerPortfolio = await CreatePortfolio(dos, user);
+      const tokenId = await depositNft(dos, ownerPortfolio, nft, nftOracle);
+      const nonOwnerPortfolio = await CreatePortfolio(dos, user2);
 
-      it(
-        "when portfolio owns the NFT " +
-          "should change ownership of the NFT from portfolio to DOS " +
-          "and add NFT to the user DOS portfolio",
-        async () => {
-          const { user, dos, nft, nftOracle } = await loadFixture(
-            deployDOSFixture
-          );
-          const portfolio = await CreatePortfolio(dos, user);
-          await (
-            await dos.addNftInfo(nft.address, nftOracle.address, toWei(0.5))
-          ).wait();
-          const mintTx = await nft.mint(portfolio.address);
-          const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
-          const tokenId = mintEventArgs[0] as BigNumber;
+      const claimNftTx = nonOwnerPortfolio.executeBatch([
+        makeCallWithValue(dos, "claimNft", [nft.address, tokenId]),
+      ]);
 
-          const depositNftTx = await portfolio.executeBatch([
-            makeCallWithValue(nft, "approve", [dos.address, tokenId]),
-            makeCallWithValue(dos, "depositNft", [nft.address, tokenId]),
-          ]);
-          await depositNftTx.wait();
-
-          expect(await nft.ownerOf(tokenId)).to.eql(dos.address);
-          const userNfts = await dos.viewNfts(portfolio.address);
-          expect(userNfts).to.eql([[nft.address, tokenId]]);
-        }
+      await expect(claimNftTx).to.be.revertedWith(
+        "NFT must be on the user's deposit"
       );
+    });
 
-      it("when NFT contract is not registered should revert the deposit", async () => {
-        const { user, dos, nft } = await loadFixture(deployDOSFixture);
-        const portfolio = await CreatePortfolio(dos, user);
-        const mintTx = await nft.mint(portfolio.address);
-        const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
-        const tokenId = mintEventArgs[0] as BigNumber;
-
-        const depositNftTx = portfolio.executeBatch([
-          makeCallWithValue(nft, "approve", [dos.address, tokenId]),
-          makeCallWithValue(dos, "depositNft", [nft.address, tokenId]),
-        ]);
-
-        await expect(depositNftTx).to.be.revertedWith(
-          "Cannot add NFT of unknown NFT contract"
-        );
-      });
-
-      it("when user is not an owner of NFT should revert the deposit", async () => {
-        const { user, user2, dos, nft, nftOracle } = await loadFixture(
-          deployDOSFixture
-        );
-        const portfolio = await CreatePortfolio(dos, user);
-        const portfolio2 = await CreatePortfolio(dos, user2);
-        await (
-          await dos.addNftInfo(nft.address, nftOracle.address, toWei(0.5))
-        ).wait();
-        const mintTx = await nft.mint(portfolio.address);
-        const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
-        const tokenId = mintEventArgs[0] as BigNumber;
-        const approveNftDepositTx = await portfolio.executeBatch([
-          makeCallWithValue(nft, "approve", [dos.address, tokenId]),
-        ]);
-        await approveNftDepositTx.wait();
-
-        const depositNftTx = portfolio2.executeBatch([
-          makeCallWithValue(dos, "depositNft", [nft.address, tokenId]),
-        ]);
-
-        await expect(depositNftTx).to.be.revertedWith(
-          "NFT must be owned the the user or user's portfolio"
-        );
-      });
-
-      it("when called directly on DOS should revert the deposit", async () => {
+    it(
+      "when user owns the deposited NFT " +
+        "should change ownership of the NFT from DOS to user's portfolio " +
+        "and remove NFT from the user DOS portfolio",
+      async () => {
         const { user, dos, nft, nftOracle } = await loadFixture(
           deployDOSFixture
         );
-        await (
-          await dos.addNftInfo(nft.address, nftOracle.address, toWei(0.5))
-        ).wait();
-        const mintTx = await nft.mint(user.address);
-        const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
-        const tokenId = mintEventArgs[0] as BigNumber;
-        await (await nft.connect(user).approve(dos.address, tokenId)).wait();
+        const portfolio = await CreatePortfolio(dos, user);
+        const tokenId = await depositNft(dos, portfolio, nft, nftOracle);
 
-        const depositNftTx = dos.depositNft(nft.address, tokenId);
+        const claimNftTx = await portfolio.executeBatch([
+          makeCallWithValue(dos, "claimNft", [nft.address, tokenId]),
+        ]);
+        await claimNftTx.wait();
 
-        await expect(depositNftTx).to.be.revertedWith(
-          "Only portfolio can execute"
-        );
-      });
+        await expect(await nft.ownerOf(tokenId)).to.eql(portfolio.address);
+        await expect(await dos.viewNfts(portfolio.address)).to.eql([]);
+      }
+    );
+  });
+
+  describe("#sendNft", () => {
+    it("when called not with portfolio should revert", async () => {
+      const { user, user2, dos, nft, nftOracle } = await loadFixture(
+        deployDOSFixture
+      );
+      const ownerPortfolio = await CreatePortfolio(dos, user);
+      const receiverPortfolio = await CreatePortfolio(dos, user2);
+      const tokenId = await depositNft(dos, ownerPortfolio, nft, nftOracle);
+
+      const sendNftTx = dos
+        .connect(user)
+        .sendNft(nft.address, tokenId, receiverPortfolio.address);
+
+      await expect(sendNftTx).to.be.revertedWith("Only portfolio can execute");
     });
 
-    describe("claimNft", () => {
-      it("when called not with portfolio should revert", async () => {});
-
-      it("when user is not the owner of the deposited NFT should revert");
-
-      it(
-        "when user owns the deposited NFT " +
-          "should change ownership of the NFT from DOS to user's portfolio " +
-          "and remove NFT from the user DOS portfolio"
+    it("when user is not the owner of the deposited NFT should revert", async () => {
+      const { user, user2, user3, dos, nft, nftOracle } = await loadFixture(
+        deployDOSFixture
       );
+      const ownerPortfolio = await CreatePortfolio(dos, user);
+      const nonOwnerPortfolio = await CreatePortfolio(dos, user2);
+      const receiverPortfolio = await CreatePortfolio(dos, user3);
+      const tokenId = await depositNft(dos, ownerPortfolio, nft, nftOracle);
+
+      const sendNftCall = makeCallWithValue(dos, "sendNft", [
+        nft.address,
+        tokenId,
+        receiverPortfolio.address,
+      ]);
+      const sendNftTx = nonOwnerPortfolio.executeBatch([sendNftCall]);
+
+      await expect(sendNftTx).to.be.revertedWith(
+        "NFT must be on the user's deposit"
+      );
+    });
+
+    it("when receiver is not a portfolio should revert", async () => {
+      const { user, user2, dos, nft, nftOracle } = await loadFixture(
+        deployDOSFixture
+      );
+      const ownerPortfolio = await CreatePortfolio(dos, user);
+      const tokenId = await depositNft(dos, ownerPortfolio, nft, nftOracle);
+
+      const sendNftTx = ownerPortfolio.executeBatch([
+        makeCallWithValue(dos, "sendNft", [
+          nft.address,
+          tokenId,
+          user2.address,
+        ]),
+      ]);
+
+      await expect(sendNftTx).to.be.revertedWith(
+        "Recipient portfolio doesn't exist"
+      );
+    });
+
+    it("when user owns the deposited NFT should be able to move the NFT to another portfolio", async () => {
+      const { user, user2, dos, nft, nftOracle } = await loadFixture(
+        deployDOSFixture
+      );
+      const senderPortfolio = await CreatePortfolio(dos, user);
+      const receiverPortfolio = await CreatePortfolio(dos, user2);
+      const tokenId = await depositNft(dos, senderPortfolio, nft, nftOracle);
+
+      const sendNftCall = makeCallWithValue(dos, "sendNft", [
+        nft.address,
+        tokenId,
+        receiverPortfolio.address,
+      ]);
+      const sendNftTx = await senderPortfolio.executeBatch([sendNftCall]);
+      await sendNftTx.wait();
+
+      await expect(await dos.viewNfts(senderPortfolio.address)).to.eql([]);
+      const receiverNfts = await dos.viewNfts(receiverPortfolio.address);
+      await expect(receiverNfts).to.eql([[nft.address, tokenId]]);
     });
   });
 });
+
+async function CreatePortfolio(dos: DOS, signer: Signer) {
+  const { portfolio } = await getEventParams(
+    await dos.connect(signer).createPortfolio(),
+    dos,
+    "PortfolioCreated"
+  );
+  return PortfolioLogic__factory.connect(portfolio as string, signer);
+}
+
+async function depositAsset(
+  dos: DOS,
+  portfolio: PortfolioLogic,
+  asset: TestERC20 | WETH9,
+  assetIdx: number,
+  amount: number | bigint
+) {
+  await asset.mint(portfolio.address, amount);
+
+  const depositTx = await portfolio.executeBatch([
+    makeCallWithValue(asset, "approve", [dos.address, amount]),
+    makeCallWithValue(dos, "depositAsset", [assetIdx, amount]),
+  ]);
+  await depositTx.wait();
+}
+
+async function depositNft(
+  dos: DOS,
+  portfolio: PortfolioLogic,
+  nft: TestNFT,
+  priceOracle: MockNFTOracle,
+  price: bigint = toWei(0.1)
+): Promise<BigNumber> {
+  const mintTx = await nft.mint(portfolio.address);
+  const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
+  const tokenId = mintEventArgs[0] as BigNumber;
+  await priceOracle.setPrice(tokenId, price);
+  const depositNftTx = await portfolio.executeBatch([
+    makeCallWithValue(nft, "approve", [dos.address, tokenId]),
+    makeCallWithValue(dos, "depositNft", [nft.address, tokenId]),
+  ]);
+  await depositNftTx.wait();
+  return tokenId;
+}
+
+// special case of depositNft function above.
+// Used only in one test to show that this scenario is supported.
+// In depositNft the NFT is minted to the portfolio and transferred from the
+//   portfolio to DOS.
+// In depositUserNft, nft is minted to the user and transferred from the user
+//   to DOS
+async function depositUserNft(
+  dos: DOS,
+  portfolio: PortfolioLogic,
+  nft: TestNFT,
+  priceOracle: MockNFTOracle,
+  price: bigint = toWei(0.1)
+): Promise<BigNumber> {
+  const user = portfolio.signer;
+  const mintTx = await nft.mint(await user.getAddress());
+  const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
+  const tokenId = mintEventArgs[0] as BigNumber;
+  await priceOracle.setPrice(tokenId, price);
+  await (await nft.connect(user).approve(dos.address, tokenId)).wait();
+  const depositNftTx = await portfolio.executeBatch([
+    makeCallWithValue(dos, "depositNft", [nft.address, tokenId]),
+  ]);
+  await depositNftTx.wait();
+  return tokenId;
+}
+
+async function getBalances(
+  dos: DOS,
+  portfolio: PortfolioLogic
+): Promise<{ usdc: BigNumber; weth: BigNumber }> {
+  const [weth, usdc] = await Promise.all([
+    dos.viewBalance(portfolio.address, 0),
+    dos.viewBalance(portfolio.address, 1),
+  ]);
+  return { usdc, weth };
+}
+
+// This fixes random tests crash with
+// "contract call run out of gas and made the transaction revert" error
+// and, as a side effect, speeds tests in 2-3 times!
+// https://github.com/NomicFoundation/hardhat/issues/1721
+export const getFixedGasSigners = async function (gasLimit: number) {
+  const signers: SignerWithAddress[] = await ethers.getSigners();
+  for (const signer of signers) {
+    const orig = signer.sendTransaction;
+    signer.sendTransaction = (transaction) => {
+      transaction.gasLimit = BigNumber.from(gasLimit.toString());
+      return orig.apply(signer, [transaction]);
+    };
+  }
+  return signers;
+};

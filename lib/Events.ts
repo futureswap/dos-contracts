@@ -44,12 +44,18 @@ export function getEvents(
   return events;
 }
 
-export async function getEventsTx(
+export async function getEventsTx<
+  Events extends { [key: string]: { [key: string]: any } } = any
+>(
   tx: Promise<ContractTransaction>,
   eventContract: Contract,
   contractAddress?: string
-) {
-  return getEvents(await (await tx).wait(), eventContract, contractAddress);
+): Promise<Events> {
+  return getEvents(
+    await (await tx).wait(),
+    eventContract,
+    contractAddress
+  ) as Events;
 }
 
 const filterLogsWithTopics = (

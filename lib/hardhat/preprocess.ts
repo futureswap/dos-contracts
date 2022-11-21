@@ -1,5 +1,5 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { checkDefined, checkState } from "../../lib/preconditions";
+import { checkDefined, checkState } from "../preconditions";
 import { exec } from "child_process";
 
 export const preprocessCode = (

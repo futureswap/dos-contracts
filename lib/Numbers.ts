@@ -31,6 +31,8 @@ export const toWei = (
   }
 };
 
+export const toWeiUsdc = (usdAmount: number): bigint => toWei(usdAmount, 6);
+
 const stringToWei = (value: string, decimals = 18) => {
   const s = utils.parseUnits(value, decimals).toString();
   return BigInt(s);
