@@ -18,8 +18,6 @@ describe("UniswapOracle", function () {
   async function deployUniswapFixture() {
     const [owner] = await ethers.getSigners();
 
-    console.log(await owner.getTransactionCount());
-
     const weth = await new WETH9__factory(owner).deploy();
     const { uniswapFactory, uniswapNFTManager } = await deployUniswapFactory(
       weth.address,
