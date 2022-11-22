@@ -197,18 +197,17 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         return collateral >= debt;
     }
 
-    function isDosOverLeveraged() public view returns (bool) {
+    function getMaximumWithdrawableOfAsset(uint256 i) public view returns (int256) {
         int256 leverage = config.fractionalReserveLeverage;
-        for (uint256 i = 0; i < assetInfos.length; i++) {
-            int256 totalDebt = assetInfos[i].debt.totalAsset;
-            int256 reserve = assetInfos[i].collateral.totalAsset + totalDebt;
-            FsUtils.Assert(
-                IERC20(assetInfos[i].assetContract).balanceOf(address(this)) >= uint256(reserve)
-            );
-            bool isDosOverLev = reserve >= -totalDebt / leverage;
-            if (!isDosOverLev) return false;
-        }
-        return true;
+        int256 totalAsset = assetInfos[i].collateral.totalAsset;
+
+        int256 minReserveAmount = totalAsset / (leverage + 1);
+        int256 totalDebt = assetInfos[i].debt.totalAsset;
+        int256 borrowable = assetInfos[i].collateral.totalAsset - minReserveAmount;
+
+        int256 remainingAssetToBorrow = borrowable + totalDebt;
+
+        return remainingAssetToBorrow;
     }
 
     function computePosition(
