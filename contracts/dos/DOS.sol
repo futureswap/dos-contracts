@@ -170,7 +170,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
 
     ERC20Info[] public assetInfos;
     mapping(address => NFTInfo) public nftInfos;
-    Config config;
+    Config public config;
 
     constructor(address governance) ImmutableOwnable(governance) {
         portfolioLogic = address(new PortfolioLogic(address(this)));
@@ -195,6 +195,19 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
         (, int256 collateral, int256 debt) = computePosition(portfolio);
         return collateral >= debt;
+    }
+
+    function getMaximumWithdrawableOfAsset(uint256 i) public view returns (int256) {
+        int256 leverage = config.fractionalReserveLeverage;
+        int256 totalAsset = assetInfos[i].collateral.totalAsset;
+
+        int256 minReserveAmount = totalAsset / (leverage + 1);
+        int256 totalDebt = assetInfos[i].debt.totalAsset;
+        int256 borrowable = assetInfos[i].collateral.totalAsset - minReserveAmount;
+
+        int256 remainingAssetToBorrow = borrowable + totalDebt;
+
+        return remainingAssetToBorrow;
     }
 
     function computePosition(
@@ -236,6 +249,8 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
             updateBalance(assetIdx, msg.sender, amount);
         }
     }
+
+    // TODO @derek - add method for withdraw
 
     function depositNft(
         address nftContract,
