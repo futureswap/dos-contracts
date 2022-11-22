@@ -2,6 +2,9 @@
 pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/utils/Address.sol";
+import "../lib/FsUtils.sol";
+import "../lib/ImmutableOwnable.sol";
+import "../tokens/VoteNFT.sol";
 
 // This is a proxy contract representing governance. This allows a fixed
 // ethereum address to be the indefinite owner of the system. This works
@@ -58,5 +61,38 @@ contract GovernanceProxy {
         require(msg.sender == address(this), "Only governance");
         emit NewGovernanceProposed(newGovernance);
         proposedGovernance = newGovernance;
+    }
+}
+
+contract Governance is ImmutableOwnable, IERC721Receiver {
+    HashNFT immutable voteNFT;
+    address public voting;
+
+    constructor(
+        address _governanceProxy,
+        address _voteNFT,
+        address _voting
+    ) ImmutableOwnable(_governanceProxy) {
+        voteNFT = HashNFT(FsUtils.nonNull(_voteNFT));
+        voting = FsUtils.nonNull(_voting);
+    }
+
+    function execute(uint256 nonce, GovernanceProxy.Call[] memory calls) external {
+        voteNFT.burnAsDigest(voting, nonce, keccak256(abi.encode(calls)));
+        GovernanceProxy(owner).execute(calls);
+    }
+
+    function transferVoting(address newVoting) external onlyOwner {
+        voting = newVoting;
+    }
+
+    function onERC721Received(
+        address /* operator */,
+        address /* from */,
+        uint256 /* tokenId */,
+        bytes calldata /* data */
+    ) external view override returns (bytes4) {
+        require(msg.sender == address(voteNFT), "only vote NFTs");
+        return this.onERC721Received.selector;
     }
 }
