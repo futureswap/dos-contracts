@@ -1,5 +1,5 @@
 import { Contract, ContractTransaction, ContractReceipt, ethers } from "ethers";
-import { MockValueOracle__factory } from "../../typechain-types";
+import { cleanResult } from "./Calls";
 
 export const getEventParams = async (
   tx: ContractTransaction | ContractReceipt,
@@ -26,28 +26,6 @@ export const getEventParams = async (
   return (eventContract.interface as ethers.utils.Interface).parseLog(event[0])
     .args;
 };
-
-function cleanValue(v: unknown): any {
-  if (v === null || v === undefined) throw new Error("Null");
-  if (v instanceof ethers.BigNumber) return v.toBigInt();
-  if (typeof v !== "object") return v;
-  let x: { [key: string]: any } = {};
-  Object.entries(v).forEach(([key, value]) => (x[key] = cleanValue(value)));
-  return x;
-}
-
-export function cleanResult(r: ethers.utils.Result) {
-  const x: { [key: string]: any } = {};
-  Object.entries(r)
-    .slice(r.length)
-    .forEach(([key, value]) => {
-      if (value) {
-        x[key] = cleanValue(value);
-        value instanceof ethers.BigNumber ? value.toBigInt() : value;
-      }
-    });
-  return x;
-}
 
 export function getEvents(
   receipt: ContractReceipt,

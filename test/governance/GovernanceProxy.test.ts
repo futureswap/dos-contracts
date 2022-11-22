@@ -4,64 +4,11 @@ import { expect } from "chai";
 import {
   GovernanceProxy__factory,
   Governance__factory,
-  Governance,
-  HashNFT,
   HashNFT__factory,
   BridgeNFT__factory,
 } from "../../typechain-types";
 import { getEventsTx } from "../../lib/Events";
-import { token } from "../../typechain-types/@openzeppelin/contracts";
-
-interface Call {
-  to: ethers.Contract;
-  func: string;
-  params: any[];
-}
-
-function makeCall(to: ethers.Contract, func: string, params: any[]): Call {
-  return { to, func, params };
-}
-
-function encodeParam(param: unknown): any {
-  if (typeof param === "object" && param !== null) {
-    if ("to" in param && "func" in param && "params" in param) {
-      return encodeCall(param as Call);
-    }
-    const l = Object.entries(param).map(
-      ([k, v]) => [k, encodeParam(v)] as [string, any]
-    );
-    return Object.fromEntries(l);
-  }
-  if (Array.isArray(param)) {
-    param.map(encodeParam);
-  }
-  return param;
-}
-
-function encodeCall(call: Call) {
-  const p = call.params.map((p) => encodeParam(p));
-  return {
-    to: call.to.address,
-    callData: call.to.interface.encodeFunctionData(call.func, p),
-  };
-}
-
-async function proposeAndExecute(
-  governance: Governance,
-  voteNFT: HashNFT,
-  calls: Call[]
-) {
-  const cd = calls.map(encodeCall);
-  const hash = ethers.utils.keccak256(
-    ethers.utils.defaultAbiCoder.encode(
-      ["tuple(address to, bytes callData)[]"],
-      [cd]
-    )
-  );
-  const nonce = await voteNFT.mintingNonce();
-  await voteNFT.mint(governance.address, hash);
-  return governance.execute(nonce, cd);
-}
+import { proposeAndExecute, makeCall } from "../../lib/Calls";
 
 describe("Governance test", function () {
   async function deployGovernanceProxyFixture() {
@@ -97,10 +44,11 @@ describe("Governance test", function () {
       voting.address
     );
     await governanceProxy.execute([
-      encodeCall(makeCall(voteNFT, "setBridgeNFT", [bridgeNFT.address, true])),
-      encodeCall(
-        makeCall(governanceProxy, "proposeGovernance", [governance.address])
-      ),
+      makeCall(governanceProxy, "proposeGovernance", [governance.address]),
+    ]);
+
+    await proposeAndExecute(governance, voteNFT, [
+      makeCall(voteNFT, "setBridgeNFT", [bridgeNFT.address, true]),
     ]);
 
     return {
