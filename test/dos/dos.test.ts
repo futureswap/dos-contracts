@@ -17,6 +17,7 @@ import {
 import { toWei } from "../../lib/Numbers";
 import { getEventParams } from "../../lib/Events";
 import { BigNumber, Contract, Signer } from "ethers";
+import { makeCallWithValue } from "../../lib/Calls";
 
 describe("DOS", function () {
   // We define a fixture to reuse the same setup in every test.
@@ -98,14 +99,6 @@ describe("DOS", function () {
     return PortfolioLogic__factory.connect(portfolio as string, signer);
   }
 
-  function createCall(c: Contract, funcName: string, params: any[]) {
-    return {
-      to: c.address,
-      callData: c.interface.encodeFunctionData(funcName, params),
-      value: 0,
-    };
-  }
-
   const tenthoushandUSD = toWei(10000, 6);
 
   describe("Dos tests", () => {
@@ -123,8 +116,11 @@ describe("DOS", function () {
       await usdc.mint(portfolio.address, tenthoushandUSD);
 
       await portfolio.executeBatch([
-        createCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "depositAsset", [0, tenthoushandUSD]),
+        makeCallWithValue(usdc, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "depositAsset", [0, tenthoushandUSD]),
       ]);
       expect(await usdc.balanceOf(dos.address)).to.equal(tenthoushandUSD);
       expect(await dos.viewBalance(portfolio.address, 0)).to.equal(
@@ -142,9 +138,16 @@ describe("DOS", function () {
       await usdc.mint(portfolio.address, tenthoushandUSD);
 
       await portfolio.executeBatch([
-        createCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "depositAsset", [0, tenthoushandUSD]),
-        createCall(dos, "transfer", [0, portfolio2.address, tenthoushandUSD]),
+        makeCallWithValue(usdc, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "depositAsset", [0, tenthoushandUSD]),
+        makeCallWithValue(dos, "transfer", [
+          0,
+          portfolio2.address,
+          tenthoushandUSD,
+        ]),
       ]);
       expect(await dos.viewBalance(portfolio.address, 0)).to.equal(toWei(0));
       expect(await dos.viewBalance(portfolio2.address, 0)).to.equal(
@@ -162,9 +165,16 @@ describe("DOS", function () {
       await usdc.mint(portfolio.address, tenthoushandUSD);
 
       await portfolio.executeBatch([
-        createCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "transfer", [0, portfolio2.address, tenthoushandUSD]),
-        createCall(dos, "depositAsset", [0, tenthoushandUSD]),
+        makeCallWithValue(usdc, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "transfer", [
+          0,
+          portfolio2.address,
+          tenthoushandUSD,
+        ]),
+        makeCallWithValue(dos, "depositAsset", [0, tenthoushandUSD]),
       ]);
       expect(await dos.viewBalance(portfolio.address, 0)).to.equal(0n);
       expect(await dos.viewBalance(portfolio2.address, 0)).to.equal(
@@ -183,16 +193,16 @@ describe("DOS", function () {
 
       await expect(
         portfolio.executeBatch([
-          createCall(usdc, "approve", [
+          makeCallWithValue(usdc, "approve", [
             dos.address,
             ethers.constants.MaxUint256,
           ]),
-          createCall(dos, "transfer", [
+          makeCallWithValue(dos, "transfer", [
             0,
             portfolio2.address,
             tenthoushandUSD + tenthoushandUSD,
           ]),
-          createCall(dos, "depositAsset", [0, tenthoushandUSD]),
+          makeCallWithValue(dos, "depositAsset", [0, tenthoushandUSD]),
         ])
       ).to.be.revertedWith("Result of operation is not sufficient liquid");
     });
@@ -210,16 +220,22 @@ describe("DOS", function () {
       const portfolio3 = await CreatePortfolio(dos, user);
       await weth.mint(portfolio3.address, toWei(0.25));
       await portfolio3.executeBatch([
-        createCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "depositAsset", [1, toWei(0.25)]),
+        makeCallWithValue(weth, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "depositAsset", [1, toWei(0.25)]),
       ]);
 
       const oneEth = toWei(1);
 
       await portfolio.executeBatch([
-        createCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "transfer", [1, portfolio2.address, oneEth]),
-        createCall(dos, "depositAsset", [0, tenthoushandUSD]),
+        makeCallWithValue(usdc, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "transfer", [1, portfolio2.address, oneEth]),
+        makeCallWithValue(dos, "depositAsset", [0, tenthoushandUSD]),
       ]);
       expect(await dos.viewBalance(portfolio.address, 0)).to.equal(
         tenthoushandUSD
@@ -239,17 +255,23 @@ describe("DOS", function () {
       const portfolio3 = await CreatePortfolio(dos, user);
       await weth.mint(portfolio3.address, toWei(0.25));
       await portfolio3.executeBatch([
-        createCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "depositAsset", [1, toWei(0.25)]),
+        makeCallWithValue(weth, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "depositAsset", [1, toWei(0.25)]),
       ]);
 
       await usdc.mint(portfolio.address, tenthoushandUSD);
       const oneEth = toWei(1);
 
       await portfolio.executeBatch([
-        createCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "transfer", [1, portfolio2.address, oneEth]),
-        createCall(dos, "depositAsset", [0, tenthoushandUSD]),
+        makeCallWithValue(usdc, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "transfer", [1, portfolio2.address, oneEth]),
+        makeCallWithValue(dos, "depositAsset", [0, tenthoushandUSD]),
       ]);
       expect(await dos.viewBalance(portfolio.address, 0)).to.equal(
         tenthoushandUSD
@@ -262,7 +284,7 @@ describe("DOS", function () {
       await wethOracle.setPrice(9000 * 1000000);
 
       await portfolio2.executeBatch([
-        createCall(dos, "liquidate", [portfolio.address]),
+        makeCallWithValue(dos, "liquidate", [portfolio.address]),
       ]);
 
       expect(await dos.viewBalance(portfolio.address, 0)).to.equal(
@@ -285,8 +307,11 @@ describe("DOS", function () {
       const portfolio3 = await CreatePortfolio(dos, user);
       await weth.mint(portfolio3.address, toWei(0.25));
       await portfolio3.executeBatch([
-        createCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "depositAsset", [1, toWei(0.25)]),
+        makeCallWithValue(weth, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "depositAsset", [1, toWei(0.25)]),
       ]);
 
       await usdc.mint(portfolio.address, tenthoushandUSD);
@@ -294,9 +319,12 @@ describe("DOS", function () {
       const oneEth = toWei(1);
 
       await portfolio.executeBatch([
-        createCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "transfer", [1, portfolio2.address, oneEth]),
-        createCall(dos, "depositAsset", [0, tenthoushandUSD]),
+        makeCallWithValue(usdc, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "transfer", [1, portfolio2.address, oneEth]),
+        makeCallWithValue(dos, "depositAsset", [0, tenthoushandUSD]),
       ]);
       expect(await dos.viewBalance(portfolio.address, 0)).to.equal(
         tenthoushandUSD
@@ -307,7 +335,7 @@ describe("DOS", function () {
 
       await expect(
         portfolio2.executeBatch([
-          createCall(dos, "liquidate", [portfolio.address]),
+          makeCallWithValue(dos, "liquidate", [portfolio.address]),
         ])
       ).to.be.revertedWith("Portfolio is not liquidatable");
     });
@@ -333,7 +361,7 @@ describe("DOS", function () {
           await (await nft.connect(user).approve(dos.address, tokenId)).wait();
 
           const depositNftTx = await portfolio.executeBatch([
-            createCall(dos, "depositNft", [nft.address, tokenId]),
+            makeCallWithValue(dos, "depositNft", [nft.address, tokenId]),
           ]);
           await depositNftTx.wait();
 
@@ -360,8 +388,8 @@ describe("DOS", function () {
           const tokenId = mintEventArgs[0] as BigNumber;
 
           const depositNftTx = await portfolio.executeBatch([
-            createCall(nft, "approve", [dos.address, tokenId]),
-            createCall(dos, "depositNft", [nft.address, tokenId]),
+            makeCallWithValue(nft, "approve", [dos.address, tokenId]),
+            makeCallWithValue(dos, "depositNft", [nft.address, tokenId]),
           ]);
           await depositNftTx.wait();
 
@@ -379,8 +407,8 @@ describe("DOS", function () {
         const tokenId = mintEventArgs[0] as BigNumber;
 
         const depositNftTx = portfolio.executeBatch([
-          createCall(nft, "approve", [dos.address, tokenId]),
-          createCall(dos, "depositNft", [nft.address, tokenId]),
+          makeCallWithValue(nft, "approve", [dos.address, tokenId]),
+          makeCallWithValue(dos, "depositNft", [nft.address, tokenId]),
         ]);
 
         await expect(depositNftTx).to.be.revertedWith(
@@ -401,12 +429,12 @@ describe("DOS", function () {
         const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
         const tokenId = mintEventArgs[0] as BigNumber;
         const approveNftDepositTx = await portfolio.executeBatch([
-          createCall(nft, "approve", [dos.address, tokenId]),
+          makeCallWithValue(nft, "approve", [dos.address, tokenId]),
         ]);
         await approveNftDepositTx.wait();
 
         const depositNftTx = portfolio2.executeBatch([
-          createCall(dos, "depositNft", [nft.address, tokenId]),
+          makeCallWithValue(dos, "depositNft", [nft.address, tokenId]),
         ]);
 
         await expect(depositNftTx).to.be.revertedWith(

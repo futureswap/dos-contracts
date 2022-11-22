@@ -14,6 +14,7 @@ import {
 import { toWei } from "../../lib/Numbers";
 import { getEventParams } from "../../lib/Events";
 import { BigNumber, Contract, Signer } from "ethers";
+import { makeCallWithValue } from "../../lib/Calls";
 
 describe("Fractionalization", function () {
   async function deployDOSFixture() {
@@ -90,14 +91,6 @@ describe("Fractionalization", function () {
     return PortfolioLogic__factory.connect(portfolio as string, signer);
   }
 
-  function createCall(c: Contract, funcName: string, params: any[]) {
-    return {
-      to: c.address,
-      callData: c.interface.encodeFunctionData(funcName, params),
-      value: 0,
-    };
-  }
-
   const onehundredInWei = toWei(100, 6);
 
   describe("Fractional Reserve Leverage tests", () => {
@@ -111,8 +104,11 @@ describe("Fractionalization", function () {
       expect(await portfolio1.owner()).to.equal(user.address);
       await usdc.mint(portfolio1.address, onehundredInWei);
       await portfolio1.executeBatch([
-        createCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "depositAsset", [0, onehundredInWei]),
+        makeCallWithValue(usdc, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "depositAsset", [0, onehundredInWei]),
       ]); //deposits 100 USDC
 
       //setup 2nd user
@@ -120,8 +116,11 @@ describe("Fractionalization", function () {
       expect(await portfolio2.owner()).to.equal(user2.address);
       await weth.mint(portfolio2.address, toWei(1)); //10 ETH
       await portfolio2.executeBatch([
-        createCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "depositAsset", [1, toWei(1)]),
+        makeCallWithValue(weth, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "depositAsset", [1, toWei(1)]),
       ]);
 
       //check what the max to borrow of USDC is (90 USDC)
@@ -129,7 +128,7 @@ describe("Fractionalization", function () {
 
       //borrow 90 USDC
       await portfolio2.executeBatch([
-        createCall(dos, "depositAsset", [0, -maxBorrowable]), //to borrow use negative
+        makeCallWithValue(dos, "depositAsset", [0, -maxBorrowable]), //to borrow use negative
       ]);
 
       //check to see if there is anything left
@@ -149,8 +148,11 @@ describe("Fractionalization", function () {
       expect(await portfolio1.owner()).to.equal(user.address);
       await usdc.mint(portfolio1.address, onehundredInWei);
       await portfolio1.executeBatch([
-        createCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "depositAsset", [0, onehundredInWei]),
+        makeCallWithValue(usdc, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "depositAsset", [0, onehundredInWei]),
       ]); //deposits 100 USDC
 
       //setup 2nd user
@@ -158,15 +160,18 @@ describe("Fractionalization", function () {
       expect(await portfolio2.owner()).to.equal(user2.address);
       await weth.mint(portfolio2.address, toWei(1)); //10 ETH
       await portfolio2.executeBatch([
-        createCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "depositAsset", [1, toWei(10, 6)]),
+        makeCallWithValue(weth, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "depositAsset", [1, toWei(10, 6)]),
       ]);
 
       const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfAsset(0);
 
       //user 2 borrows 90 USDC
       await portfolio2.executeBatch([
-        createCall(dos, "depositAsset", [0, -maxBorrowableUSDC]), //to borrow use negative
+        makeCallWithValue(dos, "depositAsset", [0, -maxBorrowableUSDC]), //to borrow use negative
       ]);
 
       //vote for FDR to change
@@ -180,7 +185,7 @@ describe("Fractionalization", function () {
       expect(maxBorrowableUSDCPost).is.lessThan(0);
     });
 
-    it.only("Hit frac limit, vote to increase, and borrow more", async () => {
+    it("Hit frac limit, vote to increase, and borrow more", async () => {
       //borrow max
       //vote on increasing maximum
       //borrow more
@@ -194,8 +199,11 @@ describe("Fractionalization", function () {
       expect(await portfolio1.owner()).to.equal(user.address);
       await usdc.mint(portfolio1.address, onehundredInWei);
       await portfolio1.executeBatch([
-        createCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "depositAsset", [0, onehundredInWei]),
+        makeCallWithValue(usdc, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "depositAsset", [0, onehundredInWei]),
       ]); //deposits 100 USDC
 
       //setup 2nd user
@@ -203,15 +211,18 @@ describe("Fractionalization", function () {
       expect(await portfolio2.owner()).to.equal(user2.address);
       await weth.mint(portfolio2.address, toWei(1)); //10 ETH
       await portfolio2.executeBatch([
-        createCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
-        createCall(dos, "depositAsset", [1, toWei(1)]),
+        makeCallWithValue(weth, "approve", [
+          dos.address,
+          ethers.constants.MaxUint256,
+        ]),
+        makeCallWithValue(dos, "depositAsset", [1, toWei(1)]),
       ]);
 
       const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfAsset(0);
 
       //borrow 90 USDC // Max borrow for FRL
       await portfolio2.executeBatch([
-        createCall(dos, "depositAsset", [0, -maxBorrowableUSDC]), //to borrow use negative
+        makeCallWithValue(dos, "depositAsset", [0, -maxBorrowableUSDC]), //to borrow use negative
       ]);
 
       // //vote for FDR to change
@@ -226,7 +237,7 @@ describe("Fractionalization", function () {
 
       //borrow 0.909091 USDC
       await portfolio2.executeBatch([
-        createCall(dos, "depositAsset", [0, -maxBorrowableUSDCPostVote]), //to borrow use negative
+        makeCallWithValue(dos, "depositAsset", [0, -maxBorrowableUSDCPostVote]), //to borrow use negative
       ]);
 
       expect(await dos.getMaximumWithdrawableOfAsset(0)).to.equal("0");
