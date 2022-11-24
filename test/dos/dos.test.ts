@@ -17,7 +17,12 @@ import {
 import { toWei } from "../../lib/Numbers";
 import { getEventParams } from "../../lib/Events";
 import { BigNumber, Contract, Signer } from "ethers";
-import { makeCallWithValue } from "../../lib/Calls";
+import { Chainlink, makeCallWithValue } from "../../lib/Calls";
+
+const usdcDecimals = 6;
+const usdcPrice = 1;
+const ethDecimals = 18;
+const ethPrice = 2000;
 
 describe("DOS", function () {
   // We define a fixture to reuse the same setup in every test.
@@ -29,16 +34,13 @@ describe("DOS", function () {
     const usdc = await new TestERC20__factory(owner).deploy(
       "USD Coin",
       "USDC",
-      18
+      6
     );
     const weth = await new WETH9__factory(owner).deploy();
     const nft = await new TestNFT__factory(owner).deploy();
 
-    const usdcOracle = await new MockValueOracle__factory(owner).deploy();
-    const wethOracle = await new MockValueOracle__factory(owner).deploy();
-
-    await usdcOracle.setPrice(toWei(1));
-    await wethOracle.setPrice(2000 * 1000000);
+    const usdcChainlink = await Chainlink.deploy(owner, 1, 8, usdcDecimals, usdcDecimals);
+    const ethChainlink = await Chainlink.deploy(owner, 2000, 8, usdcDecimals, ethDecimals);
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();
 
@@ -59,8 +61,8 @@ describe("DOS", function () {
       usdc.address,
       "USD Coin",
       "USDC",
-      6,
-      usdcOracle.address,
+      usdcDecimals,
+      usdcChainlink.assetOracle.address,
       toWei(0.9),
       toWei(0.9),
       0
@@ -69,8 +71,8 @@ describe("DOS", function () {
       weth.address,
       "Wrapped ETH",
       "WETH",
-      18,
-      wethOracle.address,
+      ethDecimals,
+      ethChainlink.assetOracle.address,
       toWei(0.9),
       toWei(0.9),
       0
@@ -82,8 +84,8 @@ describe("DOS", function () {
       user2,
       usdc,
       weth,
-      usdcOracle,
-      wethOracle,
+      usdcChainlink,
+      ethChainlink,
       nft,
       nftOracle,
       dos,
@@ -246,7 +248,7 @@ describe("DOS", function () {
     });
 
     it("Non-solvent position can be liquidated", async () => {
-      const { owner, user, user2, dos, usdc, weth, wethOracle } =
+      const { owner, user, user2, dos, usdc, weth, ethChainlink } =
         await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
       const portfolio2 = await CreatePortfolio(dos, user2);
@@ -281,7 +283,7 @@ describe("DOS", function () {
       expect(await dos.viewBalance(portfolio2.address, 1)).to.equal(oneEth);
 
       // Increase price of eth such that first portfolio is illiquid
-      await wethOracle.setPrice(9000 * 1000000);
+      await ethChainlink.setPrice(9000);
 
       await portfolio2.executeBatch([
         makeCallWithValue(dos, "liquidate", [portfolio.address]),
@@ -298,7 +300,7 @@ describe("DOS", function () {
     });
 
     it("Solvent position can be liquidated", async () => {
-      const { owner, user, user2, dos, usdc, weth, wethOracle } =
+      const { owner, user, user2, dos, usdc, weth } =
         await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
       const portfolio2 = await CreatePortfolio(dos, user2);
