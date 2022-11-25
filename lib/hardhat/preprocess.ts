@@ -2,9 +2,7 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { checkDefined, checkState } from "../preconditions";
 import { exec } from "child_process";
 
-export const preprocessCode = (
-  isLocalBuild: (hre: HardhatRuntimeEnvironment) => boolean
-) => {
+export const preprocessCode = (isLocalBuild: (hre: HardhatRuntimeEnvironment) => boolean) => {
   let inStrip = false;
   let absolutePath = "";
   let gitCommitHash: string | undefined = undefined;
@@ -15,8 +13,7 @@ export const preprocessCode = (
         checkState(!inStrip, "Mismatched begin/end strip");
         absolutePath = sourceInfo.absolutePath;
       }
-      const magicVal =
-        "DEADBEEFCAFEBABEBEACBABEBA5EBA11B0A710ADB00BBABEDEFACA7EDEADFA11";
+      const magicVal = "DEADBEEFCAFEBABEBEACBABEBA5EBA11B0A710ADB00BBABEDEFACA7EDEADFA11";
       if (line.includes(magicVal)) {
         line = line.replace(magicVal, checkDefined(gitCommitHash));
       }
@@ -32,7 +29,7 @@ export const preprocessCode = (
         // Make sure no console.log remains
         checkState(
           line.indexOf("console.log") === -1,
-          "Forgot to strip a console.log statement in file " + absolutePath
+          "Forgot to strip a console.log statement in file " + absolutePath,
         );
       }
       return inStrip ? "" : line;
@@ -51,7 +48,7 @@ export const preprocessCode = (
         exec("git status --porcelain", (error, stdout, stderr) => {
           if (error) reject(error);
           resolve(stdout);
-        })
+        }),
       )) !== ""
     ) {
       throw new Error("Repo not clean");
@@ -62,7 +59,7 @@ export const preprocessCode = (
         exec("git rev-parse --abbrev-ref HEAD", (error, stdout, stderr) => {
           if (error) reject(error);
           resolve(stdout);
-        })
+        }),
       )) !== "master\n"
     ) {
       throw new Error("Not on master");
@@ -75,8 +72,8 @@ export const preprocessCode = (
           (error, stdout, stderr) => {
             if (error) reject(error);
             resolve(stdout);
-          }
-        )
+          },
+        ),
       )) !== ""
     ) {
       throw new Error("Master branch not pushed to github");

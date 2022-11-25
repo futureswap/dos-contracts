@@ -20,21 +20,25 @@ describe("ChainlinkOracle", function () {
     const [owner] = await ethers.getSigners();
     const mockUsdcChainlink = await waffle.deployMockContract(
       owner,
-      AggregatorV3Interface__factory.abi
+      AggregatorV3Interface__factory.abi,
     );
     await mockUsdcChainlink.mock.decimals.returns(usdcChainlinkDecimals);
-    const usdcOracle = await new ERC20ChainlinkValueOracle__factory(
-      owner
-    ).deploy(mockUsdcChainlink.address, usdcDecimals, usdcDecimals);
+    const usdcOracle = await new ERC20ChainlinkValueOracle__factory(owner).deploy(
+      mockUsdcChainlink.address,
+      usdcDecimals,
+      usdcDecimals,
+    );
 
     const mockEthChainlink = await waffle.deployMockContract(
       owner,
-      AggregatorV3Interface__factory.abi
+      AggregatorV3Interface__factory.abi,
     );
     await mockEthChainlink.mock.decimals.returns(ethChainlinkDecimals);
-    const ethOracle = await new ERC20ChainlinkValueOracle__factory(
-      owner
-    ).deploy(mockEthChainlink.address, usdcDecimals, ethDecimals);
+    const ethOracle = await new ERC20ChainlinkValueOracle__factory(owner).deploy(
+      mockEthChainlink.address,
+      usdcDecimals,
+      ethDecimals,
+    );
     return { usdcOracle, mockUsdcChainlink, ethOracle, mockEthChainlink };
   }
 
@@ -45,11 +49,9 @@ describe("ChainlinkOracle", function () {
       toWei(usdcPrice, usdcChainlinkDecimals),
       0,
       0,
-      0
+      0,
     );
-    expect(await usdcOracle.calcValue(toWei(1, usdcDecimals))).to.equal(
-      toWei(1, usdcDecimals)
-    );
+    expect(await usdcOracle.calcValue(toWei(1, usdcDecimals))).to.equal(toWei(1, usdcDecimals));
   });
 
   it("Returns right price for eth", async () => {
@@ -59,11 +61,11 @@ describe("ChainlinkOracle", function () {
       toWei(ethPrice, ethChainlinkDecimals),
       0,
       0,
-      0
+      0,
     );
 
     expect(await ethOracle.calcValue(toWei(1, ethDecimals))).to.equal(
-      toWei(ethPrice, usdcDecimals)
+      toWei(ethPrice, usdcDecimals),
     );
   });
 });

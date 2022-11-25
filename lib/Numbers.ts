@@ -1,9 +1,6 @@
 import { BigNumber, utils } from "ethers";
 
-export const toWei = (
-  x: number | string | BigNumber | bigint,
-  decimals = 18
-): bigint => {
+export const toWei = (x: number | string | BigNumber | bigint, decimals = 18): bigint => {
   const type = typeof x;
 
   if (type === "bigint") {
@@ -15,8 +12,7 @@ export const toWei = (
       const number = x as number;
       const fixed = number.toFixed(decimals);
       const index = fixed.indexOf(".");
-      const s =
-        fixed.substring(0, index) + fixed.substring(index + 1, fixed.length);
+      const s = fixed.substring(0, index) + fixed.substring(index + 1, fixed.length);
       return BigInt(s);
     case "string":
       return BigInt(stringToWei(x as string, decimals));
