@@ -370,11 +370,8 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
             AssetIdx assetIdx = portfolioAssets[i];
             transferAllAsset(assetIdx, portfolio, msg.sender);
         }
-        if (portfolios[portfolio].nfts.length > 0) {
-            // traversing nfts array backwards because transferNft modifies it (extracting elements)
-            for (uint256 i = portfolios[portfolio].nfts.length - 1; i >= 0; i--) {
-                transferNft(i, portfolio, msg.sender);
-            }
+        while (portfolios[portfolio].nfts.length > 0) {
+            transferNft(portfolios[portfolio].nfts.length - 1, portfolio, msg.sender);
         }
         // TODO(gerben) make formula dependent on risk
         if (totalValue > 0) {
