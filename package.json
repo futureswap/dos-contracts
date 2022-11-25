@@ -1,5 +1,5 @@
 {
-  "name": "DOS",
+  "name": "dos",
   "scripts": {
     "node": "yarn hardhat node",
     "test": "yarn hardhat test",
@@ -26,6 +26,7 @@
     "@nomiclabs/hardhat-waffle": "^2.0.3",
     "@typechain/ethers-v5": "^10.1.1",
     "@typechain/hardhat": "^6.1.4",
+    "@types/mocha": "^10.0.0",
     "dotenv": "^16.0.3",
     "ethereum-waffle": "^3.4.4",
     "hardhat-gas-reporter": "^1.0.9",
