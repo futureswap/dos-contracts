@@ -9,10 +9,7 @@ import {
 } from "../../typechain-types";
 import { toWei, toWeiUsdc } from "../../lib/Numbers";
 import { getEventsTx } from "../../lib/Events";
-import {
-  deployUniswapFactory,
-  deployUniswapPool,
-} from "../../lib/deploy_uniswap";
+import { deployUniswapFactory, deployUniswapPool } from "../../lib/deploy_uniswap";
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 
@@ -32,28 +29,13 @@ describe("UniswapOracle", function () {
     const [owner] = await ethers.getSigners();
 
     const weth = await new WETH9__factory(owner).deploy();
-    const { uniswapFactory, uniswapNFTManager } = await deployUniswapFactory(
-      weth.address,
-      owner
-    );
+    const { uniswapFactory, uniswapNFTManager } = await deployUniswapFactory(weth.address, owner);
 
-    let usdc = await new TestERC20__factory(owner).deploy(
-      "USDC",
-      "USDC",
-      USDC_DECIMALS
-    );
-    let uni = await new TestERC20__factory(owner).deploy(
-      "UNI",
-      "UNI",
-      UNI_DECIMALS
-    );
+    let usdc = await new TestERC20__factory(owner).deploy("USDC", "USDC", USDC_DECIMALS);
+    let uni = await new TestERC20__factory(owner).deploy("UNI", "UNI", UNI_DECIMALS);
 
-    const uniValueOracle = await new MockAssetOracle__factory(owner).deploy(
-      UNI_DECIMALS
-    );
-    const usdcValueOracle = await new MockAssetOracle__factory(owner).deploy(
-      USDC_DECIMALS
-    );
+    const uniValueOracle = await new MockAssetOracle__factory(owner).deploy(UNI_DECIMALS);
+    const usdcValueOracle = await new MockAssetOracle__factory(owner).deploy(USDC_DECIMALS);
     await (await uniValueOracle.setPrice(toWei(100))).wait(); // 1 UNI = 50 USDC
     await (await usdcValueOracle.setPrice(toWeiUsdc(1))).wait();
 
@@ -61,22 +43,22 @@ describe("UniswapOracle", function () {
       uniswapFactory,
       uni.address,
       usdc.address,
-      100 // 1 UNI = 100 USDC
+      100, // 1 UNI = 100 USDC
     );
 
     const uniswapOracle = await new UniV3Oracle__factory(owner).deploy(
       uniswapFactory.address,
       uniswapNFTManager.address,
-      owner.address
+      owner.address,
     );
     const setUniOracleToUniswapTx = await uniswapOracle.setAssetValueOracle(
       uni.address,
-      uniValueOracle.address
+      uniValueOracle.address,
     );
     await setUniOracleToUniswapTx.wait();
     const setUsdcOracleToUniswapTx = await uniswapOracle.setAssetValueOracle(
       usdc.address,
-      usdcValueOracle.address
+      usdcValueOracle.address,
     );
     await setUsdcOracleToUniswapTx.wait();
     return { owner, pool, uniswapNFTManager, uni, usdc, uniswapOracle };
@@ -84,16 +66,14 @@ describe("UniswapOracle", function () {
 
   describe("Uniswap oracle tests", () => {
     it("Calculates proper lp value", async () => {
-      const { owner, uniswapNFTManager, uni, usdc, uniswapOracle } =
-        await loadFixture(deployUniswapFixture);
+      const { owner, uniswapNFTManager, uni, usdc, uniswapOracle } = await loadFixture(
+        deployUniswapFixture,
+      );
 
       await uni.mint(owner.address, toWei(10));
       await usdc.mint(owner.address, toWeiUsdc(1000));
       await uni.approve(uniswapNFTManager.address, ethers.constants.MaxUint256);
-      await usdc.approve(
-        uniswapNFTManager.address,
-        ethers.constants.MaxUint256
-      );
+      await usdc.approve(uniswapNFTManager.address, ethers.constants.MaxUint256);
       {
         const mintParams = {
           fee: 500,
@@ -103,21 +83,18 @@ describe("UniswapOracle", function () {
           deadline: ethers.constants.MaxUint256,
           ...toToken0andToken1Params(
             { token: uni, amountMin: 0, amountDesired: toWei(1) },
-            { token: usdc, amountMin: 0, amountDesired: toWeiUsdc(100) }
+            { token: usdc, amountMin: 0, amountDesired: toWeiUsdc(100) },
           ),
         };
         const { IncreaseLiquidity } = await getEventsTx<{
           IncreaseLiquidity: IncreaseLiquidity;
-        }>(
-          uniswapNFTManager.mint(mintParams, { gasLimit: 9e6 }),
-          uniswapNFTManager
-        );
-        const [usdcIncreaseAmount, uniIncreaseAmount] = fromToken0AndToken1(
-          IncreaseLiquidity,
-          [usdc, uni]
-        );
+        }>(uniswapNFTManager.mint(mintParams, { gasLimit: 9e6 }), uniswapNFTManager);
+        const [usdcIncreaseAmount, uniIncreaseAmount] = fromToken0AndToken1(IncreaseLiquidity, [
+          usdc,
+          uni,
+        ]);
         expect(
-          (await uniswapOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt()
+          (await uniswapOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt(),
         ).to.approximately(usdcIncreaseAmount * 100n + uniIncreaseAmount, 100);
       }
       {
@@ -129,18 +106,18 @@ describe("UniswapOracle", function () {
           deadline: ethers.constants.MaxUint256,
           ...toToken0andToken1Params(
             { token: uni, amountMin: 0, amountDesired: toWei(1) },
-            { token: usdc, amountMin: 0, amountDesired: toWeiUsdc(100) }
+            { token: usdc, amountMin: 0, amountDesired: toWeiUsdc(100) },
           ),
         };
         const { IncreaseLiquidity } = await getEventsTx<{
           IncreaseLiquidity: IncreaseLiquidity;
         }>(uniswapNFTManager.mint(mintParams), uniswapNFTManager);
-        const [usdcIncreaseAmount, uniIncreaseAmount] = fromToken0AndToken1(
-          IncreaseLiquidity,
-          [usdc, uni]
-        );
+        const [usdcIncreaseAmount, uniIncreaseAmount] = fromToken0AndToken1(IncreaseLiquidity, [
+          usdc,
+          uni,
+        ]);
         expect(
-          (await uniswapOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt()
+          (await uniswapOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt(),
         ).to.approximately(usdcIncreaseAmount * 100n + uniIncreaseAmount, 100);
       }
       {
@@ -152,18 +129,18 @@ describe("UniswapOracle", function () {
           deadline: ethers.constants.MaxUint256,
           ...toToken0andToken1Params(
             { token: uni, amountMin: 0, amountDesired: toWei(1) },
-            { token: usdc, amountMin: 0, amountDesired: toWeiUsdc(100) }
+            { token: usdc, amountMin: 0, amountDesired: toWeiUsdc(100) },
           ),
         };
         const { IncreaseLiquidity } = await getEventsTx<{
           IncreaseLiquidity: IncreaseLiquidity;
         }>(uniswapNFTManager.mint(mintParams), uniswapNFTManager);
-        const [usdcIncreaseAmount, uniIncreaseAmount] = fromToken0AndToken1(
-          IncreaseLiquidity,
-          [usdc, uni]
-        );
+        const [usdcIncreaseAmount, uniIncreaseAmount] = fromToken0AndToken1(IncreaseLiquidity, [
+          usdc,
+          uni,
+        ]);
         expect(
-          (await uniswapOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt()
+          (await uniswapOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt(),
         ).to.approximately(usdcIncreaseAmount * 100n + uniIncreaseAmount, 100);
       }
     });
@@ -183,10 +160,7 @@ type TokenParams = {
 // mint: https://github.com/Uniswap/v3-periphery/blob/a0e0e5817528f0b810583c04feea17b696a16755/contracts/NonfungiblePositionManager.sol#L142
 // addLiquidity: https://github.com/Uniswap/v3-periphery/blob/9ca9575d09b0b8d985cc4d9a0f689f7a4470ecb7/contracts/base/LiquidityManagement.sol#L63
 // computeAddress: https://github.com/Uniswap/v3-periphery/blob/464a8a49611272f7349c970e0fadb7ec1d3c1086/contracts/libraries/PoolAddress.sol#L34
-function toToken0andToken1Params(
-  tokenAParams: TokenParams,
-  tokenBParams: TokenParams
-) {
+function toToken0andToken1Params(tokenAParams: TokenParams, tokenBParams: TokenParams) {
   if (tokenAParams.token.address > tokenBParams.token.address)
     [tokenAParams, tokenBParams] = [tokenBParams, tokenAParams];
 
@@ -214,7 +188,7 @@ type TokensData = {
 // address.
 function fromToken0AndToken1(
   { amount0, amount1 }: TokensData,
-  expectedOrder: [TestERC20, TestERC20]
+  expectedOrder: [TestERC20, TestERC20],
 ) {
   return expectedOrder[0].address > expectedOrder[1].address
     ? [amount0, amount1]

@@ -30,18 +30,18 @@ describe("Governance test", function () {
     const voteNFT = await new HashNFT__factory(voting).deploy(
       "Voting token",
       "VTOK",
-      governanceProxy.address
+      governanceProxy.address,
     );
     const bridgeNFT = await new BridgeNFT__factory(owner).deploy(
       voteNFT.address,
       "Bridge token",
       "BTOK",
-      owner.address
+      owner.address,
     );
     const governance = await new Governance__factory(owner).deploy(
       governanceProxy.address,
       voteNFT.address,
-      voting.address
+      voting.address,
     );
     await governanceProxy.execute([
       makeCall(governanceProxy, "proposeGovernance", [governance.address]),
@@ -64,131 +64,107 @@ describe("Governance test", function () {
 
   describe("GovernanceProxy tests", () => {
     it("Non-governance cannot execute", async () => {
-      const { owner, user, governanceProxy } = await loadFixture(
-        deployGovernanceProxyFixture
-      );
-      await expect(
-        governanceProxy.connect(user).execute([])
-      ).to.be.revertedWith("Only governance");
+      const { owner, user, governanceProxy } = await loadFixture(deployGovernanceProxyFixture);
+      await expect(governanceProxy.connect(user).execute([])).to.be.revertedWith("Only governance");
     });
 
     it("Governance can execute", async () => {
-      const { owner, user, governanceProxy } = await loadFixture(
-        deployGovernanceProxyFixture
-      );
+      const { owner, user, governanceProxy } = await loadFixture(deployGovernanceProxyFixture);
       await expect(governanceProxy.execute([])).to.not.be.reverted;
     });
 
     it("Governance can propose new governance", async () => {
-      const { owner, user, governanceProxy } = await loadFixture(
-        deployGovernanceProxyFixture
-      );
+      const { owner, user, governanceProxy } = await loadFixture(deployGovernanceProxyFixture);
 
-      const calldata = governanceProxy.interface.encodeFunctionData(
-        "proposeGovernance",
-        [user.address]
-      );
-      await expect(
-        governanceProxy.execute([
-          { to: governanceProxy.address, callData: calldata },
-        ])
-      ).to.not.be.reverted;
+      const calldata = governanceProxy.interface.encodeFunctionData("proposeGovernance", [
+        user.address,
+      ]);
+      await expect(governanceProxy.execute([{ to: governanceProxy.address, callData: calldata }]))
+        .to.not.be.reverted;
 
       expect(await governanceProxy.governance()).to.equal(owner.address);
       expect(await governanceProxy.proposedGovernance()).to.equal(user.address);
     });
 
     it("No address except proxy itself can call proposeGovernance", async () => {
-      const { owner, user, governanceProxy } = await loadFixture(
-        deployGovernanceProxyFixture
-      );
+      const { owner, user, governanceProxy } = await loadFixture(deployGovernanceProxyFixture);
 
+      await expect(governanceProxy.proposeGovernance(user.address)).to.be.revertedWith(
+        "Only governance",
+      );
       await expect(
-        governanceProxy.proposeGovernance(user.address)
-      ).to.be.revertedWith("Only governance");
-      await expect(
-        governanceProxy.connect(user).proposeGovernance(user.address)
+        governanceProxy.connect(user).proposeGovernance(user.address),
       ).to.be.revertedWith("Only governance");
     });
 
     it("Proposed governance can execute and execute properly forwards function", async () => {
-      const { owner, user, governanceProxy } = await loadFixture(
-        deployGovernanceProxyFixture
-      );
+      const { owner, user, governanceProxy } = await loadFixture(deployGovernanceProxyFixture);
 
-      const calldata = governanceProxy.interface.encodeFunctionData(
-        "proposeGovernance",
-        [user.address]
-      );
-      await expect(
-        governanceProxy.execute([
-          { to: governanceProxy.address, callData: calldata },
-        ])
-      ).to.not.be.reverted;
+      const calldata = governanceProxy.interface.encodeFunctionData("proposeGovernance", [
+        user.address,
+      ]);
+      await expect(governanceProxy.execute([{ to: governanceProxy.address, callData: calldata }]))
+        .to.not.be.reverted;
 
-      await expect(governanceProxy.connect(user).execute([])).to.not.be
-        .reverted;
+      await expect(governanceProxy.connect(user).execute([])).to.not.be.reverted;
 
       expect(await governanceProxy.governance()).to.equal(user.address);
-      expect(await governanceProxy.proposedGovernance()).to.equal(
-        ethers.constants.AddressZero
-      );
+      expect(await governanceProxy.proposedGovernance()).to.equal(ethers.constants.AddressZero);
     });
 
     it("Old governance can still execute after new governance is proposed", async () => {
-      const { owner, user, governanceProxy } = await loadFixture(
-        deployGovernanceProxyFixture
-      );
+      const { owner, user, governanceProxy } = await loadFixture(deployGovernanceProxyFixture);
 
-      const calldata = governanceProxy.interface.encodeFunctionData(
-        "proposeGovernance",
-        [user.address]
-      );
-      await expect(
-        governanceProxy.execute([
-          { to: governanceProxy.address, callData: calldata },
-        ])
-      ).to.not.be.reverted;
+      const calldata = governanceProxy.interface.encodeFunctionData("proposeGovernance", [
+        user.address,
+      ]);
+      await expect(governanceProxy.execute([{ to: governanceProxy.address, callData: calldata }]))
+        .to.not.be.reverted;
 
       await expect(governanceProxy.execute([])).to.not.be.reverted;
     });
   });
 
   it("NFT vote and execute", async () => {
-    const { owner, user, governanceProxy, voteNFT, governance } =
-      await loadFixture(deployGovernance);
+    const { owner, user, governanceProxy, voteNFT, governance } = await loadFixture(
+      deployGovernance,
+    );
 
     await expect(proposeAndExecute(governance, voteNFT, [])).to.not.be.reverted;
   });
 
   it("Cannot execute unless owning NFT", async () => {
-    const { owner, user, governanceProxy, voteNFT, governance } =
-      await loadFixture(deployGovernance);
+    const { owner, user, governanceProxy, voteNFT, governance } = await loadFixture(
+      deployGovernance,
+    );
 
     await expect(governance.execute(0, [])).to.be.revertedWith("Invalid NFT");
   });
 
   it("Only voting can propose correct NFT", async () => {
-    const { owner, user, governanceProxy, voteNFT, governance } =
-      await loadFixture(deployGovernance);
+    const { owner, user, governanceProxy, voteNFT, governance } = await loadFixture(
+      deployGovernance,
+    );
 
-    await expect(
-      proposeAndExecute(governance, voteNFT.connect(user), [])
-    ).to.be.revertedWith("Invalid NFT");
+    await expect(proposeAndExecute(governance, voteNFT.connect(user), [])).to.be.revertedWith(
+      "Invalid NFT",
+    );
   });
 
   it("Only voting can propose NFT", async () => {
-    const { owner, user, governanceProxy, voteNFT, governance } =
-      await loadFixture(deployGovernance);
+    const { owner, user, governanceProxy, voteNFT, governance } = await loadFixture(
+      deployGovernance,
+    );
 
-    await expect(
-      proposeAndExecute(governance, voteNFT.connect(user), [])
-    ).to.be.revertedWith("Invalid NFT");
+    await expect(proposeAndExecute(governance, voteNFT.connect(user), [])).to.be.revertedWith(
+      "Invalid NFT",
+    );
   });
 
   it("Governance can change voting", async () => {
-    const { owner, user, governanceProxy, voteNFT, governance } =
-      await loadFixture(deployGovernance);
+    const { owner, user, governanceProxy, voteNFT, governance } = await loadFixture(
+      deployGovernance,
+    );
 
     await proposeAndExecute(governance, voteNFT, [
       makeCall(governance, "transferVoting", [user.address]),
@@ -197,28 +173,18 @@ describe("Governance test", function () {
   });
 
   it("Bridge NFT can be converted to vote NFT", async () => {
-    const {
-      owner,
-      voting,
-      user,
-      governanceProxy,
-      voteNFT,
-      bridgeNFT,
-      governance,
-    } = await loadFixture(deployGovernance);
+    const { owner, voting, user, governanceProxy, voteNFT, bridgeNFT, governance } =
+      await loadFixture(deployGovernance);
 
     const digest = ethers.utils.keccak256(
-      ethers.utils.defaultAbiCoder.encode(
-        ["tuple(address to, bytes callData)[]"],
-        [[]]
-      )
+      ethers.utils.defaultAbiCoder.encode(["tuple(address to, bytes callData)[]"], [[]]),
     );
     // Bypass voting address by directly constructing tokenId
     const tokenId = ethers.utils.keccak256(
       ethers.utils.defaultAbiCoder.encode(
         ["address", "uint256", "bytes32"],
-        [voting.address, 0, digest]
-      )
+        [voting.address, 0, digest],
+      ),
     );
 
     // Mint token directly to voteNFT thus converting it into a voteNFT
@@ -228,47 +194,25 @@ describe("Governance test", function () {
 
     await voteNFT
       .connect(owner)
-      ["safeTransferFrom(address,address,uint256)"](
-        owner.address,
-        governance.address,
-        tokenId
-      );
+      ["safeTransferFrom(address,address,uint256)"](owner.address, governance.address, tokenId);
 
     await expect(governance.execute(0, [])).to.not.be.reverted;
   });
 
   it("Non-owner cannot mint bridge nft", async () => {
-    const {
-      owner,
-      voting,
-      user,
-      governanceProxy,
-      voteNFT,
-      bridgeNFT,
-      governance,
-    } = await loadFixture(deployGovernance);
+    const { owner, voting, user, governanceProxy, voteNFT, bridgeNFT, governance } =
+      await loadFixture(deployGovernance);
 
     // Mint token directly to voteNFT thus converting it into a voteNFT
-    await expect(bridgeNFT.connect(user).mint(voteNFT.address, 0)).to.be
-      .reverted;
+    await expect(bridgeNFT.connect(user).mint(voteNFT.address, 0)).to.be.reverted;
   });
 
   it("vote NFT can be converted into bridge NFT", async () => {
-    const {
-      owner,
-      voting,
-      user,
-      governanceProxy,
-      voteNFT,
-      bridgeNFT,
-      governance,
-    } = await loadFixture(deployGovernance);
+    const { owner, voting, user, governanceProxy, voteNFT, bridgeNFT, governance } =
+      await loadFixture(deployGovernance);
 
     const { tokenId } = (
-      await getEventsTx(
-        voteNFT.mint(bridgeNFT.address, ethers.utils.keccak256("0x")),
-        voteNFT
-      )
+      await getEventsTx(voteNFT.mint(bridgeNFT.address, ethers.utils.keccak256("0x")), voteNFT)
     ).Transfer;
 
     // Mint token directly to voteNFT thus converting it into a voteNFT

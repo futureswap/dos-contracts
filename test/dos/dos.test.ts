@@ -39,7 +39,7 @@ describe("DOS", function () {
     const usdc = await new TestERC20__factory(owner).deploy(
       "USD Coin",
       "USDC",
-      USDC_DECIMALS // 6
+      USDC_DECIMALS, // 6
     );
 
     const weth = await new WETH9__factory(owner).deploy();
@@ -47,15 +47,14 @@ describe("DOS", function () {
     const unregisteredNft = await new TestNFT2__factory(owner).deploy();
 
     const usdcOracle = await new MockAssetOracle__factory(owner).deploy(
-      USDC_DECIMALS // 6
+      USDC_DECIMALS, // 6
     );
     const wethOracle = await new MockAssetOracle__factory(owner).deploy(
-      WETH_DECIMALS // 18
+      WETH_DECIMALS, // 18
     );
 
     await wethOracle.setPrice(toWei(1)); // 1, because 1 WETH == 1 ETH
-    const setEthPriceInUsdc = async (price: number) =>
-      await usdcOracle.setPrice(toWei(1 / price));
+    const setEthPriceInUsdc = async (price: number) => await usdcOracle.setPrice(toWei(1 / price));
     const usdcToWei = async (usdcAmount: number) =>
       (toWei(usdcAmount) * (await usdcOracle.price()).toBigInt()) / 10n ** 18n;
     await setEthPriceInUsdc(2_000);
@@ -82,7 +81,7 @@ describe("DOS", function () {
       wethOracle.address,
       toWei(0.9),
       toWei(0.9),
-      0 // No interest which would include time sensitive calculations
+      0, // No interest which would include time sensitive calculations
     );
     const wethAssetIdx = 0; // index of the element created above in DOS.assetsInfo array
 
@@ -94,7 +93,7 @@ describe("DOS", function () {
       usdcOracle.address,
       toWei(0.9),
       toWei(0.9),
-      0 // No interest which would include time sensitive calculations
+      0, // No interest which would include time sensitive calculations
     );
     const usdcAssetIdx = 1; // index of the element created above in DOS.assetsInfo array
 
@@ -129,23 +128,17 @@ describe("DOS", function () {
     });
 
     it("User can deposit money", async () => {
-      const { user, dos, usdc, usdcAssetIdx } = await loadFixture(
-        deployDOSFixture
-      );
+      const { user, dos, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
 
       await depositAsset(dos, portfolio, usdc, usdcAssetIdx, tenThousandUsdc);
 
-      expect((await getBalances(dos, portfolio)).usdc).to.equal(
-        tenThousandUsdc
-      );
+      expect((await getBalances(dos, portfolio)).usdc).to.equal(tenThousandUsdc);
       expect(await usdc.balanceOf(dos.address)).to.equal(tenThousandUsdc);
     });
 
     it("User can transfer money", async () => {
-      const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(
-        deployDOSFixture
-      );
+      const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
       const sender = await CreatePortfolio(dos, user);
       const receiver = await CreatePortfolio(dos, user2);
       await depositAsset(dos, sender, usdc, usdcAssetIdx, tenThousandUsdc);
@@ -158,23 +151,14 @@ describe("DOS", function () {
     });
 
     it("User can deposit and transfer money in arbitrary order", async () => {
-      const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(
-        deployDOSFixture
-      );
+      const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
       const sender = await CreatePortfolio(dos, user);
       const receiver = await CreatePortfolio(dos, user2);
       await usdc.mint(sender.address, tenThousandUsdc);
 
       await sender.executeBatch([
-        makeCallWithValue(usdc, "approve", [
-          dos.address,
-          ethers.constants.MaxUint256,
-        ]),
-        makeCallWithValue(dos, "transfer", [
-          usdcAssetIdx,
-          receiver.address,
-          tenThousandUsdc,
-        ]),
+        makeCallWithValue(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
+        makeCallWithValue(dos, "transfer", [usdcAssetIdx, receiver.address, tenThousandUsdc]),
         makeCallWithValue(dos, "depositAsset", [usdcAssetIdx, tenThousandUsdc]),
       ]);
 
@@ -183,24 +167,20 @@ describe("DOS", function () {
     });
 
     it("User cannot send more then they own", async () => {
-      const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(
-        deployDOSFixture
-      );
+      const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
       const sender = await CreatePortfolio(dos, user);
       const receiver = await CreatePortfolio(dos, user2);
       await depositAsset(dos, sender, usdc, usdcAssetIdx, toWeiUsdc(10_000));
 
-      // prettier-ignore
       const tx = transfer(dos, sender, receiver, usdcAssetIdx, toWeiUsdc(20_000));
 
-      await expect(tx).to.be.revertedWith(
-        "Result of operation is not sufficient liquid"
-      );
+      await expect(tx).to.be.revertedWith("Result of operation is not sufficient liquid");
     });
 
     it("User can send more asset then they have", async () => {
-      const { user, user2, dos, usdc, weth, wethAssetIdx, usdcAssetIdx } =
-        await loadFixture(deployDOSFixture);
+      const { user, user2, dos, usdc, weth, wethAssetIdx, usdcAssetIdx } = await loadFixture(
+        deployDOSFixture,
+      );
       const sender = await CreatePortfolio(dos, user);
       await depositAsset(dos, sender, usdc, usdcAssetIdx, tenThousandUsdc);
       const receiver = await CreatePortfolio(dos, user2);
@@ -229,13 +209,7 @@ describe("DOS", function () {
         usdcToWei, setEthPriceInUsdc
       } = await loadFixture(deployDOSFixture);
       const liquidatable = await CreatePortfolio(dos, user);
-      await depositAsset(
-        dos,
-        liquidatable,
-        usdc,
-        usdcAssetIdx,
-        tenThousandUsdc
-      );
+      await depositAsset(dos, liquidatable, usdc, usdcAssetIdx, tenThousandUsdc);
       const liquidator = await CreatePortfolio(dos, user2);
       // ensure that liquidator would have enough collateral to compensate
       // negative balance of collateral/debt obtained from liquidatable
@@ -250,35 +224,33 @@ describe("DOS", function () {
       await (await tx).wait();
       // make liquidatable debt overcome collateral. Now it can be liquidated
       await setEthPriceInUsdc(9_000);
-      await liquidator.executeBatch([
-        makeCallWithValue(dos, "liquidate", [liquidatable.address]),
-      ]);
+      await liquidator.executeBatch([makeCallWithValue(dos, "liquidate", [liquidatable.address])]);
 
       const liquidatableBalances = await getBalances(dos, liquidatable);
       const liquidatorBalances = await getBalances(dos, liquidator);
       // 10_000 - balance in USDC; 9_000 - debt of 1 ETH; 0.8 - liqFraction
       const liquidationOddMoney = await usdcToWei((10_000 - 9_000) * 0.8); // 800 USDC in ETH
       expect(liquidatableBalances.usdc).to.equal(0);
-      expect(liquidatableBalances.weth).to.be.approximately(
-        liquidationOddMoney,
-        1000
-      );
+      expect(liquidatableBalances.weth).to.be.approximately(liquidationOddMoney, 1000);
       expect(liquidatorBalances.usdc).to.equal(toWeiUsdc(20_000)); // own 10k + 10k of liquidatable
-      expect(liquidatorBalances.weth).to.be.approximately(
-        toWei(-1) - liquidationOddMoney,
-        1000
-      );
+      expect(liquidatorBalances.weth).to.be.approximately(toWei(-1) - liquidationOddMoney, 1000);
     });
 
     it("Solvent position can not be liquidated", async () => {
-      const { user, user2, dos, usdc, weth, usdcAssetIdx, wethAssetIdx } =
-        await loadFixture(deployDOSFixture);
+      // prettier-ignore
+      const {
+        dos,
+        user, user2,
+        usdc, usdcAssetIdx,
+        weth, wethAssetIdx
+      } = await loadFixture(
+        deployDOSFixture,
+      );
       const nonLiquidatable = await CreatePortfolio(dos, user);
       const liquidator = await CreatePortfolio(dos, user2);
       // Put WETH in system so we can borrow weth
       const other = await CreatePortfolio(dos, user);
       await depositAsset(dos, other, weth, wethAssetIdx, toWei(0.25));
-      // prettier-ignore
       await depositAsset(dos, nonLiquidatable, usdc, usdcAssetIdx, tenThousandUsdc);
       const tx = transfer(dos, nonLiquidatable, other, wethAssetIdx, oneEth);
       await (await tx).wait();
@@ -287,9 +259,7 @@ describe("DOS", function () {
         makeCallWithValue(dos, "liquidate", [nonLiquidatable.address]),
       ]);
 
-      await expect(liquidationTx).to.be.revertedWith(
-        "Portfolio is not liquidatable"
-      );
+      await expect(liquidationTx).to.be.revertedWith("Portfolio is not liquidatable");
     });
   });
 
@@ -307,9 +277,7 @@ describe("DOS", function () {
       const { dos, user } = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
 
-      const [totalValue, collateral, debt] = await dos.computePosition(
-        portfolio.address
-      );
+      const [totalValue, collateral, debt] = await dos.computePosition(portfolio.address);
 
       expect(totalValue).to.equal(0);
       expect(collateral).to.equal(0);
@@ -317,9 +285,7 @@ describe("DOS", function () {
     });
 
     it("when portfolio has an asset should return the asset value", async () => {
-      const { dos, user, usdc, usdcAssetIdx, usdcToWei } = await loadFixture(
-        deployDOSFixture
-      );
+      const { dos, user, usdc, usdcAssetIdx, usdcToWei } = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
       await depositAsset(dos, portfolio, usdc, usdcAssetIdx, toWeiUsdc(10_000));
 
@@ -333,8 +299,16 @@ describe("DOS", function () {
     });
 
     it("when portfolio has multiple assets should return total assets value", async () => {
-      const { dos, user, usdc, weth, usdcAssetIdx, wethAssetIdx, usdcToWei } =
-        await loadFixture(deployDOSFixture);
+      // prettier-ignore
+      const {
+        dos,
+        user,
+        usdc, usdcAssetIdx,
+        weth, wethAssetIdx,
+        usdcToWei
+      } = await loadFixture(
+        deployDOSFixture,
+      );
       const portfolio = await CreatePortfolio(dos, user);
 
       await Promise.all([
@@ -383,16 +357,15 @@ describe("DOS", function () {
     });
 
     it("when portfolio has assets and NFTs should return their total value", async () => {
+      // prettier-ignore
       const {
         dos,
         user,
-        usdc,
-        usdcAssetIdx,
-        weth,
-        wethAssetIdx,
-        nft,
-        nftOracle,
-      } = await loadFixture(deployDOSFixture);
+        usdc, usdcAssetIdx,
+        weth, wethAssetIdx,
+        nft, nftOracle
+      } =
+        await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
 
       await Promise.all([
@@ -423,9 +396,7 @@ describe("DOS", function () {
 
       const depositNftTx = dos.liquidate(portfolio.address);
 
-      await expect(depositNftTx).to.be.revertedWith(
-        "Only portfolio can execute"
-      );
+      await expect(depositNftTx).to.be.revertedWith("Only portfolio can execute");
     });
 
     it("when portfolio to liquidate doesn't exist should revert", async () => {
@@ -438,15 +409,11 @@ describe("DOS", function () {
         makeCallWithValue(dos, "liquidate", [nonPortfolioAddress]),
       ]);
 
-      await expect(liquidateTx).to.be.revertedWith(
-        "Recipient portfolio doesn't exist"
-      );
+      await expect(liquidateTx).to.be.revertedWith("Recipient portfolio doesn't exist");
     });
 
     it("when portfolio to liquidate is empty should revert", async () => {
-      const { dos, user, user2, usdc, usdcAssetIdx } = await loadFixture(
-        deployDOSFixture
-      );
+      const { dos, user, user2, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
       const emptyPortfolio = await CreatePortfolio(dos, user);
       const liquidator = await CreatePortfolio(dos, user2);
       await depositAsset(dos, liquidator, usdc, usdcAssetIdx, toWeiUsdc(1000));
@@ -455,17 +422,12 @@ describe("DOS", function () {
         makeCallWithValue(dos, "liquidate", [emptyPortfolio.address]),
       ]);
 
-      await expect(liquidateTx).to.be.revertedWith(
-        "Portfolio is not liquidatable"
-      );
+      await expect(liquidateTx).to.be.revertedWith("Portfolio is not liquidatable");
     });
 
     it("when debt is zero should revert", async () => {
-      const { dos, user, user2, usdc, usdcAssetIdx } = await loadFixture(
-        deployDOSFixture
-      );
+      const { dos, user, user2, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
       const nonLiquidatable = await CreatePortfolio(dos, user);
-      // prettier-ignore
       await depositAsset(dos, nonLiquidatable, usdc, usdcAssetIdx, toWeiUsdc(1000));
       const liquidator = await CreatePortfolio(dos, user2);
       await depositAsset(dos, liquidator, usdc, usdcAssetIdx, toWeiUsdc(1000));
@@ -474,9 +436,7 @@ describe("DOS", function () {
         makeCallWithValue(dos, "liquidate", [nonLiquidatable.address]),
       ]);
 
-      await expect(liquidateTx).to.be.revertedWith(
-        "Portfolio is not liquidatable"
-      );
+      await expect(liquidateTx).to.be.revertedWith("Portfolio is not liquidatable");
     });
 
     it("when collateral is above some debt should revert", async () => {
@@ -484,18 +444,17 @@ describe("DOS", function () {
       const {
         dos,
         user, user2, user3,
-        usdc, usdcAssetIdx, weth, wethAssetIdx
+        usdc, usdcAssetIdx,
+        weth, wethAssetIdx
       } = await loadFixture(
         deployDOSFixture
       );
       const nonLiquidatable = await CreatePortfolio(dos, user);
-      // prettier-ignore
       await depositAsset(dos, nonLiquidatable, usdc, usdcAssetIdx, toWeiUsdc(1000));
       const liquidator = await CreatePortfolio(dos, user2);
       await depositAsset(dos, liquidator, usdc, usdcAssetIdx, toWeiUsdc(1000));
       const other = await CreatePortfolio(dos, user3);
       await depositAsset(dos, other, weth, wethAssetIdx, toWei(1));
-      // prettier-ignore
       const tx = transfer(dos, nonLiquidatable, other, wethAssetIdx, toWei(0.1));
       await (await tx).wait();
 
@@ -503,9 +462,7 @@ describe("DOS", function () {
         makeCallWithValue(dos, "liquidate", [nonLiquidatable.address]),
       ]);
 
-      await expect(liquidateTx).to.be.revertedWith(
-        "Portfolio is not liquidatable"
-      );
+      await expect(liquidateTx).to.be.revertedWith("Portfolio is not liquidatable");
     });
 
     it("when liquidator doesn't have enough collateral to cover the debt difference should revert", async () => {
@@ -513,13 +470,13 @@ describe("DOS", function () {
       const {
         dos,
         user, user2, user3,
-        usdc, usdcAssetIdx, weth, wethAssetIdx,
+        usdc, usdcAssetIdx,
+        weth, wethAssetIdx,
         setEthPriceInUsdc
       } = await loadFixture(
         deployDOSFixture
       );
       const liquidatable = await CreatePortfolio(dos, user);
-      // prettier-ignore
       await depositAsset(dos, liquidatable, usdc, usdcAssetIdx, toWeiUsdc(10_000));
       const liquidator = await CreatePortfolio(dos, user2);
       const other = await CreatePortfolio(dos, user3);
@@ -532,25 +489,23 @@ describe("DOS", function () {
         makeCallWithValue(dos, "liquidate", [liquidatable.address]),
       ]);
 
-      await expect(liquidateTx).to.revertedWith(
-        "Result of operation is not sufficient liquid"
-      );
+      await expect(liquidateTx).to.revertedWith("Result of operation is not sufficient liquid");
     });
 
     it("when a portfolio trys to liquidate itself should revert", async () => {
       // prettier-ignore
       const {
         dos,
-        user, user2, user3,
-        usdc, usdcAssetIdx, weth, wethAssetIdx,
+        user, user2,
+        usdc, usdcAssetIdx,
+        weth, wethAssetIdx,
         setEthPriceInUsdc
       } = await loadFixture(
         deployDOSFixture
       );
       const liquidatable = await CreatePortfolio(dos, user);
-      // prettier-ignore
       await depositAsset(dos, liquidatable, usdc, usdcAssetIdx, toWeiUsdc(10_000));
-      const other = await CreatePortfolio(dos, user3);
+      const other = await CreatePortfolio(dos, user2);
       await depositAsset(dos, other, weth, wethAssetIdx, toWei(10));
       const tx = transfer(dos, liquidatable, other, wethAssetIdx, toWei(4));
       await (await tx).wait();
@@ -560,9 +515,7 @@ describe("DOS", function () {
         makeCallWithValue(dos, "liquidate", [liquidatable.address]),
       ]);
 
-      await expect(liquidateTx).to.revertedWith(
-        "Result of operation is not sufficient liquid"
-      );
+      await expect(liquidateTx).to.revertedWith("Result of operation is not sufficient liquid");
     });
 
     it("when collateral is smaller then debt should transfer all assets of the portfolio to the caller", async () => {
@@ -570,16 +523,15 @@ describe("DOS", function () {
       const {
         dos,
         user, user2, user3,
-        usdc, usdcAssetIdx, weth, wethAssetIdx,
+        usdc, usdcAssetIdx,
+        weth, wethAssetIdx,
         setEthPriceInUsdc
       } = await loadFixture(
         deployDOSFixture
       );
       const liquidatable = await CreatePortfolio(dos, user);
-      // prettier-ignore
       await depositAsset(dos, liquidatable, usdc, usdcAssetIdx, toWeiUsdc(10_000));
       const liquidator = await CreatePortfolio(dos, user2);
-      // prettier-ignore
       await depositAsset(dos, liquidator, usdc, usdcAssetIdx, toWeiUsdc(10_000));
       const other = await CreatePortfolio(dos, user3);
       await depositAsset(dos, other, weth, wethAssetIdx, toWei(10));
@@ -598,15 +550,12 @@ describe("DOS", function () {
       // 0.8 - liqFraction, defined in deployDOSFixture
       const liquidationOddMoney = toWei(liquidatableTotal * 0.8);
       expect(liquidatableBalance.usdc).to.equal(0);
-      expect(liquidatableBalance.weth).to.be.approximately(
-        liquidationOddMoney,
-        2000
-      );
+      expect(liquidatableBalance.weth).to.be.approximately(liquidationOddMoney, 2000);
       const liquidatorBalance = await getBalances(dos, liquidator);
       expect(liquidatorBalance.weth).to.be.approximately(
         // -4 transferred debt. 0.8 - liqFactor defined in deployDOSFixture
         toWei(-4 - liquidatableTotal * 0.8),
-        2000
+        2000,
       );
       // 10_000 own and 10_000 taken from the liquidated
       expect(liquidatorBalance.usdc).to.equal(toWeiUsdc(20_000));
@@ -623,10 +572,8 @@ describe("DOS", function () {
         deployDOSFixture
       );
       const liquidatable = await CreatePortfolio(dos, user);
-      // prettier-ignore
       const tokenId = await depositNft(dos, liquidatable, nft, nftOracle, toWei(1));
       const liquidator = await CreatePortfolio(dos, user2);
-      // prettier-ignore
       await depositAsset(dos, liquidator, weth, wethAssetIdx, toWei(1));
       const other = await CreatePortfolio(dos, user3);
       await depositAsset(dos, other, weth, wethAssetIdx, toWei(1));
@@ -645,16 +592,13 @@ describe("DOS", function () {
       const liquidatableTotal = 0.8 - 0.4;
       // 0.8 - liqFraction, defined in deployDOSFixture
       const liquidationOddMoney = toWei(liquidatableTotal * 0.8);
-      expect(liquidatableBalance.weth).to.be.approximately(
-        liquidationOddMoney,
-        2000
-      );
+      expect(liquidatableBalance.weth).to.be.approximately(liquidationOddMoney, 2000);
       expect(liquidatableBalance.nfts).to.eql([]);
       const liquidatorBalance = await getBalances(dos, liquidator);
       expect(liquidatorBalance.weth).to.be.approximately(
         // 1 - initial balance; -0.4 transferred debt; 0.8 - liqFactor defined in deployDOSFixture
         toWei(1 - 0.4 - liquidatableTotal * 0.8),
-        2000
+        2000,
       );
       expect(liquidatorBalance.nfts).to.eql([[nft.address, tokenId]]);
     });
@@ -664,19 +608,17 @@ describe("DOS", function () {
       const {
         dos,
         user, user2, user3,
-        usdc, usdcAssetIdx, weth, wethAssetIdx,
-        setEthPriceInUsdc,
+        usdc, usdcAssetIdx,
+        weth, wethAssetIdx,
         nft, nftOracle,
+        setEthPriceInUsdc,
       } = await loadFixture(
         deployDOSFixture
       );
       const liquidatable = await CreatePortfolio(dos, user);
-      // prettier-ignore
       const tokenId = await depositNft(dos, liquidatable, nft, nftOracle, toWei(1));
-      // prettier-ignore
       await depositAsset(dos, liquidatable, usdc, usdcAssetIdx, toWeiUsdc(1_500));
       const liquidator = await CreatePortfolio(dos, user2);
-      // prettier-ignore
       await depositAsset(dos, liquidator, weth, wethAssetIdx, toWei(1));
       const other = await CreatePortfolio(dos, user3);
       await depositAsset(dos, other, weth, wethAssetIdx, toWei(1));
@@ -698,17 +640,14 @@ describe("DOS", function () {
       const liquidatableBalance = await getBalances(dos, liquidatable);
       expect(liquidatableBalance.usdc).to.equal(0);
       // 0.8 - liqFraction, defined in deployDOSFixture
-      expect(liquidatableBalance.weth).to.be.approximately(
-        toWei(liquidatableTotal * 0.8),
-        2000
-      );
+      expect(liquidatableBalance.weth).to.be.approximately(toWei(liquidatableTotal * 0.8), 2000);
       expect(liquidatableBalance.nfts).to.eql([]);
       const liquidatorBalance = await getBalances(dos, liquidator);
       expect(liquidatorBalance.usdc).to.equal(toWeiUsdc(1_500));
       // 1 - initial balance; -1 transferred debt; 0.8 - liqFactor defined in deployDOSFixture
       expect(liquidatorBalance.weth).to.be.approximately(
         toWei(1 - 1 - liquidatableTotal * 0.8),
-        2000
+        2000,
       );
       expect(liquidatorBalance.nfts).to.eql([[nft.address, tokenId]]);
     });
@@ -720,16 +659,14 @@ describe("DOS", function () {
         "should change ownership of the NFT from the user to DOS " +
         "and add NFT to the user DOS portfolio",
       async () => {
-        const { user, dos, nft, nftOracle } = await loadFixture(
-          deployDOSFixture
-        );
+        const { user, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
         const portfolio = await CreatePortfolio(dos, user);
         const tokenId = await depositUserNft(dos, portfolio, nft, nftOracle);
 
         expect(await nft.ownerOf(tokenId)).to.eql(dos.address);
         const userNfts = await dos.viewNfts(portfolio.address);
         expect(userNfts).to.eql([[nft.address, tokenId]]);
-      }
+      },
     );
 
     it(
@@ -737,9 +674,7 @@ describe("DOS", function () {
         "should change ownership of the NFT from portfolio to DOS " +
         "and add NFT to the user DOS portfolio",
       async () => {
-        const { user, dos, nft, nftOracle } = await loadFixture(
-          deployDOSFixture
-        );
+        const { user, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
         const portfolio = await CreatePortfolio(dos, user);
 
         const tokenId = await depositNft(dos, portfolio, nft, nftOracle);
@@ -747,26 +682,20 @@ describe("DOS", function () {
         expect(await nft.ownerOf(tokenId)).to.eql(dos.address);
         const userNfts = await dos.viewNfts(portfolio.address);
         expect(userNfts).to.eql([[nft.address, tokenId]]);
-      }
+      },
     );
 
     it("when NFT contract is not registered should revert the deposit", async () => {
-      const { user, dos, unregisteredNft, nftOracle } = await loadFixture(
-        deployDOSFixture
-      );
+      const { user, dos, unregisteredNft, nftOracle } = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
 
       const txRevert = depositNft(dos, portfolio, unregisteredNft, nftOracle);
 
-      await expect(txRevert).to.be.revertedWith(
-        "Cannot add NFT of unknown NFT contract"
-      );
+      await expect(txRevert).to.be.revertedWith("Cannot add NFT of unknown NFT contract");
     });
 
     it("when user is not an owner of NFT should revert the deposit", async () => {
-      const { user, user2, dos, nft, nftOracle } = await loadFixture(
-        deployDOSFixture
-      );
+      const { user, user2, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
       const portfolio2 = await CreatePortfolio(dos, user2);
       const tokenId = await depositNft(dos, portfolio, nft, nftOracle);
@@ -776,7 +705,7 @@ describe("DOS", function () {
       ]);
 
       await expect(depositNftTx).to.be.revertedWith(
-        "NFT must be owned the the user or user's portfolio"
+        "NFT must be owned the the user or user's portfolio",
       );
     });
 
@@ -789,9 +718,7 @@ describe("DOS", function () {
 
       const depositNftTx = dos.depositNft(nft.address, tokenId);
 
-      await expect(depositNftTx).to.be.revertedWith(
-        "Only portfolio can execute"
-      );
+      await expect(depositNftTx).to.be.revertedWith("Only portfolio can execute");
     });
   });
 
@@ -807,9 +734,7 @@ describe("DOS", function () {
     });
 
     it("when user is not the owner of the deposited NFT should revert", async () => {
-      const { user, user2, dos, nft, nftOracle } = await loadFixture(
-        deployDOSFixture
-      );
+      const { user, user2, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
       const ownerPortfolio = await CreatePortfolio(dos, user);
       const tokenId = await depositNft(dos, ownerPortfolio, nft, nftOracle);
       const nonOwnerPortfolio = await CreatePortfolio(dos, user2);
@@ -818,9 +743,7 @@ describe("DOS", function () {
         makeCallWithValue(dos, "claimNft", [nft.address, tokenId]),
       ]);
 
-      await expect(claimNftTx).to.be.revertedWith(
-        "NFT must be on the user's deposit"
-      );
+      await expect(claimNftTx).to.be.revertedWith("NFT must be on the user's deposit");
     });
 
     it(
@@ -828,9 +751,7 @@ describe("DOS", function () {
         "should change ownership of the NFT from DOS to user's portfolio " +
         "and remove NFT from the user DOS portfolio",
       async () => {
-        const { user, dos, nft, nftOracle } = await loadFixture(
-          deployDOSFixture
-        );
+        const { user, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
         const portfolio = await CreatePortfolio(dos, user);
         const tokenId = await depositNft(dos, portfolio, nft, nftOracle);
 
@@ -841,45 +762,36 @@ describe("DOS", function () {
 
         await expect(await nft.ownerOf(tokenId)).to.eql(portfolio.address);
         await expect(await dos.viewNfts(portfolio.address)).to.eql([]);
-      }
+      },
     );
   });
 
   describe("#sendNft", () => {
     it("when called not with portfolio should revert", async () => {
-      const { user, user2, dos, nft, nftOracle } = await loadFixture(
-        deployDOSFixture
-      );
+      const { user, user2, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
       const ownerPortfolio = await CreatePortfolio(dos, user);
       const receiverPortfolio = await CreatePortfolio(dos, user2);
       const tokenId = await depositNft(dos, ownerPortfolio, nft, nftOracle);
 
-      const sendNftTx = dos
-        .connect(user)
-        .sendNft(nft.address, tokenId, receiverPortfolio.address);
+      const sendNftTx = dos.connect(user).sendNft(nft.address, tokenId, receiverPortfolio.address);
 
       await expect(sendNftTx).to.be.revertedWith("Only portfolio can execute");
     });
 
     it("when user is not the owner of the deposited NFT should revert", async () => {
-      const { user, user2, user3, dos, nft, nftOracle } = await loadFixture(
-        deployDOSFixture
-      );
+      const { user, user2, user3, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
       const ownerPortfolio = await CreatePortfolio(dos, user);
       const nonOwnerPortfolio = await CreatePortfolio(dos, user2);
       const receiverPortfolio = await CreatePortfolio(dos, user3);
       const tokenId = await depositNft(dos, ownerPortfolio, nft, nftOracle);
 
-      // prettier-ignore
       const tx = transfer(dos, nonOwnerPortfolio, receiverPortfolio, nft, tokenId);
 
       await expect(tx).to.be.revertedWith("NFT must be on the user's deposit");
     });
 
     it("when receiver is not a portfolio should revert", async () => {
-      const { user, user2, dos, nft, nftOracle } = await loadFixture(
-        deployDOSFixture
-      );
+      const { user, user2, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
       const ownerPortfolio = await CreatePortfolio(dos, user);
       const tokenId = await depositNft(dos, ownerPortfolio, nft, nftOracle);
 
@@ -890,9 +802,7 @@ describe("DOS", function () {
     });
 
     it("when user owns the deposited NFT should be able to move the NFT to another portfolio", async () => {
-      const { user, user2, dos, nft, nftOracle } = await loadFixture(
-        deployDOSFixture
-      );
+      const { user, user2, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
       const sender = await CreatePortfolio(dos, user);
       const receiver = await CreatePortfolio(dos, user2);
       const tokenId = await depositNft(dos, sender, nft, nftOracle);
@@ -911,7 +821,7 @@ async function CreatePortfolio(dos: DOS, signer: Signer) {
   const { portfolio } = await getEventParams(
     await dos.connect(signer).createPortfolio(),
     dos,
-    "PortfolioCreated"
+    "PortfolioCreated",
   );
   return PortfolioLogic__factory.connect(portfolio as string, signer);
 }
@@ -921,7 +831,7 @@ async function depositAsset(
   portfolio: PortfolioLogic,
   asset: TestERC20 | WETH9,
   assetIdx: number,
-  amount: number | bigint
+  amount: number | bigint,
 ) {
   await asset.mint(portfolio.address, amount);
 
@@ -937,7 +847,7 @@ async function depositNft(
   portfolio: PortfolioLogic,
   nft: TestNFT,
   priceOracle: MockNFTOracle,
-  price: bigint = toWei(0.1)
+  price: bigint = toWei(0.1),
 ): Promise<BigNumber> {
   const mintTx = await nft.mint(portfolio.address);
   const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
@@ -962,7 +872,7 @@ async function depositUserNft(
   portfolio: PortfolioLogic,
   nft: TestNFT,
   priceOracle: MockNFTOracle,
-  price: bigint = toWei(0.1)
+  price: bigint = toWei(0.1),
 ): Promise<BigNumber> {
   const user = portfolio.signer;
   const mintTx = await nft.mint(await user.getAddress());
@@ -979,7 +889,7 @@ async function depositUserNft(
 
 async function getBalances(
   dos: DOS,
-  portfolio: PortfolioLogic
+  portfolio: PortfolioLogic,
 ): Promise<{
   nfts: [nftContract: string, tokenId: BigNumber][];
   usdc: BigNumber;
@@ -997,16 +907,12 @@ async function transfer(
   dos: DOS,
   from: PortfolioLogic,
   to: PortfolioLogic,
-  ...value:
-    | [assetIdx: number, amount: BigNumberish]
-    | [nft: TestNFT, tokenId: BigNumberish]
+  ...value: [assetIdx: number, amount: BigNumberish] | [nft: TestNFT, tokenId: BigNumberish]
 ): Promise<ContractTransaction> {
   if (typeof value[0] == "number") {
     // transfer asset
     const [assetIdx, amount] = value;
-    return from.executeBatch([
-      makeCallWithValue(dos, "transfer", [assetIdx, to.address, amount]),
-    ]);
+    return from.executeBatch([makeCallWithValue(dos, "transfer", [assetIdx, to.address, amount])]);
   } else {
     // transfer NFT
     const [nft, tokenId] = value;
@@ -1024,7 +930,7 @@ export const getFixedGasSigners = async function (gasLimit: number) {
   const signers: SignerWithAddress[] = await ethers.getSigners();
   for (const signer of signers) {
     const orig = signer.sendTransaction;
-    signer.sendTransaction = (transaction) => {
+    signer.sendTransaction = transaction => {
       transaction.gasLimit = BigNumber.from(gasLimit.toString());
       return orig.apply(signer, [transaction]);
     };
