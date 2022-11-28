@@ -30,10 +30,8 @@ describe("UniswapOracle", function () {
     const weth = await new WETH9__factory(owner).deploy();
     const { uniswapFactory, uniswapNFTManager } = await deployUniswapFactory(weth.address, owner);
 
-    let tok0;
-    let tok1;
-    tok0 = await new TestERC20__factory(owner).deploy("TOKA", "TOKA", 18);
-    tok1 = await new TestERC20__factory(owner).deploy("TOKB", "TOKB", 18);
+    let tok0 = await new TestERC20__factory(owner).deploy("TOKA", "TOKA", 18);
+    let tok1 = await new TestERC20__factory(owner).deploy("TOKB", "TOKB", 18);
 
     if (BigInt(tok0.address) > BigInt(tok1.address)) [tok0, tok1] = [tok1, tok0];
 
