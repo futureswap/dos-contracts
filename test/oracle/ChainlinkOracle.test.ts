@@ -6,6 +6,7 @@ import {
 import { toWei } from "../../lib/Numbers";
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { Chainlink } from "../../lib/Calls";
 
 const usdcPrice = 1;
 const usdcChainlinkDecimals = 8;
@@ -18,53 +19,36 @@ const ethDecimals = 18;
 describe("ChainlinkOracle", function () {
   async function setupOracle() {
     const [owner] = await ethers.getSigners();
-    const mockUsdcChainlink = await waffle.deployMockContract(
-      owner,
-      AggregatorV3Interface__factory.abi,
-    );
-    await mockUsdcChainlink.mock.decimals.returns(usdcChainlinkDecimals);
-    const usdcOracle = await new ERC20ChainlinkValueOracle__factory(owner).deploy(
-      mockUsdcChainlink.address,
-      usdcDecimals,
-      usdcDecimals,
-    );
 
-    const mockEthChainlink = await waffle.deployMockContract(
+    const usdcChainlink = await Chainlink.deploy(
       owner,
-      AggregatorV3Interface__factory.abi,
+      usdcPrice,
+      usdcChainlinkDecimals,
+      usdcDecimals,
+      usdcDecimals,
     );
-    await mockEthChainlink.mock.decimals.returns(ethChainlinkDecimals);
-    const ethOracle = await new ERC20ChainlinkValueOracle__factory(owner).deploy(
-      mockEthChainlink.address,
+    const ethChainlink = await Chainlink.deploy(
+      owner,
+      ethPrice,
+      ethChainlinkDecimals,
       usdcDecimals,
       ethDecimals,
     );
-    return { usdcOracle, mockUsdcChainlink, ethOracle, mockEthChainlink };
+
+    return { usdcChainlink, ethChainlink };
   }
 
   it("Returns right price for usdc", async () => {
-    const { usdcOracle, mockUsdcChainlink } = await loadFixture(setupOracle);
-    await mockUsdcChainlink.mock.latestRoundData.returns(
-      0,
-      toWei(usdcPrice, usdcChainlinkDecimals),
-      0,
-      0,
-      0,
+    const { usdcChainlink } = await loadFixture(setupOracle);
+    expect(await usdcChainlink.assetOracle.calcValue(toWei(1, usdcDecimals))).to.equal(
+      toWei(1, usdcDecimals),
     );
-    expect(await usdcOracle.calcValue(toWei(1, usdcDecimals))).to.equal(toWei(1, usdcDecimals));
   });
 
   it("Returns right price for eth", async () => {
-    const { ethOracle, mockEthChainlink } = await loadFixture(setupOracle);
-    await mockEthChainlink.mock.latestRoundData.returns(
-      0,
-      toWei(ethPrice, ethChainlinkDecimals),
-      0,
-      0,
-      0,
-    );
+    const { ethChainlink } = await loadFixture(setupOracle);
 
-    expect(await ethOracle.calcValue(toWei(1, ethDecimals))).to.equal(
+    expect(await ethChainlink.assetOracle.calcValue(toWei(1, ethDecimals))).to.equal(
       toWei(ethPrice, usdcDecimals),
     );
   });

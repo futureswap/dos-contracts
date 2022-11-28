@@ -10,8 +10,8 @@ contract TestNFT is ERC721 {
 
     event Mint(uint256 tokenId);
 
-    constructor() ERC721("TestNFT", "TN1") {
-        tokenIdCounter._value = 100;
+    constructor(string memory name, string memory symbol, uint256 start) ERC721(name, symbol) {
+        tokenIdCounter._value = start;
     }
 
     function mint(address to) public returns (uint256) {

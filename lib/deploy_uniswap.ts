@@ -33,6 +33,7 @@ export async function deployUniswapPool(
   const pool = new Contract(poolAddress, uniswapPoolJSON.abi, uniswapFactory.signer);
 
   const Q96 = 2 ** 96;
+  if (BigInt(token0) > BigInt(token1)) price = 1 / price;
   await pool.initialize(BigInt(Math.sqrt(price) * Q96));
 
   return pool;
