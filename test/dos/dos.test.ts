@@ -21,7 +21,7 @@ import {
 import { toWei, toWeiUsdc } from "../../lib/Numbers";
 import { getEventParams } from "../../lib/Events";
 import { BigNumber, BigNumberish, ContractTransaction, Signer } from "ethers";
-import { makeCallWithValue } from "../../lib/Calls";
+import { makeCall } from "../../lib/Calls";
 
 const USDC_DECIMALS = 6;
 const WETH_DECIMALS = 18;
@@ -157,9 +157,9 @@ describe("DOS", function () {
       await usdc.mint(sender.address, tenThousandUsdc);
 
       await sender.executeBatch([
-        makeCallWithValue(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCallWithValue(dos, "transfer", [usdcAssetIdx, receiver.address, tenThousandUsdc]),
-        makeCallWithValue(dos, "depositAsset", [usdcAssetIdx, tenThousandUsdc]),
+        makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
+        makeCall(dos, "transfer", [usdcAssetIdx, receiver.address, tenThousandUsdc]),
+        makeCall(dos, "depositAsset", [usdcAssetIdx, tenThousandUsdc]),
       ]);
 
       expect((await getBalances(dos, sender)).usdc).to.equal(0);
@@ -224,7 +224,7 @@ describe("DOS", function () {
       await (await tx).wait();
       // make liquidatable debt overcome collateral. Now it can be liquidated
       await setEthPriceInUsdc(9_000);
-      await liquidator.executeBatch([makeCallWithValue(dos, "liquidate", [liquidatable.address])]);
+      await liquidator.executeBatch([makeCall(dos, "liquidate", [liquidatable.address])]);
 
       const liquidatableBalances = await getBalances(dos, liquidatable);
       const liquidatorBalances = await getBalances(dos, liquidator);
@@ -256,7 +256,7 @@ describe("DOS", function () {
       await (await tx).wait();
 
       const liquidationTx = liquidator.executeBatch([
-        makeCallWithValue(dos, "liquidate", [nonLiquidatable.address]),
+        makeCall(dos, "liquidate", [nonLiquidatable.address]),
       ]);
 
       await expect(liquidationTx).to.be.revertedWith("Portfolio is not liquidatable");
@@ -406,7 +406,7 @@ describe("DOS", function () {
       const nonPortfolioAddress = "0xb4A50D202ca799AA07d4E9FE11C2919e5dFe4220";
 
       const liquidateTx = liquidator.executeBatch([
-        makeCallWithValue(dos, "liquidate", [nonPortfolioAddress]),
+        makeCall(dos, "liquidate", [nonPortfolioAddress]),
       ]);
 
       await expect(liquidateTx).to.be.revertedWith("Recipient portfolio doesn't exist");
@@ -419,7 +419,7 @@ describe("DOS", function () {
       await depositAsset(dos, liquidator, usdc, usdcAssetIdx, toWeiUsdc(1000));
 
       const liquidateTx = liquidator.executeBatch([
-        makeCallWithValue(dos, "liquidate", [emptyPortfolio.address]),
+        makeCall(dos, "liquidate", [emptyPortfolio.address]),
       ]);
 
       await expect(liquidateTx).to.be.revertedWith("Portfolio is not liquidatable");
@@ -433,7 +433,7 @@ describe("DOS", function () {
       await depositAsset(dos, liquidator, usdc, usdcAssetIdx, toWeiUsdc(1000));
 
       const liquidateTx = liquidator.executeBatch([
-        makeCallWithValue(dos, "liquidate", [nonLiquidatable.address]),
+        makeCall(dos, "liquidate", [nonLiquidatable.address]),
       ]);
 
       await expect(liquidateTx).to.be.revertedWith("Portfolio is not liquidatable");
@@ -459,7 +459,7 @@ describe("DOS", function () {
       await (await tx).wait();
 
       const liquidateTx = liquidator.executeBatch([
-        makeCallWithValue(dos, "liquidate", [nonLiquidatable.address]),
+        makeCall(dos, "liquidate", [nonLiquidatable.address]),
       ]);
 
       await expect(liquidateTx).to.be.revertedWith("Portfolio is not liquidatable");
@@ -486,7 +486,7 @@ describe("DOS", function () {
 
       await setEthPriceInUsdc(2_100); // 2_000 -> 2_100
       const liquidateTx = liquidator.executeBatch([
-        makeCallWithValue(dos, "liquidate", [liquidatable.address]),
+        makeCall(dos, "liquidate", [liquidatable.address]),
       ]);
 
       await expect(liquidateTx).to.revertedWith("Result of operation is not sufficient liquid");
@@ -512,7 +512,7 @@ describe("DOS", function () {
 
       await setEthPriceInUsdc(2_100); // 2_000 -> 2_100
       const liquidateTx = liquidatable.executeBatch([
-        makeCallWithValue(dos, "liquidate", [liquidatable.address]),
+        makeCall(dos, "liquidate", [liquidatable.address]),
       ]);
 
       await expect(liquidateTx).to.revertedWith("Result of operation is not sufficient liquid");
@@ -540,7 +540,7 @@ describe("DOS", function () {
 
       await setEthPriceInUsdc(2_100); // 2_000 -> 2_100
       const liquidateTx = await liquidator.executeBatch([
-        makeCallWithValue(dos, "liquidate", [liquidatable.address]),
+        makeCall(dos, "liquidate", [liquidatable.address]),
       ]);
       await liquidateTx.wait();
 
@@ -583,7 +583,7 @@ describe("DOS", function () {
       // drop the price of the NFT from 1 Eth to 0.8 Eth. Now portfolio should become liquidatable
       await (await nftOracle.setPrice(tokenId, toWei(0.8))).wait();
       const liquidateTx = await liquidator.executeBatch([
-        makeCallWithValue(dos, "liquidate", [liquidatable.address]),
+        makeCall(dos, "liquidate", [liquidatable.address]),
       ]);
       await liquidateTx.wait();
 
@@ -631,7 +631,7 @@ describe("DOS", function () {
       // So the debt would exceed the collateral and the portfolio becomes liquidatable
       await setEthPriceInUsdc(2_500);
       const liquidateTx = await liquidator.executeBatch([
-        makeCallWithValue(dos, "liquidate", [liquidatable.address]),
+        makeCall(dos, "liquidate", [liquidatable.address]),
       ]);
       await liquidateTx.wait();
 
@@ -701,7 +701,7 @@ describe("DOS", function () {
       const tokenId = await depositNft(dos, portfolio, nft, nftOracle);
 
       const depositNftTx = portfolio2.executeBatch([
-        makeCallWithValue(dos, "depositNft", [nft.address, tokenId]),
+        makeCall(dos, "depositNft", [nft.address, tokenId]),
       ]);
 
       await expect(depositNftTx).to.be.revertedWith(
@@ -740,7 +740,7 @@ describe("DOS", function () {
       const nonOwnerPortfolio = await CreatePortfolio(dos, user2);
 
       const claimNftTx = nonOwnerPortfolio.executeBatch([
-        makeCallWithValue(dos, "claimNft", [nft.address, tokenId]),
+        makeCall(dos, "claimNft", [nft.address, tokenId]),
       ]);
 
       await expect(claimNftTx).to.be.revertedWith("NFT must be on the user's deposit");
@@ -756,7 +756,7 @@ describe("DOS", function () {
         const tokenId = await depositNft(dos, portfolio, nft, nftOracle);
 
         const claimNftTx = await portfolio.executeBatch([
-          makeCallWithValue(dos, "claimNft", [nft.address, tokenId]),
+          makeCall(dos, "claimNft", [nft.address, tokenId]),
         ]);
         await claimNftTx.wait();
 
@@ -836,8 +836,8 @@ async function depositAsset(
   await asset.mint(portfolio.address, amount);
 
   const depositTx = await portfolio.executeBatch([
-    makeCallWithValue(asset, "approve", [dos.address, amount]),
-    makeCallWithValue(dos, "depositAsset", [assetIdx, amount]),
+    makeCall(asset, "approve", [dos.address, amount]),
+    makeCall(dos, "depositAsset", [assetIdx, amount]),
   ]);
   await depositTx.wait();
 }
@@ -854,8 +854,8 @@ async function depositNft(
   const tokenId = mintEventArgs[0] as BigNumber;
   await priceOracle.setPrice(tokenId, price);
   const depositNftTx = await portfolio.executeBatch([
-    makeCallWithValue(nft, "approve", [dos.address, tokenId]),
-    makeCallWithValue(dos, "depositNft", [nft.address, tokenId]),
+    makeCall(nft, "approve", [dos.address, tokenId]),
+    makeCall(dos, "depositNft", [nft.address, tokenId]),
   ]);
   await depositNftTx.wait();
   return tokenId;
@@ -881,7 +881,7 @@ async function depositUserNft(
   await priceOracle.setPrice(tokenId, price);
   await (await nft.connect(user).approve(dos.address, tokenId)).wait();
   const depositNftTx = await portfolio.executeBatch([
-    makeCallWithValue(dos, "depositNft", [nft.address, tokenId]),
+    makeCall(dos, "depositNft", [nft.address, tokenId]),
   ]);
   await depositNftTx.wait();
   return tokenId;
@@ -912,13 +912,11 @@ async function transfer(
   if (typeof value[0] == "number") {
     // transfer asset
     const [assetIdx, amount] = value;
-    return from.executeBatch([makeCallWithValue(dos, "transfer", [assetIdx, to.address, amount])]);
+    return from.executeBatch([makeCall(dos, "transfer", [assetIdx, to.address, amount])]);
   } else {
     // transfer NFT
     const [nft, tokenId] = value;
-    return from.executeBatch([
-      makeCallWithValue(dos, "sendNft", [nft.address, tokenId, to.address]),
-    ]);
+    return from.executeBatch([makeCall(dos, "sendNft", [nft.address, tokenId, to.address])]);
   }
 }
 

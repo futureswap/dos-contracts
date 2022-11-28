@@ -29,19 +29,7 @@ interface Call {
   value?: bigint;
 }
 
-export function makeCall(to: ethers.Contract, func: string, params: any[]) {
-  return {
-    to: to.address,
-    callData: to.interface.encodeFunctionData(func, params),
-  };
-}
-
-export function makeCallWithValue(
-  to: ethers.Contract,
-  func: string,
-  params: any[],
-  value?: bigint,
-) {
+export function makeCall(to: ethers.Contract, func: string, params: any[], value?: bigint) {
   return {
     to: to.address,
     callData: to.interface.encodeFunctionData(func, params),
