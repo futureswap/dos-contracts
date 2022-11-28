@@ -16,8 +16,7 @@ const getEnvVariable = (varName: string) => {
   return process.env[varName] || "";
 };
 
-const TEST_MNEMONIC =
-  "test test test test test test test test test test test junk";
+const TEST_MNEMONIC = "test test test test test test test test test test test junk";
 
 // Mnemonic for futureswap work accounts these are individual for each
 // employee. These accounts carry real ETH for executing TX's but should

@@ -44,19 +44,7 @@ interface Call {
   value?: bigint;
 }
 
-export function makeCall(to: ethers.Contract, func: string, params: any[]) {
-  return {
-    to: to.address,
-    callData: to.interface.encodeFunctionData(func, params),
-  };
-}
-
-export function makeCallWithValue(
-  to: ethers.Contract,
-  func: string,
-  params: any[],
-  value?: bigint
-) {
+export function makeCall(to: ethers.Contract, func: string, params: any[], value?: bigint) {
   return {
     to: to.address,
     callData: to.interface.encodeFunctionData(func, params),
@@ -64,16 +52,9 @@ export function makeCallWithValue(
   };
 }
 
-export async function proposeAndExecute(
-  governance: Governance,
-  voteNFT: HashNFT,
-  calls: Call[]
-) {
+export async function proposeAndExecute(governance: Governance, voteNFT: HashNFT, calls: Call[]) {
   const hash = ethers.utils.keccak256(
-    ethers.utils.defaultAbiCoder.encode(
-      ["tuple(address to, bytes callData)[]"],
-      [calls]
-    )
+    ethers.utils.defaultAbiCoder.encode(["tuple(address to, bytes callData)[]"], [calls]),
   );
   const nonce = await voteNFT.mintingNonce();
   await voteNFT.mint(governance.address, hash);
@@ -152,11 +133,4 @@ export class Chainlink {
       0
     );
   }
-}
-
-export async function setupDos(
-  signer: ethers.Signer,
-  governanceProxyAddress: string
-) {
-  const dos = await new DOS__factory(signer).deploy(governanceProxyAddress);
 }

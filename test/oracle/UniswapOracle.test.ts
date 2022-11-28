@@ -8,10 +8,7 @@ import {
 } from "../../typechain-types";
 import { toWei, toWeiUsdc } from "../../lib/Numbers";
 import { getEventsTx } from "../../lib/Events";
-import {
-  deployUniswapFactory,
-  deployUniswapPool,
-} from "../../lib/deploy_uniswap";
+import { deployUniswapFactory, deployUniswapPool } from "../../lib/deploy_uniswap";
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { Chainlink } from "../../lib/Calls";
@@ -31,10 +28,7 @@ describe("UniswapOracle", function () {
     const [owner] = await ethers.getSigners();
 
     const weth = await new WETH9__factory(owner).deploy();
-    const { uniswapFactory, uniswapNFTManager } = await deployUniswapFactory(
-      weth.address,
-      owner
-    );
+    const { uniswapFactory, uniswapNFTManager } = await deployUniswapFactory(weth.address, owner);
 
     let tok0;
     let tok1;
@@ -57,7 +51,7 @@ describe("UniswapOracle", function () {
     const uniswapOracle = await new UniV3Oracle__factory(owner).deploy(
       uniswapFactory.address,
       uniswapNFTManager.address,
-      owner.address
+      owner.address,
     );
     await uniswapOracle.setAssetValueOracle(
       tok0.address,
