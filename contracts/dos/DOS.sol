@@ -194,8 +194,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
             FsUtils.Assert(
                 IERC20(assetInfos[i].assetContract).balanceOf(address(this)) >= uint256(reserve)
             );
-            // FsUtils.Log("reserve", reserve);
-            // FsUtils.Log("debt", totalDebt);
             require(reserve >= -totalDebt / leverage, "Not enough reserve for debt");
         }
         (, int256 collateral, int256 debt) = computePosition(portfolio);

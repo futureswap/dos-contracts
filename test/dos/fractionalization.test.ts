@@ -26,25 +26,21 @@ describe.skip("Fractionalization", function () {
     const usdc = await new TestERC20__factory(owner).deploy("USD Coin", "USDC", 18);
 
     const weth = await new WETH9__factory(owner).deploy();
-    const nft = await new TestNFT__factory(owner).deploy(
-      "Test NFT",
-      "TNFT",
-      100
-    );
+    const nft = await new TestNFT__factory(owner).deploy("Test NFT", "TNFT", 100);
 
     const usdcChainlink = await Chainlink.deploy(
       owner,
       1,
       CHAINLINK_DECIMALS,
       USDC_DECIMALS,
-      USDC_DECIMALS
+      USDC_DECIMALS,
     );
     const ethChainlink = await Chainlink.deploy(
       owner,
       1,
       CHAINLINK_DECIMALS,
       USDC_DECIMALS,
-      ETH_DECIMALS
+      ETH_DECIMALS,
     );
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();

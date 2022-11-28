@@ -72,12 +72,12 @@ export async function deployGovernance(governanceProxy: GovernanceProxy) {
   const voteNFT = await new HashNFT__factory(signer).deploy(
     "Voting token",
     "VTOK",
-    governanceProxy.address
+    governanceProxy.address,
   );
   const governance = await new Governance__factory(signer).deploy(
     governanceProxy.address,
     voteNFT.address,
-    await signer.getAddress()
+    await signer.getAddress(),
   );
   await governanceProxy.execute([
     makeCall(governanceProxy, "proposeGovernance", [governance.address]),
@@ -99,16 +99,18 @@ export class Chainlink {
     price: number,
     chainLinkDecimals: number,
     baseTokenDecimals: number,
-    assetTokenDecimals: number
+    assetTokenDecimals: number,
   ) {
     const mockChainLink = await waffle.deployMockContract(
       signer,
-      AggregatorV3Interface__factory.abi
+      AggregatorV3Interface__factory.abi,
     );
     await mockChainLink.mock.decimals.returns(chainLinkDecimals);
-    const assetOracle = await new ERC20ChainlinkValueOracle__factory(
-      signer
-    ).deploy(mockChainLink.address, baseTokenDecimals, assetTokenDecimals);
+    const assetOracle = await new ERC20ChainlinkValueOracle__factory(signer).deploy(
+      mockChainLink.address,
+      baseTokenDecimals,
+      assetTokenDecimals,
+    );
     const x = new Chainlink(mockChainLink, assetOracle, chainLinkDecimals);
     await x.setPrice(price);
     return x;
@@ -117,7 +119,7 @@ export class Chainlink {
   private constructor(
     mockChainlink: MockContract,
     assetOracle: IAssetValueOracle,
-    chainlinkDecimals: number
+    chainlinkDecimals: number,
   ) {
     this.chainlink = mockChainlink;
     this.assetOracle = assetOracle;
@@ -130,7 +132,7 @@ export class Chainlink {
       toWei(price, this.chainlinkDecimals),
       0,
       0,
-      0
+      0,
     );
   }
 }

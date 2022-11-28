@@ -35,50 +35,33 @@ describe("UniswapOracle", function () {
     tok0 = await new TestERC20__factory(owner).deploy("TOKA", "TOKA", 18);
     tok1 = await new TestERC20__factory(owner).deploy("TOKB", "TOKB", 18);
 
-    if (BigInt(tok0.address) > BigInt(tok1.address))
-      [tok0, tok1] = [tok1, tok0];
+    if (BigInt(tok0.address) > BigInt(tok1.address)) [tok0, tok1] = [tok1, tok0];
 
     const tok0Chainlink = await Chainlink.deploy(owner, PRICE, 8, 18, 18);
     const tok1Chainlink = await Chainlink.deploy(owner, 1, 8, 18, 18);
 
-    const pool = await deployUniswapPool(
-      uniswapFactory,
-      tok0.address,
-      tok1.address,
-      PRICE
-    );
+    const pool = await deployUniswapPool(uniswapFactory, tok0.address, tok1.address, PRICE);
 
     const uniswapOracle = await new UniV3Oracle__factory(owner).deploy(
       uniswapFactory.address,
       uniswapNFTManager.address,
       owner.address,
     );
-    await uniswapOracle.setAssetValueOracle(
-      tok0.address,
-      tok0Chainlink.assetOracle.address
-    );
-    await uniswapOracle.setAssetValueOracle(
-      tok1.address,
-      tok1Chainlink.assetOracle.address
-    );
+    await uniswapOracle.setAssetValueOracle(tok0.address, tok0Chainlink.assetOracle.address);
+    await uniswapOracle.setAssetValueOracle(tok1.address, tok1Chainlink.assetOracle.address);
     return { owner, pool, uniswapNFTManager, tok0, tok1, uniswapOracle };
   }
 
   describe("Uniswap oracle tests", () => {
     it("Calculates proper lp value", async () => {
-      const { owner, uniswapNFTManager, tok0, tok1, uniswapOracle } =
-        await loadFixture(deployUniswapFixture);
+      const { owner, uniswapNFTManager, tok0, tok1, uniswapOracle } = await loadFixture(
+        deployUniswapFixture,
+      );
 
       await tok0.mint(owner.address, toWei(10));
       await tok1.mint(owner.address, toWei(1000));
-      await tok0.approve(
-        uniswapNFTManager.address,
-        ethers.constants.MaxUint256
-      );
-      await tok1.approve(
-        uniswapNFTManager.address,
-        ethers.constants.MaxUint256
-      );
+      await tok0.approve(uniswapNFTManager.address, ethers.constants.MaxUint256);
+      await tok1.approve(uniswapNFTManager.address, ethers.constants.MaxUint256);
       {
         const mintParams = {
           token0: tok0.address,
@@ -95,15 +78,12 @@ describe("UniswapOracle", function () {
         };
         const { IncreaseLiquidity } = await getEventsTx<{
           IncreaseLiquidity: IncreaseLiquidity;
-        }>(
-          uniswapNFTManager.mint(mintParams, { gasLimit: 9e6 }),
-          uniswapNFTManager
-        );
+        }>(uniswapNFTManager.mint(mintParams, { gasLimit: 9e6 }), uniswapNFTManager);
         expect(
-          (await uniswapOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt()
+          (await uniswapOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt(),
         ).to.approximately(
           IncreaseLiquidity.amount0 * BigInt(PRICE) + IncreaseLiquidity.amount1,
-          100
+          100,
         );
       }
       {
@@ -124,11 +104,8 @@ describe("UniswapOracle", function () {
           IncreaseLiquidity: IncreaseLiquidity;
         }>(uniswapNFTManager.mint(mintParams), uniswapNFTManager);
         expect(
-          (await uniswapOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt()
-        ).to.approximately(
-          IncreaseLiquidity.amount0 * 100n + IncreaseLiquidity.amount1,
-          100
-        );
+          (await uniswapOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt(),
+        ).to.approximately(IncreaseLiquidity.amount0 * 100n + IncreaseLiquidity.amount1, 100);
       }
       {
         const mintParams = {
@@ -148,11 +125,8 @@ describe("UniswapOracle", function () {
           IncreaseLiquidity: IncreaseLiquidity;
         }>(uniswapNFTManager.mint(mintParams), uniswapNFTManager);
         expect(
-          (await uniswapOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt()
-        ).to.approximately(
-          IncreaseLiquidity.amount0 * 100n + IncreaseLiquidity.amount1,
-          100
-        );
+          (await uniswapOracle.calcValue(IncreaseLiquidity.tokenId)).toBigInt(),
+        ).to.approximately(IncreaseLiquidity.amount0 * 100n + IncreaseLiquidity.amount1, 100);
       }
     });
   });
