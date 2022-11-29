@@ -20,7 +20,11 @@ contract PortfolioProxy is Proxy {
 
     // The implementation of the delegate is controlled by DOS
     function _implementation() internal view override returns (address) {
-        return IDOS(dos).getImplementation();
+        return IDOS(dos).getImplementation(address(this));
+    }
+
+    function upgradeImplementation(uint256 _version) external {
+        IDOS(dos).upgradeImplementation(_version);
     }
 
     // Allow DOS to make arbitrary calls in lieu of this portfolio
