@@ -148,10 +148,12 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     // in which the system calculates value.
     AssetIdx constant kNumeraireIdx = AssetIdx.wrap(0);
 
+    IVersionManager public versionManager;
+
     mapping(address => Portfolio) portfolios;
 
     // Note: This could be a mapping to a version index instead of the implementation address
-    mapping (address => address) public portfolioLogic;
+    mapping(address => address) public portfolioLogic;
 
     struct ERC20Info {
         address assetContract;
@@ -180,9 +182,9 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     mapping(address => NFTInfo) public nftInfos;
     Config public config;
 
-    constructor(address governance, address versionManager) ImmutableOwnable(governance) {
+    constructor(address governance, address _versionManager) ImmutableOwnable(governance) {
         // portfolioLogic = address(new PortfolioLogic(address(this)));
-        versionManager = IVersionManager(versionManager);
+        versionManager = IVersionManager(_versionManager);
     }
 
     function getImplementation(address portfolio) external view override returns (address) {
@@ -510,7 +512,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         portfolios[portfolio].owner = msg.sender;
 
         // add a version parameter if users should pick a specific version
-        (,,,address implementation,) = versionManager.getRecommendedVersion();
+        (, , , address implementation, ) = versionManager.getRecommendedVersion();
         portfolioLogic[portfolio] = implementation;
         emit PortfolioCreated(portfolio, msg.sender);
     }
