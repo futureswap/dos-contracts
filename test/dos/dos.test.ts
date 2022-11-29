@@ -60,8 +60,6 @@ describe("DOS", function () {
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();
 
-    await nftOracle.setPrice(1, toWei(100));
-
     const dos = await new DOS__factory(owner).deploy(owner.address);
 
     // const DosDeployData = await ethers.getContractFactory("DOS");
