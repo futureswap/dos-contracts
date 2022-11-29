@@ -61,8 +61,6 @@ describe("DOS", function () {
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();
 
-    await nftOracle.setPrice(1, toWei(100));
-
     const versionManager = await new VersionManager__factory(owner).deploy();
     const dos = await new DOS__factory(owner).deploy(owner.address, versionManager.address);
     const portfolioLogic = await new PortfolioLogic__factory(owner).deploy(dos.address);
