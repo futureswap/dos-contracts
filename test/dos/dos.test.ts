@@ -6,6 +6,7 @@ import {
   DOS,
   DOS__factory,
   PortfolioLogic__factory,
+  VersionManager__factory,
   TestERC20__factory,
   WETH9__factory,
   TestNFT__factory,
@@ -62,7 +63,13 @@ describe("DOS", function () {
 
     await nftOracle.setPrice(1, toWei(100));
 
-    const dos = await new DOS__factory(owner).deploy(owner.address);
+    const versionManager = await new VersionManager__factory(owner).deploy();
+    const dos = await new DOS__factory(owner).deploy(owner.address, versionManager.address);
+    const portfolioLogic = await new PortfolioLogic__factory(owner).deploy(dos.address);
+    await (
+      await versionManager.addVersion("defaultVersionForTests", 2, portfolioLogic.address)
+    ).wait();
+    await (await versionManager.markRecommendedVersion("defaultVersionForTests")).wait();
 
     // const DosDeployData = await ethers.getContractFactory("DOS");
     // const dos = await DosDeployData.deploy(unlockTime, { value: lockedAmount });
