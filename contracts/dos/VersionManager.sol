@@ -31,13 +31,13 @@ contract VersionManager is IVersionManager, ImmutableOwnable {
     /// @notice Registers a new version of the store contract
     /// @param versionName The name of the version to be added
     /// @param status Status of the version to be added
-    /// @param implementation The address of the implementation of the version
+    /// @param _implementation The address of the implementation of the version
     function addVersion(
         string calldata versionName,
         Status status,
         address _implementation
     ) external onlyOwner {
-        implementation = FsUtils.nonNull(_implementation);
+        address implementation = FsUtils.nonNull(_implementation);
         // version name must not be the empty string
         if (bytes(versionName).length == 0) {
             revert InvalidVersionName();
