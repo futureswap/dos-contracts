@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.17;
 
 /// @notice parameter cannot be the zero address
 error ZeroAddress();
@@ -17,20 +17,28 @@ error InvalidImplementation();
 error VersionAlreadyRegistered();
 
 interface IVersionManager {
-
     /// @dev Signifies the status of a version
-    enum Status {BETA, RC, PRODUCTION, DEPRECATED}
+    enum Status {
+        BETA,
+        RC,
+        PRODUCTION,
+        DEPRECATED
+    }
 
     /// @dev Indicated the highest level of bug found in the version
-    enum BugLevel {NONE, LOW, MEDIUM, HIGH, CRITICAL}
+    enum BugLevel {
+        NONE,
+        LOW,
+        MEDIUM,
+        HIGH,
+        CRITICAL
+    }
 
     /// @dev A struct to encode version details
     struct Version {
         // the version number string ex. "v1.0"
         string versionName;
-
         Status status;
-
         BugLevel bugLevel;
         // the address of the instantiation of the version
         address implementation;
@@ -38,16 +46,9 @@ interface IVersionManager {
         uint256 dateAdded;
     }
 
-    event VersionAdded(
-        string versionName,
-        address indexed implementation
-    );
+    event VersionAdded(string versionName, address indexed implementation);
 
-    event VersionUpdated(
-        string versionName,
-        Status status,
-        BugLevel bugLevel
-    );
+    event VersionUpdated(string versionName, Status status, BugLevel bugLevel);
 
     event VersionRecommended(string versionName);
 
@@ -59,32 +60,26 @@ interface IVersionManager {
         address implementation
     ) external;
 
-    function updateVersion(
-        string calldata versionName,
-        Status status,
-        BugLevel bugLevel
-    ) external;
+    function updateVersion(string calldata versionName, Status status, BugLevel bugLevel) external;
 
-    function markRecommendedVersion(
-        string calldata versionName
-    ) external;
+    function markRecommendedVersion(string calldata versionName) external;
 
     function removeRecommendedVersion() external;
 
-    function getRecommendedVersion() external view returns (
+    function getRecommendedVersion()
+        external
+        view
+        returns (
             string memory versionName,
             Status status,
             BugLevel bugLevel,
             address implementation,
             uint256 dateAdded
-    );
+        );
 
     function getVersionCount() external view returns (uint256 count);
 
-    function getVersionAtIndex(uint256 index)
-        external
-        view
-        returns (string memory versionName);
+    function getVersionAtIndex(uint256 index) external view returns (string memory versionName);
 
     function getVersionAddress(uint256 index) external view returns (address);
 
