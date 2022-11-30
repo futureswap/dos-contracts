@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "../lib/FsUtils.sol";
 import "../lib/FsMath.sol";
-import "../interfaces/IDOS.sol";
+import { IDOS, IDOSERC20 } from "../interfaces/IDOS.sol";
 import "../interfaces/IAssetValueOracle.sol";
 import "../interfaces/INFTValueOracle.sol";
 import { PortfolioProxy } from "./PortfolioProxy.sol";
@@ -192,8 +192,10 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         return portfolioLogic[portfolio];
     }
 
-    function upgradeImplementation(uint256 version) external onlyPortfolio {
-        portfolioLogic[msg.sender] = versionManager.getVersionAddress(version);
+    function upgradeImplementation(address portfolio, uint256 version) external {
+        address portfolioOwner = getPortfolioOwner(portfolio);
+        require(msg.sender == portfolioOwner, "DOS: not owner");
+        portfolioLogic[portfolio] = versionManager.getVersionAddress(version);
     }
 
     function isSolvent(address portfolio) public view returns (bool) {
