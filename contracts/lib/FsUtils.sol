@@ -8,6 +8,30 @@ import "hardhat/console.sol";
 // END STRIP
 
 library FsUtils {
+    // BEGIN STRIP
+    // This method is only mean to be used in local testing.  See `preprocess` property in
+    // `packages/contracts/hardhat.config.ts`.
+    // Slither sees this function is not used, but it is convenient to have it around for debugging
+    // purposes.
+    // slither-disable-next-line dead-code
+    function Log(string memory s) internal view {
+        console.log(s);
+    }
+
+    // This method is only mean to be used in local testing.  See `preprocess` property in
+    // `packages/contracts/hardhat.config.ts`.
+    // Slither sees this function is not used, but it is convenient to have it around for debugging
+    // purposes.
+    // slither-disable-next-line dead-code
+    function Log(string memory s, int256 x) internal view {
+        console.log(s);
+        console.logInt(x);
+    }
+
+    function Log(string memory s, address x) internal view {
+        console.log(s, x);
+    }
+
     function nonNull(address _address) internal pure returns (address) {
         require(_address != address(0), "Zero address");
         return _address;
@@ -44,30 +68,6 @@ library FsUtils {
         // BEGIN STRIP
         assert(cond);
         // END STRIP
-    }
-
-    // BEGIN STRIP
-    // This method is only mean to be used in local testing.  See `preprocess` property in
-    // `packages/contracts/hardhat.config.ts`.
-    // Slither sees this function is not used, but it is convenient to have it around for debugging
-    // purposes.
-    // slither-disable-next-line dead-code
-    function Log(string memory s) internal view {
-        console.log(s);
-    }
-
-    // This method is only mean to be used in local testing.  See `preprocess` property in
-    // `packages/contracts/hardhat.config.ts`.
-    // Slither sees this function is not used, but it is convenient to have it around for debugging
-    // purposes.
-    // slither-disable-next-line dead-code
-    function Log(string memory s, int256 x) internal view {
-        console.log(s);
-        console.logInt(x);
-    }
-
-    function Log(string memory s, address x) internal view {
-        console.log(s, x);
     }
     // END STRIP
 }

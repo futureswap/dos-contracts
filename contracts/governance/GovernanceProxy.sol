@@ -15,6 +15,11 @@ import "../tokens/VoteNFT.sol";
 // contracts that govern this proxy.
 contract GovernanceProxy {
     using Address for address;
+
+    struct Call {
+        address to;
+        bytes callData;
+    }
     // This address controls the proxy and is allowed to execute
     // contract calls from this contracts account.
     address public governance;
@@ -27,11 +32,6 @@ contract GovernanceProxy {
 
     event NewGovernanceProposed(address newGovernance);
     event GovernanceChanged(address oldGovernance, address newGovernance);
-
-    struct Call {
-        address to;
-        bytes callData;
-    }
 
     constructor() {
         governance = msg.sender;
