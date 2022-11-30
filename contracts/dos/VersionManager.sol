@@ -116,6 +116,7 @@ contract VersionManager is IVersionManager, ImmutableOwnable {
             uint256 dateAdded
         )
     {
+        require(bytes(_recommendedVersion).length != 0, "Recommended version is not specified");
         versionName = _recommendedVersion;
 
         Version storage recommendedVersion = _versions[versionName];

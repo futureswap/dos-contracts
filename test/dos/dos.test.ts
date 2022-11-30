@@ -6,6 +6,7 @@ import {
   DOS,
   DOS__factory,
   PortfolioLogic__factory,
+  VersionManager__factory,
   TestERC20__factory,
   WETH9__factory,
   TestNFT__factory,
@@ -60,8 +61,6 @@ describe("DOS", function () {
     const ethChainlink = await Chainlink.deploy(owner, ETH_PRICE, 8, USDC_DECIMALS, WETH_DECIMALS);
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();
-
-    await nftOracle.setPrice(1, toWei(100));
 
     const versionManager = await new VersionManager__factory(owner).deploy(owner.address);
     const dos = await new DOS__factory(owner).deploy(owner.address, versionManager.address);
