@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Address.sol";
+import { FsUtils } from "../lib/FsUtils.sol";
 import { ImmutableOwnable } from "../lib/ImmutableOwnable.sol";
 
 import "../interfaces/IVersionManager.sol";
@@ -15,13 +16,6 @@ contract VersionManager is IVersionManager, ImmutableOwnable {
 
     /// @dev The recommended version
     string internal _recommendedVersion;
-
-    modifier nonZeroAddress(address _address) {
-        if (_address == address(0)) {
-            revert ZeroAddress();
-        }
-        _;
-    }
 
     modifier versionExists(string memory versionName) {
         if (_versions[versionName].implementation == address(0)) {
@@ -39,8 +33,9 @@ contract VersionManager is IVersionManager, ImmutableOwnable {
     function addVersion(
         string calldata versionName,
         Status status,
-        address implementation
+        address _implementation
     ) external onlyOwner nonZeroAddress(implementation) {
+        implementation = FsUtils.nonNull(_implementation);
         // version name must not be the empty string
         if (bytes(versionName).length == 0) {
             revert InvalidVersionName();
