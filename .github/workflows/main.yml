@@ -39,6 +39,4 @@ jobs:
 #        run: "yarn coverage"
 
       - name: "Add test summary"
-        run: |
-          echo "## Test results" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+        run: "yarn test"
