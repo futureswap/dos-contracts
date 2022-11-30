@@ -6,10 +6,10 @@ import "@openzeppelin/contracts/proxy/Proxy.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import { FsUtils } from "../lib/FsUtils.sol";
+import {FsUtils} from "../lib/FsUtils.sol";
 import "../interfaces/IDOS.sol";
 
-// Inspired by TransparantUpdateableProxy
+// Inspired by TransparentUpdatableProxy
 contract PortfolioProxy is Proxy {
     using Address for address;
 
@@ -28,11 +28,6 @@ contract PortfolioProxy is Proxy {
         dos = FsUtils.nonNull(_dos);
     }
 
-    // The implementation of the delegate is controlled by DOS
-    function _implementation() internal view override returns (address) {
-        return IDOS(dos).getImplementation(address(this));
-    }
-
     // Allow DOS to make arbitrary calls in lieu of this portfolio
     function doCall(
         address to,
@@ -41,6 +36,11 @@ contract PortfolioProxy is Proxy {
     ) external ifDos returns (bytes memory) {
         return to.functionCallWithValue(callData, value);
     }
+
+    // The implementation of the delegate is controlled by DOS
+    function _implementation() internal view override returns (address) {
+        return IDOS(dos).getImplementation(address(this));
+    }
 }
 
 // Calls to the contract not coming from DOS itself are routed to this logic
@@ -48,18 +48,14 @@ contract PortfolioProxy is Proxy {
 contract PortfolioLogic is IERC721Receiver, IERC1271 {
     IDOS public immutable dos;
 
-    constructor(address _dos) {
-        // slither-disable-next-line missing-zero-check
-        dos = IDOS(FsUtils.nonNull(_dos));
-    }
-
-    function owner() external view returns (address) {
-        return IDOS(dos).getPortfolioOwner(address(this));
-    }
-
     modifier onlyOwner() {
         require(IDOS(dos).getPortfolioOwner(address(this)) == msg.sender, "");
         _;
+    }
+
+    constructor(address _dos) {
+        // slither-disable-next-line missing-zero-check
+        dos = IDOS(FsUtils.nonNull(_dos));
     }
 
     function executeBatch(IDOS.Call[] memory calls) external payable onlyOwner {
@@ -158,12 +154,8 @@ contract PortfolioLogic is IERC721Receiver, IERC1271 {
         dos.depositFull(new AssetIdx[](1));
     }
 
-    /// @inheritdoc IERC1271
-    function isValidSignature(
-        bytes32 hash,
-        bytes memory signature
-    ) public view returns (bytes4 magicValue) {
-        // TODO: need an implementation in order to use permit2
+    function owner() external view returns (address) {
+        return IDOS(dos).getPortfolioOwner(address(this));
     }
 
     function onERC721Received(
@@ -173,5 +165,13 @@ contract PortfolioLogic is IERC721Receiver, IERC1271 {
         bytes memory /* data */
     ) public virtual override returns (bytes4) {
         return this.onERC721Received.selector;
+    }
+
+    /// @inheritdoc IERC1271
+    function isValidSignature(
+        bytes32 hash,
+        bytes memory signature
+    ) public view returns (bytes4 magicValue) {
+        // TODO: need an implementation in order to use permit2
     }
 }

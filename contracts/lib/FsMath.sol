@@ -30,6 +30,8 @@ library FsMath {
      */
     int256 constant FIXED_POINT_SCALE = int256(1) << uint256(FIXED_POINT_SCALE_BITS);
 
+    uint256 constant UINT256_MAX = ~uint256(0);
+
     function abs(int256 value) internal pure returns (uint256) {
         if (value >= 0) {
             // slither-disable-next-line safe-cast
@@ -198,21 +200,6 @@ library FsMath {
     }
 
     /**
-     * @notice A helper used by `pow`, that expects that `n` is positive.
-     */
-    function powInternal(int256 x, int256 n) private pure returns (int256) {
-        int256 res = FIXED_POINT_SCALE;
-        while (n > 0) {
-            if ((n & 1) == 1) {
-                res = (res * x) / FIXED_POINT_SCALE;
-            }
-            x = (x * x) / FIXED_POINT_SCALE;
-            n /= 2;
-        }
-        return res;
-    }
-
-    /**
      * @notice Calculates square root of `x`, in fixed point decimal with a scale of
      * `FIXED_POINT_SCALE`.
      *
@@ -228,8 +215,6 @@ library FsMath {
         }
         return res;
     }
-
-    uint256 constant UINT256_MAX = ~uint256(0);
 
     // See https://en.wikipedia.org/wiki/Hamming_weight#Efficient_implementation
     function bitCount(uint256 x) internal pure returns (uint256) {
@@ -262,5 +247,20 @@ library FsMath {
             x = (x * mask) >> (256 - 8);
         }
         return x;
+    }
+
+    /**
+     * @notice A helper used by `pow`, that expects that `n` is positive.
+     */
+    function powInternal(int256 x, int256 n) private pure returns (int256) {
+        int256 res = FIXED_POINT_SCALE;
+        while (n > 0) {
+            if ((n & 1) == 1) {
+                res = (res * x) / FIXED_POINT_SCALE;
+            }
+            x = (x * x) / FIXED_POINT_SCALE;
+            n /= 2;
+        }
+        return res;
     }
 }

@@ -6,13 +6,13 @@ import "./FsUtils.sol";
 contract ImmutableOwnable {
     address public immutable owner;
 
-    constructor(address _owner) {
-        // slither-disable-next-line missing-zero-check
-        owner = FsUtils.nonNull(_owner);
-    }
-
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
         _;
+    }
+
+    constructor(address _owner) {
+        // slither-disable-next-line missing-zero-check
+        owner = FsUtils.nonNull(_owner);
     }
 }

@@ -10,11 +10,10 @@ import "../lib/FsMath.sol";
 import "../interfaces/IDOS.sol";
 import "../interfaces/IAssetValueOracle.sol";
 import "../interfaces/INFTValueOracle.sol";
-import { IPermit2 } from "../interfaces/IPermit2.sol";
-import { PortfolioProxy } from "./PortfolioProxy.sol";
+import {IPermit2} from "../interfaces/IPermit2.sol";
+import {PortfolioProxy} from "./PortfolioProxy.sol";
 import "../dosERC20/DOSERC20.sol";
-
-import { IVersionManager } from "../interfaces/IVersionManager.sol";
+import {IVersionManager} from "../interfaces/IVersionManager.sol";
 
 /// @notice Sender is not approved to spend portfolio assets
 error NotApprovedOrOwner();
@@ -49,25 +48,6 @@ struct Shares {
 }
 
 library PortfolioLib {
-    function getAssets(Portfolio storage p) internal view returns (AssetIdx[] memory assets) {
-        uint256 numAssets = 0;
-        for (uint256 i = 0; i < p.bitmask.length; i++) {
-            numAssets += FsMath.bitCount(p.bitmask[i]);
-        }
-        assets = new AssetIdx[](numAssets);
-        uint256 idx = 0;
-        for (uint256 i = 0; i < p.bitmask.length; i++) {
-            uint256 mask = p.bitmask[i];
-            for (uint256 j = 0; j < 256; j++) {
-                uint256 x = mask >> j;
-                if (x == 0) break;
-                if ((x & 1) != 0) {
-                    assets[idx++] = AssetIdx.wrap(uint16(i * 256 + j));
-                }
-            }
-        }
-    }
-
     function clearMask(Portfolio storage p, AssetIdx assetIdx) internal {
         uint16 idx = AssetIdx.unwrap(assetIdx);
         p.bitmask[idx >> 8] &= ~(1 << (idx & 255));
@@ -133,6 +113,25 @@ library PortfolioLib {
         p.nftPortfolioIdxs[nft.nftContract][nft.tokenId] = p.nfts.length;
     }
 
+    function getAssets(Portfolio storage p) internal view returns (AssetIdx[] memory assets) {
+        uint256 numAssets = 0;
+        for (uint256 i = 0; i < p.bitmask.length; i++) {
+            numAssets += FsMath.bitCount(p.bitmask[i]);
+        }
+        assets = new AssetIdx[](numAssets);
+        uint256 idx = 0;
+        for (uint256 i = 0; i < p.bitmask.length; i++) {
+            uint256 mask = p.bitmask[i];
+            for (uint256 j = 0; j < 256; j++) {
+                uint256 x = mask >> j;
+                if (x == 0) break;
+                if ((x & 1) != 0) {
+                    assets[idx++] = AssetIdx.wrap(uint16(i * 256 + j));
+                }
+            }
+        }
+    }
+
     function computeAsset(
         Shares storage balance,
         AssetShare sharesAmountWrapped
@@ -148,27 +147,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     using PortfolioLib for Portfolio;
     using PortfolioLib for Shares;
     using SafeERC20 for IERC20;
-
-    // We will initialize the system so that assetIdx 0 is the base currency
-    // in which the system calculates value.
-    AssetIdx constant kNumeraireIdx = AssetIdx.wrap(0);
-
-    IVersionManager public versionManager;
-    // https://docs.uniswap.org/contracts/permit2/overview
-    // https://etherscan.io/address/0x000000000022D473030F116dDEE9F6B43aC78BA3#code
-    address public constant permit2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-
-    mapping(address => Portfolio) portfolios;
-
-    // Note: This could be a mapping to a version index instead of the implementation address
-    mapping(address => address) public portfolioLogic;
-
-    /// @dev erc20 allowances
-    mapping(address => mapping(AssetIdx => mapping(address => uint256))) private _allowances;
-    /// @dev erc721 approvals
-    mapping(address => mapping(uint256 => address)) private _tokenApprovals;
-    /// @dev erc721 & erc1155 operator approvals
-    mapping(address => mapping(address => mapping(address => bool))) private _operatorApprovals;
 
     struct ERC20Info {
         address assetContract;
@@ -192,6 +170,27 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         int256 liqFraction; // Fraction for the user
         int256 fractionalReserveLeverage; // Ratio of debt to reserves
     }
+
+    // We will initialize the system so that assetIdx 0 is the base currency
+    // in which the system calculates value.
+    AssetIdx constant kNumeraireIdx = AssetIdx.wrap(0);
+
+    IVersionManager public versionManager;
+    // https://docs.uniswap.org/contracts/permit2/overview
+    // https://etherscan.io/address/0x000000000022D473030F116dDEE9F6B43aC78BA3#code
+    address public constant permit2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+
+    mapping(address => Portfolio) portfolios;
+
+    // Note: This could be a mapping to a version index instead of the implementation address
+    mapping(address => address) public portfolioLogic;
+
+    /// @dev erc20 allowances
+    mapping(address => mapping(AssetIdx => mapping(address => uint256))) private _allowances;
+    /// @dev erc721 approvals
+    mapping(address => mapping(uint256 => address)) private _tokenApprovals;
+    /// @dev erc721 & erc1155 operator approvals
+    mapping(address => mapping(address => mapping(address => bool))) private _operatorApprovals;
 
     ERC20Info[] public assetInfos;
     mapping(address => NFTInfo) public nftInfos;
@@ -233,82 +232,61 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         bool approved
     );
 
+    event PortfolioCreated(address portfolio, address owner);
+
+    event ERC20Added(
+        AssetIdx assetIdx,
+        address erc20,
+        address dosTokem,
+        string name,
+        string symbol,
+        uint8 decimals,
+        address valueOracle,
+        int256 colFactor,
+        int256 borrowFactor,
+        int256 interest
+    );
+
+    modifier onlyPortfolio() {
+        require(portfolios[msg.sender].owner != address(0), "Only portfolio can execute");
+        _;
+    }
+
+    modifier portfolioExists(address portfolio) {
+        require(portfolios[portfolio].owner != address(0), "Recipient portfolio doesn't exist");
+        _;
+    }
+
+    modifier onlyRegisteredNft(address nftContract, uint256 tokenId) {
+        // how can we be sure that Oracle would have a price for any possible tokenId?
+        // maybe we should check first if Oracle can return a value for this specific NFT?
+        require(nftInfos[nftContract].exists, "Cannot add NFT of unknown NFT contract");
+        _;
+    }
+
+    modifier onlyNftOwner(address nftContract, uint256 tokenId) {
+        address owner = ERC721(nftContract).ownerOf(tokenId);
+        bool isOwner = owner == msg.sender || owner == portfolios[msg.sender].owner;
+        require(isOwner, "NFT must be owned the the user or user's portfolio");
+        _;
+    }
+
+    modifier onlyDepositNftOwner(address nftContract, uint256 tokenId) {
+        Portfolio storage p = portfolios[msg.sender];
+        bool isDepositNftOwner = p.nftPortfolioIdxs[nftContract][tokenId] != 0;
+        require(isDepositNftOwner, "NFT must be on the user's deposit");
+        _;
+    }
+
     constructor(address governance, address _versionManager) ImmutableOwnable(governance) {
         // portfolioLogic = address(new PortfolioLogic(address(this)));
         versionManager = IVersionManager(_versionManager);
-    }
-
-    function getImplementation(address portfolio) external view override returns (address) {
-        // not using msg.sender since this is an external view function
-        return portfolioLogic[portfolio];
     }
 
     function upgradeImplementation(address portfolio, uint256 version) external {
         address portfolioOwner = getPortfolioOwner(portfolio);
         require(msg.sender == portfolioOwner, "DOS: not owner");
         portfolioLogic[portfolio] = versionManager.getVersionAddress(version);
-    }
-
-    function isSolvent(address portfolio) public view returns (bool) {
-        // todo track each asset on-change instead of iterating over all DOS stuff
-        int256 leverage = config.fractionalReserveLeverage;
-        for (uint256 i = 0; i < assetInfos.length; i++) {
-            int256 totalDebt = assetInfos[i].debt.totalAsset;
-            int256 reserve = assetInfos[i].collateral.totalAsset + totalDebt;
-            FsUtils.Assert(
-                IERC20(assetInfos[i].assetContract).balanceOf(address(this)) >= uint256(reserve)
-            );
-            require(reserve >= -totalDebt / leverage, "Not enough reserve for debt");
-        }
-        (, int256 collateral, int256 debt) = computePosition(portfolio);
-        return collateral >= debt;
-    }
-
-    function getMaximumWithdrawableOfAsset(uint256 i) public view returns (int256) {
-        int256 leverage = config.fractionalReserveLeverage;
-        int256 totalAsset = assetInfos[i].collateral.totalAsset;
-
-        int256 minReserveAmount = totalAsset / (leverage + 1);
-        int256 totalDebt = assetInfos[i].debt.totalAsset;
-        int256 borrowable = assetInfos[i].collateral.totalAsset - minReserveAmount;
-
-        int256 remainingAssetToBorrow = borrowable + totalDebt;
-
-        return remainingAssetToBorrow;
-    }
-
-    function computePosition(
-        address portfolio
-    )
-        public
-        view
-        portfolioExists(portfolio)
-        returns (int256 totalValue, int256 collateral, int256 debt)
-    {
-        Portfolio storage p = portfolios[portfolio];
-        AssetIdx[] memory assetIndices = p.getAssets();
-        totalValue = 0;
-        collateral = 0;
-        debt = 0;
-        for (uint256 i = 0; i < assetIndices.length; i++) {
-            AssetIdx assetIdx = assetIndices[i];
-            ERC20Info storage assetInfo = getERC20Info(assetIdx);
-            int256 balance = getBalance(p.assetShares[assetIdx], assetInfo);
-            int256 value = assetInfo.valueOracle.calcValue(balance);
-            totalValue += value;
-            if (balance >= 0) {
-                collateral += (value * assetInfo.collateralFactor) / 1 ether;
-            } else {
-                debt += (-value * 1 ether) / assetInfo.borrowFactor;
-            }
-        }
-        for (uint256 i = 0; i < p.nfts.length; i++) {
-            NFT storage nft = p.nfts[i];
-            NFTInfo storage nftInfo = nftInfos[nft.nftContract];
-            int256 nftValue = int256(nftInfo.valueOracle.calcValue(nft.tokenId));
-            totalValue += nftValue;
-            collateral += (nftValue * nftInfo.collateralFactor) / 1 ether;
-        }
     }
 
     function depositAsset(AssetIdx assetIdx, int256 amount) external onlyPortfolio {
@@ -341,8 +319,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
             erc20.safeTransfer(msg.sender, uint256(amount));
         }
     }
-
-    // TODO @derek - add method for withdraw
 
     function depositNft(
         address nftContract,
@@ -507,6 +483,192 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         transferNft(nftPortfolioIdx, from, to);
     }
 
+    function liquidate(
+        address portfolio
+    ) external override onlyPortfolio portfolioExists(portfolio) {
+        (int256 totalValue, int256 collateral, int256 debt) = computePosition(portfolio);
+        require(collateral < debt, "Portfolio is not liquidatable");
+        AssetIdx[] memory portfolioAssets = portfolios[portfolio].getAssets();
+        for (uint256 i = 0; i < portfolioAssets.length; i++) {
+            AssetIdx assetIdx = portfolioAssets[i];
+            transferAllAsset(assetIdx, portfolio, msg.sender);
+        }
+        while (portfolios[portfolio].nfts.length > 0) {
+            transferNft(portfolios[portfolio].nfts.length - 1, portfolio, msg.sender);
+        }
+        // TODO(gerben) make formula dependent on risk
+        if (totalValue > 0) {
+            int256 amount = (totalValue * config.liqFraction) / 1 ether;
+            transferAsset(kNumeraireIdx, msg.sender, portfolio, amount);
+        }
+    }
+
+    function executeBatch(Call[] memory calls) external override onlyPortfolio {
+        for (uint256 i = 0; i < calls.length; i++) {
+            PortfolioProxy(payable(msg.sender)).doCall(
+                calls[i].to,
+                calls[i].callData,
+                calls[i].value
+            );
+        }
+        require(isSolvent(msg.sender), "Result of operation is not sufficient liquid");
+    }
+
+    function addERC20Asset(
+        address erc20,
+        string calldata name,
+        string calldata symbol,
+        uint8 decimals,
+        address valueOracle,
+        int256 colFactor,
+        int256 borrowFactor,
+        int256 interest
+    ) external onlyOwner returns (AssetIdx) {
+        AssetIdx assetIdx = AssetIdx.wrap(uint16(assetInfos.length));
+        DOSERC20 dosToken = new DOSERC20(name, symbol, decimals);
+        assetInfos.push(
+            ERC20Info(
+                erc20,
+                address(dosToken),
+                IAssetValueOracle(valueOracle),
+                Shares(0, 0),
+                Shares(0, 0),
+                colFactor,
+                borrowFactor,
+                interest,
+                block.timestamp
+            )
+        );
+        emit ERC20Added(
+            assetIdx,
+            erc20,
+            address(dosToken),
+            name,
+            symbol,
+            decimals,
+            valueOracle,
+            colFactor,
+            borrowFactor,
+            interest
+        );
+        return assetIdx;
+    }
+
+    function addNftInfo(
+        address nftContract,
+        address valueOracleAddress,
+        int256 collateralFactor
+    ) external onlyOwner {
+        INFTValueOracle valueOracle = INFTValueOracle(valueOracleAddress);
+        NFTInfo memory nftInfo = NFTInfo(true, valueOracle, collateralFactor);
+        nftInfos[nftContract] = nftInfo;
+    }
+
+    function setConfig(Config calldata _config) external onlyOwner {
+        config = _config;
+    }
+
+    function createPortfolio() external returns (address portfolio) {
+        portfolio = address(new PortfolioProxy(address(this)));
+        portfolios[portfolio].owner = msg.sender;
+
+        // add a version parameter if users should pick a specific version
+        (, , , address implementation, ) = versionManager.getRecommendedVersion();
+        portfolioLogic[portfolio] = implementation;
+        emit PortfolioCreated(portfolio, msg.sender);
+    }
+
+    function viewBalance(address portfolio, AssetIdx assetIdx) external view returns (int256) {
+        // TODO(gerben) interest computation
+        Portfolio storage p = portfolios[portfolio];
+        AssetShare assetShares = p.assetShares[assetIdx];
+        return getBalance(assetShares, getERC20Info(assetIdx));
+    }
+
+    function viewNfts(address portfolio) external view returns (NFT[] memory) {
+        return portfolios[portfolio].nfts;
+    }
+
+    function getImplementation(address portfolio) external view override returns (address) {
+        // not using msg.sender since this is an external view function
+        return portfolioLogic[portfolio];
+    }
+
+    function onERC721Received(
+        address /* operator */,
+        address /* from */,
+        uint256 /* tokenId */,
+        bytes memory /* data */
+    ) public virtual override returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
+
+    function getPortfolioOwner(address portfolio) public view override returns (address) {
+        return portfolios[portfolio].owner;
+    }
+
+    function computePosition(
+        address portfolio
+    )
+    public
+    view
+    portfolioExists(portfolio)
+    returns (int256 totalValue, int256 collateral, int256 debt)
+    {
+        Portfolio storage p = portfolios[portfolio];
+        AssetIdx[] memory assetIndices = p.getAssets();
+        totalValue = 0;
+        collateral = 0;
+        debt = 0;
+        for (uint256 i = 0; i < assetIndices.length; i++) {
+            AssetIdx assetIdx = assetIndices[i];
+            ERC20Info storage assetInfo = getERC20Info(assetIdx);
+            int256 balance = getBalance(p.assetShares[assetIdx], assetInfo);
+            int256 value = assetInfo.valueOracle.calcValue(balance);
+            totalValue += value;
+            if (balance >= 0) {
+                collateral += (value * assetInfo.collateralFactor) / 1 ether;
+            } else {
+                debt += (-value * 1 ether) / assetInfo.borrowFactor;
+            }
+        }
+        for (uint256 i = 0; i < p.nfts.length; i++) {
+            NFT storage nft = p.nfts[i];
+            NFTInfo storage nftInfo = nftInfos[nft.nftContract];
+            int256 nftValue = int256(nftInfo.valueOracle.calcValue(nft.tokenId));
+            totalValue += nftValue;
+            collateral += (nftValue * nftInfo.collateralFactor) / 1 ether;
+        }
+    }
+
+    function getMaximumWithdrawableOfAsset(uint256 i) public view returns (int256) {
+        int256 leverage = config.fractionalReserveLeverage;
+        int256 totalAsset = assetInfos[i].collateral.totalAsset;
+
+        int256 minReserveAmount = totalAsset / (leverage + 1);
+        int256 totalDebt = assetInfos[i].debt.totalAsset;
+        int256 borrowable = assetInfos[i].collateral.totalAsset - minReserveAmount;
+
+        int256 remainingAssetToBorrow = borrowable + totalDebt;
+
+        return remainingAssetToBorrow;
+    }
+
+    function isSolvent(address portfolio) public view returns (bool) {
+        // todo track each asset on-change instead of iterating over all DOS stuff
+        int256 leverage = config.fractionalReserveLeverage;
+        for (uint256 i = 0; i < assetInfos.length; i++) {
+            int256 totalDebt = assetInfos[i].debt.totalAsset;
+            int256 reserve = assetInfos[i].collateral.totalAsset + totalDebt;
+            FsUtils.Assert(
+                IERC20(assetInfos[i].assetContract).balanceOf(address(this)) >= uint256(reserve)
+            );
+            require(reserve >= -totalDebt / leverage, "Not enough reserve for debt");
+        }
+        (, int256 collateral, int256 debt) = computePosition(portfolio);
+        return collateral >= debt;
+    }
+
     /// @notice Returns the approved address for a token, or zero if no address set
     /// @param collection The address of the ERC721 token
     /// @param tokenId The id of the token to query
@@ -569,9 +731,9 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
             if (currentAllowance < amount) {
                 revert InsufficientAllowance();
             }
-            unchecked {
-                _approveERC20(_owner, asset, spender, currentAllowance - amount);
-            }
+        unchecked {
+            _approveERC20(_owner, asset, spender, currentAllowance - amount);
+        }
         }
     }
 
@@ -586,18 +748,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
         _operatorApprovals[collection][_owner][operator] = approved;
         emit ApprovalForAll(collection, _owner, operator, approved);
-    }
-
-    function _isApprovedOrOwner(
-        address spender,
-        address collection,
-        uint256 tokenId
-    ) internal view returns (bool) {
-        Portfolio storage p = portfolios[msg.sender];
-        bool isDepositNftOwner = p.nftPortfolioIdxs[collection][tokenId] != 0;
-        return (isDepositNftOwner ||
-            getApproved(collection, tokenId) == spender ||
-            isApprovedForAll(collection, owner, spender));
     }
 
     function transferAsset(AssetIdx assetIdx, address from, address to, int256 amount) internal {
@@ -635,98 +785,41 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         return asset;
     }
 
-    function liquidate(
-        address portfolio
-    ) external override onlyPortfolio portfolioExists(portfolio) {
-        (int256 totalValue, int256 collateral, int256 debt) = computePosition(portfolio);
-        require(collateral < debt, "Portfolio is not liquidatable");
-        AssetIdx[] memory portfolioAssets = portfolios[portfolio].getAssets();
-        for (uint256 i = 0; i < portfolioAssets.length; i++) {
-            AssetIdx assetIdx = portfolioAssets[i];
-            transferAllAsset(assetIdx, portfolio, msg.sender);
-        }
-        while (portfolios[portfolio].nfts.length > 0) {
-            transferNft(portfolios[portfolio].nfts.length - 1, portfolio, msg.sender);
-        }
-        // TODO(gerben) make formula dependent on risk
-        if (totalValue > 0) {
-            int256 amount = (totalValue * config.liqFraction) / 1 ether;
-            transferAsset(kNumeraireIdx, msg.sender, portfolio, amount);
-        }
+    // TODO @derek - add method for withdraw
+
+    function transferAsset(AssetIdx assetIdx, address from, address to, int256 amount) internal {
+        updateBalance(assetIdx, from, -amount);
+        updateBalance(assetIdx, to, amount);
     }
 
-    function executeBatch(Call[] memory calls) external override onlyPortfolio {
-        for (uint256 i = 0; i < calls.length; i++) {
-            PortfolioProxy(payable(msg.sender)).doCall(
-                calls[i].to,
-                calls[i].callData,
-                calls[i].value
-            );
-        }
-        require(isSolvent(msg.sender), "Result of operation is not sufficient liquid");
+    function transferNft(uint256 nftPortfolioIdx, address from, address to) internal {
+        NFT memory nft = portfolios[from].extractNft(nftPortfolioIdx);
+        portfolios[to].insertNft(nft);
     }
 
-    event ERC20Added(
-        AssetIdx assetIdx,
-        address erc20,
-        address dosTokem,
-        string name,
-        string symbol,
-        uint8 decimals,
-        address valueOracle,
-        int256 colFactor,
-        int256 borrowFactor,
-        int256 interest
-    );
-
-    function addERC20Asset(
-        address erc20,
-        string calldata name,
-        string calldata symbol,
-        uint8 decimals,
-        address valueOracle,
-        int256 colFactor,
-        int256 borrowFactor,
-        int256 interest
-    ) external onlyOwner returns (AssetIdx) {
-        AssetIdx assetIdx = AssetIdx.wrap(uint16(assetInfos.length));
-        DOSERC20 dosToken = new DOSERC20(name, symbol, decimals);
-        assetInfos.push(
-            ERC20Info(
-                erc20,
-                address(dosToken),
-                IAssetValueOracle(valueOracle),
-                Shares(0, 0),
-                Shares(0, 0),
-                colFactor,
-                borrowFactor,
-                interest,
-                block.timestamp
-            )
-        );
-        emit ERC20Added(
-            assetIdx,
-            erc20,
-            address(dosToken),
-            name,
-            symbol,
-            decimals,
-            valueOracle,
-            colFactor,
-            borrowFactor,
-            interest
-        );
-        return assetIdx;
+    function transferAllAsset(AssetIdx assetIdx, address from, address to) internal {
+        int256 amount = clearBalance(assetIdx, from);
+        updateBalance(assetIdx, to, amount);
     }
 
-    function addNftInfo(
-        address nftContract,
-        address valueOracleAddress,
-        int256 collateralFactor
-    ) external onlyOwner {
-        INFTValueOracle valueOracle = INFTValueOracle(valueOracleAddress);
-        NFTInfo memory nftInfo = NFTInfo(true, valueOracle, collateralFactor);
-        nftInfos[nftContract] = nftInfo;
+    function updateBalance(AssetIdx assetIdx, address acct, int256 amount) internal {
+        updateInterest(assetIdx);
+        Portfolio storage p = portfolios[acct];
+        AssetShare shares = p.assetShares[assetIdx];
+        ERC20Info storage assetInfo = getERC20Info(assetIdx);
+        int256 asset = extractPosition(shares, assetInfo);
+        asset += amount;
+        p.assetShares[assetIdx] = insertPosition(asset, assetInfo, portfolios[acct], assetIdx);
+    }
+
+    function clearBalance(AssetIdx assetIdx, address acct) internal returns (int256) {
+        updateInterest(assetIdx);
+        Portfolio storage p = portfolios[acct];
+        AssetShare shares = p.assetShares[assetIdx];
+        int256 asset = extractPosition(shares, getERC20Info(assetIdx));
+        p.assetShares[assetIdx] = AssetShare.wrap(0);
+        portfolios[acct].clearMask(assetIdx);
+        return asset;
     }
 
     function extractPosition(AssetShare shares, ERC20Info storage p) internal returns (int256) {
@@ -749,11 +842,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         return s.insertPosition(amount);
     }
 
-    function getBalance(AssetShare shares, ERC20Info storage p) internal view returns (int256) {
-        Shares storage s = AssetShare.unwrap(shares) > 0 ? p.collateral : p.debt;
-        return s.computeAsset(shares);
-    }
-
     function updateInterest(AssetIdx assetIdx) internal {
         ERC20Info storage p = getERC20Info(assetIdx);
         if (p.timestamp == block.timestamp) return;
@@ -767,78 +855,24 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         // TODO(gerben) add to treasury
     }
 
-    function getPortfolioOwner(address portfolio) public view override returns (address) {
-        return portfolios[portfolio].owner;
-    }
-
-    event PortfolioCreated(address portfolio, address owner);
-
-    function createPortfolio() external returns (address portfolio) {
-        portfolio = address(new PortfolioProxy(address(this)));
-        portfolios[portfolio].owner = msg.sender;
-
-        // add a version parameter if users should pick a specific version
-        (, , , address implementation, ) = versionManager.getRecommendedVersion();
-        portfolioLogic[portfolio] = implementation;
-        emit PortfolioCreated(portfolio, msg.sender);
-    }
-
-    modifier onlyPortfolio() {
-        require(portfolios[msg.sender].owner != address(0), "Only portfolio can execute");
-        _;
-    }
-
-    modifier portfolioExists(address portfolio) {
-        require(portfolios[portfolio].owner != address(0), "Recipient portfolio doesn't exist");
-        _;
-    }
-
-    modifier onlyRegisteredNft(address nftContract, uint256 tokenId) {
-        // how can we be sure that Oracle would have a price for any possible tokenId?
-        // maybe we should check first if Oracle can return a value for this specific NFT?
-        require(nftInfos[nftContract].exists, "Cannot add NFT of unknown NFT contract");
-        _;
-    }
-
-    modifier onlyNftOwner(address nftContract, uint256 tokenId) {
-        address owner = ERC721(nftContract).ownerOf(tokenId);
-        bool isOwner = owner == msg.sender || owner == portfolios[msg.sender].owner;
-        require(isOwner, "NFT must be owned the the user or user's portfolio");
-        _;
-    }
-
-    modifier onlyDepositNftOwner(address nftContract, uint256 tokenId) {
+    function _isApprovedOrOwner(
+        address spender,
+        address collection,
+        uint256 tokenId
+    ) internal view returns (bool) {
         Portfolio storage p = portfolios[msg.sender];
-        bool isDepositNftOwner = p.nftPortfolioIdxs[nftContract][tokenId] != 0;
-        require(isDepositNftOwner, "NFT must be on the user's deposit");
-        _;
+        bool isDepositNftOwner = p.nftPortfolioIdxs[collection][tokenId] != 0;
+        return (isDepositNftOwner ||
+        getApproved(collection, tokenId) == spender ||
+        isApprovedForAll(collection, owner, spender));
+    }
+
+    function getBalance(AssetShare shares, ERC20Info storage p) internal view returns (int256) {
+        Shares storage s = AssetShare.unwrap(shares) > 0 ? p.collateral : p.debt;
+        return s.computeAsset(shares);
     }
 
     function getERC20Info(AssetIdx assetIdx) internal view returns (ERC20Info storage p) {
         return assetInfos[AssetIdx.unwrap(assetIdx)];
-    }
-
-    function setConfig(Config calldata _config) external onlyOwner {
-        config = _config;
-    }
-
-    function viewBalance(address portfolio, AssetIdx assetIdx) external view returns (int256) {
-        // TODO(gerben) interest computation
-        Portfolio storage p = portfolios[portfolio];
-        AssetShare assetShares = p.assetShares[assetIdx];
-        return getBalance(assetShares, getERC20Info(assetIdx));
-    }
-
-    function viewNfts(address portfolio) external view returns (NFT[] memory) {
-        return portfolios[portfolio].nfts;
-    }
-
-    function onERC721Received(
-        address /* operator */,
-        address /* from */,
-        uint256 /* tokenId */,
-        bytes memory /* data */
-    ) public virtual override returns (bytes4) {
-        return this.onERC721Received.selector;
     }
 }
