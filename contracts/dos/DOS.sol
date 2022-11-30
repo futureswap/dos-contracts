@@ -503,7 +503,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         // TODO(gerben) add to treasury
     }
 
-    function getPortfolioOwner(address portfolio) external view override returns (address) {
+    function getPortfolioOwner(address portfolio) public view override returns (address) {
         return portfolios[portfolio].owner;
     }
 

@@ -10,7 +10,7 @@ interface IDOSERC20 is IERC20 {
 }
 
 interface IDOS {
-    function upgradeImplementation(uint256 _version) external;
+    function upgradeImplementation(address portfolio, uint256 version) external;
 
     function getImplementation(address portfolio) external view returns (address);
 
