@@ -26,7 +26,7 @@ contract VersionManager is IVersionManager, ImmutableOwnable {
         _;
     }
 
-    constructor() ImmutableOwnable(msg.sender) {}
+    constructor(address owner) ImmutableOwnable(owner) {}
 
     /// @notice Registers a new version of the store contract
     /// @param versionName The name of the version to be added

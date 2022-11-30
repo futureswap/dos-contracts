@@ -16,6 +16,7 @@ contract ERC20ChainlinkValueOracle is IAssetValueOracle {
 
     function calcValue(int256 balance) external view override returns (int256) {
         (, int256 price, , , ) = priceOracle.latestRoundData();
+        FsUtils.Log("balance", balance);
         return (balance * price) / base;
     }
 }

@@ -271,6 +271,16 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
     }
 
+    function depositFull(AssetIdx[] calldata assetIdxs) external onlyPortfolio {
+        for (uint i = 0; i < assetIdxs.length; i++) {
+            ERC20Info storage assetInfo = getERC20Info(assetIdxs[i]);
+            IERC20 erc20 = IERC20(assetInfo.assetContract);
+            uint amount = erc20.balanceOf(msg.sender);
+            erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
+            updateBalance(assetIdxs[i], msg.sender, FsMath.safeCastToSigned(amount));
+        }
+    }
+
     // TODO @derek - add method for withdraw
 
     function depositNft(

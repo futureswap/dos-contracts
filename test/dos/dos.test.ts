@@ -15,6 +15,7 @@ import {
   MockNFTOracle,
   TestERC20,
   WETH9,
+  VersionManager__factory,
 } from "../../typechain-types";
 import { toWei, toWeiUsdc } from "../../lib/Numbers";
 import { getEventParams } from "../../lib/Events";
@@ -62,7 +63,11 @@ describe("DOS", function () {
 
     await nftOracle.setPrice(1, toWei(100));
 
-    const dos = await new DOS__factory(owner).deploy(owner.address);
+    const versionManager = await new VersionManager__factory(owner).deploy(owner.address);
+    const dos = await new DOS__factory(owner).deploy(owner.address, versionManager.address);
+    const proxyLogic = await new PortfolioLogic__factory(owner).deploy(dos.address);
+    await versionManager.addVersion("1.0.0", 2, proxyLogic.address);
+    await versionManager.markRecommendedVersion("1.0.0");
 
     // const DosDeployData = await ethers.getContractFactory("DOS");
     // const dos = await DosDeployData.deploy(unlockTime, { value: lockedAmount });

@@ -60,7 +60,7 @@ contract PortfolioLogic is IERC721Receiver {
         _;
     }
 
-    function executeBatch(IDOS.Call[] memory calls) external onlyOwner {
+    function executeBatch(IDOS.Call[] memory calls) external payable onlyOwner {
         IDOS(dos).executeBatch(calls);
     }
 
