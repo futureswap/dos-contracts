@@ -36,7 +36,7 @@ contract VersionManager is IVersionManager, ImmutableOwnable {
         string calldata versionName,
         Status status,
         address _implementation
-    ) external onlyOwner nonZeroAddress(implementation) {
+    ) external onlyOwner {
         implementation = FsUtils.nonNull(_implementation);
         // version name must not be the empty string
         if (bytes(versionName).length == 0) {
