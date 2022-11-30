@@ -7,11 +7,13 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "../lib/FsUtils.sol";
 import "../lib/FsMath.sol";
-import "../interfaces/IDOS.sol";
+import { IDOS, IDOSERC20 } from "../interfaces/IDOS.sol";
 import "../interfaces/IAssetValueOracle.sol";
 import "../interfaces/INFTValueOracle.sol";
-import "./PortfolioProxy.sol";
+import { PortfolioProxy } from "./PortfolioProxy.sol";
 import "../dosERC20/DOSERC20.sol";
+
+import { IVersionManager } from "../interfaces/IVersionManager.sol";
 
 type AssetIdx is uint16;
 type AssetShare is int256;
@@ -138,8 +140,6 @@ library PortfolioLib {
 }
 
 contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
-    address public portfolioLogic;
-
     using PortfolioLib for Portfolio;
     using PortfolioLib for Shares;
     using SafeERC20 for IERC20;
@@ -148,7 +148,12 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     // in which the system calculates value.
     AssetIdx constant kNumeraireIdx = AssetIdx.wrap(0);
 
+    IVersionManager public versionManager;
+
     mapping(address => Portfolio) portfolios;
+
+    // Note: This could be a mapping to a version index instead of the implementation address
+    mapping(address => address) public portfolioLogic;
 
     struct ERC20Info {
         address assetContract;
@@ -177,12 +182,20 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     mapping(address => NFTInfo) public nftInfos;
     Config public config;
 
-    constructor(address governance) ImmutableOwnable(governance) {
-        portfolioLogic = address(new PortfolioLogic(address(this)));
+    constructor(address governance, address _versionManager) ImmutableOwnable(governance) {
+        // portfolioLogic = address(new PortfolioLogic(address(this)));
+        versionManager = IVersionManager(_versionManager);
     }
 
-    function getImplementation() external view override returns (address) {
-        return portfolioLogic;
+    function getImplementation(address portfolio) external view override returns (address) {
+        // not using msg.sender since this is an external view function
+        return portfolioLogic[portfolio];
+    }
+
+    function upgradeImplementation(address portfolio, uint256 version) external {
+        address portfolioOwner = getPortfolioOwner(portfolio);
+        require(msg.sender == portfolioOwner, "DOS: not owner");
+        portfolioLogic[portfolio] = versionManager.getVersionAddress(version);
     }
 
     function isSolvent(address portfolio) public view returns (bool) {
@@ -378,10 +391,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
     }
 
-    function setPortfolioLogic(address _portfolioLogic) external onlyOwner {
-        portfolioLogic = FsUtils.nonNull(_portfolioLogic);
-    }
-
     function executeBatch(Call[] memory calls) external override onlyPortfolio {
         for (uint256 i = 0; i < calls.length; i++) {
             PortfolioProxy(payable(msg.sender)).doCall(
@@ -494,7 +503,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         // TODO(gerben) add to treasury
     }
 
-    function getPortfolioOwner(address portfolio) external view override returns (address) {
+    function getPortfolioOwner(address portfolio) public view override returns (address) {
         return portfolios[portfolio].owner;
     }
 
@@ -503,6 +512,10 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     function createPortfolio() external returns (address portfolio) {
         portfolio = address(new PortfolioProxy(address(this)));
         portfolios[portfolio].owner = msg.sender;
+
+        // add a version parameter if users should pick a specific version
+        (, , , address implementation, ) = versionManager.getRecommendedVersion();
+        portfolioLogic[portfolio] = implementation;
         emit PortfolioCreated(portfolio, msg.sender);
     }
 
