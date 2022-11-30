@@ -8,20 +8,16 @@ import {
   PortfolioLogic__factory,
   TestERC20__factory,
   WETH9__factory,
-  TestNFT__factory,
-  MockNFTOracle__factory,
   PortfolioLogic,
-  TestNFT,
-  MockNFTOracle,
   TestERC20,
   WETH9,
   UniV3Oracle__factory,
   VersionManager__factory,
 } from "../../typechain-types";
-import { toWei, toWeiUsdc } from "../../lib/Numbers";
-import { getEventParams } from "../../lib/Events";
-import { BigNumber, Signer, ContractTransaction, BigNumberish } from "ethers";
-import { Chainlink, cleanResult, makeCall } from "../../lib/Calls";
+import { toWei } from "../../lib/Numbers";
+import { getEventParams, getEvents, getEventsTx } from "../../lib/Events";
+import { BigNumber, Signer, ContractTransaction, BigNumberish, Contract } from "ethers";
+import { asyncCleanResult, Chainlink, cleanResult, makeCall } from "../../lib/Calls";
 import { deployUniswapFactory, deployUniswapPool } from "../../lib/deploy_uniswap";
 
 const USDC_PRICE = 1;
@@ -29,6 +25,9 @@ const ETH_PRICE = 2000;
 
 const USDC_DECIMALS = 6;
 const WETH_DECIMALS = 18;
+
+const usdcAssetIdx = 0;
+const wethAssetIdx = 1;
 
 describe("DOS swap integration", function () {
   // We define a fixture to reuse the same setup in every test.
@@ -79,7 +78,6 @@ describe("DOS swap integration", function () {
       toWei(0.9),
       0, // No interest which would include time sensitive calculations
     );
-    const usdcAssetIdx = 0; // index of the element created above in DOS.assetsInfo array
 
     await dos.addERC20Asset(
       weth.address,
@@ -91,9 +89,11 @@ describe("DOS swap integration", function () {
       toWei(0.9),
       0, // No interest which would include time sensitive calculations
     );
-    const wethAssetIdx = 1; // index of the element created above in DOS.assetsInfo array
 
-    const { uniswapFactory, uniswapNFTManager } = await deployUniswapFactory(weth.address, owner);
+    const { uniswapFactory, uniswapNFTManager, swapRouter } = await deployUniswapFactory(
+      weth.address,
+      owner,
+    );
 
     const uniswapWethUsdc = await deployUniswapPool(
       uniswapFactory,
@@ -101,7 +101,6 @@ describe("DOS swap integration", function () {
       usdc.address,
       (ETH_PRICE * 10 ** USDC_DECIMALS) / 10 ** WETH_DECIMALS,
     );
-    console.log(cleanResult(await uniswapWethUsdc.slot0()));
     const uniswapNftOracle = await new UniV3Oracle__factory(owner).deploy(
       uniswapFactory.address,
       uniswapNFTManager.address,
@@ -139,16 +138,16 @@ describe("DOS swap integration", function () {
       usdcChainlink,
       ethChainlink,
       dos,
-      usdcAssetIdx,
-      wethAssetIdx,
       uniswapNFTManager,
+      swapRouter,
     };
   }
 
   describe("Dos tests", () => {
-    it.only("User can leverage LP", async () => {
-      const { owner, user, dos, usdc, weth, usdcAssetIdx, wethAssetIdx, uniswapNFTManager } =
-        await loadFixture(deployDOSFixture);
+    it("User can leverage LP", async () => {
+      const { owner, user, dos, usdc, weth, uniswapNFTManager } = await loadFixture(
+        deployDOSFixture,
+      );
 
       const portfolio = await createPortfolio(dos, user);
       await usdc.mint(portfolio.address, toWei(1600, USDC_DECIMALS));
@@ -166,18 +165,48 @@ describe("DOS swap integration", function () {
         recipient: portfolio.address,
         deadline: ethers.constants.MaxUint256,
       };
-      await portfolio.executeBatch([
-        makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(usdc, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
-        makeCall(weth, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
-        makeCall(uniswapNFTManager, "setApprovalForAll", [dos.address, true]),
-        makeCall(dos, "depositAsset", [usdcAssetIdx, -toWei(400, USDC_DECIMALS)]),
-        makeCall(dos, "depositAsset", [wethAssetIdx, -toWei(1)]),
-        makeCall(uniswapNFTManager, "mint", [mintParams]),
-        makeCall(dos, "depositNft", [uniswapNFTManager.address, 1 /* tokenId */]),
-        makeCall(dos, "depositFull", [[usdcAssetIdx, wethAssetIdx]]),
-      ]);
+      await expect(leverageLP(portfolio, dos, usdc, weth, uniswapNFTManager, mintParams)).to.not.be
+        .reverted;
+      const { usdcBalance, wethBalance, nfts } = await getBalances(dos, portfolio);
+      // Expect leveraged LP position with NFT as collateral
+      expect(usdcBalance).to.be.lessThan(0);
+      expect(wethBalance).to.be.lessThan(0);
+      expect(nfts.length).to.equal(1);
+    });
+
+    it("User can create leveraged position", async () => {
+      const { user, user2, dos, usdc, weth, uniswapNFTManager, swapRouter } = await loadFixture(
+        deployDOSFixture,
+      );
+
+      const portfolio = await createPortfolio(dos, user);
+      await usdc.mint(portfolio.address, toWei(16000, USDC_DECIMALS));
+
+      const mintParams = {
+        token0: weth.address,
+        token1: usdc.address,
+        fee: 500,
+        tickLower: -210000,
+        tickUpper: -190000,
+        amount0Desired: toWei(10),
+        amount1Desired: toWei(20000, USDC_DECIMALS),
+        amount0Min: 0,
+        amount1Min: 0,
+        recipient: portfolio.address,
+        deadline: ethers.constants.MaxUint256,
+      };
+      await leverageLP(portfolio, dos, usdc, weth, uniswapNFTManager, mintParams);
+
+      const portfolio2 = await createPortfolio(dos, user2);
+      await usdc.mint(portfolio2.address, toWei(1000, USDC_DECIMALS));
+      await expect(leveragePos(portfolio2, dos, usdc, weth, swapRouter, toWei(2000, USDC_DECIMALS)))
+        .to.not.be.reverted;
+
+      const { usdcBalance, wethBalance, nfts } = await getBalances(dos, portfolio2);
+      // Expect leveraged long eth position
+      expect(usdcBalance).to.be.lessThan(0);
+      expect(wethBalance).to.be.greaterThan(0);
+      expect(nfts.length).to.equal(0); // Regular leveraged position, no NFTs
     });
   });
 });
@@ -191,98 +220,65 @@ async function createPortfolio(dos: DOS, signer: Signer) {
   return PortfolioLogic__factory.connect(portfolio as string, signer);
 }
 
-async function depositAsset(
-  dos: DOS,
+const leverageLP = async (
   portfolio: PortfolioLogic,
-  asset: TestERC20,
-  assetIdx: number,
-  amount: number | bigint,
-) {
-  await asset.mint(portfolio.address, amount);
-
-  const depositTx = await portfolio.executeBatch([
-    makeCall(asset, "approve", [dos.address, amount]),
-    makeCall(dos, "depositAsset", [assetIdx, amount]),
+  dos: DOS,
+  usdc: TestERC20,
+  weth: WETH9,
+  uniswapNFTManager: Contract,
+  mintParams,
+) => {
+  return portfolio.executeBatch([
+    makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
+    makeCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
+    makeCall(usdc, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
+    makeCall(weth, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
+    makeCall(uniswapNFTManager, "setApprovalForAll", [dos.address, true]),
+    makeCall(dos, "depositAsset", [usdcAssetIdx, -toWei(4000, USDC_DECIMALS)]),
+    makeCall(dos, "depositAsset", [wethAssetIdx, -toWei(10)]),
+    makeCall(uniswapNFTManager, "mint", [mintParams]),
+    makeCall(dos, "depositNft", [uniswapNFTManager.address, 1 /* tokenId */]),
+    makeCall(dos, "depositFull", [[usdcAssetIdx, wethAssetIdx]]),
   ]);
-  await depositTx.wait();
-}
+};
 
-async function depositNft(
-  dos: DOS,
+const leveragePos = async (
   portfolio: PortfolioLogic,
-  nft: TestNFT,
-  priceOracle: MockNFTOracle,
-  price: number,
-): Promise<BigNumber> {
-  const mintTx = await nft.mint(portfolio.address);
-  const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
-  const tokenId = mintEventArgs[0] as BigNumber;
-  await priceOracle.setPrice(tokenId, toWeiUsdc(price));
-  const depositNftTx = await portfolio.executeBatch([
-    makeCall(nft, "approve", [dos.address, tokenId]),
-    makeCall(dos, "depositNft", [nft.address, tokenId]),
+  dos: DOS,
+  usdc: TestERC20,
+  weth: WETH9,
+  swapRouter: Contract,
+  amount: bigint,
+) => {
+  const exactInputSingleParams = {
+    tokenIn: usdc.address,
+    tokenOut: weth.address,
+    fee: "500",
+    recipient: portfolio.address,
+    deadline: ethers.constants.MaxUint256,
+    amountIn: amount,
+    amountOutMinimum: 0,
+    sqrtPriceLimitX96: 0,
+  };
+
+  return portfolio.executeBatch([
+    makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
+    makeCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
+    makeCall(usdc, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
+    makeCall(weth, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
+    makeCall(dos, "depositAsset", [usdcAssetIdx, -amount]),
+    makeCall(swapRouter, "exactInputSingle", [exactInputSingleParams]),
+    makeCall(dos, "depositFull", [[usdcAssetIdx, wethAssetIdx]]),
   ]);
-  await depositNftTx.wait();
-  return tokenId;
-}
+};
 
-// special case of depositNft function above.
-// Used only in one test to show that this scenario is supported.
-// In depositNft the NFT is minted to the portfolio and transferred from the
-//   portfolio to DOS.
-// In depositUserNft, nft is minted to the user and transferred from the user
-//   to DOS
-async function depositUserNft(
-  dos: DOS,
-  portfolio: PortfolioLogic,
-  nft: TestNFT,
-  priceOracle: MockNFTOracle,
-  price: number,
-): Promise<BigNumber> {
-  const user = portfolio.signer;
-  const mintTx = await nft.mint(await user.getAddress());
-  const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
-  const tokenId = mintEventArgs[0] as BigNumber;
-  await priceOracle.setPrice(tokenId, toWeiUsdc(price));
-  await (await nft.connect(user).approve(dos.address, tokenId)).wait();
-  const depositNftTx = await portfolio.executeBatch([
-    makeCall(dos, "depositNft", [nft.address, tokenId]),
-  ]);
-  await depositNftTx.wait();
-  return tokenId;
-}
-
-async function getBalances(
-  dos: DOS,
-  portfolio: PortfolioLogic,
-): Promise<{
-  nfts: [nftContract: string, tokenId: BigNumber][];
-  usdc: BigNumber;
-  weth: BigNumber;
-}> {
-  const [nfts, usdc, weth] = await Promise.all([
+async function getBalances(dos: DOS, portfolio: PortfolioLogic) {
+  const [nfts, usdcBalance, wethBalance] = await Promise.all([
     dos.viewNfts(portfolio.address),
-    dos.viewBalance(portfolio.address, 0),
-    dos.viewBalance(portfolio.address, 1),
+    dos.viewBalance(portfolio.address, usdcAssetIdx),
+    dos.viewBalance(portfolio.address, wethAssetIdx),
   ]);
-  return { nfts, usdc, weth };
-}
-
-async function transfer(
-  dos: DOS,
-  from: PortfolioLogic,
-  to: PortfolioLogic,
-  ...value: [assetIdx: number, amount: BigNumberish] | [nft: TestNFT, tokenId: BigNumberish]
-): Promise<ContractTransaction> {
-  if (typeof value[0] == "number") {
-    // transfer asset
-    const [assetIdx, amount] = value;
-    return from.executeBatch([makeCall(dos, "transfer", [assetIdx, to.address, amount])]);
-  } else {
-    // transfer NFT
-    const [nft, tokenId] = value;
-    return from.executeBatch([makeCall(dos, "sendNft", [nft.address, tokenId, to.address])]);
-  }
+  return { nfts, usdcBalance: usdcBalance.toBigInt(), wethBalance: wethBalance.toBigInt() };
 }
 
 // This fixes random tests crash with
