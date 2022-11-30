@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import "../lib/ImmutableOwnable.sol";
-import "../interfaces/IAssetValueOracle.sol";
+import "../interfaces/IERC20ValueOracle.sol";
 import "../interfaces/INFTValueOracle.sol";
 import "../lib/FsMath.sol";
 import "../lib/FsUtils.sol";
@@ -25,7 +25,7 @@ library TickMath {
     /// @notice Calculates sqrt(1.0001^tick) * 2^96
     /// @dev Throws if |tick| > max tick
     /// @param tick The input tick for the above formula
-    /// @return sqrtPriceX96 A Fixed point Q64.96 number representing the sqrt of the ratio of the two assets (token1/token0)
+    /// @return sqrtPriceX96 A Fixed point Q64.96 number representing the sqrt of the ratio of the two erc20s (token1/token0)
     /// at the given tick
     function getSqrtRatioAtTick(int24 tick) internal pure returns (int256 sqrtPriceX96) {
         uint256 absTick = tick < 0 ? uint256(-int256(tick)) : uint256(int256(tick));
@@ -92,7 +92,7 @@ contract UniV3Oracle is ImmutableOwnable, INFTValueOracle {
     INPM public immutable manager;
     IUniswapV3Factory public immutable factory;
 
-    mapping(address => IAssetValueOracle) public assetValueOracle;
+    mapping(address => IERC20ValueOracle) public erc20ValueOracle;
 
     int256 constant Q96 = int256(FixedPoint96.Q96);
 
@@ -101,8 +101,8 @@ contract UniV3Oracle is ImmutableOwnable, INFTValueOracle {
         factory = IUniswapV3Factory(_factory);
     }
 
-    function setAssetValueOracle(address token, address oracle) external onlyOwner {
-        assetValueOracle[token] = IAssetValueOracle(oracle);
+    function setERC20ValueOracle(address token, address oracle) external onlyOwner {
+        erc20ValueOracle[token] = IERC20ValueOracle(oracle);
     }
 
     function calcValue(uint256 tokenId) external view override returns (int256) {
@@ -148,8 +148,8 @@ contract UniV3Oracle is ImmutableOwnable, INFTValueOracle {
         int256 amountX = (liquidity * Q96) / sqrtPrice - baseX;
 
         int256 value = 0;
-        value += assetValueOracle[token0].calcValue(amountX);
-        value += assetValueOracle[token1].calcValue(amountY);
+        value += erc20ValueOracle[token0].calcValue(amountX);
+        value += erc20ValueOracle[token1].calcValue(amountY);
         return value;
     }
 }

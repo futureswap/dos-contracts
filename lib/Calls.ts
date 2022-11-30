@@ -11,8 +11,7 @@ import {
   Governance__factory,
   HashNFT,
   HashNFT__factory,
-  IAssetValueOracle,
-  IERC20,
+  IERC20ValueOracle,
 } from "../typechain-types";
 import { toWei } from "./Numbers";
 
@@ -91,7 +90,7 @@ export async function deployGovernance(governanceProxy: GovernanceProxy) {
 
 export class Chainlink {
   public readonly chainlink: MockContract;
-  public readonly assetOracle: IAssetValueOracle;
+  public readonly assetOracle: IERC20ValueOracle;
   public readonly chainlinkDecimals: number;
 
   static async deploy(
@@ -118,7 +117,7 @@ export class Chainlink {
 
   private constructor(
     mockChainlink: MockContract,
-    assetOracle: IAssetValueOracle,
+    assetOracle: IERC20ValueOracle,
     chainlinkDecimals: number,
   ) {
     this.chainlink = mockChainlink;

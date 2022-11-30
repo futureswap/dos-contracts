@@ -2,10 +2,10 @@
 pragma solidity ^0.8.17;
 
 import "../lib/FsUtils.sol";
-import "../interfaces/IAssetValueOracle.sol";
+import "../interfaces/IERC20ValueOracle.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-contract ERC20ChainlinkValueOracle is IAssetValueOracle {
+contract ERC20ChainlinkValueOracle is IERC20ValueOracle {
     AggregatorV3Interface priceOracle;
     int256 immutable base;
 

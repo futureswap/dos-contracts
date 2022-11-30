@@ -75,7 +75,7 @@ describe("DOS", function () {
       fractionalReserveLeverage: 9,
     });
 
-    await dos.addERC20Asset(
+    await dos.addERC20Info(
       usdc.address,
       "USD Coin",
       "USDC",
@@ -87,7 +87,7 @@ describe("DOS", function () {
     );
     const usdcAssetIdx = 0; // index of the element created above in DOS.assetsInfo array
 
-    await dos.addERC20Asset(
+    await dos.addERC20Info(
       weth.address,
       "Wrapped ETH",
       "WETH",
@@ -99,7 +99,7 @@ describe("DOS", function () {
     );
     const wethAssetIdx = 1; // index of the element created above in DOS.assetsInfo array
 
-    await dos.addNftInfo(nft.address, nftOracle.address, toWei(0.5));
+    await dos.addNFTInfo(nft.address, nftOracle.address, toWei(0.5));
 
     return {
       owner,
@@ -159,7 +159,7 @@ describe("DOS", function () {
       await sender.executeBatch([
         makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
         makeCall(dos, "transfer", [usdcAssetIdx, receiver.address, tenThousandUsdc]),
-        makeCall(dos, "depositAsset", [usdcAssetIdx, tenThousandUsdc]),
+        makeCall(dos, "depositERC20", [usdcAssetIdx, tenThousandUsdc]),
       ]);
 
       expect((await getBalances(dos, sender)).usdc).to.equal(0);
@@ -177,7 +177,7 @@ describe("DOS", function () {
       await expect(tx).to.be.revertedWith("Result of operation is not sufficient liquid");
     });
 
-    it("User can send more asset then they have", async () => {
+    it("User can send more ERC20 then they have", async () => {
       const { user, user2, dos, usdc, weth, wethAssetIdx, usdcAssetIdx } = await loadFixture(
         deployDOSFixture,
       );
@@ -287,7 +287,7 @@ describe("DOS", function () {
       expect(debt).to.equal(0);
     });
 
-    it("when portfolio has an asset should return the asset value", async () => {
+    it("when portfolio has an ERC20 should return the ERC20 value", async () => {
       const { dos, user, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
       await depositAsset(dos, portfolio, usdc, usdcAssetIdx, toWei(10_000, USDC_DECIMALS));
@@ -301,7 +301,7 @@ describe("DOS", function () {
       expect(debt).to.equal(0);
     });
 
-    it("when portfolio has multiple assets should return total assets value", async () => {
+    it("when portfolio has multiple ERC20s should return total ERC20s value", async () => {
       const { dos, user, usdc, weth, usdcAssetIdx, wethAssetIdx } = await loadFixture(
         deployDOSFixture,
       );
@@ -352,7 +352,7 @@ describe("DOS", function () {
       expect(debt).to.equal(0);
     });
 
-    it("when portfolio has assets and NFTs should return their total value", async () => {
+    it("when portfolio has ERC20s and NFTs should return their total value", async () => {
       // prettier-ignore
       const {
         dos,
@@ -514,7 +514,7 @@ describe("DOS", function () {
       await expect(liquidateTx).to.revertedWith("Result of operation is not sufficient liquid");
     });
 
-    it("when collateral is smaller then debt should transfer all assets of the portfolio to the caller", async () => {
+    it("when collateral is smaller then debt should transfer all ERC20s of the portfolio to the caller", async () => {
       // prettier-ignore
       const {
         dos,
@@ -605,7 +605,7 @@ describe("DOS", function () {
       expect(liquidatorBalance.nfts).to.eql([[nft.address, tokenId]]);
     });
 
-    it("when collateral is smaller then debt should transfer all assets and all NFTs of the portfolio to the caller", async () => {
+    it("when collateral is smaller then debt should transfer all ERC20s and all NFTs of the portfolio to the caller", async () => {
       // prettier-ignore
       const {
         dos,
@@ -655,7 +655,7 @@ describe("DOS", function () {
     });
   });
 
-  describe("#depositNft", () => {
+  describe("#depositNFT", () => {
     it(
       "when user owns the NFT " +
         "should change ownership of the NFT from the user to DOS " +
@@ -666,7 +666,7 @@ describe("DOS", function () {
         const tokenId = await depositUserNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
 
         expect(await nft.ownerOf(tokenId)).to.eql(dos.address);
-        const userNfts = await dos.viewNfts(portfolio.address);
+        const userNfts = await dos.viewNFTs(portfolio.address);
         expect(userNfts).to.eql([[nft.address, tokenId]]);
       },
     );
@@ -682,7 +682,7 @@ describe("DOS", function () {
         const tokenId = await depositNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
 
         expect(await nft.ownerOf(tokenId)).to.eql(dos.address);
-        const userNfts = await dos.viewNfts(portfolio.address);
+        const userNfts = await dos.viewNFTs(portfolio.address);
         expect(userNfts).to.eql([[nft.address, tokenId]]);
       },
     );
@@ -703,7 +703,7 @@ describe("DOS", function () {
       const tokenId = await depositNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
 
       const depositNftTx = portfolio2.executeBatch([
-        makeCall(dos, "depositNft", [nft.address, tokenId]),
+        makeCall(dos, "depositNFT", [nft.address, tokenId]),
       ]);
 
       await expect(depositNftTx).to.be.revertedWith(
@@ -718,19 +718,19 @@ describe("DOS", function () {
       const tokenId = mintEventArgs[0] as BigNumber;
       await (await nft.connect(user).approve(dos.address, tokenId)).wait();
 
-      const depositNftTx = dos.depositNft(nft.address, tokenId);
+      const depositNftTx = dos.depositNFT(nft.address, tokenId);
 
       await expect(depositNftTx).to.be.revertedWith("Only portfolio can execute");
     });
   });
 
-  describe("#claimNft", () => {
+  describe("#claimNFT", () => {
     it("when called not with portfolio should revert", async () => {
       const { user, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
       const tokenId = await depositNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
 
-      const claimNftTx = dos.connect(user).claimNft(nft.address, tokenId);
+      const claimNftTx = dos.connect(user).claimNFT(nft.address, tokenId);
 
       await expect(claimNftTx).to.be.revertedWith("Only portfolio can execute");
     });
@@ -742,7 +742,7 @@ describe("DOS", function () {
       const nonOwnerPortfolio = await CreatePortfolio(dos, user2);
 
       const claimNftTx = nonOwnerPortfolio.executeBatch([
-        makeCall(dos, "claimNft", [nft.address, tokenId]),
+        makeCall(dos, "claimNFT", [nft.address, tokenId]),
       ]);
 
       await expect(claimNftTx).to.be.revertedWith("NFT must be on the user's deposit");
@@ -758,24 +758,24 @@ describe("DOS", function () {
         const tokenId = await depositNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
 
         const claimNftTx = await portfolio.executeBatch([
-          makeCall(dos, "claimNft", [nft.address, tokenId]),
+          makeCall(dos, "claimNFT", [nft.address, tokenId]),
         ]);
         await claimNftTx.wait();
 
         await expect(await nft.ownerOf(tokenId)).to.eql(portfolio.address);
-        await expect(await dos.viewNfts(portfolio.address)).to.eql([]);
+        await expect(await dos.viewNFTs(portfolio.address)).to.eql([]);
       },
     );
   });
 
-  describe("#sendNft", () => {
+  describe("#sendNFT", () => {
     it("when called not with portfolio should revert", async () => {
       const { user, user2, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
       const ownerPortfolio = await CreatePortfolio(dos, user);
       const receiverPortfolio = await CreatePortfolio(dos, user2);
       const tokenId = await depositNft(dos, ownerPortfolio, nft, nftOracle, NFT_PRICE);
 
-      const sendNftTx = dos.connect(user).sendNft(nft.address, tokenId, receiverPortfolio.address);
+      const sendNftTx = dos.connect(user).sendNFT(nft.address, tokenId, receiverPortfolio.address);
 
       await expect(sendNftTx).to.be.revertedWith("Only portfolio can execute");
     });
@@ -812,8 +812,8 @@ describe("DOS", function () {
       const tx = await transfer(dos, sender, receiver, nft, tokenId);
       await tx.wait();
 
-      await expect(await dos.viewNfts(sender.address)).to.eql([]);
-      const receiverNfts = await dos.viewNfts(receiver.address);
+      await expect(await dos.viewNFTs(sender.address)).to.eql([]);
+      const receiverNfts = await dos.viewNFTs(receiver.address);
       await expect(receiverNfts).to.eql([[nft.address, tokenId]]);
     });
   });
@@ -1037,7 +1037,7 @@ async function depositAsset(
 
   const depositTx = await portfolio.executeBatch([
     makeCall(asset, "approve", [dos.address, amount]),
-    makeCall(dos, "depositAsset", [assetIdx, amount]),
+    makeCall(dos, "depositERC20", [assetIdx, amount]),
   ]);
   await depositTx.wait();
 }
@@ -1055,7 +1055,7 @@ async function depositNft(
   await priceOracle.setPrice(tokenId, toWeiUsdc(price));
   const depositNftTx = await portfolio.executeBatch([
     makeCall(nft, "approve", [dos.address, tokenId]),
-    makeCall(dos, "depositNft", [nft.address, tokenId]),
+    makeCall(dos, "depositNFT", [nft.address, tokenId]),
   ]);
   await depositNftTx.wait();
   return tokenId;
@@ -1081,7 +1081,7 @@ async function depositUserNft(
   await priceOracle.setPrice(tokenId, toWeiUsdc(price));
   await (await nft.connect(user).approve(dos.address, tokenId)).wait();
   const depositNftTx = await portfolio.executeBatch([
-    makeCall(dos, "depositNft", [nft.address, tokenId]),
+    makeCall(dos, "depositNFT", [nft.address, tokenId]),
   ]);
   await depositNftTx.wait();
   return tokenId;
@@ -1096,7 +1096,7 @@ async function getBalances(
   weth: BigNumber;
 }> {
   const [nfts, usdc, weth] = await Promise.all([
-    dos.viewNfts(portfolio.address),
+    dos.viewNFTs(portfolio.address),
     dos.viewBalance(portfolio.address, 0),
     dos.viewBalance(portfolio.address, 1),
   ]);
@@ -1116,7 +1116,7 @@ async function transfer(
   } else {
     // transfer NFT
     const [nft, tokenId] = value;
-    return from.executeBatch([makeCall(dos, "sendNft", [nft.address, tokenId, to.address])]);
+    return from.executeBatch([makeCall(dos, "sendNFT", [nft.address, tokenId, to.address])]);
   }
 }
 
