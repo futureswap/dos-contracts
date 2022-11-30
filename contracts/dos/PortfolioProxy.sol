@@ -13,6 +13,14 @@ contract PortfolioProxy is Proxy {
 
     address public immutable dos;
 
+    modifier ifDos() {
+        if (msg.sender == dos) {
+            _;
+        } else {
+            _fallback();
+        }
+    }
+
     constructor(address _dos) {
         // slither-disable-next-line missing-zero-check
         dos = FsUtils.nonNull(_dos);
@@ -23,10 +31,6 @@ contract PortfolioProxy is Proxy {
         return IDOS(dos).getImplementation(address(this));
     }
 
-    function upgradeImplementation(uint256 _version) external {
-        IDOS(dos).upgradeImplementation(_version);
-    }
-
     // Allow DOS to make arbitrary calls in lieu of this portfolio
     function doCall(
         address to,
@@ -34,14 +38,6 @@ contract PortfolioProxy is Proxy {
         uint256 value
     ) external ifDos returns (bytes memory) {
         return to.functionCallWithValue(callData, value);
-    }
-
-    modifier ifDos() {
-        if (msg.sender == dos) {
-            _;
-        } else {
-            _fallback();
-        }
     }
 }
 
