@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import { ImmutableOwnable } from "../lib/ImmutableOwnable.sol";
 
 import "../interfaces/IVersionManager.sol";
 
-contract VersionManager is IVersionManager, Ownable {
-
+contract VersionManager is IVersionManager, ImmutableOwnable {
     /// @notice Array of all version names
     string[] internal _versionString;
 
     /// @notice Mapping from version names to version structs
-    mapping(string=>Version) internal _versions;
+    mapping(string => Version) internal _versions;
 
     /// @dev The recommended version
     string internal _recommendedVersion;
@@ -24,15 +23,14 @@ contract VersionManager is IVersionManager, Ownable {
         _;
     }
 
-    modifier versionExists(
-        string memory versionName
-    ) 
-    {
+    modifier versionExists(string memory versionName) {
         if (_versions[versionName].implementation == address(0)) {
             revert VersionNotRegistered();
         }
         _;
     }
+
+    constructor() ImmutableOwnable(msg.sender) {}
 
     /// @notice Registers a new version of the store contract
     /// @param versionName The name of the version to be added
@@ -42,11 +40,7 @@ contract VersionManager is IVersionManager, Ownable {
         string calldata versionName,
         Status status,
         address implementation
-    )
-        external
-        onlyOwner
-        nonZeroAddress(implementation)
-    {
+    ) external onlyOwner nonZeroAddress(implementation) {
         // version name must not be the empty string
         if (bytes(versionName).length == 0) {
             revert InvalidVersionName();
@@ -64,11 +58,11 @@ contract VersionManager is IVersionManager, Ownable {
         _versionString.push(versionName);
 
         _versions[versionName] = Version({
-            versionName:versionName,
-            status:status,
-            bugLevel:BugLevel.NONE,
-            implementation:implementation,
-            dateAdded:block.timestamp
+            versionName: versionName,
+            status: status,
+            bugLevel: BugLevel.NONE,
+            implementation: implementation,
+            dateAdded: block.timestamp
         });
 
         emit VersionAdded(versionName, implementation);
@@ -82,31 +76,18 @@ contract VersionManager is IVersionManager, Ownable {
         string calldata versionName,
         Status status,
         BugLevel bugLevel
-    )
-        external
-        onlyOwner
-        versionExists(versionName)
-    {
-
+    ) external onlyOwner versionExists(versionName) {
         _versions[versionName].status = status;
         _versions[versionName].bugLevel = bugLevel;
 
-        emit VersionUpdated(
-            versionName,
-            status,
-            bugLevel
-        );
+        emit VersionUpdated(versionName, status, bugLevel);
     }
 
     /// @notice Set the recommended version
     /// @param versionName Version of the contract
     function markRecommendedVersion(
         string calldata versionName
-    )
-        external
-        onlyOwner
-        versionExists(versionName)
-    {
+    ) external onlyOwner versionExists(versionName) {
         // set the version name as the recommended version
         _recommendedVersion = versionName;
 
@@ -114,10 +95,7 @@ contract VersionManager is IVersionManager, Ownable {
     }
 
     /// @notice Remove the recommended version
-    function removeRecommendedVersion()
-        external
-        onlyOwner
-    {
+    function removeRecommendedVersion() external onlyOwner {
         // delete the recommended version name
         delete _recommendedVersion;
 
@@ -143,41 +121,25 @@ contract VersionManager is IVersionManager, Ownable {
     {
         versionName = _recommendedVersion;
 
-        Version storage recommendedVersion = _versions[
-            versionName
-        ];
+        Version storage recommendedVersion = _versions[versionName];
 
         status = recommendedVersion.status;
         bugLevel = recommendedVersion.bugLevel;
         implementation = recommendedVersion.implementation;
         dateAdded = recommendedVersion.dateAdded;
 
-        return (
-            versionName,
-            status,
-            bugLevel,
-            implementation,
-            dateAdded
-        );
+        return (versionName, status, bugLevel, implementation, dateAdded);
     }
 
     /// @notice Get total count of versions
-    function getVersionCount()
-        external
-        view
-        returns (uint256 count)
-    {
+    function getVersionCount() external view returns (uint256 count) {
         count = _versionString.length;
         return count;
     }
 
     /// @dev Returns the version name at specific index in the versionString[] array
     /// @param index The index to be searched for
-    function getVersionAtIndex(uint256 index)
-        external
-        view
-        returns (string memory versionName)
-    {
+    function getVersionAtIndex(uint256 index) external view returns (string memory versionName) {
         versionName = _versionString[index];
         return versionName;
     }
@@ -213,12 +175,6 @@ contract VersionManager is IVersionManager, Ownable {
         implementation = v.implementation;
         dateAdded = v.dateAdded;
 
-        return (
-            versionString,
-            status,
-            bugLevel,
-            implementation,
-            dateAdded
-        );
+        return (versionString, status, bugLevel, implementation, dateAdded);
     }
 }
