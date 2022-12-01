@@ -53,8 +53,8 @@ describe("UniswapOracle", function () {
       uniswapNFTManager.address,
       owner.address,
     );
-    await uniswapOracle.setERC20ValueOracle(tok0.address, tok0Chainlink.assetOracle.address);
-    await uniswapOracle.setERC20ValueOracle(tok1.address, tok1Chainlink.assetOracle.address);
+    await uniswapOracle.setERC20ValueOracle(tok0.address, tok0Chainlink.oracle.address);
+    await uniswapOracle.setERC20ValueOracle(tok1.address, tok1Chainlink.oracle.address);
     return {owner, pool, uniswapNFTManager, tok0, tok1, uniswapOracle};
   }
 
