@@ -45,7 +45,7 @@ contract PortfolioProxy is Proxy {
 
 // Calls to the contract not coming from DOS itself are routed to this logic
 // contract. This allows for flexible extra addition to your portfolio.
-contract PortfolioLogic is IERC721Receiver {
+contract PortfolioLogic is IERC721Receiver, IERC1271 {
     address public immutable dos;
 
     constructor(address _dos) {
