@@ -15,6 +15,12 @@ import "../dosERC20/DOSERC20.sol";
 
 import { IVersionManager } from "../interfaces/IVersionManager.sol";
 
+error NotApprovedOrOwner();
+/// @notice Transfer amount exceeds allowance
+error InsufficientAllowance();
+/// @notice Cannot approve self as spender
+error SelfApproval();
+
 type AssetIdx is uint16;
 type AssetShare is int256;
 
@@ -155,6 +161,13 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     // Note: This could be a mapping to a version index instead of the implementation address
     mapping(address => address) public portfolioLogic;
 
+    /// @dev erc20 allowances
+    mapping(address => mapping(AssetIdx => mapping(address => uint256))) private _allowances;
+    /// @dev erc721 approvals
+    mapping(address => mapping(uint256 => address)) private _tokenApprovals;
+    /// @dev erc721 & erc1155 operator approvals
+    mapping(address => mapping(address => mapping(address => bool))) private _operatorApprovals;
+
     struct ERC20Info {
         address assetContract;
         address dosContract;
@@ -181,6 +194,42 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     ERC20Info[] public assetInfos;
     mapping(address => NFTInfo) public nftInfos;
     Config public config;
+
+    /// @dev Emitted when `owner` approves `spender` to spend `value` tokens on their behalf.
+    /// @param asset The ERC20 token to approve
+    /// @param owner The address of the token owner
+    /// @param spender The address of the spender
+    /// @param value The amount of tokens to approve
+    event ERC20Approval(
+        AssetIdx indexed asset,
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
+
+    /// @dev Emitted when `owner` enables `approved` to manage the `tokenId` token on collection `collection`.
+    /// @param collection The address of the ERC721 collection
+    /// @param owner The address of the token owner
+    /// @param approved The address of the approved operator
+    /// @param tokenId The ID of the approved token
+    event ERC721Approval(
+        address indexed collection,
+        address indexed owner,
+        address indexed approved,
+        uint256 tokenId
+    );
+
+    /// @dev Emitted when `owner` enables or disables (`approved`) `operator` to manage all of its assets.
+    /// @param collection The address of the collection
+    /// @param owner The address of the owner
+    /// @param operator The address of the operator
+    /// @param approved True if the operator is approved, false to revoke approval
+    event ApprovalForAll(
+        address indexed collection,
+        address indexed owner,
+        address indexed operator,
+        bool approved
+    );
 
     constructor(address governance, address _versionManager) ImmutableOwnable(governance) {
         // portfolioLogic = address(new PortfolioLogic(address(this)));
@@ -282,6 +331,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         onlyRegisteredNft(nftContract, tokenId)
         onlyNftOwner(nftContract, tokenId)
     {
+        // NOTE: owner conflicts with the state variable. Should rename to nftOwner, owner_, or similar.
         address owner = ERC721(nftContract).ownerOf(tokenId);
         ERC721(nftContract).safeTransferFrom(owner, address(this), tokenId);
 
@@ -336,6 +386,174 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         Portfolio storage p = portfolios[msg.sender];
         uint256 nftPortfolioIdx = p.nftPortfolioIdxs[nftContract][tokenId] - 1;
         transferNft(nftPortfolioIdx, msg.sender, to);
+    }
+
+    /// @notice Approve a spender to transfer tokens on your behalf
+    /// @param asset The address of the ERC20 token
+    /// @param spender The address of the spender
+    /// @param amount The amount of tokens to approve
+    function approveERC20(
+        AssetIdx asset,
+        address spender,
+        uint256 amount
+    ) external onlyPortfolio portfolioExists(spender) returns (bool) {
+        _approveERC20(msg.sender, asset, spender, amount);
+        return true;
+    }
+
+    /// @notice Approve a spender to transfer ERC721 tokens on your behalf
+    /// @param collection The address of the ERC721 token
+    /// @param to The address of the spender
+    /// @param tokenId The id of the token to approve
+    function approveERC721(
+        address collection,
+        address to,
+        uint256 tokenId
+    ) external onlyPortfolio portfolioExists(to) {
+        _approveERC721(collection, to, tokenId);
+    }
+
+    /// @notice Approve a spender for all tokens in a collection on your behalf
+    /// @param collection The address of the collection
+    /// @param operator The address of the operator
+    /// @param approved Whether the operator is approved
+    function setApprovalForAll(
+        address collection,
+        address operator,
+        bool approved
+    ) external onlyPortfolio portfolioExists(operator) {
+        _setApprovalForAll(collection, msg.sender, operator, approved);
+    }
+
+    /// @notice Transfer ERC20 tokens from portfolio to another portfolio
+    /// @dev Note: Allowance must be set with approveERC20
+    /// @param asset The ERC20 token to transfer
+    /// @param from The address of the portfolio to transfer from
+    /// @param to The address of the portfolio to transfer to
+    /// @param amount The amount of tokens to transfer
+    function transferFromERC20(
+        AssetIdx asset,
+        address from,
+        address to,
+        uint256 amount
+    ) external onlyPortfolio portfolioExists(from) portfolioExists(to) returns (bool) {
+        address spender = msg.sender;
+        _spendAllowance(asset, from, spender, amount);
+        transferAsset(asset, from, to, FsMath.safeCastToSigned(amount));
+        return true;
+    }
+
+    /// @notice Transfer ERC721 tokens from portfolio to another portfolio
+    /// @param collection The address of the ERC721 token
+    /// @param from The address of the portfolio to transfer from
+    /// @param to The address of the portfolio to transfer to
+    /// @param tokenId The id of the token to transfer
+    function transferFromERC721(
+        address collection,
+        address from,
+        address to,
+        uint256 tokenId
+    ) external onlyPortfolio portfolioExists(to) {
+        Portfolio storage p = portfolios[from];
+        uint256 nftPortfolioIdx = p.nftPortfolioIdxs[collection][tokenId] - 1;
+        address spender = msg.sender;
+        if (!_isApprovedOrOwner(msg.sender, collection, tokenId)) {
+            revert NotApprovedOrOwner();
+        }
+        transferNft(nftPortfolioIdx, from, to);
+    }
+
+    /// @notice Returns the approved address for a token, or zero if no address set
+    /// @param collection The address of the ERC721 token
+    /// @param tokenId The id of the token to query
+    function getApproved(address collection, uint256 tokenId) public view returns (address) {
+        return _tokenApprovals[collection][tokenId];
+    }
+
+    /// @notice Returns if the `operator` is allowed to manage all of the assets of `owner` on the `collection` contract.
+    /// @param collection The address of the collection contract
+    /// @param _owner The address of the owner
+    /// @param spender The address of the spender
+    function isApprovedForAll(
+        address collection,
+        address _owner,
+        address spender
+    ) public view returns (bool) {
+        return _operatorApprovals[collection][_owner][spender];
+    }
+
+    /**
+     * @dev Returns the remaining number of tokens that `spender` will be
+     * allowed to spend on behalf of `owner` through {transferFrom}. This is
+     * zero by default.
+     *
+     * This value changes when {approve} or {transferFrom} are called.
+     */
+    function allowance(
+        AssetIdx asset,
+        address _owner,
+        address spender
+    ) public view returns (uint256) {
+        return _allowances[_owner][asset][spender];
+    }
+
+    function _approveERC20(
+        address _owner,
+        AssetIdx asset,
+        address spender,
+        uint256 amount
+    ) internal {
+        spender = FsUtils.nonNull(spender);
+
+        _allowances[_owner][asset][spender] = amount;
+        emit ERC20Approval(asset, _owner, spender, amount);
+    }
+
+    function _approveERC721(address collection, address to, uint256 tokenId) internal {
+        _tokenApprovals[collection][tokenId] = to;
+        emit ERC721Approval(collection, owner, to, tokenId);
+    }
+
+    function _spendAllowance(
+        AssetIdx asset,
+        address _owner,
+        address spender,
+        uint256 amount
+    ) internal {
+        uint256 currentAllowance = allowance(asset, _owner, spender);
+        if (currentAllowance != type(uint256).max) {
+            if (currentAllowance < amount) {
+                revert InsufficientAllowance();
+            }
+            unchecked {
+                _approveERC20(_owner, asset, spender, currentAllowance - amount);
+            }
+        }
+    }
+
+    function _setApprovalForAll(
+        address collection,
+        address _owner,
+        address operator,
+        bool approved
+    ) internal {
+        if (_owner == operator) {
+            revert SelfApproval();
+        }
+        _operatorApprovals[collection][_owner][operator] = approved;
+        emit ApprovalForAll(collection, _owner, operator, approved);
+    }
+
+    function _isApprovedOrOwner(
+        address spender,
+        address collection,
+        uint256 tokenId
+    ) internal view returns (bool) {
+        Portfolio storage p = portfolios[msg.sender];
+        bool isDepositNftOwner = p.nftPortfolioIdxs[collection][tokenId] != 0;
+        return (isDepositNftOwner ||
+            getApproved(collection, tokenId) == spender ||
+            isApprovedForAll(collection, owner, spender));
     }
 
     function transferAsset(AssetIdx assetIdx, address from, address to, int256 amount) internal {
