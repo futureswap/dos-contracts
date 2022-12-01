@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/proxy/Proxy.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "../lib/FsUtils.sol";
+
+import { IERC1271 } from "../interfaces/IERC1271.sol";
 import "../interfaces/IDOS.sol";
 
 // Inspired by TransparantUpdateableProxy
@@ -62,6 +64,14 @@ contract PortfolioLogic is IERC721Receiver {
 
     function executeBatch(IDOS.Call[] memory calls) external onlyOwner {
         IDOS(dos).executeBatch(calls);
+    }
+
+    /// @inheritdoc IERC1271
+    function isValidSignature(
+        bytes32 hash,
+        bytes memory signature
+    ) public view returns (bytes4 magicValue) {
+        // TODO: need an implementation in order to use permit2
     }
 
     function onERC721Received(
