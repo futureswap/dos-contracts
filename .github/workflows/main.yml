@@ -19,18 +19,16 @@ jobs:
           node-version: "lts/*"
 
       - name: "Install the dependencies"
-        run: "yarn"
+        run: "yarn add typescript hardhat prettier typechain"
 
-      - name: "Lint the code"
-        run: "yarn prettier"
-
-      - name: "Add lint summary"
-        run: |
-          echo "## Lint results" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+      - name: "Check prettier"
+        run: "yarn run prettier:check"
 
       - name: "Compile the contracts and generate the TypeChain bindings"
         run: "yarn typechain"
+
+      - name: "Check types"
+        run: "yarn tsc --noEmit"
 
 #     For some reason, compiled for coverage contracts producing an error:
 #      Error: Transaction reverted: trying to deploy a contract whose code is too large
@@ -38,5 +36,5 @@ jobs:
 #      - name: "Test the contracts and generate the coverage report"
 #        run: "yarn coverage"
 
-      - name: "Add test summary"
+      - name: "tests"
         run: "yarn test"
