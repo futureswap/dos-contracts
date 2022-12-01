@@ -494,8 +494,11 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
         // TODO(gerben) make formula dependent on risk
         if (totalValue > 0) {
-            int256 amount = (totalValue * config.liqFraction) / 1 ether;
-            transferERC20(kNumeraireIdx, msg.sender, portfolio, amount);
+            // totalValue of the liquidated portfolio is split between liquidatable and liquidator:
+            // totalValue * (1 - liqFraction) - reward of the liquidator, and
+            // totalValue * liqFraction - change, liquidator is sending back to liquidatable
+            int256 leftover = (totalValue * config.liqFraction) / 1 ether;
+            transferERC20(kNumeraireIdx, msg.sender, portfolio, leftover);
         }
     }
 

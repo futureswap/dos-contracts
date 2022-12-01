@@ -229,12 +229,12 @@ describe("DOS", function () {
       const liquidatableBalances = await getBalances(dos, liquidatable);
       const liquidatorBalances = await getBalances(dos, liquidator);
       // 10_000 - balance in USDC; 9_000 - debt of 1 ETH; 0.8 - liqFraction
-      const liquidationOddMoney = toWei((10_000 - 9_000) * 0.8, USDC_DECIMALS); // 800 USDC in ETH
+      const liquidationLeftover = toWei((10_000 - 9_000) * 0.8, USDC_DECIMALS); // 800 USDC in ETH
       expect(liquidatableBalances.weth).to.equal(0);
-      expect(liquidatableBalances.usdc).to.be.approximately(liquidationOddMoney, 1000);
+      expect(liquidatableBalances.usdc).to.be.approximately(liquidationLeftover, 1000);
       expect(liquidatorBalances.weth).to.equal(-oneEth); // own 10k + 10k of liquidatable
       expect(liquidatorBalances.usdc).to.be.approximately(
-        tenThousandUsdc + tenThousandUsdc - liquidationOddMoney,
+        tenThousandUsdc + tenThousandUsdc - liquidationLeftover,
         1000,
       );
     });
