@@ -15,6 +15,7 @@ import "../dosERC20/DOSERC20.sol";
 
 import { IVersionManager } from "../interfaces/IVersionManager.sol";
 
+/// @notice Sender is not approved to spend portfolio assets
 error NotApprovedOrOwner();
 /// @notice Transfer amount exceeds allowance
 error InsufficientAllowance();
@@ -460,6 +461,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         if (!_isApprovedOrOwner(msg.sender, collection, tokenId)) {
             revert NotApprovedOrOwner();
         }
+        _tokenApprovals[collection][tokenId] = address(0);
         transferNft(nftPortfolioIdx, from, to);
     }
 
