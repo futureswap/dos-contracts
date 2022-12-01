@@ -834,7 +834,7 @@ describe("DOS", function () {
       );
     });
 
-    it("should deduct ERC20 token allowance after transferFrom", async () => {
+    it("should deduct ERC20 token allowance after transferFromERC20", async () => {
       const { user, user2, user3, dos, weth, wethAssetIdx } = await loadFixture(deployDOSFixture);
       const owner = await CreatePortfolio(dos, user);
       const spender = await CreatePortfolio(dos, user2);
@@ -863,6 +863,42 @@ describe("DOS", function () {
       await expect(await dos.allowance(wethAssetIdx, owner.address, spender.address)).to.eql(
         ethers.utils.parseEther("0"),
       );
+    });
+
+    it("should properly update portfolio balance with transferFromERC20", async () => {
+      const { user, user2, user3, dos, weth, wethAssetIdx } = await loadFixture(deployDOSFixture);
+      const owner = await CreatePortfolio(dos, user);
+      const spender = await CreatePortfolio(dos, user2);
+      const recipient = await CreatePortfolio(dos, user3);
+      const amount = ethers.utils.parseEther("100");
+
+      await depositAsset(dos, owner, weth, wethAssetIdx, toWei(100));
+
+      const approveTx = await approveERC20(dos, owner, spender, wethAssetIdx, amount);
+      await approveTx.wait();
+
+      await expect(await dos.allowance(wethAssetIdx, owner.address, spender.address)).to.eql(
+        amount,
+      );
+
+      const ownerBalanceBefore = (await getBalances(dos, owner)).weth;
+      const recipientBalanceBefore = (await getBalances(dos, recipient)).weth;
+
+      const transferFromTx = await transferFromERC20(
+        dos,
+        spender,
+        owner,
+        recipient,
+        wethAssetIdx,
+        amount,
+      );
+      await transferFromTx.wait();
+
+      const ownerBalanceAfter = (await getBalances(dos, owner)).weth;
+      const recipientBalanceAfter = (await getBalances(dos, recipient)).weth;
+
+      await expect(ownerBalanceAfter).to.eql(ownerBalanceBefore.sub(amount));
+      await expect(recipientBalanceAfter).to.eql(recipientBalanceBefore.add(amount));
     });
 
     it("should set approve ERC721 token", async () => {
@@ -904,6 +940,39 @@ describe("DOS", function () {
       await expect(await dos.getApproved(nft.address, tokenId)).to.eql(
         ethers.constants.AddressZero,
       );
+    });
+
+    it("should properly update portfolio balance with transferFromERC721", async () => {
+      const { user, user2, user3, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const owner = await CreatePortfolio(dos, user);
+      const spender = await CreatePortfolio(dos, user2);
+      const recipient = await CreatePortfolio(dos, user3);
+
+      const tokenId = await depositNft(dos, owner, nft, nftOracle, 2000);
+
+      const tx = await approveERC721(dos, owner, spender, nft.address, tokenId);
+      await tx.wait();
+
+      const ownerBalanceBefore = (await getBalances(dos, owner)).nfts.length;
+      const recipientBalanceBefore = (await getBalances(dos, recipient)).nfts.length;
+
+      await expect(await dos.getApproved(nft.address, tokenId)).to.eql(spender.address);
+
+      const transferTx = await transferFromERC721(
+        dos,
+        spender,
+        owner,
+        recipient,
+        nft.address,
+        tokenId,
+      );
+      await transferTx.wait();
+
+      const ownerBalanceAfter = (await getBalances(dos, owner)).nfts.length;
+      const recipientBalanceAfter = (await getBalances(dos, recipient)).nfts.length;
+
+      await expect(ownerBalanceAfter).to.eql(ownerBalanceBefore - 1);
+      await expect(recipientBalanceAfter).to.eql(recipientBalanceBefore + 1);
     });
   });
 });
