@@ -819,7 +819,7 @@ describe("DOS", function () {
       await expect(receiverNfts).to.eql([[nft.address, tokenId]]);
     });
   });
-  describe.only("#integrationAPI", () => {
+  describe("#integrationAPI", () => {
     it("should set ERC20 token allowance when approve is called", async () => {
       const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
       const owner = await CreatePortfolio(dos, user);
