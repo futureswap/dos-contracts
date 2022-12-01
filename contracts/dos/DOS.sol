@@ -10,6 +10,7 @@ import "../lib/FsMath.sol";
 import { IDOS, IDOSERC20 } from "../interfaces/IDOS.sol";
 import "../interfaces/IAssetValueOracle.sol";
 import "../interfaces/INFTValueOracle.sol";
+import { IPermit2 } from "../interfaces/IPermit2.sol";
 import { PortfolioProxy } from "./PortfolioProxy.sol";
 import "../dosERC20/DOSERC20.sol";
 
@@ -156,6 +157,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     AssetIdx constant kNumeraireIdx = AssetIdx.wrap(0);
 
     IVersionManager public versionManager;
+    address public permit2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
     mapping(address => Portfolio) portfolios;
 
@@ -442,6 +444,29 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         _spendAllowance(asset, from, spender, amount);
         transferAsset(asset, from, to, FsMath.safeCastToSigned(amount));
         return true;
+    }
+
+    /// @notice Transfers a token using a signed permit message
+    /// @dev Reverts if the requested amount is greater than the permitted signed amount
+    /// @param _owner The owner of the tokens to transfer
+    /// @param _to The address to transfer the tokens to
+    /// @param amount The amount of tokens to transfer
+    /// @param permit The permit data signed over by the owner
+    /// @param signature The signature to verify
+    function permitTransferFromERC20(
+        IERC20 token,
+        address _owner,
+        address _to,
+        uint256 amount,
+        IPermit2.PermitTransferFrom memory permit,
+        bytes calldata signature
+    ) external onlyPortfolio portfolioExists(_to) {
+        IPermit2(permit2).permitTransferFrom(
+            permit,
+            IPermit2.SignatureTransferDetails({ to: _to, requestedAmount: amount }),
+            _owner,
+            signature
+        );
     }
 
     /// @notice Transfer ERC721 tokens from portfolio to another portfolio
