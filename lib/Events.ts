@@ -1,5 +1,5 @@
-import { Contract, ContractTransaction, ContractReceipt, ethers } from "ethers";
-import { cleanResult } from "./Calls";
+import {Contract, ContractTransaction, ContractReceipt, ethers} from "ethers";
+import {cleanResult} from "./Calls";
 
 export const getEventParams = async (
   tx: ContractTransaction | ContractReceipt,
@@ -35,14 +35,14 @@ export function getEvents(
   const logs = receipt.logs.filter(log => log.address.toLowerCase() == contractAddress);
 
   const desc = logs.map(log => eventContract.interface.parseLog(log));
-  const events: { [key: string]: { [key: string]: any } } = {};
+  const events: {[key: string]: {[key: string]: any}} = {};
   desc.forEach(desc => {
     events[desc.name] = cleanResult(desc.args);
   });
   return events;
 }
 
-export async function getEventsTx<Events extends { [key: string]: { [key: string]: any } } = any>(
+export async function getEventsTx<Events extends {[key: string]: {[key: string]: any}} = any>(
   tx: Promise<ContractTransaction>,
   eventContract: Contract,
   contractAddress?: string,

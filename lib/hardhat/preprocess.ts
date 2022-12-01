@@ -1,6 +1,6 @@
-import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { checkDefined, checkState } from "../preconditions";
-import { exec } from "child_process";
+import {HardhatRuntimeEnvironment} from "hardhat/types";
+import {checkDefined, checkState} from "../preconditions";
+import {exec} from "child_process";
 
 export const preprocessCode = (isLocalBuild: (hre: HardhatRuntimeEnvironment) => boolean) => {
   let inStrip = false;
@@ -8,7 +8,7 @@ export const preprocessCode = (isLocalBuild: (hre: HardhatRuntimeEnvironment) =>
   let gitCommitHash: string | undefined = undefined;
 
   const preprocess = {
-    transform: (line: string, sourceInfo: { absolutePath: string }): string => {
+    transform: (line: string, sourceInfo: {absolutePath: string}): string => {
       if (absolutePath !== sourceInfo.absolutePath) {
         checkState(!inStrip, "Mismatched begin/end strip");
         absolutePath = sourceInfo.absolutePath;
@@ -34,7 +34,7 @@ export const preprocessCode = (isLocalBuild: (hre: HardhatRuntimeEnvironment) =>
       }
       return inStrip ? "" : line;
     },
-    settings: { strip: true },
+    settings: {strip: true},
   };
 
   return async (hre: HardhatRuntimeEnvironment) => {

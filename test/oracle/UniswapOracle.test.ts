@@ -1,11 +1,11 @@
-import { ethers } from "hardhat";
-import { TestERC20__factory, WETH9__factory, UniV3Oracle__factory } from "../../typechain-types";
-import { toWei } from "../../lib/Numbers";
-import { getEventsTx } from "../../lib/Events";
-import { deployUniswapFactory, deployUniswapPool } from "../../lib/deploy_uniswap";
-import { expect } from "chai";
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { Chainlink } from "../../lib/Calls";
+import {ethers} from "hardhat";
+import {TestERC20__factory, WETH9__factory, UniV3Oracle__factory} from "../../typechain-types";
+import {toWei} from "../../lib/Numbers";
+import {getEventsTx} from "../../lib/Events";
+import {deployUniswapFactory, deployUniswapPool} from "../../lib/deploy_uniswap";
+import {expect} from "chai";
+import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
+import {Chainlink} from "../../lib/Calls";
 
 // This three values are connected - you cannot change one without changing others.
 // There is no easy way to get the tick values for a specific price - this values
@@ -28,7 +28,7 @@ describe("UniswapOracle", function () {
     const [owner] = await ethers.getSigners();
 
     const weth = await new WETH9__factory(owner).deploy();
-    const { uniswapFactory, uniswapNFTManager } = await deployUniswapFactory(weth.address, owner);
+    const {uniswapFactory, uniswapNFTManager} = await deployUniswapFactory(weth.address, owner);
 
     let tok0 = await new TestERC20__factory(owner).deploy("TOKA", "TOKA", 18);
     let tok1 = await new TestERC20__factory(owner).deploy("TOKB", "TOKB", 18);
@@ -55,7 +55,7 @@ describe("UniswapOracle", function () {
     );
     await uniswapOracle.setERC20ValueOracle(tok0.address, tok0Chainlink.assetOracle.address);
     await uniswapOracle.setERC20ValueOracle(tok1.address, tok1Chainlink.assetOracle.address);
-    return { owner, pool, uniswapNFTManager, tok0, tok1, uniswapOracle };
+    return {owner, pool, uniswapNFTManager, tok0, tok1, uniswapOracle};
   }
 
   describe("#mint", () => {
@@ -64,7 +64,7 @@ describe("UniswapOracle", function () {
         "then liquidity of both tokens in the pool get increased " +
         "and total liquidity is increased by the sum of liquidity of both tokens",
       async () => {
-        const { owner, uniswapNFTManager, tok0, tok1, uniswapOracle } = await loadFixture(
+        const {owner, uniswapNFTManager, tok0, tok1, uniswapOracle} = await loadFixture(
           deployUniswapFixture,
         );
         await tok0.mint(owner.address, toWei(10));
@@ -86,9 +86,9 @@ describe("UniswapOracle", function () {
           deadline: ethers.constants.MaxUint256,
         };
 
-        const { IncreaseLiquidity } = await getEventsTx<{
+        const {IncreaseLiquidity} = await getEventsTx<{
           IncreaseLiquidity: IncreaseLiquidity;
-        }>(uniswapNFTManager.mint(mintParams, { gasLimit: 9e6 }), uniswapNFTManager);
+        }>(uniswapNFTManager.mint(mintParams, {gasLimit: 9e6}), uniswapNFTManager);
         const token0IncreaseLiquidity = IncreaseLiquidity.amount0 * BigInt(PRICE);
         const token1IncreaseLiquidity = IncreaseLiquidity.amount1;
         // the exact values calculation dependents on the internal Uniswap logic
@@ -109,7 +109,7 @@ describe("UniswapOracle", function () {
         "then only liquidity of token0 get increased" +
         "and total liquidity is increased by the same amount",
       async () => {
-        const { owner, uniswapNFTManager, tok0, tok1, uniswapOracle } = await loadFixture(
+        const {owner, uniswapNFTManager, tok0, tok1, uniswapOracle} = await loadFixture(
           deployUniswapFixture,
         );
         await tok0.mint(owner.address, toWei(10));
@@ -133,7 +133,7 @@ describe("UniswapOracle", function () {
           amount1Desired: toWei(100),
         };
 
-        const { IncreaseLiquidity } = await getEventsTx<{
+        const {IncreaseLiquidity} = await getEventsTx<{
           IncreaseLiquidity: IncreaseLiquidity;
         }>(uniswapNFTManager.mint(mintParams), uniswapNFTManager);
         const token0IncreaseLiquidity = IncreaseLiquidity.amount0 * BigInt(PRICE);
@@ -152,7 +152,7 @@ describe("UniswapOracle", function () {
         "then only liquidity of token0 get increased" +
         "and total liquidity is increased by the same amount",
       async () => {
-        const { owner, uniswapNFTManager, tok0, tok1, uniswapOracle } = await loadFixture(
+        const {owner, uniswapNFTManager, tok0, tok1, uniswapOracle} = await loadFixture(
           deployUniswapFixture,
         );
         await tok0.mint(owner.address, toWei(10));
@@ -176,7 +176,7 @@ describe("UniswapOracle", function () {
           amount1Desired: toWei(100),
         };
 
-        const { IncreaseLiquidity } = await getEventsTx<{
+        const {IncreaseLiquidity} = await getEventsTx<{
           IncreaseLiquidity: IncreaseLiquidity;
         }>(uniswapNFTManager.mint(mintParams), uniswapNFTManager);
         const token0IncreaseLiquidity = IncreaseLiquidity.amount0 * BigInt(PRICE);

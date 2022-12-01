@@ -1,14 +1,14 @@
-import { ethers } from "hardhat";
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { expect } from "chai";
+import {ethers} from "hardhat";
+import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
+import {expect} from "chai";
 import {
   VersionManager__factory,
   DOS__factory,
   PortfolioLogic__factory,
 } from "../../typechain-types";
 
-import { BigNumber, Signer, ContractTransaction, BigNumberish } from "ethers";
-import { getFixedGasSigners } from "../../lib/Signers";
+import {BigNumber} from "ethers";
+import {getFixedGasSigners} from "../../lib/Signers";
 
 describe("VersionManager", function () {
   let versionManager: VersionManager__factory;
@@ -30,7 +30,7 @@ describe("VersionManager", function () {
 
   describe("Version Manager Tests", () => {
     it("should add a new version", async () => {
-      const { owner, versionManager, portfolioLogic } = await loadFixture(
+      const {owner, versionManager, portfolioLogic} = await loadFixture(
         deployVersionManagerFixture,
       );
 
@@ -55,7 +55,7 @@ describe("VersionManager", function () {
     });
 
     it("should mark a recommended version", async () => {
-      const { owner, versionManager, portfolioLogic } = await loadFixture(
+      const {owner, versionManager, portfolioLogic} = await loadFixture(
         deployVersionManagerFixture,
       );
 
@@ -79,7 +79,7 @@ describe("VersionManager", function () {
     });
 
     it("should remove a recommended version", async () => {
-      const { owner, versionManager, portfolioLogic } = await loadFixture(
+      const {owner, versionManager, portfolioLogic} = await loadFixture(
         deployVersionManagerFixture,
       );
 
@@ -102,7 +102,7 @@ describe("VersionManager", function () {
     });
 
     it("should update to a new version", async () => {
-      const { owner, versionManager, portfolioLogic } = await loadFixture(
+      const {owner, versionManager, portfolioLogic} = await loadFixture(
         deployVersionManagerFixture,
       );
 

@@ -1,9 +1,8 @@
-import { ethers } from "ethers";
-import { waffle } from "hardhat";
-import { MockContract } from "@ethereum-waffle/mock-contract";
+import {ethers} from "ethers";
+import {waffle} from "hardhat";
+import {MockContract} from "@ethereum-waffle/mock-contract";
 import {
   AggregatorV3Interface__factory,
-  DOS__factory,
   ERC20ChainlinkValueOracle__factory,
   Governance,
   GovernanceProxy,
@@ -13,19 +12,19 @@ import {
   HashNFT__factory,
   IERC20ValueOracle,
 } from "../typechain-types";
-import { toWei } from "./Numbers";
+import {toWei} from "./Numbers";
 
 function cleanValue(v: unknown): any {
   if (v === null || v === undefined) throw new Error("Null");
   if (v instanceof ethers.BigNumber) return v.toBigInt();
   if (typeof v !== "object") return v;
-  let x: { [key: string]: any } = {};
+  let x: {[key: string]: any} = {};
   Object.entries(v).forEach(([key, value]) => (x[key] = cleanValue(value)));
   return x;
 }
 
 export function cleanResult(r: ethers.utils.Result) {
-  const x: { [key: string]: any } = {};
+  const x: {[key: string]: any} = {};
   Object.entries(r)
     .slice(r.length)
     .forEach(([key, value]) => {
@@ -85,7 +84,7 @@ export async function deployGovernance(governanceProxy: GovernanceProxy) {
   // governance proxy.
   await proposeAndExecute(governance, voteNFT, []);
 
-  return { voteNFT, governance };
+  return {voteNFT, governance};
 }
 
 export class Chainlink {

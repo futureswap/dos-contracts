@@ -1,6 +1,6 @@
-import { ethers } from "hardhat";
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { expect } from "chai";
+import {ethers} from "hardhat";
+import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
+import {expect} from "chai";
 import {
   DOS,
   DOS__factory,
@@ -16,11 +16,11 @@ import {
   TestERC20,
   WETH9,
 } from "../../typechain-types";
-import { toWei, toWeiUsdc } from "../../lib/Numbers";
-import { getEventParams } from "../../lib/Events";
-import { getFixedGasSigners } from "../../lib/Signers";
-import { BigNumber, Signer, ContractTransaction, BigNumberish } from "ethers";
-import { Chainlink, makeCall } from "../../lib/Calls";
+import {toWei, toWeiUsdc} from "../../lib/Numbers";
+import {getEventParams} from "../../lib/Events";
+import {getFixedGasSigners} from "../../lib/Signers";
+import {BigNumber, Signer, ContractTransaction, BigNumberish} from "ethers";
+import {Chainlink, makeCall} from "../../lib/Calls";
 
 const USDC_PRICE = 1;
 const ETH_PRICE = 2000;
@@ -121,14 +121,14 @@ describe("DOS", function () {
 
   describe("Dos tests", () => {
     it("User can create portfolio", async () => {
-      const { user, dos } = await loadFixture(deployDOSFixture);
+      const {user, dos} = await loadFixture(deployDOSFixture);
 
       const portfolio = await CreatePortfolio(dos, user);
       expect(await portfolio.owner()).to.equal(user.address);
     });
 
     it("User can deposit money", async () => {
-      const { user, dos, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
+      const {user, dos, usdc, usdcAssetIdx} = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
 
       await depositAsset(dos, portfolio, usdc, usdcAssetIdx, tenThousandUsdc);
@@ -138,7 +138,7 @@ describe("DOS", function () {
     });
 
     it("User can transfer money", async () => {
-      const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc, usdcAssetIdx} = await loadFixture(deployDOSFixture);
       const sender = await CreatePortfolio(dos, user);
       const receiver = await CreatePortfolio(dos, user2);
       await depositAsset(dos, sender, usdc, usdcAssetIdx, tenThousandUsdc);
@@ -151,7 +151,7 @@ describe("DOS", function () {
     });
 
     it("User can deposit and transfer money in arbitrary order", async () => {
-      const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc, usdcAssetIdx} = await loadFixture(deployDOSFixture);
       const sender = await CreatePortfolio(dos, user);
       const receiver = await CreatePortfolio(dos, user2);
       await usdc.mint(sender.address, tenThousandUsdc);
@@ -167,7 +167,7 @@ describe("DOS", function () {
     });
 
     it("User cannot send more then they own", async () => {
-      const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc, usdcAssetIdx} = await loadFixture(deployDOSFixture);
       const sender = await CreatePortfolio(dos, user);
       const receiver = await CreatePortfolio(dos, user2);
       await depositAsset(dos, sender, usdc, usdcAssetIdx, toWeiUsdc(10_000));
@@ -178,7 +178,7 @@ describe("DOS", function () {
     });
 
     it("User can send more ERC20 then they have", async () => {
-      const { user, user2, dos, usdc, weth, wethAssetIdx, usdcAssetIdx } = await loadFixture(
+      const {user, user2, dos, usdc, weth, wethAssetIdx, usdcAssetIdx} = await loadFixture(
         deployDOSFixture,
       );
       const sender = await CreatePortfolio(dos, user);
@@ -268,7 +268,7 @@ describe("DOS", function () {
 
   describe("#computePosition", () => {
     it("when portfolio doesn't exist should return 0", async () => {
-      const { dos } = await loadFixture(deployDOSFixture);
+      const {dos} = await loadFixture(deployDOSFixture);
       const nonPortfolioAddress = "0xb4A50D202ca799AA07d4E9FE11C2919e5dFe4220";
 
       const computeTx = dos.computePosition(nonPortfolioAddress);
@@ -277,7 +277,7 @@ describe("DOS", function () {
     });
 
     it("when portfolio is empty should return 0", async () => {
-      const { dos, user } = await loadFixture(deployDOSFixture);
+      const {dos, user} = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
 
       const [totalValue, collateral, debt] = await dos.computePosition(portfolio.address);
@@ -288,7 +288,7 @@ describe("DOS", function () {
     });
 
     it("when portfolio has an ERC20 should return the ERC20 value", async () => {
-      const { dos, user, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
+      const {dos, user, usdc, usdcAssetIdx} = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
       await depositAsset(dos, portfolio, usdc, usdcAssetIdx, toWei(10_000, USDC_DECIMALS));
 
@@ -302,7 +302,7 @@ describe("DOS", function () {
     });
 
     it("when portfolio has multiple ERC20s should return total ERC20s value", async () => {
-      const { dos, user, usdc, weth, usdcAssetIdx, wethAssetIdx } = await loadFixture(
+      const {dos, user, usdc, weth, usdcAssetIdx, wethAssetIdx} = await loadFixture(
         deployDOSFixture,
       );
       const portfolio = await CreatePortfolio(dos, user);
@@ -321,7 +321,7 @@ describe("DOS", function () {
     });
 
     it("when portfolio has an NFT should return the NFT value", async () => {
-      const { dos, user, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const {dos, user, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
 
       await depositNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
@@ -335,7 +335,7 @@ describe("DOS", function () {
     });
 
     it("when portfolio has a few NFTs should return the total NFTs value", async () => {
-      const { dos, user, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const {dos, user, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
 
       await Promise.all([
@@ -386,7 +386,7 @@ describe("DOS", function () {
 
   describe("#liquidate", () => {
     it("when called directly on DOS should revert", async () => {
-      const { user, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const {user, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
       await depositNft(dos, portfolio, nft, nftOracle, 1600);
 
@@ -396,7 +396,7 @@ describe("DOS", function () {
     });
 
     it("when portfolio to liquidate doesn't exist should revert", async () => {
-      const { dos, user, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const {dos, user, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const liquidator = await CreatePortfolio(dos, user);
       await depositNft(dos, liquidator, nft, nftOracle, NFT_PRICE);
       const nonPortfolioAddress = "0xb4A50D202ca799AA07d4E9FE11C2919e5dFe4220";
@@ -409,7 +409,7 @@ describe("DOS", function () {
     });
 
     it("when portfolio to liquidate is empty should revert", async () => {
-      const { dos, user, user2, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
+      const {dos, user, user2, usdc, usdcAssetIdx} = await loadFixture(deployDOSFixture);
       const emptyPortfolio = await CreatePortfolio(dos, user);
       const liquidator = await CreatePortfolio(dos, user2);
       await depositAsset(dos, liquidator, usdc, usdcAssetIdx, toWeiUsdc(1000));
@@ -422,7 +422,7 @@ describe("DOS", function () {
     });
 
     it("when debt is zero should revert", async () => {
-      const { dos, user, user2, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
+      const {dos, user, user2, usdc, usdcAssetIdx} = await loadFixture(deployDOSFixture);
       const nonLiquidatable = await CreatePortfolio(dos, user);
       await depositAsset(dos, nonLiquidatable, usdc, usdcAssetIdx, toWeiUsdc(1000));
       const liquidator = await CreatePortfolio(dos, user2);
@@ -661,7 +661,7 @@ describe("DOS", function () {
         "should change ownership of the NFT from the user to DOS " +
         "and add NFT to the user DOS portfolio",
       async () => {
-        const { user, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+        const {user, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
         const portfolio = await CreatePortfolio(dos, user);
         const tokenId = await depositUserNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
 
@@ -676,7 +676,7 @@ describe("DOS", function () {
         "should change ownership of the NFT from portfolio to DOS " +
         "and add NFT to the user DOS portfolio",
       async () => {
-        const { user, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+        const {user, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
         const portfolio = await CreatePortfolio(dos, user);
 
         const tokenId = await depositNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
@@ -688,7 +688,7 @@ describe("DOS", function () {
     );
 
     it("when NFT contract is not registered should revert the deposit", async () => {
-      const { user, dos, unregisteredNft, nftOracle } = await loadFixture(deployDOSFixture);
+      const {user, dos, unregisteredNft, nftOracle} = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
 
       const txRevert = depositNft(dos, portfolio, unregisteredNft, nftOracle, NFT_PRICE);
@@ -697,7 +697,7 @@ describe("DOS", function () {
     });
 
     it("when user is not an owner of NFT should revert the deposit", async () => {
-      const { user, user2, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
       const portfolio2 = await CreatePortfolio(dos, user2);
       const tokenId = await depositNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
@@ -712,7 +712,7 @@ describe("DOS", function () {
     });
 
     it("when called directly on DOS should revert the deposit", async () => {
-      const { user, dos, nft } = await loadFixture(deployDOSFixture);
+      const {user, dos, nft} = await loadFixture(deployDOSFixture);
       const mintTx = await nft.mint(user.address);
       const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
       const tokenId = mintEventArgs[0] as BigNumber;
@@ -726,7 +726,7 @@ describe("DOS", function () {
 
   describe("#claimNFT", () => {
     it("when called not with portfolio should revert", async () => {
-      const { user, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const {user, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const portfolio = await CreatePortfolio(dos, user);
       const tokenId = await depositNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
 
@@ -736,7 +736,7 @@ describe("DOS", function () {
     });
 
     it("when user is not the owner of the deposited NFT should revert", async () => {
-      const { user, user2, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const ownerPortfolio = await CreatePortfolio(dos, user);
       const tokenId = await depositNft(dos, ownerPortfolio, nft, nftOracle, NFT_PRICE);
       const nonOwnerPortfolio = await CreatePortfolio(dos, user2);
@@ -753,7 +753,7 @@ describe("DOS", function () {
         "should change ownership of the NFT from DOS to user's portfolio " +
         "and remove NFT from the user DOS portfolio",
       async () => {
-        const { user, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+        const {user, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
         const portfolio = await CreatePortfolio(dos, user);
         const tokenId = await depositNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
 
@@ -770,7 +770,7 @@ describe("DOS", function () {
 
   describe("#sendNFT", () => {
     it("when called not with portfolio should revert", async () => {
-      const { user, user2, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const ownerPortfolio = await CreatePortfolio(dos, user);
       const receiverPortfolio = await CreatePortfolio(dos, user2);
       const tokenId = await depositNft(dos, ownerPortfolio, nft, nftOracle, NFT_PRICE);
@@ -781,7 +781,7 @@ describe("DOS", function () {
     });
 
     it("when user is not the owner of the deposited NFT should revert", async () => {
-      const { user, user2, user3, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const {user, user2, user3, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const ownerPortfolio = await CreatePortfolio(dos, user);
       const nonOwnerPortfolio = await CreatePortfolio(dos, user2);
       const receiverPortfolio = await CreatePortfolio(dos, user3);
@@ -793,7 +793,7 @@ describe("DOS", function () {
     });
 
     it("when receiver is not a portfolio should revert", async () => {
-      const { user, user2, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const ownerPortfolio = await CreatePortfolio(dos, user);
       const tokenId = await depositNft(dos, ownerPortfolio, nft, nftOracle, NFT_PRICE);
 
@@ -804,7 +804,7 @@ describe("DOS", function () {
     });
 
     it("when user owns the deposited NFT should be able to move the NFT to another portfolio", async () => {
-      const { user, user2, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const sender = await CreatePortfolio(dos, user);
       const receiver = await CreatePortfolio(dos, user2);
       const tokenId = await depositNft(dos, sender, nft, nftOracle, NFT_PRICE);
@@ -819,7 +819,7 @@ describe("DOS", function () {
   });
   describe("#integrationAPI", () => {
     it("should set ERC20 token allowance when approve is called", async () => {
-      const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc, usdcIdx} = await loadFixture(deployDOSFixture);
       const owner = await CreatePortfolio(dos, user);
       const spender = await CreatePortfolio(dos, user2);
       const amount = ethers.utils.parseEther("100");
@@ -833,7 +833,7 @@ describe("DOS", function () {
     });
 
     it("should deduct ERC20 token allowance after transferFromERC20", async () => {
-      const { user, user2, user3, dos, weth, wethAssetIdx } = await loadFixture(deployDOSFixture);
+      const {user, user2, user3, dos, weth, wethIdx} = await loadFixture(deployDOSFixture);
       const owner = await CreatePortfolio(dos, user);
       const spender = await CreatePortfolio(dos, user2);
       const recipient = await CreatePortfolio(dos, user3);
@@ -864,7 +864,7 @@ describe("DOS", function () {
     });
 
     it("should properly update portfolio balance with transferFromERC20", async () => {
-      const { user, user2, user3, dos, weth, wethAssetIdx } = await loadFixture(deployDOSFixture);
+      const {user, user2, user3, dos, weth, wethIdx} = await loadFixture(deployDOSFixture);
       const owner = await CreatePortfolio(dos, user);
       const spender = await CreatePortfolio(dos, user2);
       const recipient = await CreatePortfolio(dos, user3);
@@ -1018,7 +1018,7 @@ describe("DOS", function () {
 });
 
 async function CreatePortfolio(dos: DOS, signer: Signer) {
-  const { portfolio } = await getEventParams(
+  const {portfolio} = await getEventParams(
     await dos.connect(signer).createPortfolio(),
     dos,
     "PortfolioCreated",
@@ -1100,7 +1100,7 @@ async function getBalances(
     dos.viewBalance(portfolio.address, 0),
     dos.viewBalance(portfolio.address, 1),
   ]);
-  return { nfts, usdc, weth };
+  return {nfts, usdc, weth};
 }
 
 async function transfer(

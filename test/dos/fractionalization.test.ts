@@ -1,19 +1,20 @@
-import { ethers } from "hardhat";
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { expect } from "chai";
+import {ethers} from "hardhat";
+import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
+import {expect} from "chai";
 import {
   DOS,
   DOS__factory,
   PortfolioLogic__factory,
+  VersionManager__factory,
   TestERC20__factory,
   WETH9__factory,
   TestNFT__factory,
   MockNFTOracle__factory,
 } from "../../typechain-types";
-import { toWei } from "../../lib/Numbers";
-import { getEventParams } from "../../lib/Events";
-import { Signer } from "ethers";
-import { Chainlink, makeCall } from "../../lib/Calls";
+import {toWei} from "../../lib/Numbers";
+import {getEventParams} from "../../lib/Events";
+import {Signer} from "ethers";
+import {Chainlink, makeCall} from "../../lib/Calls";
 
 const USDC_DECIMALS = 6;
 const ETH_DECIMALS = 18;
@@ -89,7 +90,7 @@ describe.skip("Fractionalization", function () {
   }
 
   async function CreatePortfolio(dos: DOS, signer: Signer) {
-    const { portfolio } = await getEventParams(
+    const {portfolio} = await getEventParams(
       await dos.connect(signer).createPortfolio(),
       dos,
       "PortfolioCreated",
@@ -101,7 +102,7 @@ describe.skip("Fractionalization", function () {
 
   describe("Fractional Reserve Leverage tests", () => {
     it("Check fractional reserve after user borrows", async () => {
-      const { user, user2, dos, usdc, weth } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       //setup 1st user
       const portfolio1 = await CreatePortfolio(dos, user);
@@ -137,7 +138,7 @@ describe.skip("Fractionalization", function () {
 
     it("Fractional reserve check should fail after borrow and rate is set below threshold", async () => {
       //setup 2 users portfolios
-      const { user, user2, dos, usdc, weth } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       //setup first user
       const portfolio1 = await CreatePortfolio(dos, user);
@@ -180,7 +181,7 @@ describe.skip("Fractionalization", function () {
       //vote on increasing maximum
       //borrow more
 
-      const { user, user2, dos, usdc, weth } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       //setup 1st user
       const portfolio1 = await CreatePortfolio(dos, user);

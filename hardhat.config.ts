@@ -1,14 +1,13 @@
-import { HardhatUserConfig } from "hardhat/config";
-import { HardhatRuntimeEnvironment } from "hardhat/types";
+import {HardhatUserConfig} from "hardhat/config";
+import {HardhatRuntimeEnvironment} from "hardhat/types";
 import "hardhat-preprocessor";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-waffle";
+import {config as dotEnvConfig} from "dotenv";
 
-import { config as dotEnvConfig } from "dotenv";
+import {preprocessCode} from "./lib/hardhat/preprocess";
 
-import { preprocessCode } from "./lib/hardhat/preprocess";
-
-dotEnvConfig({ path: "./.env" });
+dotEnvConfig({path: "./.env"});
 
 // Account mnemonics and infura api keys should be stored in .env file
 // as to not expose them through github.

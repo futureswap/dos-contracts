@@ -5,8 +5,8 @@ import nftDescJSON from "@uniswap/v3-periphery/artifacts/contracts/libraries/NFT
 import uniswapPoolJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
 import swapRouterJSON from "@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json";
 
-import { ContractFactory, BigNumberish, Contract, Signer, ethers } from "ethers";
-import { getEventParams } from "./Events";
+import {ContractFactory, BigNumberish, Contract, Signer, ethers} from "ethers";
+import {getEventParams} from "./Events";
 
 export async function deployUniswapPool(
   uniswapFactory: Contract,
@@ -20,7 +20,7 @@ export async function deployUniswapPool(
   } = {
     fee: "500",
   };
-  const { fee, tickSpacing } = feeTier;
+  const {fee, tickSpacing} = feeTier;
   if (tickSpacing !== undefined) {
     if ((await uniswapFactory.feeAmountTickSpacing(fee)) === 0) {
       const enableFeeAmountTx = await uniswapFactory.enableFeeAmount(fee, tickSpacing);
@@ -68,11 +68,11 @@ export async function deployUniswapFactory(weth: string, signer: Signer) {
     swapRouterJSON.bytecode,
     signer,
   ).deploy(uniswapFactory.address, weth);
-  return { uniswapFactory, uniswapNFTManager, swapRouter };
+  return {uniswapFactory, uniswapNFTManager, swapRouter};
 }
 
 export async function provideLiquidity(
-  owner: { address: string },
+  owner: {address: string},
   uniswapNFTManager: Contract,
   uniswapPool: Contract,
   amount0Desired: bigint,
@@ -95,7 +95,7 @@ export async function provideLiquidity(
     recipient: owner.address,
     deadline: ethers.constants.MaxUint256,
   };
-  const { tokenId, liquidity, amount0, amount1 } = await getEventParams(
+  const {tokenId, liquidity, amount0, amount1} = await getEventParams(
     await uniswapNFTManager.mint(mintParams),
     uniswapNFTManager,
     "IncreaseLiquidity",

@@ -453,7 +453,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     ) external onlyPortfolio portfolioExists(_to) {
         IPermit2(permit2).permitTransferFrom(
             permit,
-            IPermit2.SignatureTransferDetails({ to: _to, requestedAmount: amount }),
+            IPermit2.SignatureTransferDetails({to: _to, requestedAmount: amount}),
             _owner,
             signature
         );
@@ -828,8 +828,8 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         Portfolio storage p = portfolios[msg.sender];
         bool isDepositNFTOwner = p.nftPortfolioIdxs[collection][tokenId] != 0;
         return (isDepositNFTOwner ||
-        getApproved(collection, tokenId) == spender ||
-        isApprovedForAll(collection, owner, spender));
+            getApproved(collection, tokenId) == spender ||
+            isApprovedForAll(collection, owner, spender));
     }
 
     function getBalance(ERC20Share shares, ERC20Info storage p) internal view returns (int256) {

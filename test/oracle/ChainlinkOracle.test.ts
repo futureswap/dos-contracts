@@ -1,12 +1,8 @@
-import { ethers, waffle } from "hardhat";
-import {
-  ERC20ChainlinkValueOracle__factory,
-  AggregatorV3Interface__factory,
-} from "../../typechain-types";
-import { toWei } from "../../lib/Numbers";
-import { expect } from "chai";
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { Chainlink } from "../../lib/Calls";
+import {ethers} from "hardhat";
+import {toWei} from "../../lib/Numbers";
+import {expect} from "chai";
+import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
+import {Chainlink} from "../../lib/Calls";
 
 const usdcPrice = 1;
 const usdcChainlinkDecimals = 8;
@@ -35,18 +31,18 @@ describe("ChainlinkOracle", function () {
       ethDecimals,
     );
 
-    return { usdcChainlink, ethChainlink };
+    return {usdcChainlink, ethChainlink};
   }
 
   it("Returns right price for usdc", async () => {
-    const { usdcChainlink } = await loadFixture(setupOracle);
+    const {usdcChainlink} = await loadFixture(setupOracle);
     expect(await usdcChainlink.assetOracle.calcValue(toWei(1, usdcDecimals))).to.equal(
       toWei(1, usdcDecimals),
     );
   });
 
   it("Returns right price for eth", async () => {
-    const { ethChainlink } = await loadFixture(setupOracle);
+    const {ethChainlink} = await loadFixture(setupOracle);
 
     expect(await ethChainlink.assetOracle.calcValue(toWei(1, ethDecimals))).to.equal(
       toWei(ethPrice, usdcDecimals),
