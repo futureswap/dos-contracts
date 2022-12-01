@@ -1,4 +1,4 @@
-import { BigNumber, utils } from "ethers";
+import {BigNumber, utils} from "ethers";
 
 export const toWei = (x: number | string | BigNumber | bigint, decimals = 18): bigint => {
   const type = typeof x;

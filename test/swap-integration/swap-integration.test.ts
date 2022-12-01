@@ -1,7 +1,7 @@
-import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { ethers } from "hardhat";
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { expect } from "chai";
+import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import {ethers} from "hardhat";
+import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
+import {expect} from "chai";
 import {
   DOS,
   DOS__factory,
@@ -14,11 +14,11 @@ import {
   UniV3Oracle__factory,
   VersionManager__factory,
 } from "../../typechain-types";
-import { toWei } from "../../lib/Numbers";
-import { getEventsTx } from "../../lib/Events";
-import { BigNumber, Signer, Contract } from "ethers";
-import { Chainlink, makeCall } from "../../lib/Calls";
-import { deployUniswapFactory, deployUniswapPool } from "../../lib/deploy_uniswap";
+import {toWei} from "../../lib/Numbers";
+import {getEventsTx} from "../../lib/Events";
+import {BigNumber, Signer, Contract} from "ethers";
+import {Chainlink, makeCall} from "../../lib/Calls";
+import {deployUniswapFactory, deployUniswapPool} from "../../lib/deploy_uniswap";
 
 const USDC_PRICE = 1;
 const ETH_PRICE = 2000;
@@ -125,7 +125,7 @@ describe("DOS swap integration", function () {
         makeCall(dos, "depositAsset", [usdcAssetIdx, usdcAmount]),
         makeCall(dos, "depositAsset", [wethAssetIdx, wethAmount]),
       ],
-      { value: wethAmount },
+      {value: wethAmount},
     );
 
     return {
@@ -145,9 +145,7 @@ describe("DOS swap integration", function () {
 
   describe("Dos tests", () => {
     it("User can leverage LP", async () => {
-      const { owner, user, dos, usdc, weth, uniswapNFTManager } = await loadFixture(
-        deployDOSFixture,
-      );
+      const {owner, user, dos, usdc, weth, uniswapNFTManager} = await loadFixture(deployDOSFixture);
 
       const portfolio = await createPortfolio(dos, user);
       await usdc.mint(portfolio.address, toWei(1600, USDC_DECIMALS));
@@ -167,7 +165,7 @@ describe("DOS swap integration", function () {
       };
       await expect(leverageLP(portfolio, dos, usdc, weth, uniswapNFTManager, mintParams)).to.not.be
         .reverted;
-      const { usdcBalance, wethBalance, nfts } = await getBalances(dos, portfolio);
+      const {usdcBalance, wethBalance, nfts} = await getBalances(dos, portfolio);
       // Expect leveraged LP position with NFT as collateral
       expect(usdcBalance).to.be.lessThan(0);
       expect(wethBalance).to.be.lessThan(0);
@@ -175,7 +173,7 @@ describe("DOS swap integration", function () {
     });
 
     it("User can create leveraged position", async () => {
-      const { user, user2, dos, usdc, weth, uniswapNFTManager, swapRouter } = await loadFixture(
+      const {user, user2, dos, usdc, weth, uniswapNFTManager, swapRouter} = await loadFixture(
         deployDOSFixture,
       );
 
@@ -202,7 +200,7 @@ describe("DOS swap integration", function () {
       await expect(leveragePos(portfolio2, dos, usdc, weth, swapRouter, toWei(2000, USDC_DECIMALS)))
         .to.not.be.reverted;
 
-      const { usdcBalance, wethBalance, nfts } = await getBalances(dos, portfolio2);
+      const {usdcBalance, wethBalance, nfts} = await getBalances(dos, portfolio2);
       // Expect leveraged long eth position
       expect(usdcBalance).to.be.lessThan(0);
       expect(wethBalance).to.be.greaterThan(0);
@@ -210,7 +208,7 @@ describe("DOS swap integration", function () {
     });
 
     it("Liquify liquidatable position", async () => {
-      const { user, user2, user3, dos, usdc, weth, uniswapNFTManager, swapRouter, ethChainlink } =
+      const {user, user2, user3, dos, usdc, weth, uniswapNFTManager, swapRouter, ethChainlink} =
         await loadFixture(deployDOSFixture);
 
       const portfolio = await createPortfolio(dos, user);
@@ -259,7 +257,7 @@ describe("DOS swap integration", function () {
         ),
       ).to.not.be.reverted;
 
-      const { usdcBalance, wethBalance, nfts } = await getBalances(dos, portfolio3);
+      const {usdcBalance, wethBalance, nfts} = await getBalances(dos, portfolio3);
       expect(await usdc.balanceOf(portfolio3.address)).to.be.equal(0);
       expect(await weth.balanceOf(portfolio3.address)).to.be.equal(0);
       expect(wethBalance).to.equal(0);
@@ -331,7 +329,7 @@ async function getBalances(dos: DOS, portfolio: PortfolioLogic) {
     dos.viewBalance(portfolio.address, usdcAssetIdx),
     dos.viewBalance(portfolio.address, wethAssetIdx),
   ]);
-  return { nfts, usdcBalance: usdcBalance.toBigInt(), wethBalance: wethBalance.toBigInt() };
+  return {nfts, usdcBalance: usdcBalance.toBigInt(), wethBalance: wethBalance.toBigInt()};
 }
 
 // This fixes random tests crash with
