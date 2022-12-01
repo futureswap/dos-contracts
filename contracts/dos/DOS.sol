@@ -157,7 +157,9 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     AssetIdx constant kNumeraireIdx = AssetIdx.wrap(0);
 
     IVersionManager public versionManager;
-    address public permit2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    // https://docs.uniswap.org/contracts/permit2/overview
+    // https://etherscan.io/address/0x000000000022D473030F116dDEE9F6B43aC78BA3#code
+    address public constant permit2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
     mapping(address => Portfolio) portfolios;
 
