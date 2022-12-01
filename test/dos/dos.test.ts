@@ -901,6 +901,30 @@ describe("DOS", function () {
       await expect(recipientBalanceAfter).to.eql(recipientBalanceBefore.add(amount));
     });
 
+    it("should revert transferFromERC20 if recipient is not a portfolio", async () => {
+      const { user, user2, user3, dos, weth, wethAssetIdx } = await loadFixture(deployDOSFixture);
+      const owner = await CreatePortfolio(dos, user);
+      const spender = await CreatePortfolio(dos, user2);
+      const recipient = user3;
+      const amount = ethers.utils.parseEther("100");
+
+      await depositAsset(dos, owner, weth, wethAssetIdx, toWei(100));
+
+      const approveTx = await approveERC20(dos, owner, spender, wethAssetIdx, amount);
+      await approveTx.wait();
+
+      await expect(
+        spender.executeBatch([
+          makeCall(dos, "transferFromERC20", [
+            wethAssetIdx,
+            owner.address,
+            recipient.address,
+            amount,
+          ]),
+        ]),
+      ).to.be.revertedWith("Recipient portfolio doesn't exist");
+    });
+
     it("should set approve ERC721 token", async () => {
       const { user, user2, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
       const owner = await CreatePortfolio(dos, user);
@@ -973,6 +997,24 @@ describe("DOS", function () {
 
       await expect(ownerBalanceAfter).to.eql(ownerBalanceBefore - 1);
       await expect(recipientBalanceAfter).to.eql(recipientBalanceBefore + 1);
+    });
+
+    it("should revert transferFromERC721 if recipient is not a portfolio", async () => {
+      const { user, user2, user3, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const owner = await CreatePortfolio(dos, user);
+      const spender = await CreatePortfolio(dos, user2);
+      const recipient = user3.address;
+
+      const tokenId = await depositNft(dos, owner, nft, nftOracle, 2000);
+
+      const tx = await approveERC721(dos, owner, spender, nft.address, tokenId);
+      await tx.wait();
+
+      await expect(
+        spender.executeBatch([
+          makeCall(dos, "transferFromERC721", [nft.address, owner.address, user3.address, tokenId]),
+        ]),
+      ).to.be.revertedWith("Recipient portfolio doesn't exist");
     });
   });
 });
