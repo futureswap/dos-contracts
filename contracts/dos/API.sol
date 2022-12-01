@@ -4,7 +4,11 @@ pragma solidity ^0.8.17;
 import { SignatureVerification } from "../lib/SignatureVerification.sol";
 import { PermitHash } from "../lib/PermitHash.sol";
 
+import { FsUtils } from "../lib/FsUtils.sol";
+
 error NotApprovedOrOwner();
+/// @notice Transfer amount exceeds allowance
+error InsufficientAllowance();
 
 /// @dev create primitives for projects to integrate with DOS
 contract API {
@@ -139,19 +143,13 @@ contract API {
     }
 
     function _approveAsset(address owner, address asset, address spender, uint256 amount) internal {
-        require(spender != address(0), "ERC20: approve to the zero address");
+        spender = FsUtils.nonNull(spender);
 
         _allowances[owner][asset][spender] = amount;
         emit ERC20Approval(asset, owner, spender, amount);
     }
 
     function _approveNft(address collection, address to, uint256 tokenId) internal {
-        require(to != address(0), "ERC721: approve to the zero address");
-        require(
-            ownerOf(collection, tokenId) == owner,
-            "ERC721: approve caller is not owner nor approved for all"
-        );
-
         _tokenApprovals[collection][tokenId] = to;
         emit ERC721Approval(collection, owner, to, tokenId);
     }
@@ -164,7 +162,9 @@ contract API {
     ) internal {
         uint256 currentAllowance = allowance(asset, owner, spender);
         if (currentAllowance != type(uint256).max) {
-            require(currentAllowance >= amount, "ERC20: transfer amount exceeds allowance");
+            if (currentAllowance < amount) {
+                revert InsufficientAllowance();
+            }
             unchecked {
                 _approveAsset(owner, asset, spender, currentAllowance - amount);
             }
