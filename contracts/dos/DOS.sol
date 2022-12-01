@@ -296,7 +296,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
     }
 
-    function depositFull(ERD20Idx[] calldata erc20Idxs) external onlyPortfolio {
+    function depositFull(ERC20Idx[] calldata erc20Idxs) external onlyPortfolio {
         for (uint256 i = 0; i < erc20Idxs.length; i++) {
             ERC20Info storage erc20Info = getERC20Info(erc20Idxs[i]);
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);

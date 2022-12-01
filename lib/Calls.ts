@@ -88,41 +88,33 @@ export async function deployGovernance(governanceProxy: GovernanceProxy) {
 }
 
 export class Chainlink {
-  public readonly chainlink: MockContract;
-  public readonly assetOracle: IERC20ValueOracle;
-  public readonly chainlinkDecimals: number;
-
   static async deploy(
     signer: ethers.Signer,
     price: number,
     chainLinkDecimals: number,
     baseTokenDecimals: number,
-    assetTokenDecimals: number,
+    observedTokenDecimals: number,
   ) {
     const mockChainLink = await waffle.deployMockContract(
       signer,
       AggregatorV3Interface__factory.abi,
     );
     await mockChainLink.mock.decimals.returns(chainLinkDecimals);
-    const assetOracle = await new ERC20ChainlinkValueOracle__factory(signer).deploy(
+    const erc20Oracle = await new ERC20ChainlinkValueOracle__factory(signer).deploy(
       mockChainLink.address,
       baseTokenDecimals,
-      assetTokenDecimals,
+      observedTokenDecimals,
     );
-    const x = new Chainlink(mockChainLink, assetOracle, chainLinkDecimals);
-    await x.setPrice(price);
-    return x;
+    const oracle = new Chainlink(mockChainLink, erc20Oracle, chainLinkDecimals);
+    await oracle.setPrice(price);
+    return oracle;
   }
 
   private constructor(
-    mockChainlink: MockContract,
-    assetOracle: IERC20ValueOracle,
-    chainlinkDecimals: number,
-  ) {
-    this.chainlink = mockChainlink;
-    this.assetOracle = assetOracle;
-    this.chainlinkDecimals = chainlinkDecimals;
-  }
+    public readonly chainlink: MockContract,
+    public readonly oracle: IERC20ValueOracle,
+    public readonly chainlinkDecimals: number,
+  ) {}
 
   async setPrice(price: number) {
     return this.chainlink.mock.latestRoundData.returns(
