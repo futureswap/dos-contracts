@@ -1,16 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-/// @notice parameter cannot be the zero address
-error ZeroAddress();
-/// @notice contract is not registered
-error ContractNotRegistered();
 /// @notice version is not registered
 error VersionNotRegistered();
 /// @notice version name cannot be the empty string
 error InvalidVersionName();
-/// @notice contract name cannot be the empty string
-error InvalidContractName();
 /// @notice implementation must be a contract
 error InvalidImplementation();
 /// @notice version is already registered
