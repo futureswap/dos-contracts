@@ -4,9 +4,10 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/proxy/Proxy.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "../lib/FsUtils.sol";
-import "../interfaces/IDOS.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import { FsUtils } from "../lib/FsUtils.sol";
+import { IDOS } from "../interfaces/IDOS.sol";
 
 // Inspired by TransparantUpdateableProxy
 contract PortfolioProxy is Proxy {
@@ -44,7 +45,7 @@ contract PortfolioProxy is Proxy {
 
 // Calls to the contract not coming from DOS itself are routed to this logic
 // contract. This allows for flexible extra addition to your portfolio.
-contract PortfolioLogic is IERC721Receiver {
+contract PortfolioLogic is IERC721Receiver, IERC1271 {
     IDOS public immutable dos;
 
     constructor(address _dos) {
@@ -155,6 +156,14 @@ contract PortfolioLogic is IERC721Receiver {
 
         // Deposit numeraire
         dos.depositFull(new AssetIdx[](1));
+    }
+
+    /// @inheritdoc IERC1271
+    function isValidSignature(
+        bytes32 hash,
+        bytes memory signature
+    ) public view returns (bytes4 magicValue) {
+        // TODO: need an implementation in order to use permit2
     }
 
     function onERC721Received(

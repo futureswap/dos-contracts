@@ -1,4 +1,3 @@
-import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { ethers } from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
@@ -20,6 +19,7 @@ import {
 } from "../../typechain-types";
 import { toWei, toWeiUsdc } from "../../lib/Numbers";
 import { getEventParams } from "../../lib/Events";
+import { getFixedGasSigners } from "../../lib/Signers";
 import { BigNumber, Signer, ContractTransaction, BigNumberish } from "ethers";
 import { Chainlink, makeCall } from "../../lib/Calls";
 
@@ -818,6 +818,204 @@ describe("DOS", function () {
       await expect(receiverNfts).to.eql([[nft.address, tokenId]]);
     });
   });
+  describe("#integrationAPI", () => {
+    it("should set ERC20 token allowance when approve is called", async () => {
+      const { user, user2, dos, usdc, usdcAssetIdx } = await loadFixture(deployDOSFixture);
+      const owner = await CreatePortfolio(dos, user);
+      const spender = await CreatePortfolio(dos, user2);
+      const amount = ethers.utils.parseEther("100");
+
+      let tx = await approveERC20(dos, owner, spender, usdcAssetIdx, amount);
+      await tx.wait();
+
+      await expect(await dos.allowance(usdcAssetIdx, owner.address, spender.address)).to.eql(
+        amount,
+      );
+    });
+
+    it("should deduct ERC20 token allowance after transferFromERC20", async () => {
+      const { user, user2, user3, dos, weth, wethAssetIdx } = await loadFixture(deployDOSFixture);
+      const owner = await CreatePortfolio(dos, user);
+      const spender = await CreatePortfolio(dos, user2);
+      const recipient = await CreatePortfolio(dos, user3);
+      const amount = ethers.utils.parseEther("100");
+
+      await depositAsset(dos, owner, weth, wethAssetIdx, toWei(100));
+
+      const approveTx = await approveERC20(dos, owner, spender, wethAssetIdx, amount);
+      await approveTx.wait();
+
+      await expect(await dos.allowance(wethAssetIdx, owner.address, spender.address)).to.eql(
+        amount,
+      );
+
+      const transferFromTx = await transferFromERC20(
+        dos,
+        spender,
+        owner,
+        recipient,
+        wethAssetIdx,
+        amount,
+      );
+      await transferFromTx.wait();
+
+      await expect(await dos.allowance(wethAssetIdx, owner.address, spender.address)).to.eql(
+        ethers.utils.parseEther("0"),
+      );
+    });
+
+    it("should properly update portfolio balance with transferFromERC20", async () => {
+      const { user, user2, user3, dos, weth, wethAssetIdx } = await loadFixture(deployDOSFixture);
+      const owner = await CreatePortfolio(dos, user);
+      const spender = await CreatePortfolio(dos, user2);
+      const recipient = await CreatePortfolio(dos, user3);
+      const amount = ethers.utils.parseEther("100");
+
+      await depositAsset(dos, owner, weth, wethAssetIdx, toWei(100));
+
+      const approveTx = await approveERC20(dos, owner, spender, wethAssetIdx, amount);
+      await approveTx.wait();
+
+      await expect(await dos.allowance(wethAssetIdx, owner.address, spender.address)).to.eql(
+        amount,
+      );
+
+      const ownerBalanceBefore = (await getBalances(dos, owner)).weth;
+      const recipientBalanceBefore = (await getBalances(dos, recipient)).weth;
+
+      const transferFromTx = await transferFromERC20(
+        dos,
+        spender,
+        owner,
+        recipient,
+        wethAssetIdx,
+        amount,
+      );
+      await transferFromTx.wait();
+
+      const ownerBalanceAfter = (await getBalances(dos, owner)).weth;
+      const recipientBalanceAfter = (await getBalances(dos, recipient)).weth;
+
+      await expect(ownerBalanceAfter).to.eql(ownerBalanceBefore.sub(amount));
+      await expect(recipientBalanceAfter).to.eql(recipientBalanceBefore.add(amount));
+    });
+
+    it("should revert transferFromERC20 if recipient is not a portfolio", async () => {
+      const { user, user2, user3, dos, weth, wethAssetIdx } = await loadFixture(deployDOSFixture);
+      const owner = await CreatePortfolio(dos, user);
+      const spender = await CreatePortfolio(dos, user2);
+      const recipient = user3;
+      const amount = ethers.utils.parseEther("100");
+
+      await depositAsset(dos, owner, weth, wethAssetIdx, toWei(100));
+
+      const approveTx = await approveERC20(dos, owner, spender, wethAssetIdx, amount);
+      await approveTx.wait();
+
+      await expect(
+        spender.executeBatch([
+          makeCall(dos, "transferFromERC20", [
+            wethAssetIdx,
+            owner.address,
+            recipient.address,
+            amount,
+          ]),
+        ]),
+      ).to.be.revertedWith("Recipient portfolio doesn't exist");
+    });
+
+    it("should set approve ERC721 token", async () => {
+      const { user, user2, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const owner = await CreatePortfolio(dos, user);
+      const spender = await CreatePortfolio(dos, user2);
+
+      const tokenId = await depositNft(dos, owner, nft, nftOracle, 2000);
+
+      let tx = await approveERC721(dos, owner, spender, nft.address, tokenId);
+      await tx.wait();
+
+      await expect(await dos.getApproved(nft.address, tokenId)).to.eql(spender.address);
+    });
+
+    it("should remove approval after ERC721 token transfer", async () => {
+      const { user, user2, user3, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const owner = await CreatePortfolio(dos, user);
+      const spender = await CreatePortfolio(dos, user2);
+      const recipient = await CreatePortfolio(dos, user3);
+
+      const tokenId = await depositNft(dos, owner, nft, nftOracle, 2000);
+
+      const tx = await approveERC721(dos, owner, spender, nft.address, tokenId);
+      await tx.wait();
+
+      await expect(await dos.getApproved(nft.address, tokenId)).to.eql(spender.address);
+
+      const transferTx = await transferFromERC721(
+        dos,
+        spender,
+        owner,
+        recipient,
+        nft.address,
+        tokenId,
+      );
+      await transferTx.wait();
+
+      await expect(await dos.getApproved(nft.address, tokenId)).to.eql(
+        ethers.constants.AddressZero,
+      );
+    });
+
+    it("should properly update portfolio balance with transferFromERC721", async () => {
+      const { user, user2, user3, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const owner = await CreatePortfolio(dos, user);
+      const spender = await CreatePortfolio(dos, user2);
+      const recipient = await CreatePortfolio(dos, user3);
+
+      const tokenId = await depositNft(dos, owner, nft, nftOracle, 2000);
+
+      const tx = await approveERC721(dos, owner, spender, nft.address, tokenId);
+      await tx.wait();
+
+      const ownerBalanceBefore = (await getBalances(dos, owner)).nfts.length;
+      const recipientBalanceBefore = (await getBalances(dos, recipient)).nfts.length;
+
+      await expect(await dos.getApproved(nft.address, tokenId)).to.eql(spender.address);
+
+      const transferTx = await transferFromERC721(
+        dos,
+        spender,
+        owner,
+        recipient,
+        nft.address,
+        tokenId,
+      );
+      await transferTx.wait();
+
+      const ownerBalanceAfter = (await getBalances(dos, owner)).nfts.length;
+      const recipientBalanceAfter = (await getBalances(dos, recipient)).nfts.length;
+
+      await expect(ownerBalanceAfter).to.eql(ownerBalanceBefore - 1);
+      await expect(recipientBalanceAfter).to.eql(recipientBalanceBefore + 1);
+    });
+
+    it("should revert transferFromERC721 if recipient is not a portfolio", async () => {
+      const { user, user2, user3, dos, nft, nftOracle } = await loadFixture(deployDOSFixture);
+      const owner = await CreatePortfolio(dos, user);
+      const spender = await CreatePortfolio(dos, user2);
+      const recipient = user3.address;
+
+      const tokenId = await depositNft(dos, owner, nft, nftOracle, 2000);
+
+      const tx = await approveERC721(dos, owner, spender, nft.address, tokenId);
+      await tx.wait();
+
+      await expect(
+        spender.executeBatch([
+          makeCall(dos, "transferFromERC721", [nft.address, owner.address, user3.address, tokenId]),
+        ]),
+      ).to.be.revertedWith("Recipient portfolio doesn't exist");
+    });
+  });
 });
 
 async function CreatePortfolio(dos: DOS, signer: Signer) {
@@ -923,18 +1121,48 @@ async function transfer(
   }
 }
 
-// This fixes random tests crash with
-// "contract call run out of gas and made the transaction revert" error
-// and, as a side effect, speeds tests in 2-3 times!
-// https://github.com/NomicFoundation/hardhat/issues/1721
-export const getFixedGasSigners = async function (gasLimit: number) {
-  const signers: SignerWithAddress[] = await ethers.getSigners();
-  for (const signer of signers) {
-    const orig = signer.sendTransaction;
-    signer.sendTransaction = transaction => {
-      transaction.gasLimit = BigNumber.from(gasLimit.toString());
-      return orig.apply(signer, [transaction]);
-    };
-  }
-  return signers;
-};
+async function approveERC20(
+  dos: DOS,
+  owner: PortfolioLogic,
+  spender: PortfolioLogic,
+  assetIdx: number,
+  amount: BigNumberish,
+): Promise<ContractTransaction> {
+  return owner.executeBatch([makeCall(dos, "approveERC20", [assetIdx, spender.address, amount])]);
+}
+
+async function approveERC721(
+  dos: DOS,
+  owner: PortfolioLogic,
+  spender: PortfolioLogic,
+  nft: string,
+  tokenId: BigNumber,
+): Promise<ContractTransaction> {
+  return owner.executeBatch([makeCall(dos, "approveERC721", [nft, spender.address, tokenId])]);
+}
+
+async function transferFromERC20(
+  dos: DOS,
+  spender: PortfolioLogic,
+  owner: PortfolioLogic,
+  to: PortfolioLogic,
+  assetIdx: number,
+  amount: BigNumberish,
+): Promise<ContractTransaction> {
+  return spender.executeBatch([
+    makeCall(dos, "transferFromERC20", [assetIdx, owner.address, to.address, amount]),
+  ]);
+}
+
+async function transferFromERC721(
+  dos: DOS,
+  spender: PortfolioLogic,
+  owner: PortfolioLogic,
+  to: PortfolioLogic,
+  nft: string,
+  tokenId: BigNumber,
+): Promise<ContractTransaction> {
+  return spender.executeBatch([
+    makeCall(dos, "transferFromERC721", [nft, owner.address, to.address, tokenId]),
+  ]);
+}
