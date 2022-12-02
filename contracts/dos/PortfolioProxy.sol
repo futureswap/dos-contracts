@@ -4,10 +4,9 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/proxy/Proxy.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "../lib/FsUtils.sol";
-
-import { IERC1271 } from "../interfaces/IERC1271.sol";
-import "../interfaces/IDOS.sol";
+import "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import { FsUtils } from "../lib/FsUtils.sol";
+import { IDOS } from "../interfaces/IDOS.sol";
 
 // Inspired by TransparantUpdateableProxy
 contract PortfolioProxy is Proxy {
