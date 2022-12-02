@@ -3,8 +3,8 @@ pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-type AssetIdx is uint16;
-type AssetShare is int256;
+type ERC20Idx is uint16;
+type ERC20Share is int256;
 
 interface IDOSERC20 is IERC20 {
     function mint(address account, uint256 amount) external;
@@ -13,25 +13,25 @@ interface IDOSERC20 is IERC20 {
 }
 
 interface IDOS {
-    function upgradeImplementation(address portfolio, uint256 version) external;
-
-    function getImplementation(address portfolio) external view returns (address);
-
-    function getPortfolioOwner(address portfolio) external view returns (address);
-
-    function liquidate(address portfolio) external;
-
-    function viewBalance(address portfolio, AssetIdx assetIdx) external view returns (int256);
-
-    function depositFull(AssetIdx[] calldata assetIdxs) external;
-
-    function withdrawFull(AssetIdx[] calldata assetIdxs) external;
-
     struct Call {
         address to;
         bytes callData;
         uint256 value;
     }
 
+    function upgradeImplementation(address portfolio, uint256 version) external;
+
+    function liquidate(address portfolio) external;
+
+    function depositFull(ERC20Idx[] calldata erc20Idxs) external;
+
+    function withdrawFull(ERC20Idx[] calldata erc20Idxs) external;
+
     function executeBatch(Call[] memory calls) external;
+
+    function viewBalance(address portfolio, ERC20Idx erc20Idx) external view returns (int256);
+
+    function getImplementation(address portfolio) external view returns (address);
+
+    function getPortfolioOwner(address portfolio) external view returns (address);
 }

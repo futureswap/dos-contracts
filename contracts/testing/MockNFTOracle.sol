@@ -7,6 +7,14 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 contract MockNFTOracle is INFTValueOracle {
     mapping(uint256 => int256) prices;
 
+    function setPrice(uint256 tokenId, int256 price) external {
+        require(
+            price != -1,
+            "Please, don't use -1 as NFT price - it's a reserved value used for early error detection"
+        );
+        prices[tokenId] = price + 1;
+    }
+
     function calcValue(uint256 tokenId) external view override returns (int256) {
         require(
             prices[tokenId] > 0,
@@ -17,13 +25,5 @@ contract MockNFTOracle is INFTValueOracle {
             )
         );
         return prices[tokenId] - 1;
-    }
-
-    function setPrice(uint256 tokenId, int256 price) external {
-        require(
-            price != -1,
-            "Please, don't use -1 as NFT price - it's a reserved value used for early error detection"
-        );
-        prices[tokenId] = price + 1;
     }
 }

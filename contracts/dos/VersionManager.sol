@@ -4,9 +4,8 @@ pragma solidity ^0.8.17;
 // Inspired by the following contract: https://github.com/OpenBazaar/smart-contracts/blob/22d3f190163102f9ceee95ac705001c82ca55624/contracts/registry/ContractManager.sol
 
 import "@openzeppelin/contracts/utils/Address.sol";
-import { FsUtils } from "../lib/FsUtils.sol";
-import { ImmutableOwnable } from "../lib/ImmutableOwnable.sol";
-
+import {FsUtils} from "../lib/FsUtils.sol";
+import {ImmutableOwnable} from "../lib/ImmutableOwnable.sol";
 import "../interfaces/IVersionManager.sol";
 
 contract VersionManager is IVersionManager, ImmutableOwnable {

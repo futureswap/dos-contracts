@@ -7,10 +7,10 @@ import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import { FsUtils } from "../lib/FsUtils.sol";
+import {FsUtils} from "../lib/FsUtils.sol";
 import "../interfaces/IDOS.sol";
 
-// Inspired by TransparantUpdateableProxy
+// Inspired by TransparentUpdatableProxy
 contract PortfolioProxy is Proxy {
     using Address for address;
 
@@ -29,11 +29,6 @@ contract PortfolioProxy is Proxy {
         dos = FsUtils.nonNull(_dos);
     }
 
-    // The implementation of the delegate is controlled by DOS
-    function _implementation() internal view override returns (address) {
-        return IDOS(dos).getImplementation(address(this));
-    }
-
     // Allow DOS to make arbitrary calls in lieu of this portfolio
     function doCall(
         address to,
@@ -42,6 +37,11 @@ contract PortfolioProxy is Proxy {
     ) external ifDos returns (bytes memory) {
         return to.functionCallWithValue(callData, value);
     }
+
+    // The implementation of the delegate is controlled by DOS
+    function _implementation() internal view override returns (address) {
+        return IDOS(dos).getImplementation(address(this));
+    }
 }
 
 // Calls to the contract not coming from DOS itself are routed to this logic
@@ -49,18 +49,14 @@ contract PortfolioProxy is Proxy {
 contract PortfolioLogic is IERC721Receiver, IERC1271 {
     IDOS public immutable dos;
 
-    constructor(address _dos) {
-        // slither-disable-next-line missing-zero-check
-        dos = IDOS(FsUtils.nonNull(_dos));
-    }
-
-    function owner() external view returns (address) {
-        return IDOS(dos).getPortfolioOwner(address(this));
-    }
-
     modifier onlyOwner() {
         require(IDOS(dos).getPortfolioOwner(address(this)) == msg.sender, "");
         _;
+    }
+
+    constructor(address _dos) {
+        // slither-disable-next-line missing-zero-check
+        dos = IDOS(FsUtils.nonNull(_dos));
     }
 
     function executeBatch(IDOS.Call[] memory calls) external payable onlyOwner {
@@ -71,7 +67,7 @@ contract PortfolioLogic is IERC721Receiver, IERC1271 {
         address portfolio,
         address swapRouter,
         address numeraire,
-        AssetIdx[] calldata assetIdxs,
+        ERC20Idx[] calldata erc20Idxs,
         address[] calldata erc20s
     ) external {
         if (msg.sender != address(this)) {
@@ -85,7 +81,7 @@ contract PortfolioLogic is IERC721Receiver, IERC1271 {
                     portfolio,
                     swapRouter,
                     numeraire,
-                    assetIdxs,
+                    erc20Idxs,
                     erc20s
                 ),
                 value: 0
@@ -97,28 +93,28 @@ contract PortfolioLogic is IERC721Receiver, IERC1271 {
         dos.liquidate(portfolio);
 
         // Withdraw all non-numeraire collateral
-        int256[] memory balances = new int256[](assetIdxs.length);
+        int256[] memory balances = new int256[](erc20Idxs.length);
         {
             uint256 ncollaterals = 0;
-            for (uint256 i = 0; i < assetIdxs.length; i++) {
-                int256 balance = IDOS(dos).viewBalance(address(this), assetIdxs[i]);
+            for (uint256 i = 0; i < erc20Idxs.length; i++) {
+                int256 balance = IDOS(dos).viewBalance(address(this), erc20Idxs[i]);
                 balances[i] = balance;
                 if (balance > 0) {
                     ncollaterals++;
                 }
             }
-            AssetIdx[] memory collaterals = new AssetIdx[](ncollaterals);
+            ERC20Idx[] memory collaterals = new ERC20Idx[](ncollaterals);
             uint256 j = 0;
-            for (uint256 i = 0; i < assetIdxs.length; i++) {
+            for (uint256 i = 0; i < erc20Idxs.length; i++) {
                 if (balances[i] > 0) {
-                    collaterals[j++] = assetIdxs[i];
+                    collaterals[j++] = erc20Idxs[i];
                 }
             }
             dos.withdrawFull(collaterals);
         }
 
         // Swap all non-numeraire collateral to numeraire
-        for (uint256 i = 0; i < assetIdxs.length; i++) {
+        for (uint256 i = 0; i < erc20Idxs.length; i++) {
             int256 balance = balances[i];
             if (balance > 0) {
                 ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
@@ -137,7 +133,7 @@ contract PortfolioLogic is IERC721Receiver, IERC1271 {
         }
 
         // Repay all debt by swapping numeraire
-        for (uint256 i = 0; i < assetIdxs.length; i++) {
+        for (uint256 i = 0; i < erc20Idxs.length; i++) {
             int256 balance = balances[i];
             if (balance < 0) {
                 ISwapRouter.ExactOutputSingleParams memory params = ISwapRouter
@@ -156,7 +152,7 @@ contract PortfolioLogic is IERC721Receiver, IERC1271 {
         }
 
         // Deposit numeraire
-        dos.depositFull(new AssetIdx[](1));
+        dos.depositFull(new ERC20Idx[](1));
     }
 
     /// @inheritdoc IERC1271
@@ -173,6 +169,10 @@ contract PortfolioLogic is IERC721Receiver, IERC1271 {
             : bytes4(0);
     }
 
+    function owner() external view returns (address) {
+        return IDOS(dos).getPortfolioOwner(address(this));
+    }
+
     function onERC721Received(
         address /* operator */,
         address /* from */,
@@ -180,5 +180,13 @@ contract PortfolioLogic is IERC721Receiver, IERC1271 {
         bytes memory /* data */
     ) public virtual override returns (bytes4) {
         return this.onERC721Received.selector;
+    }
+
+    /// @inheritdoc IERC1271
+    function isValidSignature(
+        bytes32 hash,
+        bytes memory signature
+    ) public view returns (bytes4 magicValue) {
+        // TODO: need an implementation in order to use permit2
     }
 }

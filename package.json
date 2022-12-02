@@ -2,12 +2,14 @@
   "name": "dos",
   "scripts": {
     "node": "yarn hardhat node",
-    "test": "yarn run tsc --noEmit && yarn hardhat test",
+    "test": "yarn hardhat test",
+    "test:withTypesCheck": "yarn tsc --noEmit && yarn hardhat test",
     "compile": "yarn hardhat compile",
     "coverage": "yarn hardhat coverage",
     "typechain": "yarn hardhat typechain",
     "prettier": "prettier *.md \"{docs,.github}/**/*.{md,yml}\" \"scripts/**/*.ts\"",
-    "format": "prettier --write \"contracts/**/*.sol\" \"lib/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"./*.ts\" \"./*.json\""
+    "format": "prettier --write \"contracts/**/*.sol\" \"lib/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"./*.ts\" \"./*.json\"",
+    "prettier:check": "prettier --check \"contracts/**/*.sol\" \"lib/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"./*.ts\" \"./*.json\""
   },
   "dependencies": {
     "@chainlink/contracts": "^0.5.1",

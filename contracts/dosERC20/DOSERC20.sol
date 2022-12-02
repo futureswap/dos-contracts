@@ -22,18 +22,19 @@ contract DOSERC20 is IDOSERC20, ERC20Permit, IERC677Token, ImmutableOwnable {
         erc20Decimals = _decimals;
     }
 
-    function decimals() public view override returns (uint8) {
-        return erc20Decimals;
-    }
-
-    /// @notice mint amount tokens to account
-    function mint(address account, uint256 amount) external override onlyOwner {
-        _mint(account, amount);
+    /// @notice Invalidate nonce for permit approval
+    function useNonce() external {
+        _useNonce(msg.sender);
     }
 
     /// @notice burn amount tokens from account
     function burn(address account, uint256 amount) external override onlyOwner {
         _burn(account, amount);
+    }
+
+    /// @notice mint amount tokens to account
+    function mint(address account, uint256 amount) external override onlyOwner {
+        _mint(account, amount);
     }
 
     /// @inheritdoc IERC677Token
@@ -50,8 +51,7 @@ contract DOSERC20 is IDOSERC20, ERC20Permit, IERC677Token, ImmutableOwnable {
         return true;
     }
 
-    /// @notice Invalidate nonce for permit approval
-    function useNonce() external {
-        _useNonce(msg.sender);
+    function decimals() public view override returns (uint8) {
+        return erc20Decimals;
     }
 }

@@ -1,5 +1,5 @@
-import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { ethers } from "hardhat";
+import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import {ethers} from "hardhat";
 
 // This fixes random tests crash with
 // "contract call run out of gas and made the transaction revert" error

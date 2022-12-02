@@ -1,19 +1,20 @@
-import { ethers } from "hardhat";
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { expect } from "chai";
+import {ethers} from "hardhat";
+import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
+import {expect} from "chai";
 import {
   DOS,
   DOS__factory,
   PortfolioLogic__factory,
+  VersionManager__factory,
   TestERC20__factory,
   WETH9__factory,
   TestNFT__factory,
   MockNFTOracle__factory,
 } from "../../typechain-types";
-import { toWei } from "../../lib/Numbers";
-import { getEventParams } from "../../lib/Events";
-import { Signer } from "ethers";
-import { Chainlink, makeCall } from "../../lib/Calls";
+import {toWei} from "../../lib/Numbers";
+import {getEventParams} from "../../lib/Events";
+import {Signer} from "ethers";
+import {Chainlink, makeCall} from "../../lib/Calls";
 
 const USDC_DECIMALS = 6;
 const ETH_DECIMALS = 18;
@@ -55,22 +56,22 @@ describe.skip("Fractionalization", function () {
     });
 
     // No interest which would include time sensitive calculations
-    await dos.addERC20Asset(
+    await dos.addERC20Info(
       usdc.address,
       "USD Coin",
       "USDC",
       6,
-      usdcChainlink.assetOracle.address,
+      usdcChainlink.oracle.address,
       toWei(0.9),
       toWei(0.9),
       0,
     );
-    await dos.addERC20Asset(
+    await dos.addERC20Info(
       weth.address,
       "Wrapped ETH",
       "WETH",
       18,
-      ethChainlink.assetOracle.address,
+      ethChainlink.oracle.address,
       toWei(0.9),
       toWei(0.9),
       0,
@@ -89,7 +90,7 @@ describe.skip("Fractionalization", function () {
   }
 
   async function CreatePortfolio(dos: DOS, signer: Signer) {
-    const { portfolio } = await getEventParams(
+    const {portfolio} = await getEventParams(
       await dos.connect(signer).createPortfolio(),
       dos,
       "PortfolioCreated",
@@ -101,7 +102,7 @@ describe.skip("Fractionalization", function () {
 
   describe("Fractional Reserve Leverage tests", () => {
     it("Check fractional reserve after user borrows", async () => {
-      const { user, user2, dos, usdc, weth } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       //setup 1st user
       const portfolio1 = await CreatePortfolio(dos, user);
@@ -109,7 +110,7 @@ describe.skip("Fractionalization", function () {
       await usdc.mint(portfolio1.address, oneHundredUsdc);
       await portfolio1.executeBatch([
         makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(dos, "depositAsset", [0, oneHundredUsdc]),
+        makeCall(dos, "depositERC20", [0, oneHundredUsdc]),
       ]); //deposits 100 USDC
 
       //setup 2nd user
@@ -118,26 +119,26 @@ describe.skip("Fractionalization", function () {
       await weth.mint(portfolio2.address, toWei(1)); //10 ETH
       await portfolio2.executeBatch([
         makeCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(dos, "depositAsset", [1, toWei(1)]),
+        makeCall(dos, "depositERC20", [1, toWei(1)]),
       ]);
 
       //check what the max to borrow of USDC is (90 USDC)
-      const maxBorrowable = await dos.getMaximumWithdrawableOfAsset(0);
+      const maxBorrowable = await dos.getMaximumWithdrawableOfERC20(0);
 
       //borrow 90 USDC
       await portfolio2.executeBatch([
-        makeCall(dos, "depositAsset", [0, -maxBorrowable]), //to borrow use negative
+        makeCall(dos, "depositERC20", [0, -maxBorrowable]), //to borrow use negative
       ]);
 
       //check to see if there is anything left
-      const maxBorrowablePost = await dos.getMaximumWithdrawableOfAsset(0);
+      const maxBorrowablePost = await dos.getMaximumWithdrawableOfERC20(0);
 
       expect(maxBorrowablePost).to.equal("0");
     });
 
     it("Fractional reserve check should fail after borrow and rate is set below threshold", async () => {
       //setup 2 users portfolios
-      const { user, user2, dos, usdc, weth } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       //setup first user
       const portfolio1 = await CreatePortfolio(dos, user);
@@ -145,7 +146,7 @@ describe.skip("Fractionalization", function () {
       await usdc.mint(portfolio1.address, oneHundredUsdc);
       await portfolio1.executeBatch([
         makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(dos, "depositAsset", [0, oneHundredUsdc]),
+        makeCall(dos, "depositERC20", [0, oneHundredUsdc]),
       ]); //deposits 100 USDC
 
       //setup 2nd user
@@ -154,14 +155,14 @@ describe.skip("Fractionalization", function () {
       await weth.mint(portfolio2.address, toWei(1)); //10 ETH
       await portfolio2.executeBatch([
         makeCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(dos, "depositAsset", [1, toWei(10, 6)]),
+        makeCall(dos, "depositERC20", [1, toWei(10, 6)]),
       ]);
 
-      const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfAsset(0);
+      const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfERC20(0);
 
       //user 2 borrows 90 USDC
       await portfolio2.executeBatch([
-        makeCall(dos, "depositAsset", [0, -maxBorrowableUSDC]), //to borrow use negative
+        makeCall(dos, "depositERC20", [0, -maxBorrowableUSDC]), //to borrow use negative
       ]);
 
       //vote for FDR to change
@@ -170,7 +171,7 @@ describe.skip("Fractionalization", function () {
         fractionalReserveLeverage: 8,
       });
 
-      const maxBorrowableUSDCPost = await dos.getMaximumWithdrawableOfAsset(0);
+      const maxBorrowableUSDCPost = await dos.getMaximumWithdrawableOfERC20(0);
 
       expect(maxBorrowableUSDCPost).is.lessThan(0);
     });
@@ -180,7 +181,7 @@ describe.skip("Fractionalization", function () {
       //vote on increasing maximum
       //borrow more
 
-      const { user, user2, dos, usdc, weth } = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       //setup 1st user
       const portfolio1 = await CreatePortfolio(dos, user);
@@ -188,7 +189,7 @@ describe.skip("Fractionalization", function () {
       await usdc.mint(portfolio1.address, oneHundredUsdc);
       await portfolio1.executeBatch([
         makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(dos, "depositAsset", [0, oneHundredUsdc]),
+        makeCall(dos, "depositERC20", [0, oneHundredUsdc]),
       ]); //deposits 100 USDC
 
       //setup 2nd user
@@ -197,14 +198,14 @@ describe.skip("Fractionalization", function () {
       await weth.mint(portfolio2.address, toWei(1)); //10 ETH
       await portfolio2.executeBatch([
         makeCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(dos, "depositAsset", [1, toWei(1)]),
+        makeCall(dos, "depositERC20", [1, toWei(1)]),
       ]);
 
-      const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfAsset(0);
+      const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfERC20(0);
 
       //borrow 90 USDC // Max borrow for FRL
       await portfolio2.executeBatch([
-        makeCall(dos, "depositAsset", [0, -maxBorrowableUSDC]), //to borrow use negative
+        makeCall(dos, "depositERC20", [0, -maxBorrowableUSDC]), //to borrow use negative
       ]);
 
       // //vote for FDR to change
@@ -213,14 +214,14 @@ describe.skip("Fractionalization", function () {
         fractionalReserveLeverage: 10,
       });
 
-      const maxBorrowableUSDCPostVote = await dos.getMaximumWithdrawableOfAsset(0);
+      const maxBorrowableUSDCPostVote = await dos.getMaximumWithdrawableOfERC20(0);
 
       //borrow 0.909091 USDC
       await portfolio2.executeBatch([
-        makeCall(dos, "depositAsset", [0, -maxBorrowableUSDCPostVote]), //to borrow use negative
+        makeCall(dos, "depositERC20", [0, -maxBorrowableUSDCPostVote]), //to borrow use negative
       ]);
 
-      expect(await dos.getMaximumWithdrawableOfAsset(0)).to.equal("0");
+      expect(await dos.getMaximumWithdrawableOfERC20(0)).to.equal("0");
     });
   });
 });
