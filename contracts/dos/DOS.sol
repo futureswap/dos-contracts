@@ -296,7 +296,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         ERC721(nftContract).safeTransferFrom(_owner, address(this), tokenId);
 
         Portfolio storage p = portfolios[msg.sender];
-        p.insertNft(NFT(nftContract, tokenId, NFTType.ERC721, 1));
+        p.insertNft(NFT(nftContract, tokenId, 1, NFTType.ERC721));
     }
 
     /// @notice Deposits an NFT into a portfolio
@@ -310,11 +310,17 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         address from,
         int256 amount
     ) external onlyPortfolio onlyRegisteredNft(nftContract, tokenId) {
-        bytes data = ""; // TODO
-        IERC1155(nftContract).safeTransferFrom(from, address(this), tokenId, amount, data);
+        bytes memory data = ""; // TODO
+        IERC1155(nftContract).safeTransferFrom(
+            from,
+            address(this),
+            tokenId,
+            FsMath.safeCastToUnsigned(amount),
+            data
+        );
 
         Portfolio storage p = portfolios[msg.sender];
-        p.insertNft(NFT(nftContract, tokenId, NFTType.ERC1155, amount));
+        p.insertNft(NFT(nftContract, tokenId, amount, NFTType.ERC1155));
     }
 
     function depositDosAsset(AssetIdx assetIdx, int256 amount) external onlyPortfolio {
@@ -355,7 +361,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     function claimNft(
         address nftContract,
         uint256 tokenId,
-        uint256 amount
+        int256 amount
     ) external onlyPortfolio onlyDepositNftOwner(nftContract, tokenId) {
         Portfolio storage p = portfolios[msg.sender];
         uint256 nftPortfolioIdx = p.nftPortfolioIdxs[nftContract][tokenId] - 1;
@@ -364,10 +370,16 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
             revert("Insufficient NFT balance");
         }
         nft.amount -= amount;
-        p.insertNft(nftPortfolioIdx);
+        p.insertNft(nft);
 
-        bytes data = "";
-        IERC1155(nftContract).safeTransferFrom(address(this), msg.sender, tokenId, amount, data);
+        bytes memory data = "";
+        IERC1155(nftContract).safeTransferFrom(
+            address(this),
+            msg.sender,
+            tokenId,
+            FsMath.safeCastToUnsigned(amount),
+            data
+        );
     }
 
     function transfer(
@@ -409,13 +421,13 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         NFT memory negNft = nft;
         negNft.amount -= amount;
         nft.amount += amount;
-        portfolios[from] = portfolios[from].insertNft(negNft);
-        portfolios[to] = portfolios[to].insertNft(nft);
+        portfolios[from].insertNft(negNft);
+        portfolios[to].insertNft(nft);
     }
 
     function transferAllNft(uint256 nftPortfolioIdx, address from, address to) internal {
         NFT memory nft = portfolios[from].extractNft(nftPortfolioIdx);
-        portfolios[to] = portfolios[to].insertNft(nft);
+        portfolios[to].insertNft(nft);
     }
 
     function transferAllAsset(AssetIdx assetIdx, address from, address to) internal {
