@@ -3,6 +3,7 @@
   "scripts": {
     "node": "yarn hardhat node",
     "test": "yarn hardhat test",
+    "test:withTypesCheck": "yarn tsc --noEmit && yarn hardhat test",
     "compile": "yarn hardhat compile",
     "coverage": "yarn hardhat coverage",
     "typechain": "yarn hardhat typechain",
