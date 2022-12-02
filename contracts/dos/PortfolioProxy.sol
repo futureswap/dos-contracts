@@ -181,12 +181,4 @@ contract PortfolioLogic is IERC721Receiver, IERC1271 {
     ) public virtual override returns (bytes4) {
         return this.onERC721Received.selector;
     }
-
-    /// @inheritdoc IERC1271
-    function isValidSignature(
-        bytes32 hash,
-        bytes memory signature
-    ) public view returns (bytes4 magicValue) {
-        // TODO: need an implementation in order to use permit2
-    }
 }
