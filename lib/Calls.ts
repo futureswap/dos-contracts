@@ -38,10 +38,6 @@ export function cleanResult(r: ethers.utils.Result) {
   return x;
 }
 
-export const asyncCleanResult = async (pr: Promise<ethers.utils.Result>) => {
-  return cleanResult(await pr);
-};
-
 interface Call {
   to: string;
   callData: ethers.BytesLike;

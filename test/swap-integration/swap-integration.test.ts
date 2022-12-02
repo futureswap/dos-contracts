@@ -209,7 +209,7 @@ describe("DOS swap integration", function () {
       expect(nfts.length).to.equal(0); // Regular leveraged position, no NFTs
     });
 
-    it.only("Liquify liquidatable position", async () => {
+    it("Liquify liquidatable position", async () => {
       const { user, user2, user3, dos, usdc, weth, uniswapNFTManager, swapRouter, ethChainlink } =
         await loadFixture(deployDOSFixture);
 
@@ -260,7 +260,6 @@ describe("DOS swap integration", function () {
       ).to.not.be.reverted;
 
       const { usdcBalance, wethBalance, nfts } = await getBalances(dos, portfolio3);
-      console.log(usdcBalance);
       expect(await usdc.balanceOf(portfolio3.address)).to.be.equal(0);
       expect(await weth.balanceOf(portfolio3.address)).to.be.equal(0);
       expect(wethBalance).to.equal(0);
