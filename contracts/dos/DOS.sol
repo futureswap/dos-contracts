@@ -358,7 +358,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     /// @param nftContract The address of the nft contract
     /// @param tokenId The token id
     /// @param amount The amount of tokens to claim
-    function claimNft(
+    function claimERC1155(
         address nftContract,
         uint256 tokenId,
         int256 amount
@@ -411,7 +411,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         portfolios[to].insertNft(nft);
     }
 
-    function transferNft(
+    function transferERC1155(
         uint256 nftPortfolioIdx,
         address from,
         address to,
@@ -425,7 +425,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         portfolios[to].insertNft(nft);
     }
 
-    function transferAllNft(uint256 nftPortfolioIdx, address from, address to) internal {
+    function transferAllERC1155(uint256 nftPortfolioIdx, address from, address to) internal {
         NFT memory nft = portfolios[from].extractNft(nftPortfolioIdx);
         portfolios[to].insertNft(nft);
     }
