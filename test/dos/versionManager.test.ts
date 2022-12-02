@@ -16,7 +16,7 @@ describe("VersionManager", function () {
   async function deployVersionManagerFixture() {
     const [owner] = await getFixedGasSigners(10_000_000);
 
-    const versionManager = await new VersionManager__factory(owner).deploy();
+    const versionManager = await new VersionManager__factory(owner).deploy(owner.address);
     const dos = await new DOS__factory(owner).deploy(owner.address, versionManager.address);
     const portfolioLogic = await new PortfolioLogic__factory(owner).deploy(dos.address);
 

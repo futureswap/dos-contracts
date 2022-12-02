@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "../lib/FsUtils.sol";
 import "../lib/FsMath.sol";
-import { IDOS, IDOSERC20 } from "../interfaces/IDOS.sol";
+import "../interfaces/IDOS.sol";
 import "../interfaces/IAssetValueOracle.sol";
 import "../interfaces/INFTValueOracle.sol";
 import { IPermit2 } from "../interfaces/IPermit2.sol";
@@ -473,7 +473,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     /// @param permit The permit data signed over by the owner
     /// @param signature The signature to verify
     function permitTransferFromERC20(
-        IERC20 token,
         address _owner,
         address _to,
         uint256 amount,
@@ -501,7 +500,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     ) external onlyPortfolio portfolioExists(to) {
         Portfolio storage p = portfolios[from];
         uint256 nftPortfolioIdx = p.nftPortfolioIdxs[collection][tokenId] - 1;
-        address spender = msg.sender;
         if (!_isApprovedOrOwner(msg.sender, collection, tokenId)) {
             revert NotApprovedOrOwner();
         }

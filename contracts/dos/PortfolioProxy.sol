@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import { FsUtils } from "../lib/FsUtils.sol";
-import { IDOS } from "../interfaces/IDOS.sol";
+import "../interfaces/IDOS.sol";
 
 // Inspired by TransparantUpdateableProxy
 contract PortfolioProxy is Proxy {
