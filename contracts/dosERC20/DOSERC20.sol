@@ -5,11 +5,11 @@ import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "../interfaces/IERC677Receiver.sol";
-import "../interfaces/IERC677Token.sol";
-import "../interfaces/IDOS.sol";
-import "../lib/FsUtils.sol";
-import "../lib/ImmutableOwnable.sol";
+import { IERC677Receiver } from "../interfaces/IERC677Receiver.sol";
+import { IERC677Token } from "../interfaces/IERC677Token.sol";
+import { IDOSERC20 } from "../interfaces/IDOS.sol";
+import { FsUtils } from "../lib/FsUtils.sol";
+import { ImmutableOwnable } from "../lib/ImmutableOwnable.sol";
 
 contract DOSERC20 is IDOSERC20, ERC20Permit, IERC677Token, ImmutableOwnable {
     uint8 private immutable erc20Decimals;
