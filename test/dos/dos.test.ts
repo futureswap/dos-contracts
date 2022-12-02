@@ -15,7 +15,6 @@ import {
   MockNFTOracle,
   TestERC20,
   WETH9,
-  VersionManager__factory,
 } from "../../typechain-types";
 import { toWei, toWeiUsdc } from "../../lib/Numbers";
 import { getEventParams } from "../../lib/Events";

@@ -15,9 +15,9 @@ import {
   VersionManager__factory,
 } from "../../typechain-types";
 import { toWei } from "../../lib/Numbers";
-import { getEventParams, getEvents, getEventsTx } from "../../lib/Events";
-import { BigNumber, Signer, ContractTransaction, BigNumberish, Contract } from "ethers";
-import { asyncCleanResult, Chainlink, cleanResult, makeCall } from "../../lib/Calls";
+import { getEventsTx } from "../../lib/Events";
+import { BigNumber, Signer, Contract } from "ethers";
+import { Chainlink, makeCall } from "../../lib/Calls";
 import { deployUniswapFactory, deployUniswapPool } from "../../lib/deploy_uniswap";
 
 const USDC_PRICE = 1;
@@ -269,12 +269,8 @@ describe("DOS swap integration", function () {
 });
 
 async function createPortfolio(dos: DOS, signer: Signer) {
-  const { portfolio } = await getEventParams(
-    await dos.connect(signer).createPortfolio(),
-    dos,
-    "PortfolioCreated",
-  );
-  return PortfolioLogic__factory.connect(portfolio as string, signer);
+  const events = await getEventsTx(dos.connect(signer).createPortfolio(), dos);
+  return PortfolioLogic__factory.connect(events.PortfolioCreated.portfolio as string, signer);
 }
 
 const leverageLP = async (
@@ -283,7 +279,7 @@ const leverageLP = async (
   usdc: TestERC20,
   weth: WETH9,
   uniswapNFTManager: Contract,
-  mintParams,
+  mintParams: any,
 ) => {
   return portfolio.executeBatch([
     makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),

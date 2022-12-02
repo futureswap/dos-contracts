@@ -47,7 +47,7 @@ describe.skip("Fractionalization", function () {
 
     await nftOracle.setPrice(1, toWei(100));
 
-    const dos = await new DOS__factory(owner).deploy(owner.address);
+    const dos = await new DOS__factory(owner).deploy(owner.address, ethers.constants.AddressZero);
 
     await dos.setConfig({
       liqFraction: toWei(0.8),
