@@ -5,13 +5,15 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "../lib/FsUtils.sol";
-import "../lib/FsMath.sol";
+import { FsUtils } from "../lib/FsUtils.sol";
+import { FsMath } from "../lib/FsMath.sol";
 import { IDOS, IDOSERC20 } from "../interfaces/IDOS.sol";
-import "../interfaces/IAssetValueOracle.sol";
-import "../interfaces/INFTValueOracle.sol";
+import { IAssetValueOracle } from "../interfaces/IAssetValueOracle.sol";
+import { INFTValueOracle } from "../interfaces/INFTValueOracle.sol";
+import { IPermit2 } from "../interfaces/IPermit2.sol";
 import { PortfolioProxy } from "./PortfolioProxy.sol";
-import "../dosERC20/DOSERC20.sol";
+import { DOSERC20 } from "../dosERC20/DOSERC20.sol";
+import { ImmutableOwnable } from "../lib/ImmutableOwnable.sol";
 
 import { IVersionManager } from "../interfaces/IVersionManager.sol";
 
