@@ -1,8 +1,9 @@
 import uniV3FactJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json";
-import uniNFTManager from "@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json";
+import uniNFTManagerJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json";
 import tokenPosDescJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungibleTokenPositionDescriptor.sol/NonfungibleTokenPositionDescriptor.json";
 import nftDescJSON from "@uniswap/v3-periphery/artifacts/contracts/libraries/NFTDescriptor.sol/NFTDescriptor.json";
 import uniswapPoolJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
+import swapRouterJSON from "@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json";
 
 import { ContractFactory, BigNumberish, Contract, Signer, ethers } from "ethers";
 import { getEventParams } from "./Events";
@@ -58,11 +59,16 @@ export async function deployUniswapFactory(weth: string, signer: Signer) {
     signer,
   ).deploy(weth, ethers.constants.MaxInt256);
   const uniswapNFTManager = await new ContractFactory(
-    uniNFTManager.abi,
-    uniNFTManager.bytecode,
+    uniNFTManagerJSON.abi,
+    uniNFTManagerJSON.bytecode,
     signer,
   ).deploy(uniswapFactory.address, weth, tokenDescriptor.address);
-  return { uniswapFactory, uniswapNFTManager };
+  const swapRouter = await new ContractFactory(
+    swapRouterJSON.abi,
+    swapRouterJSON.bytecode,
+    signer,
+  ).deploy(uniswapFactory.address, weth);
+  return { uniswapFactory, uniswapNFTManager, swapRouter };
 }
 
 export async function provideLiquidity(
