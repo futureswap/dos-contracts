@@ -414,8 +414,8 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     }
 
     function transferAllNft(uint256 nftPortfolioIdx, address from, address to) internal {
-        ERC1155Asset memory erc1155Asset = portfolios[from].extractERC1155(nftPortfolioIdx);
-        portfolios[to].insertERC1155(erc1155Asset);
+        NFT memory nft = portfolios[from].extractNft(nftPortfolioIdx);
+        portfolios[to] = portfolios[to].insertNft(nft);
     }
 
     function transferAllAsset(AssetIdx assetIdx, address from, address to) internal {
