@@ -15,9 +15,6 @@ import "../dosERC20/DOSERC20.sol";
 
 import { IVersionManager } from "../interfaces/IVersionManager.sol";
 
-type AssetIdx is uint16;
-type AssetShare is int256;
-
 struct NFT {
     address nftContract;
     uint256 tokenId;
@@ -272,12 +269,22 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     }
 
     function depositFull(AssetIdx[] calldata assetIdxs) external onlyPortfolio {
-        for (uint i = 0; i < assetIdxs.length; i++) {
+        for (uint256 i = 0; i < assetIdxs.length; i++) {
             ERC20Info storage assetInfo = getERC20Info(assetIdxs[i]);
             IERC20 erc20 = IERC20(assetInfo.assetContract);
-            uint amount = erc20.balanceOf(msg.sender);
+            uint256 amount = erc20.balanceOf(msg.sender);
             erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
             updateBalance(assetIdxs[i], msg.sender, FsMath.safeCastToSigned(amount));
+        }
+    }
+
+    function withdrawFull(AssetIdx[] calldata assetIdxs) external onlyPortfolio {
+        for (uint256 i = 0; i < assetIdxs.length; i++) {
+            ERC20Info storage assetInfo = getERC20Info(assetIdxs[i]);
+            IERC20 erc20 = IERC20(assetInfo.assetContract);
+            int256 amount = clearBalance(assetIdxs[i], msg.sender);
+            require(amount >= 0, "Can't withdraw debt");
+            erc20.safeTransfer(msg.sender, uint256(amount));
         }
     }
 
@@ -383,7 +390,9 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         return asset;
     }
 
-    function liquidate(address portfolio) external onlyPortfolio portfolioExists(portfolio) {
+    function liquidate(
+        address portfolio
+    ) external override onlyPortfolio portfolioExists(portfolio) {
         (int256 totalValue, int256 collateral, int256 debt) = computePosition(portfolio);
         require(collateral < debt, "Portfolio is not liquidatable");
         AssetIdx[] memory portfolioAssets = portfolios[portfolio].getAssets();

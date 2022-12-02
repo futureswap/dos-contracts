@@ -208,6 +208,64 @@ describe("DOS swap integration", function () {
       expect(wethBalance).to.be.greaterThan(0);
       expect(nfts.length).to.equal(0); // Regular leveraged position, no NFTs
     });
+
+    it.only("Liquify liquidatable position", async () => {
+      const { user, user2, user3, dos, usdc, weth, uniswapNFTManager, swapRouter, ethChainlink } =
+        await loadFixture(deployDOSFixture);
+
+      const portfolio = await createPortfolio(dos, user);
+      await usdc.mint(portfolio.address, toWei(16000, USDC_DECIMALS));
+
+      const mintParams = {
+        token0: weth.address,
+        token1: usdc.address,
+        fee: 500,
+        tickLower: -210000,
+        tickUpper: -190000,
+        amount0Desired: toWei(10),
+        amount1Desired: toWei(20000, USDC_DECIMALS),
+        amount0Min: 0,
+        amount1Min: 0,
+        recipient: portfolio.address,
+        deadline: ethers.constants.MaxUint256,
+      };
+      await leverageLP(portfolio, dos, usdc, weth, uniswapNFTManager, mintParams);
+
+      const portfolio2 = await createPortfolio(dos, user2);
+      await usdc.mint(portfolio2.address, toWei(1000, USDC_DECIMALS));
+      await leveragePos(portfolio2, dos, usdc, weth, swapRouter, toWei(2000, USDC_DECIMALS));
+
+      // make portfolio2 liquidatable
+      await ethChainlink.setPrice(ETH_PRICE / 2);
+
+      const portfolio3 = await createPortfolio(dos, user3);
+      await usdc.mint(portfolio3.address, toWei(1000, USDC_DECIMALS));
+      await portfolio3.executeBatch([
+        makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
+        makeCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
+        makeCall(usdc, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
+        makeCall(weth, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
+        makeCall(dos, "depositFull", [[usdcAssetIdx]]),
+      ]);
+
+      //await portfolio3.liquify(portfolio2.address, swapRouter.address, usdc.address, [wethAssetIdx], [weth.address]);
+      await expect(
+        portfolio3.liquify(
+          portfolio2.address,
+          swapRouter.address,
+          usdc.address,
+          [wethAssetIdx],
+          [weth.address],
+        ),
+      ).to.not.be.reverted;
+
+      const { usdcBalance, wethBalance, nfts } = await getBalances(dos, portfolio3);
+      console.log(usdcBalance);
+      expect(await usdc.balanceOf(portfolio3.address)).to.be.equal(0);
+      expect(await weth.balanceOf(portfolio3.address)).to.be.equal(0);
+      expect(wethBalance).to.equal(0);
+      expect(usdcBalance).to.greaterThan(toWei(1000, USDC_DECIMALS));
+    });
   });
 });
 
