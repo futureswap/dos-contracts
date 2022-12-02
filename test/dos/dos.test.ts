@@ -604,7 +604,7 @@ describe("DOS", function () {
         toWei(-0.4),
         2000,
       );
-      expect(liquidatorBalance.nfts).to.eql([[nft.address, tokenId]]);
+      expect(liquidatorBalance.nfts).to.eql([[nft.address, tokenId, BigNumber.from("1"), 0]]);
     });
 
     it("when collateral is smaller then debt should transfer all assets and all NFTs of the portfolio to the caller", async () => {
@@ -653,7 +653,7 @@ describe("DOS", function () {
       expect(liquidatorBalance.usdc).to.equal(toWeiUsdc(1_500 - liquidatableTotal * 0.8));
       // 1 - initial balance; -1 transferred debt; 0.8 - liqFactor defined in deployDOSFixture
       expect(liquidatorBalance.weth).to.be.approximately(toWei(0), 2000);
-      expect(liquidatorBalance.nfts).to.eql([[nft.address, tokenId]]);
+      expect(liquidatorBalance.nfts).to.eql([[nft.address, tokenId, BigNumber.from("1"), 0]]);
     });
   });
 
@@ -669,7 +669,7 @@ describe("DOS", function () {
 
         expect(await nft.ownerOf(tokenId)).to.eql(dos.address);
         const userNfts = await dos.viewNfts(portfolio.address);
-        expect(userNfts).to.eql([[nft.address, tokenId]]);
+        expect(userNfts).to.eql([[nft.address, tokenId, BigNumber.from("1"), 0]]);
       },
     );
 
@@ -685,7 +685,7 @@ describe("DOS", function () {
 
         expect(await nft.ownerOf(tokenId)).to.eql(dos.address);
         const userNfts = await dos.viewNfts(portfolio.address);
-        expect(userNfts).to.eql([[nft.address, tokenId]]);
+        expect(userNfts).to.eql([[nft.address, tokenId, BigNumber.from("1"), 0]]);
       },
     );
 
@@ -705,7 +705,7 @@ describe("DOS", function () {
       const tokenId = await depositNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
 
       const depositNftTx = portfolio2.executeBatch([
-        makeCall(dos, "depositNft", [nft.address, tokenId]),
+        makeCall(dos, "depositNft(address,uint256)", [nft.address, tokenId]),
       ]);
 
       await expect(depositNftTx).to.be.revertedWith(
@@ -720,7 +720,7 @@ describe("DOS", function () {
       const tokenId = mintEventArgs[0] as BigNumber;
       await (await nft.connect(user).approve(dos.address, tokenId)).wait();
 
-      const depositNftTx = dos.depositNft(nft.address, tokenId);
+      const depositNftTx = dos["depositNft(address,uint256)"](nft.address, tokenId);
 
       await expect(depositNftTx).to.be.revertedWith("Only portfolio can execute");
     });
@@ -732,7 +732,7 @@ describe("DOS", function () {
       const portfolio = await CreatePortfolio(dos, user);
       const tokenId = await depositNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
 
-      const claimNftTx = dos.connect(user).claimNft(nft.address, tokenId);
+      const claimNftTx = dos.connect(user)["claimNft(address,uint256)"](nft.address, tokenId);
 
       await expect(claimNftTx).to.be.revertedWith("Only portfolio can execute");
     });
@@ -744,7 +744,7 @@ describe("DOS", function () {
       const nonOwnerPortfolio = await CreatePortfolio(dos, user2);
 
       const claimNftTx = nonOwnerPortfolio.executeBatch([
-        makeCall(dos, "claimNft", [nft.address, tokenId]),
+        makeCall(dos, "claimNft(address,uint256)", [nft.address, tokenId]),
       ]);
 
       await expect(claimNftTx).to.be.revertedWith("NFT must be on the user's deposit");
@@ -760,7 +760,7 @@ describe("DOS", function () {
         const tokenId = await depositNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
 
         const claimNftTx = await portfolio.executeBatch([
-          makeCall(dos, "claimNft", [nft.address, tokenId]),
+          makeCall(dos, "claimNft(address,uint256)", [nft.address, tokenId]),
         ]);
         await claimNftTx.wait();
 
@@ -816,7 +816,7 @@ describe("DOS", function () {
 
       await expect(await dos.viewNfts(sender.address)).to.eql([]);
       const receiverNfts = await dos.viewNfts(receiver.address);
-      await expect(receiverNfts).to.eql([[nft.address, tokenId]]);
+      await expect(receiverNfts).to.eql([[nft.address, tokenId, BigNumber.from("1"), 0]]);
     });
   });
 });
@@ -859,7 +859,7 @@ async function depositNft(
   await priceOracle.setPrice(tokenId, toWeiUsdc(price));
   const depositNftTx = await portfolio.executeBatch([
     makeCall(nft, "approve", [dos.address, tokenId]),
-    makeCall(dos, "depositNft", [nft.address, tokenId]),
+    makeCall(dos, "depositNft(address,uint256)", [nft.address, tokenId]),
   ]);
   await depositNftTx.wait();
   return tokenId;
@@ -885,7 +885,7 @@ async function depositUserNft(
   await priceOracle.setPrice(tokenId, toWeiUsdc(price));
   await (await nft.connect(user).approve(dos.address, tokenId)).wait();
   const depositNftTx = await portfolio.executeBatch([
-    makeCall(dos, "depositNft", [nft.address, tokenId]),
+    makeCall(dos, "depositNft(address,uint256)", [nft.address, tokenId]),
   ]);
   await depositNftTx.wait();
   return tokenId;
