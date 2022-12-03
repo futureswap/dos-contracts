@@ -12,9 +12,8 @@ import {
   MockNFTOracle__factory,
 } from "../../typechain-types";
 import {toWei} from "../../lib/Numbers";
-import {getEventParams} from "../../lib/Events";
-import {Signer} from "ethers";
-import {Chainlink, createPortfolio, makeCall} from "../../lib/Calls";
+import {createPortfolio, makeCall} from "../../lib/Calls";
+import {Chainlink} from "../../lib/Deploy";
 
 const USDC_DECIMALS = 6;
 const ETH_DECIMALS = 18;

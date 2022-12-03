@@ -18,9 +18,10 @@ import {
 } from "../../typechain-types";
 import {toWei, toWeiUsdc} from "../../lib/Numbers";
 import {getEventParams, getEventsTx} from "../../lib/Events";
-import {deployPermit2, getFixedGasSigners, signPermitTransferFrom} from "../../lib/Signers";
+import {getFixedGasSigners, signPermit2TransferFrom} from "../../lib/Signers";
 import {BigNumber, ContractTransaction, BigNumberish} from "ethers";
-import {Chainlink, makeCall, createPortfolio} from "../../lib/Calls";
+import {makeCall, createPortfolio} from "../../lib/Calls";
+import {Chainlink, deployFixedAddress} from "../../lib/Deploy";
 
 const USDC_PRICE = 1;
 const ETH_PRICE = 2000;
@@ -40,7 +41,7 @@ describe("DOS", function () {
   async function deployDOSFixture() {
     const [owner, user, user2, user3] = await getFixedGasSigners(10_000_000);
 
-    const permit2 = await deployPermit2();
+    const {permit2} = await deployFixedAddress(owner);
 
     const usdc = await new TestERC20__factory(owner).deploy(
       "USD Coin",
@@ -1009,7 +1010,7 @@ describe("DOS", function () {
       const hundredDollars = toWei(100, USDC_DECIMALS);
       await usdc.mint(port1.address, hundredDollars);
 
-      const signature = await signPermitTransferFrom(
+      const signature = await signPermit2TransferFrom(
         permit2,
         usdc.address,
         hundredDollars,

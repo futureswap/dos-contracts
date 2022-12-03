@@ -2,10 +2,10 @@ import {ethers} from "hardhat";
 import {TestERC20__factory, WETH9__factory, UniV3Oracle__factory} from "../../typechain-types";
 import {toWei} from "../../lib/Numbers";
 import {getEventsTx} from "../../lib/Events";
-import {deployUniswapFactory, deployUniswapPool} from "../../lib/deploy_uniswap";
+import {deployUniswapFactory, deployUniswapPool} from "../../lib/Deploy";
 import {expect} from "chai";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
-import {Chainlink} from "../../lib/Calls";
+import {Chainlink} from "../../lib/Deploy";
 
 // This three values are connected - you cannot change one without changing others.
 // There is no easy way to get the tick values for a specific price - this values
