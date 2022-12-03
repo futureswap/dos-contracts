@@ -159,7 +159,7 @@ contract PortfolioLogic is IERC721Receiver, IERC1271 {
     function isValidSignature(
         bytes32 hash,
         bytes memory signature
-    ) public view returns (bytes4 magicValue) {
+    ) public view override returns (bytes4 magicValue) {
         magicValue = SignatureChecker.isValidSignatureNow(
             IDOS(dos).getPortfolioOwner(address(this)),
             hash,
