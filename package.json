@@ -9,7 +9,8 @@
     "typechain": "yarn hardhat typechain",
     "prettier": "prettier *.md \"{docs,.github}/**/*.{md,yml}\" \"scripts/**/*.ts\"",
     "format": "prettier --write \"contracts/**/*.sol\" \"lib/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"./*.ts\" \"./*.json\"",
-    "prettier:check": "prettier --check \"contracts/**/*.sol\" \"lib/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"./*.ts\" \"./*.json\""
+    "prettier:check": "prettier --check \"contracts/**/*.sol\" \"lib/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"./*.ts\" \"./*.json\"",
+    "check_dot_only": "yarn run dot-only-hunter test"
   },
   "dependencies": {
     "@chainlink/contracts": "^0.5.1",
@@ -29,6 +30,7 @@
     "@typechain/ethers-v5": "^10.1.1",
     "@typechain/hardhat": "^6.1.4",
     "@types/mocha": "^10.0.0",
+    "dot-only-hunter": "^1.0.3",
     "dotenv": "^16.0.3",
     "ethereum-waffle": "^3.4.4",
     "hardhat-gas-reporter": "^1.0.9",

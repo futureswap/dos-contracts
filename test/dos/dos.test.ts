@@ -1007,7 +1007,7 @@ describe("DOS", function () {
       ).to.be.revertedWith("Recipient portfolio doesn't exist");
     });
 
-    it.only("Can transfer via Permit2", async () => {
+    it("Can transfer via Permit2", async () => {
       const {user, user2, usdc, dos, permit2} = await loadFixture(deployDOSFixture);
 
       const port1 = await CreatePortfolio(dos, user);
