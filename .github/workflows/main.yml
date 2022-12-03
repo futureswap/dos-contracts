@@ -24,7 +24,7 @@ jobs:
       - name: "Check prettier"
         run: "yarn run prettier:check"
 
-      - name: check_dot_only
+      - name: "Check for presence of .only in tests"
         run: yarn check_dot_only
 
       - name: "Compile the contracts and generate the TypeChain bindings"
