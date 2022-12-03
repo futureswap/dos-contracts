@@ -120,8 +120,6 @@ describe("DOS swap integration", function () {
     await ownerPortfolio.executeBatch(
       [
         makeCall(weth, "deposit", [], toWei(1000) /* value */),
-        makeCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
         makeCall(dos, "depositERC20", [usdcIdx, usdcAmount]),
         makeCall(dos, "depositERC20", [wethIdx, wethAmount]),
       ],
@@ -239,8 +237,6 @@ describe("DOS swap integration", function () {
       const portfolio3 = await createPortfolio(dos, user3);
       await usdc.mint(portfolio3.address, toWei(1000, USDC_DECIMALS));
       await portfolio3.executeBatch([
-        makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
         makeCall(usdc, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
         makeCall(weth, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
         makeCall(dos, "depositFull", [[usdcIdx]]),
@@ -280,8 +276,6 @@ const leverageLP = async (
   mintParams: any,
 ) => {
   return portfolio.executeBatch([
-    makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-    makeCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
     makeCall(usdc, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
     makeCall(weth, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
     makeCall(uniswapNFTManager, "setApprovalForAll", [dos.address, true]),
@@ -313,8 +307,6 @@ const leveragePos = async (
   };
 
   return portfolio.executeBatch([
-    makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-    makeCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
     makeCall(usdc, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
     makeCall(weth, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
     makeCall(dos, "depositERC20", [usdcIdx, -amount]),
