@@ -15,12 +15,16 @@ import {
   MockNFTOracle,
   TestERC20,
   WETH9,
+  IPermit2,
 } from "../../typechain-types";
 import {toWei, toWeiUsdc} from "../../lib/Numbers";
-import {getEventParams} from "../../lib/Events";
-import {getFixedGasSigners} from "../../lib/Signers";
+import {getEventParams, getEventsTx} from "../../lib/Events";
+import {deployPermit2, getFixedGasSigners, signPermitTransferFrom} from "../../lib/Signers";
 import {BigNumber, Signer, ContractTransaction, BigNumberish} from "ethers";
 import {Chainlink, makeCall} from "../../lib/Calls";
+import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import {token} from "../../typechain-types/@openzeppelin/contracts";
+import {_TypedDataEncoder} from "ethers/lib/utils";
 
 const USDC_PRICE = 1;
 const ETH_PRICE = 2000;
@@ -39,6 +43,8 @@ describe("DOS", function () {
   // and reset Hardhat Network to that snapshot in every test.
   async function deployDOSFixture() {
     const [owner, user, user2, user3] = await getFixedGasSigners(10_000_000);
+
+    const permit2 = await deployPermit2();
 
     const usdc = await new TestERC20__factory(owner).deploy(
       "USD Coin",
@@ -116,6 +122,7 @@ describe("DOS", function () {
       dos,
       usdcIdx,
       wethIdx,
+      permit2,
     };
   }
 
@@ -998,6 +1005,42 @@ describe("DOS", function () {
           makeCall(dos, "transferFromERC721", [nft.address, owner.address, user3.address, tokenId]),
         ]),
       ).to.be.revertedWith("Recipient portfolio doesn't exist");
+    });
+
+    it("Can transfer via Permit2", async () => {
+      const {user, user2, usdc, dos, permit2} = await loadFixture(deployDOSFixture);
+
+      const port1 = await CreatePortfolio(dos, user);
+      const port2 = await CreatePortfolio(dos, user2);
+
+      const hundredDollars = toWei(100, USDC_DECIMALS);
+      await usdc.mint(port1.address, hundredDollars);
+      await port1.executeBatch([
+        makeCall(usdc, "approve", [permit2.address, ethers.constants.MaxUint256]),
+      ]);
+
+      const signature = await signPermitTransferFrom(
+        permit2,
+        usdc.address,
+        hundredDollars,
+        port2.address,
+        1,
+        user,
+      );
+      await port2.executeBatch([
+        makeCall(permit2, "permitTransferFrom", [
+          {
+            permitted: {token: usdc.address, amount: hundredDollars},
+            nonce: 1,
+            deadline: ethers.constants.MaxUint256,
+          },
+          {to: port2.address, requestedAmount: hundredDollars},
+          port1.address,
+          signature,
+        ]),
+      ]);
+      expect(await usdc.balanceOf(port1.address)).to.eq(0);
+      expect(await usdc.balanceOf(port2.address)).to.eq(hundredDollars);
     });
   });
 });

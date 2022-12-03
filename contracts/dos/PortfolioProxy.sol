@@ -3,6 +3,7 @@ pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/proxy/Proxy.sol";
+import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
@@ -154,6 +155,20 @@ contract PortfolioLogic is IERC721Receiver, IERC1271 {
         dos.depositFull(new ERC20Idx[](1));
     }
 
+    /// @inheritdoc IERC1271
+    function isValidSignature(
+        bytes32 hash,
+        bytes memory signature
+    ) public view override returns (bytes4 magicValue) {
+        magicValue = SignatureChecker.isValidSignatureNow(
+            IDOS(dos).getPortfolioOwner(address(this)),
+            hash,
+            signature
+        )
+            ? this.isValidSignature.selector
+            : bytes4(0);
+    }
+
     function owner() external view returns (address) {
         return IDOS(dos).getPortfolioOwner(address(this));
     }
@@ -165,13 +180,5 @@ contract PortfolioLogic is IERC721Receiver, IERC1271 {
         bytes memory /* data */
     ) public virtual override returns (bytes4) {
         return this.onERC721Received.selector;
-    }
-
-    /// @inheritdoc IERC1271
-    function isValidSignature(
-        bytes32 hash,
-        bytes memory signature
-    ) public view returns (bytes4 magicValue) {
-        // TODO: need an implementation in order to use permit2
     }
 }
