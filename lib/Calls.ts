@@ -11,8 +11,11 @@ import {
   HashNFT,
   HashNFT__factory,
   IERC20ValueOracle,
+  PortfolioLogic__factory,
+  DOS,
 } from "../typechain-types";
 import {toWei} from "./Numbers";
+import {getEventParams} from "./Events";
 
 function cleanValue(v: unknown): any {
   if (v === null || v === undefined) throw new Error("Null");
@@ -126,3 +129,12 @@ export class Chainlink {
     );
   }
 }
+
+export const createPortfolio = async (dos: DOS, signer: ethers.Signer) => {
+  const {portfolio} = await getEventParams(
+    await dos.connect(signer).createPortfolio(),
+    dos,
+    "PortfolioCreated",
+  );
+  return PortfolioLogic__factory.connect(portfolio as string, signer);
+};

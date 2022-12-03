@@ -1,6 +1,8 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/proxy/Proxy.sol";
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
@@ -9,6 +11,7 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {FsUtils} from "../lib/FsUtils.sol";
 import "../interfaces/IDOS.sol";
+import "../external/interfaces/IPermit2.sol";
 
 // Inspired by TransparentUpdatableProxy
 contract PortfolioProxy is Proxy {
@@ -24,9 +27,24 @@ contract PortfolioProxy is Proxy {
         }
     }
 
-    constructor(address _dos) {
+    constructor(address _dos, address[] memory erc20s, address[] memory erc721s) {
         // slither-disable-next-line missing-zero-check
         dos = FsUtils.nonNull(_dos);
+
+        // Approve DOS and PERMIT2 to spend all ERC20s
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            // slither-disable-next-line missing-zero-check
+            IERC20 erc20 = IERC20(FsUtils.nonNull(erc20s[i]));
+            erc20.approve(_dos, type(uint256).max);
+            erc20.approve(address(PERMIT2), type(uint256).max);
+        }
+        // Approve DOS to spend all ERC721s
+        for (uint256 i = 0; i < erc721s.length; i++) {
+            // slither-disable-next-line missing-zero-check
+            IERC721 erc721 = IERC721(FsUtils.nonNull(erc721s[i]));
+            erc721.setApprovalForAll(_dos, true);
+            // Add future uniswap permit for ERC721 support
+        }
     }
 
     // Allow DOS to make arbitrary calls in lieu of this portfolio

@@ -10,7 +10,7 @@ import "../lib/FsMath.sol";
 import "../interfaces/IDOS.sol";
 import "../interfaces/IERC20ValueOracle.sol";
 import "../interfaces/INFTValueOracle.sol";
-import {IPermit2} from "../interfaces/IPermit2.sol";
+import {PERMIT2, IPermit2} from "../external/interfaces/IPermit2.sol";
 import {PortfolioProxy} from "./PortfolioProxy.sol";
 import "../dosERC20/DOSERC20.sol";
 import {IVersionManager} from "../interfaces/IVersionManager.sol";
@@ -173,9 +173,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     ERC20Idx constant kNumeraireIdx = ERC20Idx.wrap(0);
 
     IVersionManager public versionManager;
-    // https://docs.uniswap.org/contracts/permit2/overview
-    // https://etherscan.io/address/0x000000000022D473030F116dDEE9F6B43aC78BA3#code
-    address public constant permit2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
     mapping(address => Portfolio) portfolios;
 
@@ -451,7 +448,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         IPermit2.PermitTransferFrom memory permit,
         bytes calldata signature
     ) external onlyPortfolio portfolioExists(_to) {
-        IPermit2(permit2).permitTransferFrom(
+        PERMIT2.permitTransferFrom(
             permit,
             IPermit2.SignatureTransferDetails({to: _to, requestedAmount: amount}),
             _owner,
@@ -568,7 +565,12 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     }
 
     function createPortfolio() external returns (address portfolio) {
-        portfolio = address(new PortfolioProxy(address(this)));
+        address[] memory erc20s = new address[](erc20Infos.length);
+        address[] memory nfts = new address[](0);
+        for (uint256 i = 0; i < erc20Infos.length; i++) {
+            erc20s[i] = erc20Infos[i].erc20Contract;
+        }
+        portfolio = address(new PortfolioProxy(address(this), erc20s, nfts));
         portfolios[portfolio].owner = msg.sender;
 
         // add a version parameter if users should pick a specific version

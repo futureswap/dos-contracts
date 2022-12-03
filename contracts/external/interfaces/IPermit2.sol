@@ -40,3 +40,7 @@ interface IPermit2 {
         bytes calldata signature
     ) external;
 }
+
+// https://docs.uniswap.org/contracts/permit2/overview
+// https://etherscan.io/address/0x000000000022D473030F116dDEE9F6B43aC78BA3#code
+IPermit2 constant PERMIT2 = IPermit2(0x000000000022D473030F116dDEE9F6B43aC78BA3);

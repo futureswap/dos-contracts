@@ -14,17 +14,17 @@ import {
 import {toWei} from "../../lib/Numbers";
 import {getEventParams} from "../../lib/Events";
 import {Signer} from "ethers";
-import {Chainlink, makeCall} from "../../lib/Calls";
+import {Chainlink, createPortfolio, makeCall} from "../../lib/Calls";
 
 const USDC_DECIMALS = 6;
 const ETH_DECIMALS = 18;
 const CHAINLINK_DECIMALS = 8;
 
-describe.skip("Fractionalization", function () {
+describe("Fractionalization", function () {
   async function deployDOSFixture() {
     const [owner, user, user2] = await ethers.getSigners();
 
-    const usdc = await new TestERC20__factory(owner).deploy("USD Coin", "USDC", 18);
+    const usdc = await new TestERC20__factory(owner).deploy("USD Coin", "USDC", USDC_DECIMALS);
 
     const weth = await new WETH9__factory(owner).deploy();
     const nft = await new TestNFT__factory(owner).deploy("Test NFT", "TNFT", 100);
@@ -38,7 +38,7 @@ describe.skip("Fractionalization", function () {
     );
     const ethChainlink = await Chainlink.deploy(
       owner,
-      1,
+      100,
       CHAINLINK_DECIMALS,
       USDC_DECIMALS,
       ETH_DECIMALS,
@@ -48,7 +48,11 @@ describe.skip("Fractionalization", function () {
 
     await nftOracle.setPrice(1, toWei(100));
 
-    const dos = await new DOS__factory(owner).deploy(owner.address, ethers.constants.AddressZero);
+    const versionManager = await new VersionManager__factory(owner).deploy(owner.address);
+    const dos = await new DOS__factory(owner).deploy(owner.address, versionManager.address);
+    const proxyLogic = await new PortfolioLogic__factory(owner).deploy(dos.address);
+    await versionManager.addVersion("1.0.0", 2, proxyLogic.address);
+    await versionManager.markRecommendedVersion("1.0.0");
 
     await dos.setConfig({
       liqFraction: toWei(0.8),
@@ -89,38 +93,23 @@ describe.skip("Fractionalization", function () {
     };
   }
 
-  async function CreatePortfolio(dos: DOS, signer: Signer) {
-    const {portfolio} = await getEventParams(
-      await dos.connect(signer).createPortfolio(),
-      dos,
-      "PortfolioCreated",
-    );
-    return PortfolioLogic__factory.connect(portfolio as string, signer);
-  }
-
-  const oneHundredUsdc = toWei(100, 6);
+  const oneHundredUsdc = toWei(100, USDC_DECIMALS);
 
   describe("Fractional Reserve Leverage tests", () => {
     it("Check fractional reserve after user borrows", async () => {
       const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       //setup 1st user
-      const portfolio1 = await CreatePortfolio(dos, user);
+      const portfolio1 = await createPortfolio(dos, user);
       expect(await portfolio1.owner()).to.equal(user.address);
       await usdc.mint(portfolio1.address, oneHundredUsdc);
-      await portfolio1.executeBatch([
-        makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(dos, "depositERC20", [0, oneHundredUsdc]),
-      ]); //deposits 100 USDC
+      await portfolio1.executeBatch([makeCall(dos, "depositERC20", [0, oneHundredUsdc])]); //deposits 100 USDC
 
       //setup 2nd user
-      const portfolio2 = await CreatePortfolio(dos, user2);
+      const portfolio2 = await createPortfolio(dos, user2);
       expect(await portfolio2.owner()).to.equal(user2.address);
-      await weth.mint(portfolio2.address, toWei(1)); //10 ETH
-      await portfolio2.executeBatch([
-        makeCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(dos, "depositERC20", [1, toWei(1)]),
-      ]);
+      await weth.mint(portfolio2.address, toWei(2));
+      await portfolio2.executeBatch([makeCall(dos, "depositERC20", [1, toWei(2)])]);
 
       //check what the max to borrow of USDC is (90 USDC)
       const maxBorrowable = await dos.getMaximumWithdrawableOfERC20(0);
@@ -141,22 +130,16 @@ describe.skip("Fractionalization", function () {
       const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       //setup first user
-      const portfolio1 = await CreatePortfolio(dos, user);
+      const portfolio1 = await createPortfolio(dos, user);
       expect(await portfolio1.owner()).to.equal(user.address);
       await usdc.mint(portfolio1.address, oneHundredUsdc);
-      await portfolio1.executeBatch([
-        makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(dos, "depositERC20", [0, oneHundredUsdc]),
-      ]); //deposits 100 USDC
+      await portfolio1.executeBatch([makeCall(dos, "depositERC20", [0, oneHundredUsdc])]); //deposits 100 USDC
 
       //setup 2nd user
-      const portfolio2 = await CreatePortfolio(dos, user2);
+      const portfolio2 = await createPortfolio(dos, user2);
       expect(await portfolio2.owner()).to.equal(user2.address);
-      await weth.mint(portfolio2.address, toWei(1)); //10 ETH
-      await portfolio2.executeBatch([
-        makeCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(dos, "depositERC20", [1, toWei(10, 6)]),
-      ]);
+      await weth.mint(portfolio2.address, toWei(2));
+      await portfolio2.executeBatch([makeCall(dos, "depositERC20", [1, toWei(2)])]);
 
       const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfERC20(0);
 
@@ -184,22 +167,16 @@ describe.skip("Fractionalization", function () {
       const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       //setup 1st user
-      const portfolio1 = await CreatePortfolio(dos, user);
+      const portfolio1 = await createPortfolio(dos, user);
       expect(await portfolio1.owner()).to.equal(user.address);
       await usdc.mint(portfolio1.address, oneHundredUsdc);
-      await portfolio1.executeBatch([
-        makeCall(usdc, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(dos, "depositERC20", [0, oneHundredUsdc]),
-      ]); //deposits 100 USDC
+      await portfolio1.executeBatch([makeCall(dos, "depositERC20", [0, oneHundredUsdc])]); //deposits 100 USDC
 
       //setup 2nd user
-      const portfolio2 = await CreatePortfolio(dos, user2);
+      const portfolio2 = await createPortfolio(dos, user2);
       expect(await portfolio2.owner()).to.equal(user2.address);
-      await weth.mint(portfolio2.address, toWei(1)); //10 ETH
-      await portfolio2.executeBatch([
-        makeCall(weth, "approve", [dos.address, ethers.constants.MaxUint256]),
-        makeCall(dos, "depositERC20", [1, toWei(1)]),
-      ]);
+      await weth.mint(portfolio2.address, toWei(2));
+      await portfolio2.executeBatch([makeCall(dos, "depositERC20", [1, toWei(2)])]);
 
       const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfERC20(0);
 
