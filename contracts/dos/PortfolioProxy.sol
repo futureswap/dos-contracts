@@ -11,6 +11,7 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {FsUtils} from "../lib/FsUtils.sol";
 import "../interfaces/IDOS.sol";
+import "../interfaces/ITransferReceiver2.sol";
 import "../external/interfaces/IPermit2.sol";
 
 // Inspired by TransparentUpdatableProxy
@@ -64,8 +65,10 @@ contract PortfolioProxy is Proxy {
 
 // Calls to the contract not coming from DOS itself are routed to this logic
 // contract. This allows for flexible extra addition to your portfolio.
-contract PortfolioLogic is IERC721Receiver, IERC1271 {
+contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2 {
     IDOS public immutable dos;
+
+    mapping(uint248 => uint256) public nonces;
 
     modifier onlyOwner() {
         require(IDOS(dos).getPortfolioOwner(address(this)) == msg.sender, "");
@@ -198,5 +201,89 @@ contract PortfolioLogic is IERC721Receiver, IERC1271 {
         bytes memory /* data */
     ) public virtual override returns (bytes4) {
         return this.onERC721Received.selector;
+    }
+
+    error InvalidSignature();
+
+    struct RequiredTokenTransfer {
+        address token;
+        uint256 requiredAmount;
+    }
+
+    function useNonce(uint256 nonce) internal returns (bool) {
+        uint248 msp = uint248(nonce >> 8);
+        uint256 bit = 1 << (nonce & 0xff);
+        uint256 mask = nonces[msp];
+        if ((mask & bit) != 0) {
+            return false;
+        }
+        nonces[msp] = mask | bit;
+        return true;
+    }
+
+    function setNonce(uint256 nonce) external onlyOwner {
+        uint248 msp = uint248(nonce >> 8);
+        uint256 bit = 1 << (nonce & 0xff);
+        nonces[msp] |= bit;
+    }
+
+    function onTransferReceived2(
+        address operator,
+        address from,
+        ITransferReceiver2.Transfer[] calldata transfers,
+        bytes calldata data
+    ) external override onlyTransferAndCall2 returns (bytes4) {
+        // options:
+        // 1) deposit into dos contract
+        // 2) execute a signed batch of tx's
+        // 3) nothing
+        if (data.length == 0) {} else if (data[0] == 0x01) {
+            // deposit
+            for (uint256 i = 0; i < transfers.length; i++) {
+                ITransferReceiver2.Transfer memory transfer = transfers[i];
+
+                // TODO(gerben)
+                // dos.depositERC20(transfer.token, transfer.amount, from);
+            }
+        } else if (data[0] == 0x02) {
+            // execute signed batch
+
+            // Verify signature matches
+            (bytes memory signature, bytes memory callData) = abi.decode(data[1:], (bytes, bytes));
+            bytes32 hash = keccak256(callData);
+            if (!SignatureChecker.isValidSignatureNow(from, hash, signature))
+                revert InvalidSignature();
+
+            // Decode data
+            (
+                address requiredFrom,
+                uint96 deadline,
+                uint256 nonce,
+                RequiredTokenTransfer[] memory tfers,
+                IDOS.Call[] memory calls
+            ) = abi.decode(
+                    data[1:],
+                    (address, uint96, uint256, RequiredTokenTransfer[], IDOS.Call[])
+                );
+
+            if (deadline < block.timestamp) revert InvalidSignature();
+            if (!useNonce(nonce)) revert InvalidSignature();
+
+            // Verify transfers match signed tfer
+            if (from != requiredFrom || transfers.length != tfers.length) {
+                revert InvalidSignature();
+            }
+            for (uint256 i = 0; i < tfers.length; i++) {
+                if (
+                    transfers[i].token != tfers[i].token ||
+                    transfers[i].amount < tfers[i].requiredAmount
+                ) {
+                    revert InvalidSignature();
+                }
+            }
+
+            dos.executeBatch(calls);
+        }
+        return ITransferReceiver2.onTransferReceived2.selector;
     }
 }

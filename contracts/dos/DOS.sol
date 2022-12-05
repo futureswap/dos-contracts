@@ -22,23 +22,23 @@ error InsufficientAllowance();
 /// @notice Cannot approve self as spender
 error SelfApproval();
 
-struct NFT {
-    address nftContract;
-    uint256 tokenId;
-}
+// ERC20 standard token
+// ERC721 single non-fungible token support
+// ERC677 transferAndCall (transferAndCall2 extension)
+// ERC165 interface support (solidity IDOS.interfaceId)
+// ERC777 token send
+// ERC1155 multi-token support
+// ERC1820 interface registry support
+// EIP2612 permit support
 
-struct Balance {
-    ERC20Share shares;
-    int256 fixedBalance;
-}
+// First 16 bits are index in the portfolio NFT array
+// Remaining 240 bits are the NFT ID
+type NFTId is uint256;
 
 struct Portfolio {
     address owner;
     mapping(ERC20Idx => ERC20Share) erc20Share;
-    NFT[] nfts;
-    // nftPortfolioIdx is actually index + 1, in order to distinguish
-    // default 0 value (no element) from the first element of the nfts array
-    mapping(address => mapping(uint256 => uint256)) nftPortfolioIdxs;
+    NFTId[] nfts;
     uint256[1] bitmask; // This can grow on updates
 }
 
@@ -80,34 +80,26 @@ library PortfolioLib {
         return ERC20Share.wrap(shares);
     }
 
-    function extractNFT(
-        Portfolio storage p,
-        uint256 nftPortfolioIdx
-    ) internal returns (NFT memory) {
-        FsUtils.Assert(nftPortfolioIdx < p.nfts.length);
-        NFT memory extractedNFT = p.nfts[nftPortfolioIdx];
+    function extractNFT(Portfolio storage p, NFTId nftId) internal returns (uint256) {
+        uint256 idx = NFTId.unwrap(nftId) >> 240;
+        FsUtils.Assert(idx < p.nfts.length);
+        uint256 strippedNFTId = uint240(NFTId.unwrap(nftId));
 
-        if (nftPortfolioIdx == p.nfts.length - 1) {
+        if (idx == p.nfts.length - 1) {
             p.nfts.pop();
         } else {
-            p.nfts[nftPortfolioIdx] = p.nfts[p.nfts.length - 1];
+            p.nfts[idx] = NFTId.wrap(
+                uint256(uint240(NFTId.unwrap(p.nfts[p.nfts.length - 1]))) | (idx << 240)
+            );
             p.nfts.pop();
-
-            NFT storage movedNFT = p.nfts[nftPortfolioIdx];
-            // `+ 1` below is to avoid setting 0 "no value" for an actual member of p.nfts array
-            p.nftPortfolioIdxs[movedNFT.nftContract][movedNFT.tokenId] = nftPortfolioIdx + 1;
         }
-        delete p.nftPortfolioIdxs[extractedNFT.nftContract][extractedNFT.tokenId];
-
-        return extractedNFT;
+        return strippedNFTId;
     }
 
-    function insertNFT(Portfolio storage p, NFT memory nft) internal {
-        FsUtils.Assert(p.nftPortfolioIdxs[nft.nftContract][nft.tokenId] == 0);
-        p.nfts.push(nft);
-        // note below, the value is `length` i.e. `index + 1` - not `index`.
-        // It is to avoid setting 0 "no value" for an actual member of p.nfts array
-        p.nftPortfolioIdxs[nft.nftContract][nft.tokenId] = p.nfts.length;
+    function insertNFT(Portfolio storage p, uint256 strippedNFTId) internal returns (NFTId) {
+        NFTId nftId = NFTId.wrap(strippedNFTId | (p.nfts.length << 240));
+        p.nfts.push(nftId);
+        return nftId;
     }
 
     function getERC20s(Portfolio storage p) internal view returns (ERC20Idx[] memory erc20s) {
@@ -185,6 +177,10 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     mapping(address => mapping(uint256 => address)) private _tokenApprovals;
     /// @dev erc721 & erc1155 operator approvals
     mapping(address => mapping(address => mapping(address => bool))) private _operatorApprovals;
+
+    // internal NFT identifier is address erc20 (160) + counter (80 bits) + index (16 bits) = 256 bits
+    uint80 nftIdCounter;
+    mapping(uint240 => uint256) public tokenIdByNFTId;
 
     ERC20Info[] public erc20Infos;
     mapping(address => NFTInfo) public nftInfos;
@@ -265,13 +261,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         _;
     }
 
-    modifier onlyDepositNFTOwner(address nftContract, uint256 tokenId) {
-        Portfolio storage p = portfolios[msg.sender];
-        bool isDepositNFTOwner = p.nftPortfolioIdxs[nftContract][tokenId] != 0;
-        require(isDepositNFTOwner, "NFT must be on the user's deposit");
-        _;
-    }
-
     constructor(address governance, address _versionManager) ImmutableOwnable(governance) {
         versionManager = IVersionManager(_versionManager);
     }
@@ -313,6 +302,10 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
     }
 
+    function NFTHash(address nftContract, uint256 tokenId) public pure returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(nftContract, tokenId))) >> 16;
+    }
+
     function depositNFT(
         address nftContract,
         uint256 tokenId
@@ -325,9 +318,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         // NOTE: owner conflicts with the state variable. Should rename to nftOwner, owner_, or similar.
         address owner = ERC721(nftContract).ownerOf(tokenId);
         ERC721(nftContract).safeTransferFrom(owner, address(this), tokenId);
-
-        Portfolio storage p = portfolios[msg.sender];
-        p.insertNFT(NFT(nftContract, tokenId));
     }
 
     function depositDosERC20(ERC20Idx erc20Idx, int256 amount) external onlyPortfolio {
@@ -349,15 +339,13 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         // TODO: require appropriate reserve
     }
 
-    function claimNFT(
-        address nftContract,
-        uint256 tokenId
-    ) external onlyPortfolio onlyDepositNFTOwner(nftContract, tokenId) {
-        ERC721(nftContract).safeTransferFrom(address(this), msg.sender, tokenId);
+    function claimNFT(uint256 nftId) external onlyPortfolio {
+        (address erc721, uint256 tokenId) = getNFTData(nftId);
 
-        Portfolio storage p = portfolios[msg.sender];
-        uint256 nftPortfolioIdx = p.nftPortfolioIdxs[nftContract][tokenId] - 1;
-        p.extractNFT(nftPortfolioIdx);
+        ERC721(erc721).safeTransferFrom(address(this), msg.sender, tokenId);
+
+        portfolios[msg.sender].extractNFT(NFTId.wrap(nftId));
+        delete tokenIdByNFTId[uint240(nftId)];
     }
 
     function transfer(
@@ -369,14 +357,8 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         transferERC20(erc20Idx, msg.sender, to, FsMath.safeCastToSigned(amount));
     }
 
-    function sendNFT(
-        address nftContract,
-        uint256 tokenId,
-        address to
-    ) external onlyPortfolio onlyDepositNFTOwner(nftContract, tokenId) portfolioExists(to) {
-        Portfolio storage p = portfolios[msg.sender];
-        uint256 nftPortfolioIdx = p.nftPortfolioIdxs[nftContract][tokenId] - 1;
-        transferNFT(nftPortfolioIdx, msg.sender, to);
+    function sendNFT(uint256 nftId, address to) external onlyPortfolio portfolioExists(to) {
+        transferNFT(nftId, msg.sender, to);
     }
 
     /// @notice Approve a spender to transfer tokens on your behalf
@@ -456,6 +438,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         );
     }
 
+    /*
     /// @notice Transfer ERC721 tokens from portfolio to another portfolio
     /// @param collection The address of the ERC721 token
     /// @param from The address of the portfolio to transfer from
@@ -474,7 +457,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
         _tokenApprovals[collection][tokenId] = address(0);
         transferNFT(nftPortfolioIdx, from, to);
-    }
+    }*/
 
     function liquidate(
         address portfolio
@@ -586,9 +569,9 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         return getBalance(erc20Share, getERC20Info(erc20Idx));
     }
 
-    function viewNFTs(address portfolio) external view returns (NFT[] memory) {
+    /*function viewNFTs(address portfolio) external view returns (NFT[] memory) {
         return portfolios[portfolio].nfts;
-    }
+    }*/
 
     function getImplementation(address portfolio) external view override returns (address) {
         // not using msg.sender since this is an external view function
@@ -596,12 +579,28 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     }
 
     function onERC721Received(
-        address /* operator */,
-        address /* from */,
-        uint256 /* tokenId */,
-        bytes memory /* data */
-    ) public virtual override returns (bytes4) {
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external override returns (bytes4) {
+        uint256 nftId = mintNFTId(msg.sender, tokenId);
+        require(data.length == 0);
+        require(portfolios[from].owner != address(0));
+        portfolios[from].insertNFT(nftId);
         return this.onERC721Received.selector;
+    }
+
+    function mintNFTId(address erc721, uint256 tokenId) internal returns (uint256) {
+        uint256 nftId = nftIdCounter++;
+        nftId = (nftId << 160) | uint160(erc721);
+        tokenIdByNFTId[uint240(nftId)] = tokenId;
+        return nftId;
+    }
+
+    function getNFTData(uint256 nftId) internal view returns (address erc721, uint256 tokenId) {
+        erc721 = address(uint160(nftId));
+        tokenId = tokenIdByNFTId[uint240(nftId)];
     }
 
     function getPortfolioOwner(address portfolio) public view override returns (address) {
@@ -634,9 +633,10 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
             }
         }
         for (uint256 i = 0; i < portfolio.nfts.length; i++) {
-            NFT storage nft = portfolio.nfts[i];
-            NFTInfo storage nftInfo = nftInfos[nft.nftContract];
-            int256 nftValue = int256(nftInfo.valueOracle.calcValue(nft.tokenId));
+            NFTId nftId = portfolio.nfts[i];
+            (address erc721, uint256 tokenId) = getNFTData(NFTId.unwrap(nftId));
+            NFTInfo storage nftInfo = nftInfos[erc721];
+            int256 nftValue = int256(nftInfo.valueOracle.calcValue(tokenId));
             totalValue += nftValue;
             collateral += (nftValue * nftInfo.collateralFactor) / 1 ether;
         }
@@ -756,9 +756,9 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         updateBalance(erc20Idx, to, amount);
     }
 
-    function transferNFT(uint256 nftPortfolioIdx, address from, address to) internal {
-        NFT memory nft = portfolios[from].extractNFT(nftPortfolioIdx);
-        portfolios[to].insertNFT(nft);
+    function transferNFT(uint256 nftId, address from, address to) internal {
+        uint256 strippedNFTId = portfolios[from].extractNFT(NFTId.wrap(nftId));
+        portfolios[to].insertNFT(strippedNFTId);
     }
 
     // TODO @derek - add method for withdraw
@@ -825,6 +825,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         // TODO(gerben) add to treasury
     }
 
+    /*
     function _isApprovedOrOwner(
         address spender,
         address collection,
@@ -835,7 +836,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         return (isDepositNFTOwner ||
             getApproved(collection, tokenId) == spender ||
             isApprovedForAll(collection, owner, spender));
-    }
+    }*/
 
     function getBalance(ERC20Share shares, ERC20Info storage p) internal view returns (int256) {
         ERC20Pool storage s = ERC20Share.unwrap(shares) > 0 ? p.collateral : p.debt;

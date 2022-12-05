@@ -5,13 +5,12 @@ import nftDescJSON from "@uniswap/v3-periphery/artifacts/contracts/libraries/NFT
 import uniswapPoolJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
 import swapRouterJSON from "@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
-import anyswapCreate2DeployerJSON from "../artifacts/contracts/external/AnyswapCreat2Deployer.sol/AnyswapCreate2Deployer.json";
+import anyswapCreate2DeployerJSON from "../artifacts/contracts/external/AnyswapCreate2Deployer.sol/AnyswapCreate2Deployer.json";
+import transferAndCall2JSON from "../external/TransferAndCall2.json";
 
-import {ethers} from "hardhat";
-import {ContractFactory, BigNumberish, Contract, Signer} from "ethers";
-import {getEventParams} from "./Events";
+import {ethers} from "ethers";
+import {getEventParams, getEventsTx} from "./Events";
 import {setCode} from "@nomicfoundation/hardhat-network-helpers";
-import {AnyswapCreate2Deployer__factory} from "../typechain-types/factories/contracts/external/AnyswapCreat2Deployer.sol";
 import {
   AggregatorV3Interface__factory,
   ERC20ChainlinkValueOracle__factory,
@@ -21,6 +20,10 @@ import {
   HashNFT__factory,
   IERC20ValueOracle,
   IPermit2__factory,
+  AnyswapCreate2Deployer,
+  AnyswapCreate2Deployer__factory,
+  TransferAndCall2__factory,
+  TransferAndCall2,
 } from "../typechain-types";
 import {waffle} from "hardhat";
 import {MockContract} from "@ethereum-waffle/mock-contract";
@@ -28,14 +31,16 @@ import {toWei} from "./Numbers";
 import {makeCall, proposeAndExecute} from "./Calls";
 
 export async function deployUniswapPool(
-  uniswapFactory: Contract,
+  uniswapFactory: ethers.Contract,
   token0: string,
   token1: string,
   price: number,
 ) {
+  if (BigInt(token0) >= BigInt(token1)) throw new Error("token0 address must be less than token1");
+
   const feeTier: {
-    fee: BigNumberish;
-    tickSpacing?: BigNumberish;
+    fee: ethers.BigNumberish;
+    tickSpacing?: ethers.BigNumberish;
   } = {
     fee: "500",
   };
@@ -50,39 +55,42 @@ export async function deployUniswapPool(
   const tx = await uniswapFactory.createPool(token0, token1, fee);
   const receipt = await tx.wait();
   const poolAddress = receipt.events[0].args.pool;
-  const pool = new Contract(poolAddress, uniswapPoolJSON.abi, uniswapFactory.signer);
+  const pool = new ethers.Contract(poolAddress, uniswapPoolJSON.abi, uniswapFactory.signer);
 
   const Q96 = 2 ** 96;
-  if (BigInt(token0) > BigInt(token1)) price = 1 / price;
   await pool.initialize(BigInt(Math.sqrt(price) * Q96));
 
   return pool;
 }
 
-export async function deployUniswapFactory(weth: string, signer: Signer) {
-  const uniswapFactory = await new ContractFactory(
+export async function deployUniswapFactory(weth: string, signer: ethers.Signer) {
+  const uniswapFactory = await new ethers.ContractFactory(
     uniV3FactJSON.abi,
     uniV3FactJSON.bytecode,
     signer,
   ).deploy();
-  const nftDesc = await new ContractFactory(nftDescJSON.abi, nftDescJSON.bytecode, signer).deploy();
+  const nftDesc = await new ethers.ContractFactory(
+    nftDescJSON.abi,
+    nftDescJSON.bytecode,
+    signer,
+  ).deploy();
   const libAddress = nftDesc.address.replace(/^0x/, "").toLowerCase();
   let linkedBytecode = tokenPosDescJSON.bytecode;
   linkedBytecode = linkedBytecode.replace(
     new RegExp("__\\$cea9be979eee3d87fb124d6cbb244bb0b5\\$__", "g"),
     libAddress,
   );
-  const tokenDescriptor = await new ContractFactory(
+  const tokenDescriptor = await new ethers.ContractFactory(
     tokenPosDescJSON.abi,
     linkedBytecode,
     signer,
   ).deploy(weth, ethers.constants.MaxInt256);
-  const uniswapNFTManager = await new ContractFactory(
+  const uniswapNFTManager = await new ethers.ContractFactory(
     uniNFTManagerJSON.abi,
     uniNFTManagerJSON.bytecode,
     signer,
   ).deploy(uniswapFactory.address, weth, tokenDescriptor.address);
-  const swapRouter = await new ContractFactory(
+  const swapRouter = await new ethers.ContractFactory(
     swapRouterJSON.abi,
     swapRouterJSON.bytecode,
     signer,
@@ -92,8 +100,8 @@ export async function deployUniswapFactory(weth: string, signer: Signer) {
 
 export async function provideLiquidity(
   owner: {address: string},
-  uniswapNFTManager: Contract,
-  uniswapPool: Contract,
+  uniswapNFTManager: ethers.Contract,
+  uniswapPool: ethers.Contract,
   amount0Desired: bigint,
   amount1Desired: bigint,
 ) {
@@ -127,18 +135,59 @@ export async function provideLiquidity(
   };
 }
 
-export const deployFixedAddress = async (signer: Signer) => {
-  const permit2Address = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
-  await setCode(permit2Address, permit2JSON.deployedBytecode.object);
-  const anyswapCreate2Deployer = "0x54F5A04417E29FF5D7141a6d33cb286F50d5d50e";
-  await setCode(anyswapCreate2Deployer, anyswapCreate2DeployerJSON.deployedBytecode);
+export const deployFixedAddress = async (signer: ethers.Signer) => {
+  const permit2 = IPermit2__factory.connect("0x000000000022D473030F116dDEE9F6B43aC78BA3", signer);
+  const anyswapCreate2Deployer = AnyswapCreate2Deployer__factory.connect(
+    "0x54F5A04417E29FF5D7141a6d33cb286F50d5d50e",
+    signer,
+  );
+  await setCode(permit2.address, permit2JSON.deployedBytecode.object);
+  await setCode(anyswapCreate2Deployer.address, anyswapCreate2DeployerJSON.deployedBytecode);
   return {
-    permit2: IPermit2__factory.connect(permit2Address, signer),
-    anyswapCreate2Deployer: AnyswapCreate2Deployer__factory.connect(anyswapCreate2Deployer, signer),
+    permit2,
+    anyswapCreate2Deployer,
+    transferAndCall2: deployTransferAndCall2(anyswapCreate2Deployer),
   };
 };
 
-export async function deployGovernanceProxy(signer: Signer) {
+export const deployAtFixedAddress = async <Factory extends ethers.ContractFactory>(
+  factory: Factory,
+  anyswapCreate2Deployer: AnyswapCreate2Deployer,
+  salt: ethers.BytesLike,
+) => {
+  const x = await getEventsTx(
+    anyswapCreate2Deployer.deploy(factory.bytecode, salt),
+    anyswapCreate2Deployer,
+  );
+  console.log(x);
+  return factory.attach(x.Deployed.addr);
+};
+
+export const deployFromBytecodeAtFixedAddress = async (
+  abi: ethers.ContractInterface,
+  bytecode: string,
+  anyswapCreate2Deployer: AnyswapCreate2Deployer,
+  salt: ethers.BytesLike,
+) => {
+  const x = await getEventsTx(
+    anyswapCreate2Deployer.deploy(bytecode, salt),
+    anyswapCreate2Deployer,
+  );
+  console.log(x);
+  return new ethers.Contract(x.Deployed.addr, abi, anyswapCreate2Deployer.signer);
+};
+
+export const deployTransferAndCall2 = async (anyswapCreate2Deployer: AnyswapCreate2Deployer) => {
+  const salt = ethers.utils.solidityKeccak256(["string"], ["TransferAndCall2"]);
+  return (await deployFromBytecodeAtFixedAddress(
+    transferAndCall2JSON.abi,
+    transferAndCall2JSON.bytecode,
+    anyswapCreate2Deployer,
+    salt,
+  )) as TransferAndCall2;
+};
+
+export async function deployGovernanceProxy(signer: ethers.Signer) {
   return {
     governanceProxy: await new GovernanceProxy__factory(signer).deploy(),
   };
@@ -168,7 +217,7 @@ export async function deployGovernance(governanceProxy: GovernanceProxy) {
 
 export class Chainlink {
   static async deploy(
-    signer: Signer,
+    signer: ethers.Signer,
     price: number,
     chainLinkDecimals: number,
     baseTokenDecimals: number,

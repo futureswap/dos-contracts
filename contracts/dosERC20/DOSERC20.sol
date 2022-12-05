@@ -5,13 +5,14 @@ import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "../external/interfaces/IERC677Receiver.sol";
-import "../external/interfaces/IERC677Token.sol";
+import "@openzeppelin/contracts/interfaces/IERC1363.sol";
+import "@openzeppelin/contracts/interfaces/IERC1363Receiver.sol";
+import "@openzeppelin/contracts/interfaces/IERC1363Spender.sol";
 import "../interfaces/IDOS.sol";
 import "../lib/FsUtils.sol";
 import "../lib/ImmutableOwnable.sol";
 
-contract DOSERC20 is IDOSERC20, ERC20Permit, IERC677Token, ImmutableOwnable {
+contract DOSERC20 is IDOSERC20, ERC20Permit, IERC1363, ImmutableOwnable {
     uint8 private immutable erc20Decimals;
 
     constructor(
@@ -37,18 +38,68 @@ contract DOSERC20 is IDOSERC20, ERC20Permit, IERC677Token, ImmutableOwnable {
         _mint(account, amount);
     }
 
-    /// @inheritdoc IERC677Token
+    /// @inheritdoc IERC1363
+    function transferAndCall(address to, uint256 value) external override returns (bool success) {
+        return transferFromAndCall(msg.sender, to, value, "");
+    }
+
+    /// @inheritdoc IERC1363
     function transferAndCall(
         address to,
         uint256 value,
-        bytes calldata data
+        bytes memory data
     ) external override returns (bool success) {
+        return transferFromAndCall(msg.sender, to, value, data);
+    }
+
+    function transferFromAndCall(
+        address from,
+        address to,
+        uint256 value
+    ) external override returns (bool) {
+        return transferFromAndCall(from, to, value, "");
+    }
+
+    function transferFromAndCall(
+        address from,
+        address to,
+        uint256 value,
+        bytes memory data
+    ) public override returns (bool) {
         super.transfer(to, value);
         if (Address.isContract(to)) {
-            IERC677Receiver receiver = IERC677Receiver(to);
-            return receiver.onTokenTransfer(msg.sender, value, data);
+            IERC1363Receiver receiver = IERC1363Receiver(to);
+            return
+                receiver.onTransferReceived(msg.sender, from, value, data) ==
+                IERC1363Receiver.onTransferReceived.selector;
         }
         return true;
+    }
+
+    function approveAndCall(
+        address spender,
+        uint256 value
+    ) external override returns (bool success) {
+        return approveAndCall(spender, value, "");
+    }
+
+    function approveAndCall(
+        address spender,
+        uint256 value,
+        bytes memory data
+    ) public override returns (bool success) {
+        super.approve(spender, value);
+        if (Address.isContract(spender)) {
+            IERC1363Spender receiver = IERC1363Spender(spender);
+            return
+                receiver.onApprovalReceived(msg.sender, value, data) ==
+                IERC1363Spender.onApprovalReceived.selector;
+        }
+        return true;
+    }
+
+    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
+        return interfaceId == type(IERC1363).interfaceId ? true : false;
     }
 
     function decimals() public view override returns (uint8) {
