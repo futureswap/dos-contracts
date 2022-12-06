@@ -1,18 +1,16 @@
 import {ethers} from "hardhat";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
+import {BigNumber} from "ethers";
+
 import {
   VersionManager__factory,
   DOS__factory,
   PortfolioLogic__factory,
 } from "../../typechain-types";
+import {getFixedGasSigners} from "../../lib/signers";
 
-import {BigNumber} from "ethers";
-import {getFixedGasSigners} from "../../lib/Signers";
-
-describe("VersionManager", function () {
-  let versionManager: VersionManager__factory;
-
+describe("VersionManager", () => {
   async function deployVersionManagerFixture() {
     const [owner] = await getFixedGasSigners(10_000_000);
 
@@ -46,7 +44,7 @@ describe("VersionManager", function () {
       expect(await versionManager.getVersionCount()).to.equal(1);
       expect(await versionManager.getVersionAtIndex(0)).to.equal(version);
       expect(await versionManager.getVersionAddress(0)).to.equal(portfolioLogic.address);
-      let details = await versionManager.getVersionDetails(version);
+      const details = await versionManager.getVersionDetails(version);
       expect(details[0]).to.equal(version);
       expect(details[1]).to.equal(status);
       expect(details[2]).to.equal(0);
@@ -70,7 +68,7 @@ describe("VersionManager", function () {
 
       await versionManager.connect(owner).markRecommendedVersion(version);
 
-      let details = await versionManager.getRecommendedVersion();
+      const details = await versionManager.getRecommendedVersion();
       expect(details[0]).to.equal(version);
       expect(details[1]).to.equal(status);
       expect(details[2]).to.equal(0);
@@ -85,10 +83,6 @@ describe("VersionManager", function () {
 
       const version = "v0.0.1";
       const status = 0; // beta
-
-      // get the block timestamp
-      const block = await ethers.provider.getBlock("latest");
-      const timestamp = block.timestamp;
 
       await versionManager.connect(owner).addVersion(version, status, portfolioLogic.address);
 
@@ -116,11 +110,11 @@ describe("VersionManager", function () {
       await versionManager.connect(owner).addVersion(version, status, portfolioLogic.address);
 
       const newStatus = 3; // deprecated
-      const bugLevel = 3; // HIGH
+      const bugLevel = 3; // hIGH
 
       await versionManager.connect(owner).updateVersion(version, newStatus, bugLevel);
 
-      let details = await versionManager.getVersionDetails(version);
+      const details = await versionManager.getVersionDetails(version);
       expect(details[0]).to.equal(version);
       expect(details[1]).to.equal(newStatus);
       expect(details[2]).to.equal(bugLevel);

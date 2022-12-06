@@ -1,5 +1,6 @@
-import {HardhatUserConfig} from "hardhat/config";
-import {HardhatRuntimeEnvironment} from "hardhat/types";
+import type {HardhatUserConfig} from "hardhat/config";
+import type {HardhatRuntimeEnvironment} from "hardhat/types";
+
 import "hardhat-preprocessor";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-waffle";
@@ -9,20 +10,20 @@ import {preprocessCode} from "./lib/hardhat/preprocess";
 
 dotEnvConfig({path: "./.env"});
 
-// Account mnemonics and infura api keys should be stored in .env file
-// as to not expose them through github.
+// account mnemonics and infura api keys should be stored in .env file
+// as to not expose them through GitHub.
 const getEnvVariable = (varName: string) => {
-  return process.env[varName] || "";
+  return process.env[varName] ?? "";
 };
 
 const TEST_MNEMONIC = "test test test test test test test test test test test junk";
 
-// Mnemonic for futureswap work accounts these are individual for each
+// mnemonic for futureswap work accounts these are individual for each
 // employee. These accounts carry real ETH for executing TX's but should
 // never carry to much and should have no special role in the system.
 // Employees should keep these accounts secure, but a compromise is not an issue.
 const PROD_MNEMONIC = getEnvVariable("PROD_MNEMONIC");
-// Mnemonic for futureswap work accounts on testnets. This one is just shared
+// mnemonic for futureswap work accounts on testnets. This one is just shared
 // among employees. This should be kept secret as well but obvious is not
 // important if compromised.
 const DEV_MNEMONIC = getEnvVariable("DEV_MNEMONIC");
@@ -66,12 +67,12 @@ const config: HardhatUserConfig = {
         mnemonic: TEST_MNEMONIC,
         accountsBalance: "10000000000000000000000000000",
       },
-      // See more information in https://hardhat.org/hardhat-network/reference/#mining-modes
+      // see more information in https://hardhat.org/hardhat-network/reference/#mining-modes
       mining: {
-        // Auto-mining enabled means that hardhat automatically mines new transactions as they are
+        // auto-mining enabled means that hardhat automatically mines new transactions as they are
         // sent.
         auto: true,
-        // With this configuration, hardhat will also mine new blocks every 5 seconds, regardless
+        // with this configuration, hardhat will also mine new blocks every 5 seconds, regardless
         // of whether there is a transaction to execute.
         interval: 5000,
       },
@@ -89,7 +90,7 @@ const config: HardhatUserConfig = {
     ethereum: {
       url: getEnvVariable("ETHEREUM_RPC_URL"),
       chainId: 1,
-      // Can be used to override gas estimation. This is useful if
+      // can be used to override gas estimation. This is useful if
       // we want to speedup tx.
       // gasPrice: 30000000000,
       accounts: {
@@ -140,7 +141,7 @@ const config: HardhatUserConfig = {
       gasPrice: 60000000000,
     },
     coverage: {
-      url: "http://127.0.0.1:8555", // Coverage launches its own ganache-cli client
+      url: "http://127.0.0.1:8555", // coverage launches its own ganache-cli client
     },
     etheno: {
       url: "http://localhost:8550",

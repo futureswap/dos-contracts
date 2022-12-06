@@ -1,8 +1,8 @@
 import {ethers} from "hardhat";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
+
 import {
-  DOS,
   DOS__factory,
   PortfolioLogic__factory,
   VersionManager__factory,
@@ -11,15 +11,15 @@ import {
   TestNFT__factory,
   MockNFTOracle__factory,
 } from "../../typechain-types";
-import {toWei} from "../../lib/Numbers";
-import {createPortfolio, makeCall} from "../../lib/Calls";
-import {Chainlink} from "../../lib/Deploy";
+import {toWei} from "../../lib/numbers";
+import {createPortfolio, makeCall} from "../../lib/calls";
+import {Chainlink} from "../../lib/deploy";
 
 const USDC_DECIMALS = 6;
 const ETH_DECIMALS = 18;
 const CHAINLINK_DECIMALS = 8;
 
-describe("Fractionalization", function () {
+describe("Fractionalization", () => {
   async function deployDOSFixture() {
     const [owner, user, user2] = await ethers.getSigners();
 
@@ -58,7 +58,7 @@ describe("Fractionalization", function () {
       fractionalReserveLeverage: 9,
     });
 
-    // No interest which would include time sensitive calculations
+    // no interest which would include time sensitive calculations
     await dos.addERC20Info(
       usdc.address,
       "USD Coin",
@@ -98,43 +98,43 @@ describe("Fractionalization", function () {
     it("Check fractional reserve after user borrows", async () => {
       const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
-      //setup 1st user
+      // setup 1st user
       const portfolio1 = await createPortfolio(dos, user);
       expect(await portfolio1.owner()).to.equal(user.address);
       await usdc.mint(portfolio1.address, oneHundredUsdc);
-      await portfolio1.executeBatch([makeCall(dos, "depositERC20", [0, oneHundredUsdc])]); //deposits 100 USDC
+      await portfolio1.executeBatch([makeCall(dos, "depositERC20", [0, oneHundredUsdc])]); // deposits 100 USDC
 
-      //setup 2nd user
+      // setup 2nd user
       const portfolio2 = await createPortfolio(dos, user2);
       expect(await portfolio2.owner()).to.equal(user2.address);
       await weth.mint(portfolio2.address, toWei(2));
       await portfolio2.executeBatch([makeCall(dos, "depositERC20", [1, toWei(2)])]);
 
-      //check what the max to borrow of USDC is (90 USDC)
+      // check what the max to borrow of USDC is (90 USDC)
       const maxBorrowable = await dos.getMaximumWithdrawableOfERC20(0);
 
-      //borrow 90 USDC
+      // borrow 90 USDC
       await portfolio2.executeBatch([
-        makeCall(dos, "depositERC20", [0, -maxBorrowable]), //to borrow use negative
+        makeCall(dos, "depositERC20", [0, -maxBorrowable]), // to borrow use negative
       ]);
 
-      //check to see if there is anything left
+      // check to see if there is anything left
       const maxBorrowablePost = await dos.getMaximumWithdrawableOfERC20(0);
 
       expect(maxBorrowablePost).to.equal("0");
     });
 
     it("Fractional reserve check should fail after borrow and rate is set below threshold", async () => {
-      //setup 2 users portfolios
+      // setup 2 users portfolios
       const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
-      //setup first user
+      // setup first user
       const portfolio1 = await createPortfolio(dos, user);
       expect(await portfolio1.owner()).to.equal(user.address);
       await usdc.mint(portfolio1.address, oneHundredUsdc);
-      await portfolio1.executeBatch([makeCall(dos, "depositERC20", [0, oneHundredUsdc])]); //deposits 100 USDC
+      await portfolio1.executeBatch([makeCall(dos, "depositERC20", [0, oneHundredUsdc])]); // deposits 100 USDC
 
-      //setup 2nd user
+      // setup 2nd user
       const portfolio2 = await createPortfolio(dos, user2);
       expect(await portfolio2.owner()).to.equal(user2.address);
       await weth.mint(portfolio2.address, toWei(2));
@@ -142,12 +142,12 @@ describe("Fractionalization", function () {
 
       const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfERC20(0);
 
-      //user 2 borrows 90 USDC
+      // user 2 borrows 90 USDC
       await portfolio2.executeBatch([
-        makeCall(dos, "depositERC20", [0, -maxBorrowableUSDC]), //to borrow use negative
+        makeCall(dos, "depositERC20", [0, -maxBorrowableUSDC]), // to borrow use negative
       ]);
 
-      //vote for FDR to change
+      // vote for FDR to change
       await dos.setConfig({
         liqFraction: toWei(0.8),
         fractionalReserveLeverage: 8,
@@ -159,19 +159,19 @@ describe("Fractionalization", function () {
     });
 
     it("Hit frac limit, vote to increase, and borrow more", async () => {
-      //borrow max
-      //vote on increasing maximum
-      //borrow more
+      // borrow max
+      // vote on increasing maximum
+      // borrow more
 
       const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
-      //setup 1st user
+      // setup 1st user
       const portfolio1 = await createPortfolio(dos, user);
       expect(await portfolio1.owner()).to.equal(user.address);
       await usdc.mint(portfolio1.address, oneHundredUsdc);
-      await portfolio1.executeBatch([makeCall(dos, "depositERC20", [0, oneHundredUsdc])]); //deposits 100 USDC
+      await portfolio1.executeBatch([makeCall(dos, "depositERC20", [0, oneHundredUsdc])]); // deposits 100 USDC
 
-      //setup 2nd user
+      // setup 2nd user
       const portfolio2 = await createPortfolio(dos, user2);
       expect(await portfolio2.owner()).to.equal(user2.address);
       await weth.mint(portfolio2.address, toWei(2));
@@ -179,9 +179,9 @@ describe("Fractionalization", function () {
 
       const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfERC20(0);
 
-      //borrow 90 USDC // Max borrow for FRL
+      // borrow 90 USDC // Max borrow for FRL
       await portfolio2.executeBatch([
-        makeCall(dos, "depositERC20", [0, -maxBorrowableUSDC]), //to borrow use negative
+        makeCall(dos, "depositERC20", [0, -maxBorrowableUSDC]), // to borrow use negative
       ]);
 
       // //vote for FDR to change
@@ -192,9 +192,9 @@ describe("Fractionalization", function () {
 
       const maxBorrowableUSDCPostVote = await dos.getMaximumWithdrawableOfERC20(0);
 
-      //borrow 0.909091 USDC
+      // borrow 0.909091 USDC
       await portfolio2.executeBatch([
-        makeCall(dos, "depositERC20", [0, -maxBorrowableUSDCPostVote]), //to borrow use negative
+        makeCall(dos, "depositERC20", [0, -maxBorrowableUSDCPostVote]), // to borrow use negative
       ]);
 
       expect(await dos.getMaximumWithdrawableOfERC20(0)).to.equal("0");

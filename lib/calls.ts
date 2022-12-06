@@ -1,44 +1,60 @@
-import {ethers} from "ethers";
-import {Governance, HashNFT, PortfolioLogic__factory, DOS} from "../typechain-types";
-import {getEventParams} from "./Events";
+import type {Governance, HashNFT, DOS, PortfolioLogic} from "../typechain-types";
+import type {ContractTransaction} from "ethers";
 
-function cleanValue(v: unknown): any {
-  if (v === null || v === undefined) throw new Error("Null");
+import {ethers} from "ethers";
+
+import {PortfolioLogic__factory} from "../typechain-types";
+import {getEventParams} from "./events";
+
+function cleanValue(v: unknown): unknown {
+  if (v == null) throw new Error("Null");
   if (v instanceof ethers.BigNumber) return v.toBigInt();
   if (typeof v !== "object") return v;
-  let x: {[key: string]: any} = {};
+  const x: Record<string, unknown> = {};
   Object.entries(v).forEach(([key, value]) => (x[key] = cleanValue(value)));
   return x;
 }
 
-export function cleanResult(r: ethers.utils.Result) {
-  const x: {[key: string]: any} = {};
+export function cleanResult(r: ethers.utils.Result): Record<string, unknown> {
+  const x: Record<string, unknown> = {};
   Object.entries(r)
     .slice(r.length)
     .forEach(([key, value]) => {
-      if (value) {
+      if (value != null) {
         x[key] = cleanValue(value);
-        value instanceof ethers.BigNumber ? value.toBigInt() : value;
       }
     });
   return x;
 }
 
-interface Call {
+type Call = {
   to: string;
   callData: ethers.BytesLike;
   value?: bigint;
-}
+};
 
-export function makeCall(to: ethers.Contract, func: string, params: any[], value?: bigint) {
+export function makeCall(
+  to: ethers.Contract,
+  func: string,
+  params: unknown[],
+  value?: bigint,
+): {
+  to: string;
+  callData: string;
+  value: bigint;
+} {
   return {
     to: to.address,
     callData: to.interface.encodeFunctionData(func, params),
-    value: value || 0n,
+    value: value ?? 0n,
   };
 }
 
-export async function proposeAndExecute(governance: Governance, voteNFT: HashNFT, calls: Call[]) {
+export async function proposeAndExecute(
+  governance: Governance,
+  voteNFT: HashNFT,
+  calls: Call[],
+): Promise<ContractTransaction> {
   calls.forEach(call => {
     if (call.value !== undefined && call.value !== 0n) throw new Error("Value not supported");
   });
@@ -47,10 +63,10 @@ export async function proposeAndExecute(governance: Governance, voteNFT: HashNFT
   );
   const nonce = await voteNFT.mintingNonce();
   await voteNFT.mint(governance.address, hash);
-  return governance.execute(nonce, calls);
+  return await governance.execute(nonce, calls);
 }
 
-export const createPortfolio = async (dos: DOS, signer: ethers.Signer) => {
+export const createPortfolio = async (dos: DOS, signer: ethers.Signer): Promise<PortfolioLogic> => {
   const {portfolio} = await getEventParams(
     await dos.connect(signer).createPortfolio(),
     dos,

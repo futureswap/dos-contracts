@@ -1,3 +1,27 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
+import {
+  GovernanceProxy,
+  IERC20ValueOracle,
+  AnyswapCreate2Deployer,
+  TransferAndCall2,
+  IPermit2,
+  HashNFT,
+  Governance,
+  AggregatorV3Interface__factory,
+  ERC20ChainlinkValueOracle__factory,
+  GovernanceProxy__factory,
+  Governance__factory,
+  HashNFT__factory,
+  IPermit2__factory,
+  AnyswapCreate2Deployer__factory,
+  TransferAndCall2__factory,
+} from "../typechain-types";
+import type {MockContract} from "@ethereum-waffle/mock-contract";
+
 import uniV3FactJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json";
 import uniNFTManagerJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json";
 import tokenPosDescJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungibleTokenPositionDescriptor.sol/NonfungibleTokenPositionDescriptor.json";
@@ -6,29 +30,13 @@ import uniswapPoolJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.
 import swapRouterJSON from "@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import anyswapCreate2DeployerJSON from "../artifacts/contracts/external/AnyswapCreate2Deployer.sol/AnyswapCreate2Deployer.json";
-
-import {ContractFactory, ethers} from "ethers";
-import {getEventParams, getEventsTx} from "./Events";
+import {ethers} from "ethers";
 import {setCode} from "@nomicfoundation/hardhat-network-helpers";
-import {TransactionRequest} from "@ethersproject/abstract-provider";
-import {
-  AggregatorV3Interface__factory,
-  ERC20ChainlinkValueOracle__factory,
-  GovernanceProxy,
-  GovernanceProxy__factory,
-  Governance__factory,
-  HashNFT__factory,
-  IERC20ValueOracle,
-  IPermit2__factory,
-  AnyswapCreate2Deployer,
-  AnyswapCreate2Deployer__factory,
-  TransferAndCall2__factory,
-  TransferAndCall2,
-} from "../typechain-types";
 import {waffle} from "hardhat";
-import {MockContract} from "@ethereum-waffle/mock-contract";
-import {toWei} from "./Numbers";
-import {makeCall, proposeAndExecute} from "./Calls";
+import {getEventParams, getEventsTx} from "./events";
+import {TransactionRequest} from "@ethersproject/abstract-provider";
+import {toWei} from "./numbers";
+import {makeCall, proposeAndExecute} from "./calls";
 import {checkDefined} from "./preconditions";
 
 export async function deployUniswapPool(
@@ -36,7 +44,7 @@ export async function deployUniswapPool(
   token0: string,
   token1: string,
   price: number,
-) {
+): Promise<ethers.Contract> {
   if (BigInt(token0) >= BigInt(token1)) throw new Error("token0 address must be less than token1");
 
   const feeTier: {
@@ -58,13 +66,21 @@ export async function deployUniswapPool(
   const poolAddress = receipt.events[0].args.pool;
   const pool = new ethers.Contract(poolAddress, uniswapPoolJSON.abi, uniswapFactory.signer);
 
-  const Q96 = 2 ** 96;
+  // eslint-disable-next-line @typescript-eslint/no-magic-numbers -- false positive
+  const Q96 = 2 ** 96; // on expression that is actually a number
   await pool.initialize(BigInt(Math.sqrt(price) * Q96));
 
   return pool;
 }
 
-export async function deployUniswapFactory(weth: string, signer: ethers.Signer) {
+export async function deployUniswapFactory(
+  weth: string,
+  signer: ethers.Signer,
+): Promise<{
+  uniswapFactory: ethers.Contract;
+  uniswapNFTManager: ethers.Contract;
+  swapRouter: ethers.Contract;
+}> {
   const uniswapFactory = await new ethers.ContractFactory(
     uniV3FactJSON.abi,
     uniV3FactJSON.bytecode,
@@ -78,7 +94,7 @@ export async function deployUniswapFactory(weth: string, signer: ethers.Signer) 
   const libAddress = nftDesc.address.replace(/^0x/, "").toLowerCase();
   let linkedBytecode = tokenPosDescJSON.bytecode;
   linkedBytecode = linkedBytecode.replace(
-    new RegExp("__\\$cea9be979eee3d87fb124d6cbb244bb0b5\\$__", "g"),
+    /__\$cea9be979eee3d87fb124d6cbb244bb0b5\$__/g,
     libAddress,
   );
   const tokenDescriptor = await new ethers.ContractFactory(
@@ -105,7 +121,12 @@ export async function provideLiquidity(
   uniswapPool: ethers.Contract,
   amount0Desired: bigint,
   amount1Desired: bigint,
-) {
+): Promise<{
+  tokenId: bigint;
+  liquidity: bigint;
+  amount0: bigint;
+  amount1: bigint;
+}> {
   const token0 = await uniswapPool.token0();
   const token1 = await uniswapPool.token1();
   const fee = await uniswapPool.fee();
@@ -129,20 +150,29 @@ export async function provideLiquidity(
     "IncreaseLiquidity",
   );
   return {
-    tokenId: tokenId.toBigInt() as bigint,
-    liquidity: liquidity.toBigInt() as bigint,
-    amount0: amount0.toBigInt() as bigint,
-    amount1: amount1.toBigInt() as bigint,
+    tokenId: tokenId.toBigInt(),
+    liquidity: liquidity.toBigInt(),
+    amount0: amount0.toBigInt(),
+    amount1: amount1.toBigInt(),
   };
 }
 
-export const deployFixedAddress = async (signer: ethers.Signer) => {
+export const deployFixedAddress = async (
+  signer: ethers.Signer,
+): Promise<{
+  permit2: IPermit2;
+  anyswapCreate2Deployer: AnyswapCreate2Deployer;
+  transferAndCall2: TransferAndCall2;
+}> => {
   const permit2 = IPermit2__factory.connect("0x000000000022D473030F116dDEE9F6B43aC78BA3", signer);
   const anyswapCreate2Deployer = AnyswapCreate2Deployer__factory.connect(
     "0x54F5A04417E29FF5D7141a6d33cb286F50d5d50e",
     signer,
   );
-  const transferAndCall2 = TransferAndCall2__factory.connect("0x9848AB09c804dAfCE9e0b82d508aC6d2E8bACFfE", signer);
+  const transferAndCall2 = TransferAndCall2__factory.connect(
+    "0x9848AB09c804dAfCE9e0b82d508aC6d2E8bACFfE",
+    signer,
+  );
   await setCode(permit2.address, permit2JSON.deployedBytecode.object);
   await setCode(anyswapCreate2Deployer.address, anyswapCreate2DeployerJSON.deployedBytecode);
   const deployedContract = await new TransferAndCall2__factory(signer).deploy();
@@ -158,7 +188,7 @@ export const deployFixedAddress = async (signer: ethers.Signer) => {
 /**
  * Type of the "initialize()" method in logic contracts.
  */
- type InitializeParams<T extends ethers.BaseContract> = T extends {
+type InitializeParams<T extends ethers.BaseContract> = T extends {
   initialize(...args: infer Params): Promise<ethers.ContractTransaction>;
 }
   ? Omit<Params, "overrides">
@@ -193,7 +223,6 @@ type DeployResult<T extends ContractFactoryLike> = T extends {
   ? Result
   : never;
 
-
 export const deployAtFixedAddress = async <Factory extends ContractFactoryLike>(
   factory: Factory,
   anyswapCreate2Deployer: AnyswapCreate2Deployer,
@@ -201,30 +230,36 @@ export const deployAtFixedAddress = async <Factory extends ContractFactoryLike>(
   ...params: DeployParams<Factory>
 ): Promise<DeployResult<Factory>> => {
   const deployTx = factory.getDeployTransaction(...params);
-  const x = await getEventsTx(
+  const {Deployed} = await getEventsTx<{Deployed: {addr: string}}>(
     anyswapCreate2Deployer.deploy(checkDefined(deployTx.data), salt),
     anyswapCreate2Deployer,
   );
-  console.log(x);
-  return factory.attach(x.Deployed.addr) as DeployResult<Factory>;
+  return factory.attach(Deployed.addr) as DeployResult<Factory>;
 };
 
-export const deployTransferAndCall2 = async (anyswapCreate2Deployer: AnyswapCreate2Deployer) => {
+export const deployTransferAndCall2 = async (
+  anyswapCreate2Deployer: AnyswapCreate2Deployer,
+): Promise<TransferAndCall2> => {
   const salt = ethers.utils.solidityKeccak256(["string"], ["TransferAndCall2"]);
-  return (await deployAtFixedAddress(
+  return await deployAtFixedAddress(
     new TransferAndCall2__factory(anyswapCreate2Deployer.signer),
     anyswapCreate2Deployer,
     salt,
-  ));
+  );
 };
 
-export async function deployGovernanceProxy(signer: ethers.Signer) {
+export async function deployGovernanceProxy(signer: ethers.Signer): Promise<{
+  governanceProxy: GovernanceProxy;
+}> {
   return {
     governanceProxy: await new GovernanceProxy__factory(signer).deploy(),
   };
 }
 
-export async function deployGovernance(governanceProxy: GovernanceProxy) {
+export async function deployGovernance(governanceProxy: GovernanceProxy): Promise<{
+  voteNFT: HashNFT;
+  governance: Governance;
+}> {
   const signer = governanceProxy.signer;
   const voteNFT = await new HashNFT__factory(signer).deploy(
     "Voting token",
@@ -239,7 +274,7 @@ export async function deployGovernance(governanceProxy: GovernanceProxy) {
   await governanceProxy.execute([
     makeCall(governanceProxy, "proposeGovernance", [governance.address]),
   ]);
-  // Empty execute such that governance accepts the governance role of the
+  // empty execute such that governance accepts the governance role of the
   // governance proxy.
   await proposeAndExecute(governance, voteNFT, []);
 
@@ -247,13 +282,19 @@ export async function deployGovernance(governanceProxy: GovernanceProxy) {
 }
 
 export class Chainlink {
+  private constructor(
+    readonly chainlink: MockContract,
+    readonly oracle: IERC20ValueOracle,
+    readonly chainlinkDecimals: number,
+  ) {}
+
   static async deploy(
     signer: ethers.Signer,
     price: number,
     chainLinkDecimals: number,
     baseTokenDecimals: number,
     observedTokenDecimals: number,
-  ) {
+  ): Promise<Chainlink> {
     const mockChainLink = await waffle.deployMockContract(
       signer,
       AggregatorV3Interface__factory.abi,
@@ -269,14 +310,8 @@ export class Chainlink {
     return oracle;
   }
 
-  private constructor(
-    public readonly chainlink: MockContract,
-    public readonly oracle: IERC20ValueOracle,
-    public readonly chainlinkDecimals: number,
-  ) {}
-
-  async setPrice(price: number) {
-    return this.chainlink.mock.latestRoundData.returns(
+  async setPrice(price: number): Promise<void> {
+    await this.chainlink.mock.latestRoundData.returns(
       0,
       toWei(price, this.chainlinkDecimals),
       0,

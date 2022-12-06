@@ -1,13 +1,13 @@
 import {ethers} from "hardhat";
-import {TestERC20__factory, WETH9__factory, UniV3Oracle__factory} from "../../typechain-types";
-import {toWei} from "../../lib/Numbers";
-import {getEventsTx} from "../../lib/Events";
-import {deployUniswapFactory, deployUniswapPool} from "../../lib/Deploy";
 import {expect} from "chai";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
-import {Chainlink} from "../../lib/Deploy";
 
-// This three values are connected - you cannot change one without changing others.
+import {TestERC20__factory, WETH9__factory, UniV3Oracle__factory} from "../../typechain-types";
+import {toWei} from "../../lib/numbers";
+import {getEventsTx} from "../../lib/events";
+import {deployUniswapFactory, deployUniswapPool, Chainlink} from "../../lib/deploy";
+
+// this three values are connected - you cannot change one without changing others.
 // There is no easy way to get the tick values for a specific price - this values
 // has been taken from a deployed test pool. If for some reason there would be a need
 // to get a new set of values - ask Gerben
@@ -23,7 +23,7 @@ type IncreaseLiquidity = {
   liquidity: bigint;
 };
 
-describe("UniswapOracle", function () {
+describe("UniswapOracle", () => {
   async function deployUniswapFixture() {
     const [owner] = await ethers.getSigners();
 
