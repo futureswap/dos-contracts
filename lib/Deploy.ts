@@ -6,11 +6,11 @@ import uniswapPoolJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.
 import swapRouterJSON from "@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import anyswapCreate2DeployerJSON from "../artifacts/contracts/external/AnyswapCreate2Deployer.sol/AnyswapCreate2Deployer.json";
-import transferAndCall2JSON from "../external/TransferAndCall2.json";
 
 import {ContractFactory, ethers} from "ethers";
 import {getEventParams, getEventsTx} from "./Events";
 import {setCode} from "@nomicfoundation/hardhat-network-helpers";
+import {TransactionRequest} from "@ethersproject/abstract-provider";
 import {
   AggregatorV3Interface__factory,
   ERC20ChainlinkValueOracle__factory,
@@ -142,37 +142,80 @@ export const deployFixedAddress = async (signer: ethers.Signer) => {
     "0x54F5A04417E29FF5D7141a6d33cb286F50d5d50e",
     signer,
   );
+  const transferAndCall2 = TransferAndCall2__factory.connect("0x9848AB09c804dAfCE9e0b82d508aC6d2E8bACFfE", signer);
   await setCode(permit2.address, permit2JSON.deployedBytecode.object);
   await setCode(anyswapCreate2Deployer.address, anyswapCreate2DeployerJSON.deployedBytecode);
+  const deployedContract = await new TransferAndCall2__factory(signer).deploy();
+  const deployedCode = await deployedContract.provider.getCode(deployedContract.address);
+  await setCode(transferAndCall2.address, deployedCode);
   return {
     permit2,
     anyswapCreate2Deployer,
-    transferAndCall2: await deployTransferAndCall2(anyswapCreate2Deployer),
+    transferAndCall2,
   };
 };
 
-export const deployAtFixedAddress = async <Factory extends ethers.ContractFactory>(
+/**
+ * Type of the "initialize()" method in logic contracts.
+ */
+ type InitializeParams<T extends ethers.BaseContract> = T extends {
+  initialize(...args: infer Params): Promise<ethers.ContractTransaction>;
+}
+  ? Omit<Params, "overrides">
+  : never;
+
+/**
+ * Ideally `ContractFactory` should have been used instead of this type.  But, `ContractFactory`
+ * defines `deploy()` method as one returning a `Contract`.  While `typechain` writes actual
+ * contracts inheriting them from `BaseContract`.  This breaks the type inference in `DeployResult`.
+ */
+type ContractFactoryLike = {
+  deploy(...args: any[]): Promise<ethers.BaseContract>;
+  getDeployTransaction(...args: any[]): TransactionRequest;
+  attach(address: string): ethers.BaseContract;
+};
+
+/**
+ * Type of the "deploy()" method in factories for logic contracts.
+ */
+type DeployParams<T extends ContractFactoryLike> = T extends {
+  getDeployTransaction(...args: infer Params): ethers.ContractTransaction;
+}
+  ? Omit<Params, "overrides">
+  : never;
+
+/**
+ * Type of the logic contract deployed by a factory.
+ */
+type DeployResult<T extends ContractFactoryLike> = T extends {
+  deploy(...args: any[]): Promise<infer Result>;
+}
+  ? Result
+  : never;
+
+
+export const deployAtFixedAddress = async <Factory extends ContractFactoryLike>(
   factory: Factory,
   anyswapCreate2Deployer: AnyswapCreate2Deployer,
   salt: ethers.BytesLike,
-  ...params: any[]
-) => {
+  ...params: DeployParams<Factory>
+): Promise<DeployResult<Factory>> => {
   const deployTx = factory.getDeployTransaction(...params);
   const x = await getEventsTx(
     anyswapCreate2Deployer.deploy(checkDefined(deployTx.data), salt),
     anyswapCreate2Deployer,
   );
   console.log(x);
-  return factory.attach(x.Deployed.addr);
+  return factory.attach(x.Deployed.addr) as DeployResult<Factory>;
 };
 
 export const deployTransferAndCall2 = async (anyswapCreate2Deployer: AnyswapCreate2Deployer) => {
   const salt = ethers.utils.solidityKeccak256(["string"], ["TransferAndCall2"]);
   return (await deployAtFixedAddress(
-    new ContractFactory(transferAndCall2JSON.abi, transferAndCall2JSON.bytecode),
+    new TransferAndCall2__factory(anyswapCreate2Deployer.signer),
     anyswapCreate2Deployer,
     salt,
-  )) as TransferAndCall2;
+  ));
 };
 
 export async function deployGovernanceProxy(signer: ethers.Signer) {
