@@ -29,6 +29,7 @@ import {waffle} from "hardhat";
 import {MockContract} from "@ethereum-waffle/mock-contract";
 import {toWei} from "./Numbers";
 import {makeCall, proposeAndExecute} from "./Calls";
+import {checkDefined} from "./preconditions";
 
 export async function deployUniswapPool(
   uniswapFactory: ethers.Contract,
@@ -158,7 +159,7 @@ export const deployAtFixedAddress = async <Factory extends ethers.ContractFactor
 ) => {
   const deployTx = factory.getDeployTransaction(...params);
   const x = await getEventsTx(
-    anyswapCreate2Deployer.deploy(deployTx.data, salt),
+    anyswapCreate2Deployer.deploy(checkDefined(deployTx.data), salt),
     anyswapCreate2Deployer,
   );
   console.log(x);
