@@ -18,9 +18,10 @@ import {
 } from "../../typechain-types";
 import {toWei, toWeiUsdc} from "../../lib/Numbers";
 import {getEventParams, getEventsTx} from "../../lib/Events";
-import {deployPermit2, getFixedGasSigners, signPermitTransferFrom} from "../../lib/Signers";
+import {getFixedGasSigners, signPermit2TransferFrom} from "../../lib/Signers";
 import {BigNumber, ContractTransaction, BigNumberish} from "ethers";
-import {Chainlink, makeCall, createPortfolio} from "../../lib/Calls";
+import {makeCall, createPortfolio, cleanResult} from "../../lib/Calls";
+import {Chainlink, deployFixedAddress} from "../../lib/Deploy";
 
 const USDC_PRICE = 1;
 const ETH_PRICE = 2000;
@@ -40,7 +41,7 @@ describe("DOS", function () {
   async function deployDOSFixture() {
     const [owner, user, user2, user3] = await getFixedGasSigners(10_000_000);
 
-    const permit2 = await deployPermit2();
+    const {permit2} = await deployFixedAddress(owner);
 
     const usdc = await new TestERC20__factory(owner).deploy(
       "USD Coin",
@@ -573,7 +574,6 @@ describe("DOS", function () {
 
       // drop the price of the NFT from 2000 Eth to 1600 Eth. Now portfolio should become liquidatable
       await (await nftOracle.setPrice(tokenId, toWeiUsdc(1600))).wait();
-      console.log("liq");
       const liquidateTx = await liquidator.executeBatch([
         makeCall(dos, "liquidate", [liquidatable.address]),
       ]);
@@ -662,7 +662,10 @@ describe("DOS", function () {
         const tokenId = await depositUserNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
 
         expect(await nft.ownerOf(tokenId)).to.eql(dos.address);
-        const userNfts = await dos.viewNFTs(portfolio.address);
+        const userNfts = (await dos.viewNFTs(portfolio.address)).map(([erc721, tokenId]) => [
+          erc721,
+          tokenId,
+        ]);
         expect(userNfts).to.eql([[nft.address, tokenId]]);
       },
     );
@@ -1009,7 +1012,7 @@ describe("DOS", function () {
       const hundredDollars = toWei(100, USDC_DECIMALS);
       await usdc.mint(port1.address, hundredDollars);
 
-      const signature = await signPermitTransferFrom(
+      const signature = await signPermit2TransferFrom(
         permit2,
         usdc.address,
         hundredDollars,

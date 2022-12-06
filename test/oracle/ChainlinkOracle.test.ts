@@ -2,7 +2,7 @@ import {ethers} from "hardhat";
 import {toWei} from "../../lib/Numbers";
 import {expect} from "chai";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
-import {Chainlink} from "../../lib/Calls";
+import {Chainlink} from "../../lib/Deploy";
 
 const usdcPrice = 1;
 const usdcChainlinkDecimals = 8;

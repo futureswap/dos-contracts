@@ -17,8 +17,8 @@ import {
 import {toWei} from "../../lib/Numbers";
 import {getEventsTx} from "../../lib/Events";
 import {BigNumber, Signer, Contract} from "ethers";
-import {Chainlink, makeCall} from "../../lib/Calls";
-import {deployUniswapFactory, deployUniswapPool} from "../../lib/deploy_uniswap";
+import {makeCall} from "../../lib/Calls";
+import {Chainlink, deployUniswapFactory, deployUniswapPool} from "../../lib/Deploy";
 
 const USDC_PRICE = 1;
 const ETH_PRICE = 2000;

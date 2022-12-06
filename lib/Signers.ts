@@ -1,9 +1,6 @@
 import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {setCode} from "@nomicfoundation/hardhat-network-helpers";
 import {ethers} from "hardhat";
-import permit2JSON from "../external/Permit2.sol/Permit2.json";
-import {VoidSigner} from "ethers";
-import {IPermit2, IPermit2__factory} from "../typechain-types";
+import {IPermit2} from "../typechain-types";
 
 // This fixes random tests crash with
 // "contract call run out of gas and made the transaction revert" error
@@ -21,13 +18,7 @@ export const getFixedGasSigners = async function (gasLimit: number) {
   return signers;
 };
 
-export const deployPermit2 = async () => {
-  const permit2Address = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
-  await setCode(permit2Address, permit2JSON.deployedBytecode.object);
-  return IPermit2__factory.connect(permit2Address, new VoidSigner(permit2Address, ethers.provider));
-};
-
-export const signPermitTransferFrom = async (
+export const signPermit2TransferFrom = async (
   permit2: IPermit2,
   token: string,
   amount: bigint,
