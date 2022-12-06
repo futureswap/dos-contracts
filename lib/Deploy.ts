@@ -8,7 +8,7 @@ import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import anyswapCreate2DeployerJSON from "../artifacts/contracts/external/AnyswapCreate2Deployer.sol/AnyswapCreate2Deployer.json";
 import transferAndCall2JSON from "../external/TransferAndCall2.json";
 
-import {ethers} from "ethers";
+import {ContractFactory, ethers} from "ethers";
 import {getEventParams, getEventsTx} from "./Events";
 import {setCode} from "@nomicfoundation/hardhat-network-helpers";
 import {
@@ -146,7 +146,7 @@ export const deployFixedAddress = async (signer: ethers.Signer) => {
   return {
     permit2,
     anyswapCreate2Deployer,
-    transferAndCall2: deployTransferAndCall2(anyswapCreate2Deployer),
+    transferAndCall2: await deployTransferAndCall2(anyswapCreate2Deployer),
   };
 };
 
@@ -154,34 +154,21 @@ export const deployAtFixedAddress = async <Factory extends ethers.ContractFactor
   factory: Factory,
   anyswapCreate2Deployer: AnyswapCreate2Deployer,
   salt: ethers.BytesLike,
+  ...params: any[]
 ) => {
+  const deployTx = factory.getDeployTransaction(...params);
   const x = await getEventsTx(
-    anyswapCreate2Deployer.deploy(factory.bytecode, salt),
+    anyswapCreate2Deployer.deploy(deployTx.data, salt),
     anyswapCreate2Deployer,
   );
   console.log(x);
   return factory.attach(x.Deployed.addr);
 };
 
-export const deployFromBytecodeAtFixedAddress = async (
-  abi: ethers.ContractInterface,
-  bytecode: string,
-  anyswapCreate2Deployer: AnyswapCreate2Deployer,
-  salt: ethers.BytesLike,
-) => {
-  const x = await getEventsTx(
-    anyswapCreate2Deployer.deploy(bytecode, salt),
-    anyswapCreate2Deployer,
-  );
-  console.log(x);
-  return new ethers.Contract(x.Deployed.addr, abi, anyswapCreate2Deployer.signer);
-};
-
 export const deployTransferAndCall2 = async (anyswapCreate2Deployer: AnyswapCreate2Deployer) => {
   const salt = ethers.utils.solidityKeccak256(["string"], ["TransferAndCall2"]);
-  return (await deployFromBytecodeAtFixedAddress(
-    transferAndCall2JSON.abi,
-    transferAndCall2JSON.bytecode,
+  return (await deployAtFixedAddress(
+    new ContractFactory(transferAndCall2JSON.abi, transferAndCall2JSON.bytecode),
     anyswapCreate2Deployer,
     salt,
   )) as TransferAndCall2;

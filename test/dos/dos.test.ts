@@ -34,7 +34,7 @@ const NFT_PRICE = 200;
 const tenThousandUsdc = toWeiUsdc(10_000);
 const oneEth = toWei(1);
 
-describe("DOS", function () {
+describe.only("DOS", function () {
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.

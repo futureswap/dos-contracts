@@ -321,10 +321,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
     }
 
-    function NFTHash(address nftContract, uint256 tokenId) public pure returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(nftContract, tokenId))) >> 16;
-    }
-
     function depositNFT(
         address nftContract,
         uint256 tokenId

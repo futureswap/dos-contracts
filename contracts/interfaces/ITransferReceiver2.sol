@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // Contracts that implement can receive multiple ERC20 transfers in a single transaction,
 // with backwards compatibility for legacy ERC20's not implementing ERC677.
 abstract contract ITransferReceiver2 {
-    address private constant TRANSFERANDCALL2 = address(0x49A56Bbfe565b0878a0B2d4F623C20Ea5F9e1fE5);
+    address private constant TRANSFERANDCALL2 = address(0x9848AB09c804dAfCE9e0b82d508aC6d2E8bACFfE);
 
     error InvalidSender(address sender);
 

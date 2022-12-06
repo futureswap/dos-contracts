@@ -9,7 +9,7 @@ import "../external/interfaces/IWETH9.sol";
 import "../interfaces/ITransferReceiver2.sol";
 import "../lib/FsUtils.sol";
 
-// Bringing ERC677 to all tokens, it's to ERC667 what Permit2 is to ERC2612.
+// Bringing ERC1363 to all tokens, it's to ERC1363 what Permit2 is to ERC2612.
 // This should be proposed as an ERC and should be deployed cross chain on
 // fixed address using AnyswapCreate2Deployer.
 contract TransferAndCall2 is IERC1363Receiver {
@@ -24,12 +24,6 @@ contract TransferAndCall2 is IERC1363Receiver {
         bytes data
     );
 
-    address private immutable weth;
-
-    constructor(address _weth) {
-        weth = FsUtils.nonNull(_weth);
-    }
-
     /// @dev Called by a token to indicate a transfer into the callee
     /// @param receiver The account to sent the tokens
     /// @param transfers Transfers that have been made
@@ -39,7 +33,21 @@ contract TransferAndCall2 is IERC1363Receiver {
         ITransferReceiver2.Transfer[] calldata transfers,
         bytes calldata data
     ) external {
-        return transferFromAndCall2Impl(msg.sender, receiver, transfers, data);
+        return transferFromAndCall2Impl(msg.sender, receiver, address(0), transfers, data);
+    }
+
+    /// @dev Called by a token to indicate a transfer into the callee, converting ETH to WETH
+    /// @param receiver The account to sent the tokens
+    /// @param weth The WETH9 contract address
+    /// @param transfers Transfers that have been made
+    /// @param data The extra data being passed to the receiving contract
+    function transferAndCall2(
+        address receiver,
+        address weth,
+        ITransferReceiver2.Transfer[] calldata transfers,
+        bytes calldata data
+    ) external payable {
+        return transferFromAndCall2Impl(msg.sender, receiver, weth, transfers, data);
     }
 
     /// @dev Called by a token to indicate a transfer into the callee
@@ -53,16 +61,19 @@ contract TransferAndCall2 is IERC1363Receiver {
         ITransferReceiver2.Transfer[] calldata transfers,
         bytes calldata data
     ) external {
-        return transferFromAndCall2Impl(from, receiver, transfers, data);
+        return transferFromAndCall2Impl(from, receiver, address(0), transfers, data);
     }
 
     function transferFromAndCall2Impl(
         address from,
         address receiver,
+        address weth,
         ITransferReceiver2.Transfer[] calldata transfers,
-        bytes calldata data
+        bytes memory data
     ) internal {
-        if (msg.value != 0) IWETH9(payable(weth)).deposit{value: msg.value}();
+        if (msg.value != 0) {
+            IWETH9(payable(weth)).deposit{value: msg.value}();
+        }
         address prev = address(0);
         for (uint256 i = 0; i < transfers.length; i++) {
             address tokenAddress = transfers[i].token;
@@ -76,8 +87,9 @@ contract TransferAndCall2 is IERC1363Receiver {
             IERC20 token = IERC20(tokenAddress);
             if (amount > 0) token.safeTransferFrom(msg.sender, receiver, amount);
         }
-        if (receiver.isContract())
+        if (receiver.isContract()) {
             callOnTransferReceived2(receiver, msg.sender, from, transfers, data);
+        }
     }
 
     // TODO: ERC2612 permit transferAndCall2
