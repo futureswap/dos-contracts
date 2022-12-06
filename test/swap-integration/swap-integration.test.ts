@@ -1,24 +1,24 @@
 import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import type {DOS, PortfolioLogic, TestERC20, WETH9} from "../../typechain-types";
+import type {Signer, Contract} from "ethers";
+
 import {ethers} from "hardhat";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
+import {BigNumber} from "ethers";
+
 import {
-  DOS,
   DOS__factory,
   PortfolioLogic__factory,
   TestERC20__factory,
   WETH9__factory,
-  PortfolioLogic,
-  TestERC20,
-  WETH9,
   UniV3Oracle__factory,
   VersionManager__factory,
 } from "../../typechain-types";
-import {toWei} from "../../lib/Numbers";
-import {getEventsTx} from "../../lib/Events";
-import {BigNumber, Signer, Contract} from "ethers";
-import {makeCall} from "../../lib/Calls";
-import {Chainlink, deployUniswapFactory, deployUniswapPool} from "../../lib/Deploy";
+import {toWei} from "../../lib/numbers";
+import {getEventsTx} from "../../lib/events";
+import {makeCall} from "../../lib/calls";
+import {Chainlink, deployUniswapFactory, deployUniswapPool} from "../../lib/deploy";
 
 const USDC_PRICE = 1;
 const ETH_PRICE = 2000;
@@ -29,8 +29,8 @@ const WETH_DECIMALS = 18;
 const usdcIdx = 0;
 const wethIdx = 1;
 
-describe("DOS swap integration", function () {
-  // We define a fixture to reuse the same setup in every test.
+describe("DOS swap integration", () => {
+  // we define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
   async function deployDOSFixture() {
@@ -40,12 +40,11 @@ describe("DOS swap integration", function () {
     let weth;
 
     do {
-      weth = await new WETH9__factory(owner).deploy();
-      usdc = await new TestERC20__factory(owner).deploy(
-        "USD Coin",
-        "USDC",
-        USDC_DECIMALS, // 6
-      );
+      // eslint-disable-next-line no-await-in-loop
+      [weth, usdc] = await Promise.all([
+        new WETH9__factory(owner).deploy(),
+        new TestERC20__factory(owner).deploy("USD Coin", "USDC", USDC_DECIMALS),
+      ]);
     } while (BigInt(weth.address) >= BigInt(usdc.address));
 
     const usdcChainlink = await Chainlink.deploy(
@@ -76,7 +75,7 @@ describe("DOS swap integration", function () {
       usdcChainlink.oracle.address,
       toWei(0.9),
       toWei(0.9),
-      0, // No interest which would include time sensitive calculations
+      0, // no interest which would include time sensitive calculations
     );
 
     await dos.addERC20Info(
@@ -87,7 +86,7 @@ describe("DOS swap integration", function () {
       ethChainlink.oracle.address,
       toWei(0.9),
       toWei(0.9),
-      0, // No interest which would include time sensitive calculations
+      0, // no interest which would include time sensitive calculations
     );
 
     const {uniswapFactory, uniswapNFTManager, swapRouter} = await deployUniswapFactory(
@@ -95,12 +94,8 @@ describe("DOS swap integration", function () {
       owner,
     );
 
-    const uniswapWethUsdc = await deployUniswapPool(
-      uniswapFactory,
-      weth.address,
-      usdc.address,
-      (ETH_PRICE * 10 ** USDC_DECIMALS) / 10 ** WETH_DECIMALS,
-    );
+    const price = (ETH_PRICE * 10 ** USDC_DECIMALS) / 10 ** WETH_DECIMALS;
+    await deployUniswapPool(uniswapFactory, weth.address, usdc.address, price);
     const uniswapNftOracle = await new UniV3Oracle__factory(owner).deploy(
       uniswapFactory.address,
       uniswapNFTManager.address,
@@ -143,7 +138,7 @@ describe("DOS swap integration", function () {
 
   describe("Dos tests", () => {
     it("User can leverage LP", async () => {
-      const {owner, user, dos, usdc, weth, uniswapNFTManager} = await loadFixture(deployDOSFixture);
+      const {user, dos, usdc, weth, uniswapNFTManager} = await loadFixture(deployDOSFixture);
 
       const portfolio = await createPortfolio(dos, user);
       await usdc.mint(portfolio.address, toWei(1600, USDC_DECIMALS));
@@ -164,7 +159,7 @@ describe("DOS swap integration", function () {
       await expect(leverageLP(portfolio, dos, usdc, weth, uniswapNFTManager, mintParams)).to.not.be
         .reverted;
       const {usdcBalance, wethBalance, nfts} = await getBalances(dos, portfolio);
-      // Expect leveraged LP position with NFT as collateral
+      // expect leveraged LP position with NFT as collateral
       expect(usdcBalance).to.be.lessThan(0);
       expect(wethBalance).to.be.lessThan(0);
       expect(nfts.length).to.equal(1);
@@ -199,10 +194,10 @@ describe("DOS swap integration", function () {
         .to.not.be.reverted;
 
       const {usdcBalance, wethBalance, nfts} = await getBalances(dos, portfolio2);
-      // Expect leveraged long eth position
+      // expect leveraged long eth position
       expect(usdcBalance).to.be.lessThan(0);
       expect(wethBalance).to.be.greaterThan(0);
-      expect(nfts.length).to.equal(0); // Regular leveraged position, no NFTs
+      expect(nfts.length).to.equal(0); // regular leveraged position, no NFTs
     });
 
     it("Liquify liquidatable position", async () => {
@@ -242,7 +237,7 @@ describe("DOS swap integration", function () {
         makeCall(dos, "depositFull", [[usdcIdx]]),
       ]);
 
-      //await portfolio3.liquify(portfolio2.address, swapRouter.address, usdc.address, [wethIdx], [weth.address]);
+      // await portfolio3.liquify(portfolio2.address, swapRouter.address, usdc.address, [wethIdx], [weth.address]);
       await expect(
         portfolio3.liquify(
           portfolio2.address,
@@ -253,7 +248,7 @@ describe("DOS swap integration", function () {
         ),
       ).to.not.be.reverted;
 
-      const {usdcBalance, wethBalance, nfts} = await getBalances(dos, portfolio3);
+      const {usdcBalance, wethBalance} = await getBalances(dos, portfolio3);
       expect(await usdc.balanceOf(portfolio3.address)).to.be.equal(0);
       expect(await weth.balanceOf(portfolio3.address)).to.be.equal(0);
       expect(wethBalance).to.equal(0);
@@ -263,8 +258,11 @@ describe("DOS swap integration", function () {
 });
 
 async function createPortfolio(dos: DOS, signer: Signer) {
-  const events = await getEventsTx(dos.connect(signer).createPortfolio(), dos);
-  return PortfolioLogic__factory.connect(events.PortfolioCreated.portfolio as string, signer);
+  const events = await getEventsTx<{PortfolioCreated: {portfolio: string}}>(
+    dos.connect(signer).createPortfolio(),
+    dos,
+  );
+  return PortfolioLogic__factory.connect(events.PortfolioCreated.portfolio, signer);
 }
 
 const leverageLP = async (
@@ -273,9 +271,9 @@ const leverageLP = async (
   usdc: TestERC20,
   weth: WETH9,
   uniswapNFTManager: Contract,
-  mintParams: any,
+  mintParams: unknown,
 ) => {
-  return portfolio.executeBatch([
+  return await portfolio.executeBatch([
     makeCall(usdc, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
     makeCall(weth, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
     makeCall(uniswapNFTManager, "setApprovalForAll", [dos.address, true]),
@@ -306,7 +304,7 @@ const leveragePos = async (
     sqrtPriceLimitX96: 0,
   };
 
-  return portfolio.executeBatch([
+  return await portfolio.executeBatch([
     makeCall(usdc, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
     makeCall(weth, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
     makeCall(dos, "depositERC20", [usdcIdx, -amount]),
@@ -324,17 +322,17 @@ async function getBalances(dos: DOS, portfolio: PortfolioLogic) {
   return {nfts, usdcBalance: usdcBalance.toBigInt(), wethBalance: wethBalance.toBigInt()};
 }
 
-// This fixes random tests crash with
+// this fixes random tests crash with
 // "contract call run out of gas and made the transaction revert" error
 // and, as a side effect, speeds tests in 2-3 times!
 // https://github.com/NomicFoundation/hardhat/issues/1721
-export const getFixedGasSigners = async function (gasLimit: number) {
+export const getFixedGasSigners = async function (gasLimit: number): Promise<SignerWithAddress[]> {
   const signers: SignerWithAddress[] = await ethers.getSigners();
   for (const signer of signers) {
-    const orig = signer.sendTransaction;
+    const sendTransactionOrig = signer.sendTransaction.bind(signer);
     signer.sendTransaction = transaction => {
       transaction.gasLimit = BigNumber.from(gasLimit.toString());
-      return orig.apply(signer, [transaction]);
+      return sendTransactionOrig.apply(signer, [transaction]);
     };
   }
   return signers;

@@ -1,4 +1,4 @@
-// These methods are modelled after Guavas Preconditions class
+// these methods are modelled after Guavas Preconditions class
 // see https://guava.dev/releases/19.0/api/docs/com/google/common/base/Preconditions.html
 export function checkDefined<T>(val: T | null | undefined, message = "Should be defined"): T {
   if (val === null || val === undefined) {
@@ -7,13 +7,13 @@ export function checkDefined<T>(val: T | null | undefined, message = "Should be 
   return val;
 }
 
-export function checkArgument(expression: boolean, message = "checkArgument") {
+export function checkArgument(expression: boolean, message = "checkArgument"): void {
   if (!expression) {
     throw new Error(message);
   }
 }
 
-export function checkState(expression: boolean, message = "checkState") {
+export function checkState(expression: boolean, message = "checkState"): void {
   if (!expression) {
     throw new Error(message);
   }
