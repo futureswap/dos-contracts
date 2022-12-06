@@ -16,6 +16,8 @@ contract TransferAndCall2 is IERC1363Receiver {
     using Address for address;
     using SafeERC20 for IERC20;
 
+    mapping(address => mapping(address => bool)) public approvalByOwnerByOperator;
+
     error onTransferReceivedFailed(
         address to,
         address operator,
@@ -23,6 +25,13 @@ contract TransferAndCall2 is IERC1363Receiver {
         ITransferReceiver2.Transfer[] transfers,
         bytes data
     );
+
+    error UnauthorizedOperator(address operator, address from);
+
+    /// @dev Set approval for all token transfers from msg.sender to a particular operator
+    function setApprovalForAll(address operator, bool approved) external {
+        approvalByOwnerByOperator[msg.sender][operator] = approved;
+    }
 
     /// @dev Called by a token to indicate a transfer into the callee
     /// @param receiver The account to sent the tokens
@@ -41,7 +50,7 @@ contract TransferAndCall2 is IERC1363Receiver {
     /// @param weth The WETH9 contract address
     /// @param transfers Transfers that have been made
     /// @param data The extra data being passed to the receiving contract
-    function transferAndCall2(
+    function transferAndCall2WithValue(
         address receiver,
         address weth,
         ITransferReceiver2.Transfer[] calldata transfers,
@@ -61,6 +70,9 @@ contract TransferAndCall2 is IERC1363Receiver {
         ITransferReceiver2.Transfer[] calldata transfers,
         bytes calldata data
     ) external {
+        if (!approvalByOwnerByOperator[from][msg.sender]) {
+            revert UnauthorizedOperator(msg.sender, from);
+        }
         return transferFromAndCall2Impl(from, receiver, address(0), transfers, data);
     }
 
@@ -73,6 +85,7 @@ contract TransferAndCall2 is IERC1363Receiver {
     ) internal {
         if (msg.value != 0) {
             IWETH9(payable(weth)).deposit{value: msg.value}();
+            IERC20(weth).safeTransfer(receiver, msg.value);
         }
         address prev = address(0);
         for (uint256 i = 0; i < transfers.length; i++) {
@@ -81,11 +94,11 @@ contract TransferAndCall2 is IERC1363Receiver {
             prev = tokenAddress;
             uint256 amount = transfers[i].amount;
             if (tokenAddress == weth) {
-                IERC20(weth).safeTransfer(receiver, amount);
+                // Already send WETH
                 amount -= msg.value; // reverts if msg.value > amount
             }
             IERC20 token = IERC20(tokenAddress);
-            if (amount > 0) token.safeTransferFrom(msg.sender, receiver, amount);
+            if (amount > 0) token.safeTransferFrom(from, receiver, amount);
         }
         if (receiver.isContract()) {
             callOnTransferReceived2(receiver, msg.sender, from, transfers, data);

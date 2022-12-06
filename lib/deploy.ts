@@ -2,7 +2,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
+import type {MockContract} from "@ethereum-waffle/mock-contract";
 import type {
   GovernanceProxy,
   IERC20ValueOracle,
@@ -12,7 +14,7 @@ import type {
   HashNFT,
   Governance,
 } from "../typechain-types";
-import type {MockContract} from "@ethereum-waffle/mock-contract";
+import type {TransactionRequest} from "@ethersproject/abstract-provider";
 
 import uniV3FactJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json";
 import uniNFTManagerJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json";
@@ -20,14 +22,13 @@ import tokenPosDescJSON from "@uniswap/v3-periphery/artifacts/contracts/Nonfungi
 import nftDescJSON from "@uniswap/v3-periphery/artifacts/contracts/libraries/NFTDescriptor.sol/NFTDescriptor.json";
 import uniswapPoolJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
 import swapRouterJSON from "@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json";
-import {ContractFactory, ethers} from "ethers";
+import {ethers} from "ethers";
 import {setCode} from "@nomicfoundation/hardhat-network-helpers";
 import {waffle} from "hardhat";
 
-import permit2JSON from "../external/Permit2.sol/Permit2.json";
-import anyswapCreate2DeployerJSON from "../artifacts/contracts/external/AnyswapCreate2Deployer.sol/AnyswapCreate2Deployer.json";
-import transferAndCall2JSON from "../external/TransferAndCall2.json";
 import {getEventParams, getEventsTx} from "./events";
+import anyswapCreate2DeployerJSON from "../artifacts/contracts/external/AnyswapCreate2Deployer.sol/AnyswapCreate2Deployer.json";
+import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {
   AggregatorV3Interface__factory,
   ERC20ChainlinkValueOracle__factory,
@@ -36,6 +37,7 @@ import {
   HashNFT__factory,
   IPermit2__factory,
   AnyswapCreate2Deployer__factory,
+  TransferAndCall2__factory,
 } from "../typechain-types";
 import {toWei} from "./numbers";
 import {makeCall, proposeAndExecute} from "./calls";
@@ -171,35 +173,71 @@ export const deployFixedAddress = async (
     "0x54F5A04417E29FF5D7141a6d33cb286F50d5d50e",
     signer,
   );
+  const transferAndCall2 = TransferAndCall2__factory.connect(
+    "0x9848AB09c804dAfCE9e0b82d508aC6d2E8bACFfE",
+    signer,
+  );
   await setCode(permit2.address, permit2JSON.deployedBytecode.object);
   await setCode(anyswapCreate2Deployer.address, anyswapCreate2DeployerJSON.deployedBytecode);
+  const deployedContract = await new TransferAndCall2__factory(signer).deploy();
+  const deployedCode = await deployedContract.provider.getCode(deployedContract.address);
+  await setCode(transferAndCall2.address, deployedCode);
   return {
     permit2,
     anyswapCreate2Deployer,
-    transferAndCall2: await deployTransferAndCall2(anyswapCreate2Deployer),
+    transferAndCall2,
   };
 };
 
-export const deployAtFixedAddress = async <DeployedContract extends ethers.Contract>(
-  factory: ethers.ContractFactory,
+/**
+ * ideally `ContractFactory` should have been used instead of this type.  But, `ContractFactory`
+ * defines `deploy()` method as one returning a `Contract`.  While `typechain` writes actual
+ * contracts inheriting them from `BaseContract`.  This breaks the type inference in `DeployResult`.
+ */
+type ContractFactoryLike = {
+  deploy: (...args: any[]) => Promise<ethers.BaseContract>;
+  getDeployTransaction: (...args: any[]) => TransactionRequest;
+  attach: (address: string) => ethers.BaseContract;
+};
+
+/**
+ * type of the "deploy()" method in factories for logic contracts.
+ */
+type DeployParams<T extends ContractFactoryLike> = T extends {
+  getDeployTransaction: (...args: infer Params) => TransactionRequest;
+}
+  ? Omit<Params, "overrides">
+  : never;
+
+/**
+ * type of the logic contract deployed by a factory.
+ */
+type DeployResult<T extends ContractFactoryLike> = T extends {
+  deploy: (...args: any[]) => Promise<infer Result>;
+}
+  ? Result
+  : never;
+
+export const deployAtFixedAddress = async <Factory extends ContractFactoryLike>(
+  factory: Factory,
   anyswapCreate2Deployer: AnyswapCreate2Deployer,
   salt: ethers.BytesLike,
-  ...params: unknown[]
-): Promise<DeployedContract> => {
+  ...params: DeployParams<Factory>
+): Promise<DeployResult<Factory>> => {
   const deployTx = factory.getDeployTransaction(...params);
   const {Deployed} = await getEventsTx<{Deployed: {addr: string}}>(
     anyswapCreate2Deployer.deploy(checkDefined(deployTx.data), salt),
     anyswapCreate2Deployer,
   );
-  return factory.attach(Deployed.addr) as DeployedContract;
+  return factory.attach(Deployed.addr) as DeployResult<Factory>;
 };
 
 export const deployTransferAndCall2 = async (
   anyswapCreate2Deployer: AnyswapCreate2Deployer,
 ): Promise<TransferAndCall2> => {
   const salt = ethers.utils.solidityKeccak256(["string"], ["TransferAndCall2"]);
-  return await deployAtFixedAddress<TransferAndCall2>(
-    new ContractFactory(transferAndCall2JSON.abi, transferAndCall2JSON.bytecode),
+  return await deployAtFixedAddress(
+    new TransferAndCall2__factory(anyswapCreate2Deployer.signer),
     anyswapCreate2Deployer,
     salt,
   );
