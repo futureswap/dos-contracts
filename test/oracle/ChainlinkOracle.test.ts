@@ -1,8 +1,9 @@
 import {ethers} from "hardhat";
-import {toWei} from "../../lib/Numbers";
 import {expect} from "chai";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
-import {Chainlink} from "../../lib/Deploy";
+
+import {toWei} from "../../lib/numbers";
+import {Chainlink} from "../../lib/deploy";
 
 const usdcPrice = 1;
 const usdcChainlinkDecimals = 8;
@@ -12,7 +13,7 @@ const ethPrice = 2000;
 const ethChainlinkDecimals = 8;
 const ethDecimals = 18;
 
-describe("ChainlinkOracle", function () {
+describe("ChainlinkOracle", () => {
   async function setupOracle() {
     const [owner] = await ethers.getSigners();
 

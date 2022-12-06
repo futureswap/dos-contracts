@@ -33,6 +33,9 @@ jobs:
       - name: "Check types"
         run: "yarn tsc --noEmit"
 
+      - name: "Lint code"
+        run: "yarn lint"
+
 #     For some reason, compiled for coverage contracts producing an error:
 #      Error: Transaction reverted: trying to deploy a contract whose code is too large
 #     So disabling coverage until a fix would be found

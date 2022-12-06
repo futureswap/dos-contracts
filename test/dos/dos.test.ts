@@ -1,8 +1,18 @@
+import type {BigNumber, BigNumberish, ContractTransaction} from "ethers";
+import type {
+  DOS,
+  PortfolioLogic,
+  TestNFT,
+  MockNFTOracle,
+  TestERC20,
+  WETH9,
+} from "../../typechain-types";
+
 import {ethers} from "hardhat";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
+
 import {
-  DOS,
   DOS__factory,
   PortfolioLogic__factory,
   VersionManager__factory,
@@ -10,18 +20,12 @@ import {
   WETH9__factory,
   TestNFT__factory,
   MockNFTOracle__factory,
-  PortfolioLogic,
-  TestNFT,
-  MockNFTOracle,
-  TestERC20,
-  WETH9,
 } from "../../typechain-types";
-import {toWei, toWeiUsdc} from "../../lib/Numbers";
-import {getEventParams, getEventsTx} from "../../lib/Events";
-import {getFixedGasSigners, signPermit2TransferFrom} from "../../lib/Signers";
-import {BigNumber, ContractTransaction, BigNumberish} from "ethers";
-import {makeCall, createPortfolio, cleanResult} from "../../lib/Calls";
-import {Chainlink, deployFixedAddress} from "../../lib/Deploy";
+import {toWei, toWeiUsdc} from "../../lib/numbers";
+import {getEventParams} from "../../lib/events";
+import {getFixedGasSigners, signPermit2TransferFrom} from "../../lib/signers";
+import {makeCall, createPortfolio} from "../../lib/calls";
+import {Chainlink, deployFixedAddress} from "../../lib/deploy";
 
 const USDC_PRICE = 1;
 const ETH_PRICE = 2000;
@@ -34,8 +38,8 @@ const NFT_PRICE = 200;
 const tenThousandUsdc = toWeiUsdc(10_000);
 const oneEth = toWei(1);
 
-describe("DOS", function () {
-  // We define a fixture to reuse the same setup in every test.
+describe("DOS", () => {
+  // we define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
   async function deployDOSFixture() {
@@ -86,7 +90,7 @@ describe("DOS", function () {
       usdcChainlink.oracle.address,
       toWei(0.9),
       toWei(0.9),
-      0, // No interest which would include time sensitive calculations
+      0, // no interest which would include time sensitive calculations
     );
     const usdcIdx = 0; // index of the element created above in DOS.erc20Info array
 
@@ -98,7 +102,7 @@ describe("DOS", function () {
       ethChainlink.oracle.address,
       toWei(0.9),
       toWei(0.9),
-      0, // No interest which would include time sensitive calculations
+      0, // no interest which would include time sensitive calculations
     );
     const wethIdx = 1; // index of the element created above in DOS.erc20Info array
 
@@ -185,7 +189,7 @@ describe("DOS", function () {
       const sender = await createPortfolio(dos, user);
       await depositErc20(dos, sender, usdc, usdcIdx, tenThousandUsdc);
       const receiver = await createPortfolio(dos, user2);
-      // Put weth in system so we can borrow weth
+      // put weth in system so we can borrow weth
       const someOther = await createPortfolio(dos, user);
       await depositErc20(dos, someOther, weth, wethIdx, toWei(2));
 
@@ -215,7 +219,7 @@ describe("DOS", function () {
       // ensure that liquidator would have enough collateral to compensate
       // negative balance of collateral/debt obtained from liquidatable
       await depositErc20(dos, liquidator, usdc, usdcIdx, tenThousandUsdc);
-      // Put WETH in system so we can borrow weth
+      // put WETH in system so we can borrow weth
       const someOther = await createPortfolio(dos, user);
       await depositErc20(dos, someOther, weth, wethIdx, toWei(2));
       await ethChainlink.setPrice(2_000);
@@ -252,7 +256,7 @@ describe("DOS", function () {
       );
       const nonLiquidatable = await createPortfolio(dos, user);
       const liquidator = await createPortfolio(dos, user2);
-      // Put WETH in system so we can borrow weth
+      // put WETH in system so we can borrow weth
       const other = await createPortfolio(dos, user);
       await depositErc20(dos, other, weth, wethIdx, toWei(0.25));
       await depositErc20(dos, nonLiquidatable, usdc, usdcIdx, tenThousandUsdc);
@@ -274,7 +278,7 @@ describe("DOS", function () {
 
       const computeTx = dos.computePosition(nonPortfolioAddress);
 
-      expect(computeTx).to.be.revertedWith("Recipient portfolio doesn't exist");
+      await expect(computeTx).to.be.revertedWith("Recipient portfolio doesn't exist");
     });
 
     it("when portfolio is empty should return 0", async () => {
@@ -296,9 +300,9 @@ describe("DOS", function () {
       const position = await dos.computePosition(portfolio.address);
 
       const [total, collateral, debt] = position;
-      expect(total).to.be.approximately(await toWei(10_000, USDC_DECIMALS), 1000);
+      expect(total).to.be.approximately(toWei(10_000, USDC_DECIMALS), 1000);
       // collateral factor is defined in setupDos, and it's 0.9
-      expect(collateral).to.be.approximately(await toWei(9000, USDC_DECIMALS), 1000);
+      expect(collateral).to.be.approximately(toWei(9000, USDC_DECIMALS), 1000);
       expect(debt).to.equal(0);
     });
 
@@ -313,9 +317,9 @@ describe("DOS", function () {
 
       const position = await dos.computePosition(portfolio.address);
       const [total, collateral, debt] = position;
-      expect(total).to.equal(await toWei(12_000, USDC_DECIMALS));
+      expect(total).to.equal(toWei(12_000, USDC_DECIMALS));
       // collateral factor is defined in setupDos, and it's 0.9. 12 * 0.9 = 10.8
-      expect(collateral).to.be.approximately(await toWei(10_800, USDC_DECIMALS), 1000);
+      expect(collateral).to.be.approximately(toWei(10_800, USDC_DECIMALS), 1000);
       expect(debt).to.equal(0);
     });
 
@@ -623,7 +627,7 @@ describe("DOS", function () {
       const tx = transfer(dos, liquidatable, other, wethIdx, toWei(1));
       await (await tx).wait();
 
-      // With Eth price 2,000 -> 2,500 the collateral (in USDC) would become
+      // with Eth price 2,000 -> 2,500 the collateral (in USDC) would become
       // nft 2,500 * 0.5 + USDC 1,500 * 0.9 = 2,650
       // and the debt would become 2,500 / 0.9 = 2,777
       // So the debt would exceed the collateral and the portfolio becomes liquidatable
@@ -761,8 +765,8 @@ describe("DOS", function () {
         ]);
         await claimNftTx.wait();
 
-        await expect(await nft.ownerOf(tokenId)).to.eql(portfolio.address);
-        await expect(await dos.viewNFTs(portfolio.address)).to.eql([]);
+        expect(await nft.ownerOf(tokenId)).to.eql(portfolio.address);
+        expect(await dos.viewNFTs(portfolio.address)).to.eql([]);
       },
     );
   });
@@ -796,7 +800,7 @@ describe("DOS", function () {
       const ownerPortfolio = await createPortfolio(dos, user);
       const tokenId = await depositNft(dos, ownerPortfolio, nft, nftOracle, NFT_PRICE);
 
-      // @ts-ignore - bypass `transfer` type that forbids this invariant in TS
+      // @ts-expect-error - bypass `transfer` type that forbids this invariant in TS
       const tx = transfer(dos, ownerPortfolio, user2, nft, tokenId);
 
       await expect(tx).to.be.revertedWith("Recipient portfolio doesn't exist");
@@ -811,22 +815,22 @@ describe("DOS", function () {
       const tx = await transfer(dos, sender, receiver, nft, tokenId);
       await tx.wait();
 
-      await expect(await dos.viewNFTs(sender.address)).to.eql([]);
+      expect(await dos.viewNFTs(sender.address)).to.eql([]);
       const receiverNfts = await dos.viewNFTs(receiver.address);
-      await expect(receiverNfts).to.eql([[nft.address, tokenId]]);
+      expect(receiverNfts).to.eql([[nft.address, tokenId]]);
     });
   });
   describe("#integrationAPI", () => {
     it("should set ERC20 token allowance when approve is called", async () => {
-      const {user, user2, dos, usdc, usdcIdx} = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdcIdx} = await loadFixture(deployDOSFixture);
       const owner = await createPortfolio(dos, user);
       const spender = await createPortfolio(dos, user2);
       const amount = ethers.utils.parseEther("100");
 
-      let tx = await approveErc20(dos, owner, spender, usdcIdx, amount);
+      const tx = await approveErc20(dos, owner, spender, usdcIdx, amount);
       await tx.wait();
 
-      await expect(await dos.allowance(usdcIdx, owner.address, spender.address)).to.eql(amount);
+      expect(await dos.allowance(usdcIdx, owner.address, spender.address)).to.eql(amount);
     });
 
     it("should deduct ERC20 token allowance after transferFromERC20", async () => {
@@ -841,7 +845,7 @@ describe("DOS", function () {
       const approveTx = await approveErc20(dos, owner, spender, wethIdx, amount);
       await approveTx.wait();
 
-      await expect(await dos.allowance(wethIdx, owner.address, spender.address)).to.eql(amount);
+      expect(await dos.allowance(wethIdx, owner.address, spender.address)).to.eql(amount);
 
       const transferFromTx = await transferFromErc20(
         dos,
@@ -853,7 +857,7 @@ describe("DOS", function () {
       );
       await transferFromTx.wait();
 
-      await expect(await dos.allowance(wethIdx, owner.address, spender.address)).to.eql(
+      expect(await dos.allowance(wethIdx, owner.address, spender.address)).to.eql(
         ethers.utils.parseEther("0"),
       );
     });
@@ -870,7 +874,7 @@ describe("DOS", function () {
       const approveTx = await approveErc20(dos, owner, spender, wethIdx, amount);
       await approveTx.wait();
 
-      await expect(await dos.allowance(wethIdx, owner.address, spender.address)).to.eql(amount);
+      expect(await dos.allowance(wethIdx, owner.address, spender.address)).to.eql(amount);
 
       const ownerBalanceBefore = (await getBalances(dos, owner)).weth;
       const recipientBalanceBefore = (await getBalances(dos, recipient)).weth;
@@ -888,8 +892,8 @@ describe("DOS", function () {
       const ownerBalanceAfter = (await getBalances(dos, owner)).weth;
       const recipientBalanceAfter = (await getBalances(dos, recipient)).weth;
 
-      await expect(ownerBalanceAfter).to.eql(ownerBalanceBefore.sub(amount));
-      await expect(recipientBalanceAfter).to.eql(recipientBalanceBefore.add(amount));
+      expect(ownerBalanceAfter).to.eql(ownerBalanceBefore.sub(amount));
+      expect(recipientBalanceAfter).to.eql(recipientBalanceBefore.add(amount));
     });
 
     it("should revert transferFromERC20 if recipient is not a portfolio", async () => {
@@ -918,10 +922,10 @@ describe("DOS", function () {
 
       const tokenId = await depositNft(dos, owner, nft, nftOracle, 2000);
 
-      let tx = await approveERC721(dos, owner, spender, nft.address, tokenId);
+      const tx = await approveERC721(dos, owner, spender, nft.address, tokenId);
       await tx.wait();
 
-      await expect(await dos.getApproved(nft.address, tokenId)).to.eql(spender.address);
+      expect(await dos.getApproved(nft.address, tokenId)).to.eql(spender.address);
     });
 
     it("should remove approval after ERC721 token transfer", async () => {
@@ -935,7 +939,7 @@ describe("DOS", function () {
       const tx = await approveERC721(dos, owner, spender, nft.address, tokenId);
       await tx.wait();
 
-      await expect(await dos.getApproved(nft.address, tokenId)).to.eql(spender.address);
+      expect(await dos.getApproved(nft.address, tokenId)).to.eql(spender.address);
 
       const transferTx = await transferFromERC721(
         dos,
@@ -947,9 +951,7 @@ describe("DOS", function () {
       );
       await transferTx.wait();
 
-      await expect(await dos.getApproved(nft.address, tokenId)).to.eql(
-        ethers.constants.AddressZero,
-      );
+      expect(await dos.getApproved(nft.address, tokenId)).to.eql(ethers.constants.AddressZero);
     });
 
     it("should properly update portfolio balance with transferFromERC721", async () => {
@@ -966,7 +968,7 @@ describe("DOS", function () {
       const ownerBalanceBefore = (await getBalances(dos, owner)).nfts.length;
       const recipientBalanceBefore = (await getBalances(dos, recipient)).nfts.length;
 
-      await expect(await dos.getApproved(nft.address, tokenId)).to.eql(spender.address);
+      expect(await dos.getApproved(nft.address, tokenId)).to.eql(spender.address);
 
       const transferTx = await transferFromERC721(
         dos,
@@ -981,15 +983,14 @@ describe("DOS", function () {
       const ownerBalanceAfter = (await getBalances(dos, owner)).nfts.length;
       const recipientBalanceAfter = (await getBalances(dos, recipient)).nfts.length;
 
-      await expect(ownerBalanceAfter).to.eql(ownerBalanceBefore - 1);
-      await expect(recipientBalanceAfter).to.eql(recipientBalanceBefore + 1);
+      expect(ownerBalanceAfter).to.eql(ownerBalanceBefore - 1);
+      expect(recipientBalanceAfter).to.eql(recipientBalanceBefore + 1);
     });
 
     it("should revert transferFromERC721 if recipient is not a portfolio", async () => {
       const {user, user2, user3, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const owner = await createPortfolio(dos, user);
       const spender = await createPortfolio(dos, user2);
-      const recipient = user3.address;
 
       const tokenId = await depositNft(dos, owner, nft, nftOracle, 2000);
 
@@ -1123,11 +1124,11 @@ async function transfer(
   if (typeof value[0] == "number") {
     // transfer erc20
     const [erc20Idx, amount] = value;
-    return from.executeBatch([makeCall(dos, "transfer", [erc20Idx, to.address, amount])]);
+    return await from.executeBatch([makeCall(dos, "transfer", [erc20Idx, to.address, amount])]);
   } else {
     // transfer NFT
     const [nft, tokenId] = value;
-    return from.executeBatch([makeCall(dos, "sendNFT", [nft.address, tokenId, to.address])]);
+    return await from.executeBatch([makeCall(dos, "sendNFT", [nft.address, tokenId, to.address])]);
   }
 }
 
@@ -1138,7 +1139,9 @@ async function approveErc20(
   erc20Idx: number,
   amount: BigNumberish,
 ): Promise<ContractTransaction> {
-  return owner.executeBatch([makeCall(dos, "approveERC20", [erc20Idx, spender.address, amount])]);
+  return await owner.executeBatch([
+    makeCall(dos, "approveERC20", [erc20Idx, spender.address, amount]),
+  ]);
 }
 
 async function approveERC721(
@@ -1148,7 +1151,9 @@ async function approveERC721(
   nft: string,
   tokenId: BigNumber,
 ): Promise<ContractTransaction> {
-  return owner.executeBatch([makeCall(dos, "approveERC721", [nft, spender.address, tokenId])]);
+  return await owner.executeBatch([
+    makeCall(dos, "approveERC721", [nft, spender.address, tokenId]),
+  ]);
 }
 
 async function transferFromErc20(
@@ -1159,7 +1164,7 @@ async function transferFromErc20(
   erc20Idx: number,
   amount: BigNumberish,
 ): Promise<ContractTransaction> {
-  return spender.executeBatch([
+  return await spender.executeBatch([
     makeCall(dos, "transferFromERC20", [erc20Idx, owner.address, to.address, amount]),
   ]);
 }
@@ -1172,7 +1177,7 @@ async function transferFromERC721(
   nft: string,
   tokenId: BigNumber,
 ): Promise<ContractTransaction> {
-  return spender.executeBatch([
+  return await spender.executeBatch([
     makeCall(dos, "transferFromERC721", [nft, owner.address, to.address, tokenId]),
   ]);
 }

@@ -1,18 +1,19 @@
 import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {ethers} from "hardhat";
-import {IPermit2} from "../typechain-types";
+import type {IPermit2} from "../typechain-types";
 
-// This fixes random tests crash with
+import {ethers} from "hardhat";
+
+// this fixes random tests crash with
 // "contract call run out of gas and made the transaction revert" error
 // and, as a side effect, speeds tests in 2-3 times!
 // https://github.com/NomicFoundation/hardhat/issues/1721
-export const getFixedGasSigners = async function (gasLimit: number) {
+export const getFixedGasSigners = async function (gasLimit: number): Promise<SignerWithAddress[]> {
   const signers: SignerWithAddress[] = await ethers.getSigners();
   for (const signer of signers) {
-    const orig = signer.sendTransaction;
+    const sendTransactionOrig = signer.sendTransaction.bind(signer);
     signer.sendTransaction = transaction => {
       transaction.gasLimit = ethers.BigNumber.from(gasLimit.toString());
-      return orig.apply(signer, [transaction]);
+      return sendTransactionOrig(transaction);
     };
   }
   return signers;
@@ -25,15 +26,16 @@ export const signPermit2TransferFrom = async (
   spender: string,
   nonce: number,
   owner: SignerWithAddress,
-) => {
-  // Corresponds with the EIP712 constructor call
+): Promise<string> => {
+  // corresponds with the EIP712 constructor call
   const domain = {
     name: "Permit2",
     chainId: (await permit2.provider.getNetwork()).chainId,
     verifyingContract: permit2.address,
   };
 
-  // The named list of all type definitions
+  // the named list of all type definitions
+  /* eslint-disable @typescript-eslint/naming-convention */
   const types = {
     TokenPermissions: [
       {name: "token", type: "address"},
@@ -46,10 +48,11 @@ export const signPermit2TransferFrom = async (
       {name: "deadline", type: "uint256"},
     ],
   };
+  /* eslint-enable */
 
   const value = {
     permitted: {
-      token: token,
+      token,
       amount,
     },
     spender,
@@ -57,5 +60,5 @@ export const signPermit2TransferFrom = async (
     deadline: ethers.constants.MaxUint256,
   };
 
-  return owner._signTypedData(domain, types, value);
+  return await owner._signTypedData(domain, types, value);
 };
