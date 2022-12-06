@@ -20,7 +20,7 @@ import {toWei, toWeiUsdc} from "../../lib/Numbers";
 import {getEventParams, getEventsTx} from "../../lib/Events";
 import {getFixedGasSigners, signPermit2TransferFrom} from "../../lib/Signers";
 import {BigNumber, ContractTransaction, BigNumberish} from "ethers";
-import {makeCall, createPortfolio} from "../../lib/Calls";
+import {makeCall, createPortfolio, cleanResult} from "../../lib/Calls";
 import {Chainlink, deployFixedAddress} from "../../lib/Deploy";
 
 const USDC_PRICE = 1;
@@ -574,7 +574,6 @@ describe("DOS", function () {
 
       // drop the price of the NFT from 2000 Eth to 1600 Eth. Now portfolio should become liquidatable
       await (await nftOracle.setPrice(tokenId, toWeiUsdc(1600))).wait();
-      console.log("liq");
       const liquidateTx = await liquidator.executeBatch([
         makeCall(dos, "liquidate", [liquidatable.address]),
       ]);
@@ -663,7 +662,10 @@ describe("DOS", function () {
         const tokenId = await depositUserNft(dos, portfolio, nft, nftOracle, NFT_PRICE);
 
         expect(await nft.ownerOf(tokenId)).to.eql(dos.address);
-        const userNfts = await dos.viewNFTs(portfolio.address);
+        const userNfts = (await dos.viewNFTs(portfolio.address)).map(([erc721, tokenId]) => [
+          erc721,
+          tokenId,
+        ]);
         expect(userNfts).to.eql([[nft.address, tokenId]]);
       },
     );
