@@ -65,7 +65,7 @@ library TickMath {
 
 // Incompatible with our version of OZ
 // import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
-
+// solhint-disable-next-line ordering
 interface INPM {
     function positions(
         uint256 tokenId

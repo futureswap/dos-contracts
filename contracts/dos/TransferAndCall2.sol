@@ -90,7 +90,7 @@ contract TransferAndCall2 is IERC1363Receiver {
         address prev = address(0);
         for (uint256 i = 0; i < transfers.length; i++) {
             address tokenAddress = transfers[i].token;
-            require(prev < tokenAddress);
+            require(prev < tokenAddress, "transfer tokens addresses are not in order");
             prev = tokenAddress;
             uint256 amount = transfers[i].amount;
             if (tokenAddress == weth) {

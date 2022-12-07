@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 // BEGIN STRIP
-// Used in `FsUtils.Log` which is a debugging tool.
+// Used in `FsUtils.log` which is a debugging tool.
 import "hardhat/console.sol";
 
 // END STRIP
@@ -14,7 +14,7 @@ library FsUtils {
     // Slither sees this function is not used, but it is convenient to have it around for debugging
     // purposes.
     // slither-disable-next-line dead-code
-    function Log(string memory s) internal view {
+    function log(string memory s) internal view {
         console.log(s);
     }
 
@@ -23,12 +23,12 @@ library FsUtils {
     // Slither sees this function is not used, but it is convenient to have it around for debugging
     // purposes.
     // slither-disable-next-line dead-code
-    function Log(string memory s, int256 x) internal view {
+    function log(string memory s, int256 x) internal view {
         console.log(s);
         console.logInt(x);
     }
 
-    function Log(string memory s, address x) internal view {
+    function log(string memory s, address x) internal view {
         console.log(s, x);
     }
 
@@ -47,7 +47,7 @@ library FsUtils {
         return _address;
     }
 
-    // Assert a condition. Assert should be used to assert an invariant that should be true
+    // assert a condition. Assert should be used to assert an invariant that should be true
     // logically.
     // This is useful for readability and debugability. A failing assert is always a bug.
     //
@@ -66,6 +66,7 @@ library FsUtils {
     //
     // If a private function has a pre-condition that it should only be called with non-negative
     // values it's a bug in the contract if it's called with a negative value.
+    // solhint-disable-next-line func-name-mixedcase
     function Assert(bool cond) internal pure {
         // BEGIN STRIP
         assert(cond);

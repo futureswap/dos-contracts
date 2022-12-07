@@ -180,6 +180,19 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712
         dos.depositFull(numeraireArray);
     }
 
+    function owner() external view returns (address) {
+        return IDOS(dos).getPortfolioOwner(address(this));
+    }
+
+    function onERC721Received(
+        address /* operator */,
+        address /* from */,
+        uint256 /* tokenId */,
+        bytes memory /* data */
+    ) public virtual override returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
+
     /// @inheritdoc IERC1271
     function isValidSignature(
         bytes32 hash,
@@ -192,19 +205,6 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712
         )
             ? this.isValidSignature.selector
             : bytes4(0);
-    }
-
-    function owner() external view returns (address) {
-        return IDOS(dos).getPortfolioOwner(address(this));
-    }
-
-    function onERC721Received(
-        address /* operator */,
-        address /* from */,
-        uint256 /* tokenId */,
-        bytes memory /* data */
-    ) public virtual override returns (bytes4) {
-        return this.onERC721Received.selector;
     }
 
     error InvalidSignature();
@@ -263,7 +263,7 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712
         if (data.length == 0) {
             /* just deposit in the proxy */
         } else if (data[0] == 0x01) {
-            require(data.length == 1);
+            require(data.length == 1, "Invalid data - allowed are [], [1] and [2]");
             // deposit in the dos portfolio
             for (uint256 i = 0; i < transfers.length; i++) {
                 ITransferReceiver2.Transfer memory transfer = transfers[i];
