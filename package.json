@@ -1,5 +1,7 @@
 {
   "name": "dos",
+  "private": true,
+  "license": "BUSL-1.1",
   "scripts": {
     "node": "yarn hardhat node",
     "lint": "yarn eslint .",
