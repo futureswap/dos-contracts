@@ -377,7 +377,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         uint256 amount
     ) external onlyPortfolio portfolioExists(to) {
         if (amount == 0) return;
-        (, uint16 erc20Idx) = getERC20Info(erc20);
         transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
     }
 
@@ -697,13 +696,14 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
     }
 
-    function getMaximumWithdrawableOfERC20(uint256 erc20Idx) public view returns (int256) {
+    function getMaximumWithdrawableOfERC20(IERC20 erc20) public view returns (int256) {
+        (ERC20Info storage erc20Info, ) = getERC20Info(erc20);
         int256 leverage = config.fractionalReserveLeverage;
-        int256 tokens = erc20Infos[erc20Idx].collateral.tokens;
+        int256 tokens = erc20Info.collateral.tokens;
 
         int256 minReserveAmount = tokens / (leverage + 1);
-        int256 totalDebt = erc20Infos[erc20Idx].debt.tokens;
-        int256 borrowable = erc20Infos[erc20Idx].collateral.tokens - minReserveAmount;
+        int256 totalDebt = erc20Info.debt.tokens;
+        int256 borrowable = erc20Info.collateral.tokens - minReserveAmount;
 
         int256 remainingERC20ToBorrow = borrowable + totalDebt;
 

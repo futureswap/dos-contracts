@@ -113,7 +113,7 @@ describe("Fractionalization", () => {
       await portfolio2.executeBatch([makeCall(dos, "depositERC20", [weth.address, toWei(2)])]);
 
       // check what the max to borrow of USDC is (90 USDC)
-      const maxBorrowable = await dos.getMaximumWithdrawableOfERC20(0);
+      const maxBorrowable = await dos.getMaximumWithdrawableOfERC20(usdc.address);
 
       // borrow 90 USDC
       await portfolio2.executeBatch([
@@ -121,7 +121,7 @@ describe("Fractionalization", () => {
       ]);
 
       // check to see if there is anything left
-      const maxBorrowablePost = await dos.getMaximumWithdrawableOfERC20(0);
+      const maxBorrowablePost = await dos.getMaximumWithdrawableOfERC20(usdc.address);
 
       expect(maxBorrowablePost).to.equal("0");
     });
@@ -144,7 +144,7 @@ describe("Fractionalization", () => {
       await weth.mint(portfolio2.address, toWei(2));
       await portfolio2.executeBatch([makeCall(dos, "depositERC20", [weth.address, toWei(2)])]);
 
-      const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfERC20(0);
+      const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfERC20(usdc.address);
 
       // user 2 borrows 90 USDC
       await portfolio2.executeBatch([
@@ -157,7 +157,7 @@ describe("Fractionalization", () => {
         fractionalReserveLeverage: 8,
       });
 
-      const maxBorrowableUSDCPost = await dos.getMaximumWithdrawableOfERC20(0);
+      const maxBorrowableUSDCPost = await dos.getMaximumWithdrawableOfERC20(usdc.address);
 
       expect(maxBorrowableUSDCPost).is.lessThan(0);
     });
@@ -183,7 +183,7 @@ describe("Fractionalization", () => {
       await weth.mint(portfolio2.address, toWei(2));
       await portfolio2.executeBatch([makeCall(dos, "depositERC20", [weth.address, toWei(2)])]);
 
-      const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfERC20(0);
+      const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfERC20(usdc.address);
 
       // borrow 90 USDC // Max borrow for FRL
       await portfolio2.executeBatch([
@@ -196,14 +196,14 @@ describe("Fractionalization", () => {
         fractionalReserveLeverage: 10,
       });
 
-      const maxBorrowableUSDCPostVote = await dos.getMaximumWithdrawableOfERC20(0);
+      const maxBorrowableUSDCPostVote = await dos.getMaximumWithdrawableOfERC20(usdc.address);
 
       // borrow 0.909091 USDC
       await portfolio2.executeBatch([
         makeCall(dos, "depositERC20", [usdc.address, -maxBorrowableUSDCPostVote]), // to borrow use negative
       ]);
 
-      expect(await dos.getMaximumWithdrawableOfERC20(0)).to.equal("0");
+      expect(await dos.getMaximumWithdrawableOfERC20(usdc.address)).to.equal("0");
     });
   });
 });
