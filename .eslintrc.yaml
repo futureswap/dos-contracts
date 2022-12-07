@@ -12,7 +12,7 @@ env:
 ignorePatterns:
 - typechain-types
 extends:
-- "eslint:recommended"
+- eslint:recommended
 - "plugin:@typescript-eslint/recommended"
 - "plugin:@typescript-eslint/recommended-requiring-type-checking"
 - "plugin:@typescript-eslint/strict"
@@ -30,8 +30,6 @@ rules:
   no-cond-assign: off
   no-constant-binary-expression: error
   no-constructor-return: error
-  # disable, because it's not working with @typescript-eslint/explicit-module-boundary-types
-  no-duplicate-imports: off
   no-new-native-nonconstructor: off # handled by TypeScript
   no-new-symbol: off # handled by TypeScript
   no-obj-calls: off # handled by TypeScript
@@ -40,7 +38,6 @@ rules:
   no-unreachable-loop: error
   no-unsafe-negation: off # handled by TypeScript
   require-atomic-updates: error
-  camelcase: off # handled by @typescript-eslint/naming-convention
   capitalized-comments: [error, never, {
     ignoreInlineComments: true,
     ignoreConsecutiveComments: true
