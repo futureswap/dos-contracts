@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
 import "../dosERC20/DOSERC20.sol";

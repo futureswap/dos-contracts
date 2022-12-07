@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
 // Inspired by the following contract: https://github.com/OpenBazaar/smart-contracts/blob/22d3f190163102f9ceee95ac705001c82ca55624/contracts/registry/ContractManager.sol
