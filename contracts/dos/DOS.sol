@@ -185,7 +185,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
 
     // We will initialize the system so that 0 is the base currency
     // in which the system calculates value.
-    uint16 constant kNumeraireIdx = 0;
+    uint16 constant K_NUMERAIRE_IDX = 0;
 
     IVersionManager public versionManager;
 
@@ -205,6 +205,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
 
     ERC20Info[] public erc20Infos;
     ERC721Info[] public erc721Infos;
+    // solhint-disable-next-line ordering
     struct ContractData {
         uint16 idx;
         uint240 kind; // 0 invalid, 1 ERC20, 2 ERC721
@@ -510,7 +511,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
             // totalValue * liqFraction - change, liquidator is sending back to liquidatable
             int256 leftover = (totalValue * config.liqFraction) / 1 ether;
             transferERC20(
-                IERC20(erc20Infos[kNumeraireIdx].erc20Contract),
+                IERC20(erc20Infos[K_NUMERAIRE_IDX].erc20Contract),
                 msg.sender,
                 portfolio,
                 leftover
@@ -628,7 +629,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     }
 
     function onERC721Received(
-        address operator,
+        address operator, // solhint-disable-line no-unused-vars
         address from,
         uint256 tokenId,
         bytes calldata data

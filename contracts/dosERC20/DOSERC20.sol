@@ -60,6 +60,13 @@ contract DOSERC20 is IDOSERC20, ERC20Permit, IERC1363, ImmutableOwnable {
         return transferFromAndCall(from, to, value, "");
     }
 
+    function approveAndCall(
+        address spender,
+        uint256 value
+    ) external override returns (bool success) {
+        return approveAndCall(spender, value, "");
+    }
+
     function transferFromAndCall(
         address from,
         address to,
@@ -78,13 +85,6 @@ contract DOSERC20 is IDOSERC20, ERC20Permit, IERC1363, ImmutableOwnable {
 
     function approveAndCall(
         address spender,
-        uint256 value
-    ) external override returns (bool success) {
-        return approveAndCall(spender, value, "");
-    }
-
-    function approveAndCall(
-        address spender,
         uint256 value,
         bytes memory data
     ) public override returns (bool success) {
@@ -98,11 +98,11 @@ contract DOSERC20 is IDOSERC20, ERC20Permit, IERC1363, ImmutableOwnable {
         return true;
     }
 
-    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
-        return interfaceId == type(IERC1363).interfaceId ? true : false;
-    }
-
     function decimals() public view override returns (uint8) {
         return erc20Decimals;
+    }
+
+    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
+        return interfaceId == type(IERC1363).interfaceId ? true : false;
     }
 }

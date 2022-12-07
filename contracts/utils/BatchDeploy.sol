@@ -5,15 +5,15 @@ import "../external/interfaces/IAnyswapCreate2Deployer.sol";
 import "../lib/FsUtils.sol";
 
 contract BatchDeploy {
+    struct InitCode {
+        bytes initCode;
+        bytes32 salt;
+    }
+
     IAnyswapCreate2Deployer immutable anyswapCreate2Deployer;
 
     constructor(address _anyswapCreate2Deployer) {
         anyswapCreate2Deployer = IAnyswapCreate2Deployer(FsUtils.nonNull(_anyswapCreate2Deployer));
-    }
-
-    struct InitCode {
-        bytes initCode;
-        bytes32 salt;
     }
 
     function deploy(InitCode[] calldata initCodes) external {
