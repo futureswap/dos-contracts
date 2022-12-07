@@ -26,9 +26,6 @@ const ETH_PRICE = 2000;
 const USDC_DECIMALS = 6;
 const WETH_DECIMALS = 18;
 
-const usdcIdx = 0;
-const wethIdx = 1;
-
 describe("DOS swap integration", () => {
   // we define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
@@ -36,9 +33,8 @@ describe("DOS swap integration", () => {
   async function deployDOSFixture() {
     const [owner, user, user2, user3] = await getFixedGasSigners(10_000_000);
 
-    let usdc;
-    let weth;
-
+    let usdc: TestERC20;
+    let weth: WETH9;
     do {
       // eslint-disable-next-line no-await-in-loop
       [weth, usdc] = await Promise.all([
@@ -115,11 +111,20 @@ describe("DOS swap integration", () => {
     await ownerPortfolio.executeBatch(
       [
         makeCall(weth, "deposit", [], toWei(1000) /* value */),
-        makeCall(dos, "depositERC20", [usdcIdx, usdcAmount]),
-        makeCall(dos, "depositERC20", [wethIdx, wethAmount]),
+        makeCall(dos, "depositERC20", [usdc.address, usdcAmount]),
+        makeCall(dos, "depositERC20", [weth.address, wethAmount]),
       ],
       {value: wethAmount},
     );
+
+    const getBalances = async (portfolio: PortfolioLogic) => {
+      const [nfts, usdcBalance, wethBalance] = await Promise.all([
+        dos.viewNFTs(portfolio.address),
+        dos.viewBalance(portfolio.address, usdc.address),
+        dos.viewBalance(portfolio.address, weth.address),
+      ]);
+      return {nfts, usdcBalance: usdcBalance.toBigInt(), wethBalance: wethBalance.toBigInt()};
+    };
 
     return {
       owner,
@@ -133,12 +138,15 @@ describe("DOS swap integration", () => {
       dos,
       uniswapNFTManager,
       swapRouter,
+      getBalances,
     };
   }
 
   describe("Dos tests", () => {
     it("User can leverage LP", async () => {
-      const {user, dos, usdc, weth, uniswapNFTManager} = await loadFixture(deployDOSFixture);
+      const {user, dos, usdc, weth, uniswapNFTManager, getBalances} = await loadFixture(
+        deployDOSFixture,
+      );
 
       const portfolio = await createPortfolio(dos, user);
       await usdc.mint(portfolio.address, toWei(1600, USDC_DECIMALS));
@@ -158,7 +166,7 @@ describe("DOS swap integration", () => {
       };
       await expect(leverageLP(portfolio, dos, usdc, weth, uniswapNFTManager, mintParams)).to.not.be
         .reverted;
-      const {usdcBalance, wethBalance, nfts} = await getBalances(dos, portfolio);
+      const {usdcBalance, wethBalance, nfts} = await getBalances(portfolio);
       // expect leveraged LP position with NFT as collateral
       expect(usdcBalance).to.be.lessThan(0);
       expect(wethBalance).to.be.lessThan(0);
@@ -166,9 +174,8 @@ describe("DOS swap integration", () => {
     });
 
     it("User can create leveraged position", async () => {
-      const {user, user2, dos, usdc, weth, uniswapNFTManager, swapRouter} = await loadFixture(
-        deployDOSFixture,
-      );
+      const {user, user2, dos, usdc, weth, uniswapNFTManager, swapRouter, getBalances} =
+        await loadFixture(deployDOSFixture);
 
       const portfolio = await createPortfolio(dos, user);
       await usdc.mint(portfolio.address, toWei(16000, USDC_DECIMALS));
@@ -193,7 +200,7 @@ describe("DOS swap integration", () => {
       await expect(leveragePos(portfolio2, dos, usdc, weth, swapRouter, toWei(2000, USDC_DECIMALS)))
         .to.not.be.reverted;
 
-      const {usdcBalance, wethBalance, nfts} = await getBalances(dos, portfolio2);
+      const {usdcBalance, wethBalance, nfts} = await getBalances(portfolio2);
       // expect leveraged long eth position
       expect(usdcBalance).to.be.lessThan(0);
       expect(wethBalance).to.be.greaterThan(0);
@@ -201,8 +208,18 @@ describe("DOS swap integration", () => {
     });
 
     it("Liquify liquidatable position", async () => {
-      const {user, user2, user3, dos, usdc, weth, uniswapNFTManager, swapRouter, ethChainlink} =
-        await loadFixture(deployDOSFixture);
+      const {
+        user,
+        user2,
+        user3,
+        dos,
+        usdc,
+        weth,
+        uniswapNFTManager,
+        swapRouter,
+        ethChainlink,
+        getBalances,
+      } = await loadFixture(deployDOSFixture);
 
       const portfolio = await createPortfolio(dos, user);
       await usdc.mint(portfolio.address, toWei(16000, USDC_DECIMALS));
@@ -234,21 +251,15 @@ describe("DOS swap integration", () => {
       await portfolio3.executeBatch([
         makeCall(usdc, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
         makeCall(weth, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
-        makeCall(dos, "depositFull", [[usdcIdx]]),
+        makeCall(dos, "depositFull", [[usdc.address]]),
       ]);
 
       // await portfolio3.liquify(portfolio2.address, swapRouter.address, usdc.address, [wethIdx], [weth.address]);
       await expect(
-        portfolio3.liquify(
-          portfolio2.address,
-          swapRouter.address,
-          usdc.address,
-          [wethIdx],
-          [weth.address],
-        ),
+        portfolio3.liquify(portfolio2.address, swapRouter.address, usdc.address, [weth.address]),
       ).to.not.be.reverted;
 
-      const {usdcBalance, wethBalance} = await getBalances(dos, portfolio3);
+      const {usdcBalance, wethBalance} = await getBalances(portfolio3);
       expect(await usdc.balanceOf(portfolio3.address)).to.be.equal(0);
       expect(await weth.balanceOf(portfolio3.address)).to.be.equal(0);
       expect(wethBalance).to.equal(0);
@@ -277,11 +288,11 @@ const leverageLP = async (
     makeCall(usdc, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
     makeCall(weth, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
     makeCall(uniswapNFTManager, "setApprovalForAll", [dos.address, true]),
-    makeCall(dos, "depositERC20", [usdcIdx, -toWei(4000, USDC_DECIMALS)]),
-    makeCall(dos, "depositERC20", [wethIdx, -toWei(10)]),
+    makeCall(dos, "depositERC20", [usdc.address, -toWei(4000, USDC_DECIMALS)]),
+    makeCall(dos, "depositERC20", [weth.address, -toWei(10)]),
     makeCall(uniswapNFTManager, "mint", [mintParams]),
     makeCall(dos, "depositNFT", [uniswapNFTManager.address, 1 /* tokenId */]),
-    makeCall(dos, "depositFull", [[usdcIdx, wethIdx]]),
+    makeCall(dos, "depositFull", [[usdc.address, weth.address]]),
   ]);
 };
 
@@ -307,20 +318,11 @@ const leveragePos = async (
   return await portfolio.executeBatch([
     makeCall(usdc, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
     makeCall(weth, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
-    makeCall(dos, "depositERC20", [usdcIdx, -amount]),
+    makeCall(dos, "depositERC20", [usdc.address, -amount]),
     makeCall(swapRouter, "exactInputSingle", [exactInputSingleParams]),
-    makeCall(dos, "depositFull", [[usdcIdx, wethIdx]]),
+    makeCall(dos, "depositFull", [[usdc.address, weth.address]]),
   ]);
 };
-
-async function getBalances(dos: DOS, portfolio: PortfolioLogic) {
-  const [nfts, usdcBalance, wethBalance] = await Promise.all([
-    dos.viewNFTs(portfolio.address),
-    dos.viewBalance(portfolio.address, usdcIdx),
-    dos.viewBalance(portfolio.address, wethIdx),
-  ]);
-  return {nfts, usdcBalance: usdcBalance.toBigInt(), wethBalance: wethBalance.toBigInt()};
-}
 
 // this fixes random tests crash with
 // "contract call run out of gas and made the transaction revert" error

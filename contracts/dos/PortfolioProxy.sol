@@ -88,8 +88,7 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2 {
         address portfolio,
         address swapRouter,
         address numeraire,
-        ERC20Idx[] calldata erc20Idxs,
-        address[] calldata erc20s
+        IERC20[] calldata erc20s
     ) external {
         if (msg.sender != address(this)) {
             require(msg.sender == IDOS(dos).getPortfolioOwner(address(this)), "only owner");
@@ -102,7 +101,6 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2 {
                     portfolio,
                     swapRouter,
                     numeraire,
-                    erc20Idxs,
                     erc20s
                 ),
                 value: 0
@@ -114,33 +112,33 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2 {
         dos.liquidate(portfolio);
 
         // Withdraw all non-numeraire collateral
-        int256[] memory balances = new int256[](erc20Idxs.length);
+        int256[] memory balances = new int256[](erc20s.length);
         {
             uint256 ncollaterals = 0;
-            for (uint256 i = 0; i < erc20Idxs.length; i++) {
-                int256 balance = IDOS(dos).viewBalance(address(this), erc20Idxs[i]);
+            for (uint256 i = 0; i < erc20s.length; i++) {
+                int256 balance = IDOS(dos).viewBalance(address(this), erc20s[i]);
                 balances[i] = balance;
                 if (balance > 0) {
                     ncollaterals++;
                 }
             }
-            ERC20Idx[] memory collaterals = new ERC20Idx[](ncollaterals);
+            IERC20[] memory collaterals = new IERC20[](ncollaterals);
             uint256 j = 0;
-            for (uint256 i = 0; i < erc20Idxs.length; i++) {
+            for (uint256 i = 0; i < erc20s.length; i++) {
                 if (balances[i] > 0) {
-                    collaterals[j++] = erc20Idxs[i];
+                    collaterals[j++] = erc20s[i];
                 }
             }
             dos.withdrawFull(collaterals);
         }
 
         // Swap all non-numeraire collateral to numeraire
-        for (uint256 i = 0; i < erc20Idxs.length; i++) {
+        for (uint256 i = 0; i < erc20s.length; i++) {
             int256 balance = balances[i];
             if (balance > 0) {
                 ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
                     .ExactInputSingleParams({
-                        tokenIn: erc20s[i],
+                        tokenIn: address(erc20s[i]),
                         tokenOut: numeraire,
                         fee: 500,
                         recipient: address(this),
@@ -154,13 +152,13 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2 {
         }
 
         // Repay all debt by swapping numeraire
-        for (uint256 i = 0; i < erc20Idxs.length; i++) {
+        for (uint256 i = 0; i < erc20s.length; i++) {
             int256 balance = balances[i];
             if (balance < 0) {
                 ISwapRouter.ExactOutputSingleParams memory params = ISwapRouter
                     .ExactOutputSingleParams({
                         tokenIn: numeraire,
-                        tokenOut: erc20s[i],
+                        tokenOut: address(erc20s[i]),
                         fee: 500,
                         recipient: address(this),
                         deadline: uint256(int256(-1)),
@@ -173,7 +171,9 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2 {
         }
 
         // Deposit numeraire
-        dos.depositFull(new ERC20Idx[](1));
+        IERC20[] memory numeraireArray = new IERC20[](1);
+        numeraireArray[0] = IERC20(numeraire);
+        dos.depositFull(numeraireArray);
     }
 
     /// @inheritdoc IERC1271

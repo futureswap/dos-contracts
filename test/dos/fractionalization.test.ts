@@ -102,20 +102,22 @@ describe("Fractionalization", () => {
       const portfolio1 = await createPortfolio(dos, user);
       expect(await portfolio1.owner()).to.equal(user.address);
       await usdc.mint(portfolio1.address, oneHundredUsdc);
-      await portfolio1.executeBatch([makeCall(dos, "depositERC20", [0, oneHundredUsdc])]); // deposits 100 USDC
+      await portfolio1.executeBatch([
+        makeCall(dos, "depositERC20", [usdc.address, oneHundredUsdc]),
+      ]); // deposits 100 USDC
 
       // setup 2nd user
       const portfolio2 = await createPortfolio(dos, user2);
       expect(await portfolio2.owner()).to.equal(user2.address);
       await weth.mint(portfolio2.address, toWei(2));
-      await portfolio2.executeBatch([makeCall(dos, "depositERC20", [1, toWei(2)])]);
+      await portfolio2.executeBatch([makeCall(dos, "depositERC20", [weth.address, toWei(2)])]);
 
       // check what the max to borrow of USDC is (90 USDC)
       const maxBorrowable = await dos.getMaximumWithdrawableOfERC20(0);
 
       // borrow 90 USDC
       await portfolio2.executeBatch([
-        makeCall(dos, "depositERC20", [0, -maxBorrowable]), // to borrow use negative
+        makeCall(dos, "depositERC20", [usdc.address, -maxBorrowable]), // to borrow use negative
       ]);
 
       // check to see if there is anything left
@@ -132,19 +134,21 @@ describe("Fractionalization", () => {
       const portfolio1 = await createPortfolio(dos, user);
       expect(await portfolio1.owner()).to.equal(user.address);
       await usdc.mint(portfolio1.address, oneHundredUsdc);
-      await portfolio1.executeBatch([makeCall(dos, "depositERC20", [0, oneHundredUsdc])]); // deposits 100 USDC
+      await portfolio1.executeBatch([
+        makeCall(dos, "depositERC20", [usdc.address, oneHundredUsdc]),
+      ]); // deposits 100 USDC
 
       // setup 2nd user
       const portfolio2 = await createPortfolio(dos, user2);
       expect(await portfolio2.owner()).to.equal(user2.address);
       await weth.mint(portfolio2.address, toWei(2));
-      await portfolio2.executeBatch([makeCall(dos, "depositERC20", [1, toWei(2)])]);
+      await portfolio2.executeBatch([makeCall(dos, "depositERC20", [weth.address, toWei(2)])]);
 
       const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfERC20(0);
 
       // user 2 borrows 90 USDC
       await portfolio2.executeBatch([
-        makeCall(dos, "depositERC20", [0, -maxBorrowableUSDC]), // to borrow use negative
+        makeCall(dos, "depositERC20", [usdc.address, -maxBorrowableUSDC]), // to borrow use negative
       ]);
 
       // vote for FDR to change
@@ -169,19 +173,21 @@ describe("Fractionalization", () => {
       const portfolio1 = await createPortfolio(dos, user);
       expect(await portfolio1.owner()).to.equal(user.address);
       await usdc.mint(portfolio1.address, oneHundredUsdc);
-      await portfolio1.executeBatch([makeCall(dos, "depositERC20", [0, oneHundredUsdc])]); // deposits 100 USDC
+      await portfolio1.executeBatch([
+        makeCall(dos, "depositERC20", [usdc.address, oneHundredUsdc]),
+      ]); // deposits 100 USDC
 
       // setup 2nd user
       const portfolio2 = await createPortfolio(dos, user2);
       expect(await portfolio2.owner()).to.equal(user2.address);
       await weth.mint(portfolio2.address, toWei(2));
-      await portfolio2.executeBatch([makeCall(dos, "depositERC20", [1, toWei(2)])]);
+      await portfolio2.executeBatch([makeCall(dos, "depositERC20", [weth.address, toWei(2)])]);
 
       const maxBorrowableUSDC = await dos.getMaximumWithdrawableOfERC20(0);
 
       // borrow 90 USDC // Max borrow for FRL
       await portfolio2.executeBatch([
-        makeCall(dos, "depositERC20", [0, -maxBorrowableUSDC]), // to borrow use negative
+        makeCall(dos, "depositERC20", [usdc.address, -maxBorrowableUSDC]), // to borrow use negative
       ]);
 
       // //vote for FDR to change
@@ -194,7 +200,7 @@ describe("Fractionalization", () => {
 
       // borrow 0.909091 USDC
       await portfolio2.executeBatch([
-        makeCall(dos, "depositERC20", [0, -maxBorrowableUSDCPostVote]), // to borrow use negative
+        makeCall(dos, "depositERC20", [usdc.address, -maxBorrowableUSDCPostVote]), // to borrow use negative
       ]);
 
       expect(await dos.getMaximumWithdrawableOfERC20(0)).to.equal("0");
