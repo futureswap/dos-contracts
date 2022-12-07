@@ -1,4 +1,4 @@
-import type {BigNumber, BigNumberish, Contract, ContractTransaction} from "ethers";
+import type {BigNumber, BigNumberish, ContractTransaction} from "ethers";
 import type {
   DOS,
   PortfolioLogic,
