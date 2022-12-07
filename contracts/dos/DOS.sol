@@ -298,7 +298,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         portfolioLogic[portfolio] = versionManager.getVersionAddress(version);
     }
 
-    function depositERC20(IERC20 erc20, int256 amount) external onlyPortfolio {
+    function depositERC20(IERC20 erc20, int256 amount) external override onlyPortfolio {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         if (amount > 0) {
             erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
@@ -309,7 +309,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
     }
 
-    function depositFull(IERC20[] calldata erc20s) external onlyPortfolio {
+    function depositFull(IERC20[] calldata erc20s) external override onlyPortfolio {
         for (uint256 i = 0; i < erc20s.length; i++) {
             (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20s[i]);
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);

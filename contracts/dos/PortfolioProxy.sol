@@ -4,12 +4,13 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/proxy/Proxy.sol";
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import {FsUtils} from "../lib/FsUtils.sol";
+import "../lib/FsUtils.sol";
 import "../interfaces/IDOS.sol";
 import "../interfaces/ITransferReceiver2.sol";
 import "../external/interfaces/IPermit2.sol";
@@ -65,7 +66,7 @@ contract PortfolioProxy is Proxy {
 
 // Calls to the contract not coming from DOS itself are routed to this logic
 // contract. This allows for flexible extra addition to your portfolio.
-contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2 {
+contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
     IDOS public immutable dos;
 
     mapping(uint248 => uint256) public nonces;
@@ -75,7 +76,10 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2 {
         _;
     }
 
-    constructor(address _dos) {
+    // Note EIP712 is implemented with immutable variables and is not using
+    // storage and thus can be used in a proxy contract.
+    // Version number should be in sync with VersionManager version.
+    constructor(address _dos) EIP712("DOS Portfolio", "1") {
         // slither-disable-next-line missing-zero-check
         dos = IDOS(FsUtils.nonNull(_dos));
     }
@@ -205,11 +209,6 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2 {
 
     error InvalidSignature();
 
-    struct RequiredTokenTransfer {
-        address token;
-        uint256 requiredAmount;
-    }
-
     function useNonce(uint256 nonce) internal returns (bool) {
         uint248 msp = uint248(nonce >> 8);
         uint256 bit = 1 << (nonce & 0xff);
@@ -227,8 +226,32 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2 {
         nonces[msp] |= bit;
     }
 
+    function valueNonce(uint256 nonce) external view returns (bool) {
+        uint248 msp = uint248(nonce >> 8);
+        uint256 bit = 1 << (nonce & 0xff);
+        return (nonces[msp] & bit) != 0;
+    }
+
+    struct SignedCall {
+        address operator;
+        address from;
+        ITransferReceiver2.Transfer[] transfers;
+        IDOS.Call[] calls;
+    }
+
+    bytes32 constant ONTRANSFERRECEIVED2CALL_TYPEHASH =
+        keccak256(
+            "OnTransferReceived2Call(SignedCall signedCall,uint256 nonce,uint256 deadline)Call(address to,bytes callData,uint256 value)SignedCall(address operator,address from,Transfer[] transfers,Call[] calls)Transfer(address token,uint256 amount)"
+        );
+    bytes32 constant SIGNEDCALL_TYPEHASH =
+        keccak256(
+            "SignedCall(address operator,address from,Transfer[] transfers,Call[] calls)Call(address to,bytes callData,uint256 value)Transfer(address token,uint256 amount)"
+        );
+    bytes32 constant TRANSFER_TYPEHASH = keccak256("Transfer(address token,uint256 amount)");
+    bytes32 constant CALL_TYPEHASH = keccak256("Call(address to,bytes callData,uint256 value)");
+
     function onTransferReceived2(
-        address operator,
+        address /* operator */,
         address from,
         ITransferReceiver2.Transfer[] calldata transfers,
         bytes calldata data
@@ -237,52 +260,95 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2 {
         // 1) deposit into dos contract
         // 2) execute a signed batch of tx's
         // 3) nothing
-        if (data.length == 0) {} else if (data[0] == 0x01) {
-            // deposit
+        if (data.length == 0) {
+            /* just deposit in the proxy */
+        } else if (data[0] == 0x01) {
+            require(data.length == 1);
+            // deposit in the dos portfolio
             for (uint256 i = 0; i < transfers.length; i++) {
                 ITransferReceiver2.Transfer memory transfer = transfers[i];
 
                 // TODO(gerben)
-                // dos.depositERC20(transfer.token, transfer.amount, from);
+                dos.depositERC20(IERC20(transfer.token), int256(transfer.amount));
             }
         } else if (data[0] == 0x02) {
             // execute signed batch
 
             // Verify signature matches
-            (bytes memory signature, bytes memory callData) = abi.decode(data[1:], (bytes, bytes));
-            bytes32 hash = keccak256(callData);
-            if (!SignatureChecker.isValidSignatureNow(from, hash, signature))
-                revert InvalidSignature();
-
-            // Decode data
             (
-                address requiredFrom,
-                uint96 deadline,
+                SignedCall memory signedCall,
                 uint256 nonce,
-                RequiredTokenTransfer[] memory tfers,
-                IDOS.Call[] memory calls
-            ) = abi.decode(
-                    data[1:],
-                    (address, uint96, uint256, RequiredTokenTransfer[], IDOS.Call[])
+                uint256 deadline,
+                bytes memory signature
+            ) = abi.decode(data[1:], (SignedCall, uint256, uint256, bytes));
+            bytes32[] memory transferDigests = new bytes32[](signedCall.transfers.length);
+            for (uint256 i = 0; i < signedCall.transfers.length; i++) {
+                transferDigests[i] = keccak256(
+                    abi.encode(
+                        TRANSFER_TYPEHASH,
+                        signedCall.transfers[i].token,
+                        signedCall.transfers[i].amount
+                    )
                 );
+            }
+            bytes32[] memory callDigests = new bytes32[](signedCall.calls.length);
+            for (uint256 i = 0; i < signedCall.calls.length; i++) {
+                callDigests[i] = keccak256(
+                    abi.encode(
+                        CALL_TYPEHASH,
+                        signedCall.calls[i].to,
+                        keccak256(signedCall.calls[i].callData),
+                        signedCall.calls[i].value
+                    )
+                );
+            }
+            bytes32 digest = _hashTypedDataV4(
+                keccak256(
+                    abi.encode(
+                        ONTRANSFERRECEIVED2CALL_TYPEHASH,
+                        keccak256(
+                            abi.encode(
+                                SIGNEDCALL_TYPEHASH,
+                                signedCall.operator,
+                                signedCall.from,
+                                keccak256(abi.encodePacked(transferDigests)),
+                                keccak256(abi.encodePacked(callDigests))
+                            )
+                        ),
+                        nonce,
+                        deadline
+                    )
+                )
+            );
+            if (
+                !SignatureChecker.isValidSignatureNow(
+                    IDOS(dos).getPortfolioOwner(address(this)),
+                    digest,
+                    signature
+                )
+            ) revert InvalidSignature();
 
             if (deadline < block.timestamp) revert InvalidSignature();
             if (!useNonce(nonce)) revert InvalidSignature();
 
             // Verify transfers match signed tfer
-            if (from != requiredFrom || transfers.length != tfers.length) {
+            if (from != signedCall.from || transfers.length != signedCall.transfers.length) {
+                console.log(from);
+                console.log(signedCall.from);
+                console.log(transfers.length);
+                console.log(signedCall.transfers.length);
                 revert InvalidSignature();
             }
-            for (uint256 i = 0; i < tfers.length; i++) {
+            for (uint256 i = 0; i < transfers.length; i++) {
                 if (
-                    transfers[i].token != tfers[i].token ||
-                    transfers[i].amount < tfers[i].requiredAmount
+                    transfers[i].token != signedCall.transfers[i].token ||
+                    transfers[i].amount < signedCall.transfers[i].amount
                 ) {
                     revert InvalidSignature();
                 }
             }
 
-            dos.executeBatch(calls);
+            dos.executeBatch(signedCall.calls);
         }
         return ITransferReceiver2.onTransferReceived2.selector;
     }

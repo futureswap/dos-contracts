@@ -45,7 +45,7 @@ describe("DOS", () => {
   async function deployDOSFixture() {
     const [owner, user, user2, user3] = await getFixedGasSigners(10_000_000);
 
-    const {permit2} = await deployFixedAddress(owner);
+    const {permit2, transferAndCall2} = await deployFixedAddress(owner);
 
     const usdc = await new TestERC20__factory(owner).deploy(
       "USD Coin",
@@ -73,9 +73,6 @@ describe("DOS", () => {
     const proxyLogic = await new PortfolioLogic__factory(owner).deploy(dos.address);
     await versionManager.addVersion("1.0.0", 2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
-
-    // const DosDeployData = await ethers.getContractFactory("DOS");
-    // const dos = await DosDeployData.deploy(unlockTime, { value: lockedAmount });
 
     await dos.setConfig({
       liqFraction: toWei(0.8),

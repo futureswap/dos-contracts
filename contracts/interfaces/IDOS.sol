@@ -22,9 +22,11 @@ interface IDOS {
 
     function liquidate(address portfolio) external;
 
-    function depositFull(IERC20[] calldata erc20Idxs) external;
+    function depositERC20(IERC20 erc20, int256 amount) external;
 
-    function withdrawFull(IERC20[] calldata erc20Idxs) external;
+    function depositFull(IERC20[] calldata erc20s) external;
+
+    function withdrawFull(IERC20[] calldata erc20s) external;
 
     function executeBatch(Call[] memory calls) external;
 

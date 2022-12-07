@@ -9,19 +9,13 @@ import {toWei} from "../../lib/numbers";
 import {getFixedGasSigners} from "../../lib/signers";
 import {deployFixedAddress} from "../../lib/deploy";
 import {ITransferReceiver2__factory} from "../../typechain-types/factories/contracts/interfaces/ITransferReceiver2__factory";
+import {sortTransfers} from "../../lib/calls";
 
 const USDC_DECIMALS = 6;
 const WETH_DECIMALS = 18;
 
 const tenThousandUsdc = toWei(10_000, USDC_DECIMALS);
 const oneEth = toWei(1);
-
-const sortTransfers = (transfers: {token: string; amount: BigNumberish}[]) => {
-  return transfers.sort((a, b) => {
-    const diff = BigInt(a.token) - BigInt(b.token);
-    return diff > 0 ? 1 : diff < 0 ? -1 : 0;
-  });
-};
 
 describe("DOS", () => {
   // we define a fixture to reuse the same setup in every test.
