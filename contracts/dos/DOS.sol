@@ -31,10 +31,20 @@ error SelfApproval();
 // ERC1820 interface registry support
 // EIP2612 permit support (uniswap permit2)
 
-// First 16 bits are index in the portfolio NFT array
-// Remaining 240 bits are the NFT ID
-// 16 MSB of tokenId, 224 bits of hash of tokenId, 16 bits of erc721Index
-type NFTId is uint256;
+// NFT's are stored in an array of nfts owned by some portfolio. To prevent looping over arrays we need to
+// know the following information for each NFT in the system (erc721, tokenId, portfolio, array index).
+// Given the expensive nature of storage on the EVM we want to store all information as small as possible.
+// The pair (erc721, tokenId) is describes a particular NFT but would take two storage slots (as a token id)
+// is 256 bits. The erc721 address is 160 bits however we only allow pre-approved erc721 contracts, so in
+// practice 16 bits would be enough to store an index into the allowed erc721 contracts. We can hash (erc721 + tokenId)
+// to get a unique number but that requires storing both tokenId, erc721 and array index. Instead we hash into
+// 224 (256 - 32) bits which is still sufficiently large to avoid collisions. This leaves 32 bits for additional
+// information. The 16 lsb's are used to store the index in the portfolio array. The 16 msb's are used to store
+// the 16 msb's of the tokenId. This allows us to store the tokenId + array index in a single storage slot as a map
+// from NFTId to NFTData. Note that the index in the portfolio array might change and thus cannot be part of
+// NFTId and thus has to be stored as part of NFTData, requiring the splitting of tokenId.
+
+type NFTId is uint256; // 16 bits (tokenId) + 224 bits (hash) + 16 bits (erc721 index)
 
 struct NFTTokenData {
     uint240 tokenId; // 240 LSB of the tokenId of the NFT
@@ -43,7 +53,7 @@ struct NFTTokenData {
 
 struct Portfolio {
     address owner;
-    mapping(ERC20Idx => ERC20Share) erc20Share;
+    mapping(uint16 => ERC20Share) erc20Share;
     NFTId[] nfts;
     uint256[1] bitmask; // This can grow on updates
 }
@@ -54,13 +64,11 @@ struct ERC20Pool {
 }
 
 library PortfolioLib {
-    function clearMask(Portfolio storage p, ERC20Idx erc20Idx) internal {
-        uint16 idx = ERC20Idx.unwrap(erc20Idx);
+    function clearMask(Portfolio storage p, uint16 idx) internal {
         p.bitmask[idx >> 8] &= ~(1 << (idx & 255));
     }
 
-    function setMask(Portfolio storage p, ERC20Idx erc20Idx) internal {
-        uint16 idx = ERC20Idx.unwrap(erc20Idx);
+    function setMask(Portfolio storage p, uint16 idx) internal {
         p.bitmask[idx >> 8] |= (1 << (idx & 255));
     }
 
@@ -117,12 +125,12 @@ library PortfolioLib {
         map[nftId].portfolioIdx = idx;
     }
 
-    function getERC20s(Portfolio storage p) internal view returns (ERC20Idx[] memory erc20s) {
+    function getERC20s(Portfolio storage p) internal view returns (uint16[] memory erc20s) {
         uint256 numberOfERC20 = 0;
         for (uint256 i = 0; i < p.bitmask.length; i++) {
             numberOfERC20 += FsMath.bitCount(p.bitmask[i]);
         }
-        erc20s = new ERC20Idx[](numberOfERC20);
+        erc20s = new uint16[](numberOfERC20);
         uint256 idx = 0;
         for (uint256 i = 0; i < p.bitmask.length; i++) {
             uint256 mask = p.bitmask[i];
@@ -130,7 +138,7 @@ library PortfolioLib {
                 uint256 x = mask >> j;
                 if (x == 0) break;
                 if ((x & 1) != 0) {
-                    erc20s[idx++] = ERC20Idx.wrap(uint16(i * 256 + j));
+                    erc20s[idx++] = uint16(i * 256 + j);
                 }
             }
         }
@@ -175,9 +183,9 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         int256 fractionalReserveLeverage; // Ratio of debt to reserves
     }
 
-    // We will initialize the system so that ERC20Idx 0 is the base currency
+    // We will initialize the system so that 0 is the base currency
     // in which the system calculates value.
-    ERC20Idx constant kNumeraireIdx = ERC20Idx.wrap(0);
+    uint16 constant kNumeraireIdx = 0;
 
     IVersionManager public versionManager;
 
@@ -187,7 +195,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     mapping(address => address) public portfolioLogic;
 
     /// @dev erc20 allowances
-    mapping(address => mapping(ERC20Idx => mapping(address => uint256))) private _allowances;
+    mapping(address => mapping(IERC20 => mapping(address => uint256))) private _allowances;
     /// @dev erc721 approvals
     mapping(address => mapping(uint256 => address)) private _tokenApprovals;
     /// @dev erc721 & erc1155 operator approvals
@@ -206,12 +214,12 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     Config public config;
 
     /// @dev Emitted when `owner` approves `spender` to spend `value` tokens on their behalf.
-    /// @param erc20Idx The ERC20 token to approve
+    /// @param erc20 The ERC20 token to approve
     /// @param owner The address of the token owner
     /// @param spender The address of the spender
     /// @param value The amount of tokens to approve
     event ERC20Approval(
-        ERC20Idx indexed erc20Idx,
+        address indexed erc20,
         address indexed owner,
         address indexed spender,
         uint256 value
@@ -244,7 +252,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     event PortfolioCreated(address portfolio, address owner);
 
     event ERC20Added(
-        ERC20Idx erc20Idx,
+        uint16 erc20Idx,
         address erc20,
         address dosTokem,
         string name,
@@ -290,8 +298,8 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         portfolioLogic[portfolio] = versionManager.getVersionAddress(version);
     }
 
-    function depositERC20(ERC20Idx erc20Idx, int256 amount) external onlyPortfolio {
-        IERC20 erc20 = IERC20(getERC20Info(erc20Idx).erc20Contract);
+    function depositERC20(IERC20 erc20, int256 amount) external onlyPortfolio {
+        (, uint16 erc20Idx) = getERC20Info(erc20);
         if (amount > 0) {
             erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
             updateBalance(erc20Idx, msg.sender, amount);
@@ -301,21 +309,21 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
     }
 
-    function depositFull(ERC20Idx[] calldata erc20Idxs) external onlyPortfolio {
-        for (uint256 i = 0; i < erc20Idxs.length; i++) {
-            ERC20Info storage erc20Info = getERC20Info(erc20Idxs[i]);
+    function depositFull(IERC20[] calldata erc20s) external onlyPortfolio {
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20s[i]);
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
             uint256 amount = erc20.balanceOf(msg.sender);
             erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
-            updateBalance(erc20Idxs[i], msg.sender, FsMath.safeCastToSigned(amount));
+            updateBalance(erc20Idx, msg.sender, FsMath.safeCastToSigned(amount));
         }
     }
 
-    function withdrawFull(ERC20Idx[] calldata erc20Idxs) external onlyPortfolio {
-        for (uint256 i = 0; i < erc20Idxs.length; i++) {
-            ERC20Info storage erc20Info = getERC20Info(erc20Idxs[i]);
+    function withdrawFull(IERC20[] calldata erc20s) external onlyPortfolio {
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20s[i]);
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
-            int256 amount = clearBalance(erc20Idxs[i], msg.sender);
+            int256 amount = clearBalance(erc20Idx, msg.sender);
             require(amount >= 0, "Can't withdraw debt");
             erc20.safeTransfer(msg.sender, uint256(amount));
         }
@@ -335,7 +343,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         ERC721(nftContract).safeTransferFrom(owner, address(this), tokenId, abi.encode(msg.sender));
     }
 
-    function depositDosERC20(ERC20Idx erc20Idx, int256 amount) external onlyPortfolio {
+    /*function depositDosERC20(uint16 erc20Idx, int256 amount) external onlyPortfolio {
         ERC20Info storage erc20Info = getERC20Info(erc20Idx);
         IDOSERC20 erc20 = IDOSERC20(erc20Info.dosContract);
         if (amount > 0) {
@@ -347,12 +355,12 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
     }
 
-    function claim(ERC20Idx erc20Idx, uint256 amount) external onlyPortfolio {
+    function claim(uint16 erc20Idx, uint256 amount) external onlyPortfolio {
         ERC20Info storage erc20Info = getERC20Info(erc20Idx);
         IDOSERC20(erc20Info.dosContract).burn(msg.sender, amount);
         IERC20(erc20Info.erc20Contract).safeTransfer(msg.sender, amount);
         // TODO: require appropriate reserve
-    }
+    }*/
 
     function claimNFT(address erc721, uint256 tokenId) external onlyPortfolio {
         NFTId nftId = getNFTId(erc721, tokenId);
@@ -364,12 +372,13 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     }
 
     function transfer(
-        ERC20Idx erc20Idx,
+        IERC20 erc20,
         address to,
         uint256 amount
     ) external onlyPortfolio portfolioExists(to) {
         if (amount == 0) return;
-        transferERC20(erc20Idx, msg.sender, to, FsMath.safeCastToSigned(amount));
+        (, uint16 erc20Idx) = getERC20Info(erc20);
+        transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
     }
 
     function sendNFT(
@@ -382,15 +391,15 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     }
 
     /// @notice Approve a spender to transfer tokens on your behalf
-    /// @param erc20Idx The index of the ERC20 token in erc20Infos array
+    /// @param erc20 The index of the ERC20 token in erc20Infos array
     /// @param spender The address of the spender
     /// @param amount The amount of tokens to approve
     function approveERC20(
-        ERC20Idx erc20Idx,
+        IERC20 erc20,
         address spender,
         uint256 amount
     ) external onlyPortfolio portfolioExists(spender) returns (bool) {
-        _approveERC20(msg.sender, erc20Idx, spender, amount);
+        _approveERC20(msg.sender, erc20, spender, amount);
         return true;
     }
 
@@ -420,22 +429,23 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
 
     /// @notice Transfer ERC20 tokens from portfolio to another portfolio
     /// @dev Note: Allowance must be set with approveERC20
-    /// @param erc20Idx The index of the ERC20 token in erc20Infos array
+    /// @param erc20 The index of the ERC20 token in erc20Infos array
     /// @param from The address of the portfolio to transfer from
     /// @param to The address of the portfolio to transfer to
     /// @param amount The amount of tokens to transfer
     function transferFromERC20(
-        ERC20Idx erc20Idx,
+        IERC20 erc20,
         address from,
         address to,
         uint256 amount
     ) external onlyPortfolio portfolioExists(from) portfolioExists(to) returns (bool) {
         address spender = msg.sender;
-        _spendAllowance(erc20Idx, from, spender, amount);
-        transferERC20(erc20Idx, from, to, FsMath.safeCastToSigned(amount));
+        _spendAllowance(erc20, from, spender, amount);
+        transferERC20(erc20, from, to, FsMath.safeCastToSigned(amount));
         return true;
     }
 
+    /*
     /// @notice Transfers a token using a signed permit message
     /// @dev Reverts if the requested amount is greater than the permitted signed amount
     /// @param _owner The owner of the tokens to transfer
@@ -456,7 +466,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
             _owner,
             signature
         );
-    }
+    }*/
 
     /// @notice Transfer ERC721 tokens from portfolio to another portfolio
     /// @param collection The address of the ERC721 token
@@ -482,9 +492,9 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     ) external override onlyPortfolio portfolioExists(portfolio) {
         (int256 totalValue, int256 collateral, int256 debt) = computePosition(portfolio);
         require(collateral < debt, "Portfolio is not liquidatable");
-        ERC20Idx[] memory portfolioERC20s = portfolios[portfolio].getERC20s();
+        uint16[] memory portfolioERC20s = portfolios[portfolio].getERC20s();
         for (uint256 i = 0; i < portfolioERC20s.length; i++) {
-            ERC20Idx erc20Idx = portfolioERC20s[i];
+            uint16 erc20Idx = portfolioERC20s[i];
             transferAllERC20(erc20Idx, portfolio, msg.sender);
         }
         while (portfolios[portfolio].nfts.length > 0) {
@@ -500,7 +510,12 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
             // totalValue * (1 - liqFraction) - reward of the liquidator, and
             // totalValue * liqFraction - change, liquidator is sending back to liquidatable
             int256 leftover = (totalValue * config.liqFraction) / 1 ether;
-            transferERC20(kNumeraireIdx, msg.sender, portfolio, leftover);
+            transferERC20(
+                IERC20(erc20Infos[kNumeraireIdx].erc20Contract),
+                msg.sender,
+                portfolio,
+                leftover
+            );
         }
     }
 
@@ -524,8 +539,8 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         int256 colFactor,
         int256 borrowFactor,
         int256 interest
-    ) external onlyOwner returns (ERC20Idx) {
-        ERC20Idx erc20Idx = ERC20Idx.wrap(uint16(erc20Infos.length));
+    ) external onlyOwner returns (uint16) {
+        uint16 erc20Idx = uint16(erc20Infos.length);
         DOSERC20 dosToken = new DOSERC20(name, symbol, decimals);
         erc20Infos.push(
             ERC20Info(
@@ -540,7 +555,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
                 block.timestamp
             )
         );
-        infoIdx[erc20Contract] = ContractData(ERC20Idx.unwrap(erc20Idx), 1);
+        infoIdx[erc20Contract] = ContractData(erc20Idx, 1);
         emit ERC20Added(
             erc20Idx,
             erc20Contract,
@@ -586,11 +601,12 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         emit PortfolioCreated(portfolio, msg.sender);
     }
 
-    function viewBalance(address portfolio, ERC20Idx erc20Idx) external view returns (int256) {
+    function viewBalance(address portfolio, IERC20 erc20) external view returns (int256) {
         // TODO(gerben) interest computation
         Portfolio storage p = portfolios[portfolio];
+        (ERC20Info storage info, uint16 erc20Idx) = getERC20Info(erc20);
         ERC20Share erc20Share = p.erc20Share[erc20Idx];
-        return getBalance(erc20Share, getERC20Info(erc20Idx));
+        return getBalance(erc20Share, info);
     }
 
     struct NFTData {
@@ -630,6 +646,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     }
 
     function getNFTId(address erc721, uint256 tokenId) internal view returns (NFTId) {
+        require(infoIdx[erc721].kind == 2, "Not an NFT");
         uint16 erc721Idx = infoIdx[erc721].idx;
         uint256 tokenHash = uint256(keccak256(abi.encodePacked(tokenId))) >> 32;
         return NFTId.wrap(erc721Idx | (tokenHash << 16) | ((tokenId >> 240) << 240));
@@ -654,13 +671,13 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         returns (int256 totalValue, int256 collateral, int256 debt)
     {
         Portfolio storage portfolio = portfolios[portfolioAddress];
-        ERC20Idx[] memory erc20Idxs = portfolio.getERC20s();
+        uint16[] memory erc20Idxs = portfolio.getERC20s();
         totalValue = 0;
         collateral = 0;
         debt = 0;
         for (uint256 i = 0; i < erc20Idxs.length; i++) {
-            ERC20Idx erc20Idx = erc20Idxs[i];
-            ERC20Info storage erc20Info = getERC20Info(erc20Idx);
+            uint16 erc20Idx = erc20Idxs[i];
+            ERC20Info storage erc20Info = erc20Infos[erc20Idx];
             int256 balance = getBalance(portfolio.erc20Share[erc20Idx], erc20Info);
             int256 value = erc20Info.valueOracle.calcValue(balance);
             totalValue += value;
@@ -735,23 +752,18 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
      * This value changes when {approve} or {transferFrom} are called.
      */
     function allowance(
-        ERC20Idx erc20Idx,
+        IERC20 erc20,
         address _owner,
         address spender
     ) public view returns (uint256) {
-        return _allowances[_owner][erc20Idx][spender];
+        return _allowances[_owner][erc20][spender];
     }
 
-    function _approveERC20(
-        address _owner,
-        ERC20Idx erc20Idx,
-        address spender,
-        uint256 amount
-    ) internal {
+    function _approveERC20(address _owner, IERC20 erc20, address spender, uint256 amount) internal {
         spender = FsUtils.nonNull(spender);
 
-        _allowances[_owner][erc20Idx][spender] = amount;
-        emit ERC20Approval(erc20Idx, _owner, spender, amount);
+        _allowances[_owner][erc20][spender] = amount;
+        emit ERC20Approval(address(erc20), _owner, spender, amount);
     }
 
     function _approveERC721(address collection, address to, uint256 tokenId) internal {
@@ -760,18 +772,18 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     }
 
     function _spendAllowance(
-        ERC20Idx erc20Idx,
+        IERC20 erc20,
         address _owner,
         address spender,
         uint256 amount
     ) internal {
-        uint256 currentAllowance = allowance(erc20Idx, _owner, spender);
+        uint256 currentAllowance = allowance(erc20, _owner, spender);
         if (currentAllowance != type(uint256).max) {
             if (currentAllowance < amount) {
                 revert InsufficientAllowance();
             }
             unchecked {
-                _approveERC20(_owner, erc20Idx, spender, currentAllowance - amount);
+                _approveERC20(_owner, erc20, spender, currentAllowance - amount);
             }
         }
     }
@@ -789,7 +801,8 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         emit ApprovalForAll(collection, _owner, operator, approved);
     }
 
-    function transferERC20(ERC20Idx erc20Idx, address from, address to, int256 amount) internal {
+    function transferERC20(IERC20 erc20, address from, address to, int256 amount) internal {
+        (, uint16 erc20Idx) = getERC20Info(erc20);
         updateBalance(erc20Idx, from, -amount);
         updateBalance(erc20Idx, to, amount);
     }
@@ -801,26 +814,26 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
 
     // TODO @derek - add method for withdraw
 
-    function transferAllERC20(ERC20Idx erc20Idx, address from, address to) internal {
+    function transferAllERC20(uint16 erc20Idx, address from, address to) internal {
         int256 amount = clearBalance(erc20Idx, from);
         updateBalance(erc20Idx, to, amount);
     }
 
-    function updateBalance(ERC20Idx erc20Idx, address portfolioAddress, int256 amount) internal {
+    function updateBalance(uint16 erc20Idx, address portfolioAddress, int256 amount) internal {
         updateInterest(erc20Idx);
         Portfolio storage portfolio = portfolios[portfolioAddress];
         ERC20Share shares = portfolio.erc20Share[erc20Idx];
-        ERC20Info storage erc20Info = getERC20Info(erc20Idx);
+        ERC20Info storage erc20Info = erc20Infos[erc20Idx];
         int256 currentAmount = extractPosition(shares, erc20Info);
         int256 newAmount = currentAmount + amount;
         portfolio.erc20Share[erc20Idx] = insertPosition(newAmount, portfolio, erc20Idx);
     }
 
-    function clearBalance(ERC20Idx erc20Idx, address portfolioAddress) internal returns (int256) {
+    function clearBalance(uint16 erc20Idx, address portfolioAddress) internal returns (int256) {
         updateInterest(erc20Idx);
         Portfolio storage portfolio = portfolios[portfolioAddress];
         ERC20Share shares = portfolio.erc20Share[erc20Idx];
-        int256 erc20Amount = extractPosition(shares, getERC20Info(erc20Idx));
+        int256 erc20Amount = extractPosition(shares, erc20Infos[erc20Idx]);
         portfolio.erc20Share[erc20Idx] = ERC20Share.wrap(0);
         portfolio.clearMask(erc20Idx);
         return erc20Amount;
@@ -838,20 +851,20 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     function insertPosition(
         int256 amount,
         Portfolio storage portfolio,
-        ERC20Idx erc20Idx
+        uint16 erc20Idx
     ) internal returns (ERC20Share) {
         if (amount == 0) {
             portfolio.clearMask(erc20Idx);
         } else {
             portfolio.setMask(erc20Idx);
         }
-        ERC20Info storage erc20Info = getERC20Info(erc20Idx);
+        ERC20Info storage erc20Info = erc20Infos[erc20Idx];
         ERC20Pool storage pool = amount > 0 ? erc20Info.collateral : erc20Info.debt;
         return pool.insertPosition(amount);
     }
 
-    function updateInterest(ERC20Idx erc20Idx) internal {
-        ERC20Info storage p = getERC20Info(erc20Idx);
+    function updateInterest(uint16 erc20Idx) internal {
+        ERC20Info storage p = erc20Infos[erc20Idx];
         if (p.timestamp == block.timestamp) return;
         int256 delta = FsMath.safeCastToSigned(block.timestamp - p.timestamp);
         p.timestamp = block.timestamp;
@@ -880,7 +893,15 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         return s.computeERC20(shares);
     }
 
-    function getERC20Info(ERC20Idx erc20Idx) internal view returns (ERC20Info storage) {
-        return erc20Infos[ERC20Idx.unwrap(erc20Idx)];
+    function getERC20Info(IERC20 erc20) internal view returns (ERC20Info storage, uint16) {
+        require(infoIdx[address(erc20)].kind == 1, "ERC20 not registered");
+        uint16 idx = infoIdx[address(erc20)].idx;
+        return (erc20Infos[idx], idx);
+    }
+
+    function getERC721Info(IERC721 erc721) internal view returns (ERC721Info storage, uint16) {
+        require(infoIdx[address(erc721)].kind == 2, "ERC721 not registered");
+        uint16 idx = infoIdx[address(erc721)].idx;
+        return (erc721Infos[idx], idx);
     }
 }

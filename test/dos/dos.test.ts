@@ -92,7 +92,6 @@ describe("DOS", () => {
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
     );
-    const usdcIdx = 0; // index of the element created above in DOS.erc20Info array
 
     await dos.addERC20Info(
       weth.address,
@@ -104,9 +103,23 @@ describe("DOS", () => {
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
     );
-    const wethIdx = 1; // index of the element created above in DOS.erc20Info array
 
     await dos.addNFTInfo(nft.address, nftOracle.address, toWei(0.5));
+
+    const getBalances = async (
+      portfolio: PortfolioLogic,
+    ): Promise<{
+      nfts: [nftContract: string, tokenId: BigNumber][];
+      usdc: BigNumber;
+      weth: BigNumber;
+    }> => {
+      const [nfts, usdcBal, wethBal] = await Promise.all([
+        dos.viewNFTs(portfolio.address),
+        dos.viewBalance(portfolio.address, usdc.address),
+        dos.viewBalance(portfolio.address, weth.address),
+      ]);
+      return {nfts, usdc: usdcBal, weth: wethBal};
+    };
 
     return {
       owner,
@@ -121,9 +134,8 @@ describe("DOS", () => {
       nftOracle, // some registered nft
       unregisteredNft, // some unregistered nft
       dos,
-      usdcIdx,
-      wethIdx,
       permit2,
+      getBalances,
     };
   }
 
@@ -136,68 +148,68 @@ describe("DOS", () => {
     });
 
     it("User can deposit money", async () => {
-      const {user, dos, usdc, usdcIdx} = await loadFixture(deployDOSFixture);
+      const {user, dos, usdc, getBalances} = await loadFixture(deployDOSFixture);
       const portfolio = await createPortfolio(dos, user);
 
-      await depositErc20(dos, portfolio, usdc, usdcIdx, tenThousandUsdc);
+      await depositErc20(dos, portfolio, usdc, tenThousandUsdc);
 
-      expect((await getBalances(dos, portfolio)).usdc).to.equal(tenThousandUsdc);
+      expect((await getBalances(portfolio)).usdc).to.equal(tenThousandUsdc);
       expect(await usdc.balanceOf(dos.address)).to.equal(tenThousandUsdc);
     });
 
     it("User can transfer money", async () => {
-      const {user, user2, dos, usdc, usdcIdx} = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc, getBalances} = await loadFixture(deployDOSFixture);
       const sender = await createPortfolio(dos, user);
       const receiver = await createPortfolio(dos, user2);
-      await depositErc20(dos, sender, usdc, usdcIdx, tenThousandUsdc);
+      await depositErc20(dos, sender, usdc, tenThousandUsdc);
 
-      const tx = transfer(dos, sender, receiver, usdcIdx, tenThousandUsdc);
+      const tx = transfer(dos, sender, receiver, usdc.address, tenThousandUsdc);
       await (await tx).wait();
 
-      expect((await getBalances(dos, sender)).usdc).to.equal(0);
-      expect((await getBalances(dos, receiver)).usdc).to.equal(tenThousandUsdc);
+      expect((await getBalances(sender)).usdc).to.equal(0);
+      expect((await getBalances(receiver)).usdc).to.equal(tenThousandUsdc);
     });
 
     it("User can deposit and transfer money in arbitrary order", async () => {
-      const {user, user2, dos, usdc, usdcIdx} = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc, getBalances} = await loadFixture(deployDOSFixture);
       const sender = await createPortfolio(dos, user);
       const receiver = await createPortfolio(dos, user2);
       await usdc.mint(sender.address, tenThousandUsdc);
 
       await sender.executeBatch([
-        makeCall(dos, "transfer", [usdcIdx, receiver.address, tenThousandUsdc]),
-        makeCall(dos, "depositERC20", [usdcIdx, tenThousandUsdc]),
+        makeCall(dos, "transfer", [usdc.address, receiver.address, tenThousandUsdc]),
+        makeCall(dos, "depositERC20", [usdc.address, tenThousandUsdc]),
       ]);
 
-      expect((await getBalances(dos, sender)).usdc).to.equal(0);
-      expect((await getBalances(dos, receiver)).usdc).to.equal(tenThousandUsdc);
+      expect((await getBalances(sender)).usdc).to.equal(0);
+      expect((await getBalances(receiver)).usdc).to.equal(tenThousandUsdc);
     });
 
     it("User cannot send more then they own", async () => {
-      const {user, user2, dos, usdc, usdcIdx} = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc} = await loadFixture(deployDOSFixture);
       const sender = await createPortfolio(dos, user);
       const receiver = await createPortfolio(dos, user2);
-      await depositErc20(dos, sender, usdc, usdcIdx, toWeiUsdc(10_000));
+      await depositErc20(dos, sender, usdc, toWeiUsdc(10_000));
 
-      const tx = transfer(dos, sender, receiver, usdcIdx, toWeiUsdc(20_000));
+      const tx = transfer(dos, sender, receiver, usdc.address, toWeiUsdc(20_000));
 
       await expect(tx).to.be.revertedWith("Result of operation is not sufficient liquid");
     });
 
     it("User can send more ERC20 then they have", async () => {
-      const {user, user2, dos, usdc, weth, wethIdx, usdcIdx} = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc, weth, getBalances} = await loadFixture(deployDOSFixture);
       const sender = await createPortfolio(dos, user);
-      await depositErc20(dos, sender, usdc, usdcIdx, tenThousandUsdc);
+      await depositErc20(dos, sender, usdc, tenThousandUsdc);
       const receiver = await createPortfolio(dos, user2);
       // put weth in system so we can borrow weth
       const someOther = await createPortfolio(dos, user);
-      await depositErc20(dos, someOther, weth, wethIdx, toWei(2));
+      await depositErc20(dos, someOther, weth, toWei(2));
 
-      const tx = await transfer(dos, sender, receiver, wethIdx, oneEth);
+      const tx = await transfer(dos, sender, receiver, weth.address, oneEth);
       await tx.wait();
 
-      const senderBalances = await getBalances(dos, sender);
-      const receiverBalances = await getBalances(dos, receiver);
+      const senderBalances = await getBalances(sender);
+      const receiverBalances = await getBalances(receiver);
       expect(senderBalances.usdc).to.equal(tenThousandUsdc);
       expect(senderBalances.weth).to.equal(-oneEth);
       expect(receiverBalances.usdc).to.equal(0);
@@ -209,30 +221,30 @@ describe("DOS", () => {
       const {
         user, user2,
         dos,
-        usdc, usdcIdx,
-        weth, wethIdx,
-        ethChainlink,
+        usdc,
+        weth,
+        ethChainlink, getBalances
       } = await loadFixture(deployDOSFixture);
       const liquidatable = await createPortfolio(dos, user);
-      await depositErc20(dos, liquidatable, usdc, usdcIdx, tenThousandUsdc);
+      await depositErc20(dos, liquidatable, usdc, tenThousandUsdc);
       const liquidator = await createPortfolio(dos, user2);
       // ensure that liquidator would have enough collateral to compensate
       // negative balance of collateral/debt obtained from liquidatable
-      await depositErc20(dos, liquidator, usdc, usdcIdx, tenThousandUsdc);
+      await depositErc20(dos, liquidator, usdc, tenThousandUsdc);
       // put WETH in system so we can borrow weth
       const someOther = await createPortfolio(dos, user);
-      await depositErc20(dos, someOther, weth, wethIdx, toWei(2));
+      await depositErc20(dos, someOther, weth, toWei(2));
       await ethChainlink.setPrice(2_000);
 
       // generate a debt on liquidatable
-      const tx = transfer(dos, liquidatable, someOther, wethIdx, oneEth);
+      const tx = transfer(dos, liquidatable, someOther, weth.address, oneEth);
       await (await tx).wait();
       // make liquidatable debt overcome collateral. Now it can be liquidated
       await ethChainlink.setPrice(9_000);
       await liquidator.executeBatch([makeCall(dos, "liquidate", [liquidatable.address])]);
 
-      const liquidatableBalances = await getBalances(dos, liquidatable);
-      const liquidatorBalances = await getBalances(dos, liquidator);
+      const liquidatableBalances = await getBalances(liquidatable);
+      const liquidatorBalances = await getBalances(liquidator);
       // 10_000 - balance in USDC; 9_000 - debt of 1 ETH; 0.8 - liqFraction
       const liquidationLeftover = toWei((10_000 - 9_000) * 0.8, USDC_DECIMALS); // 800 USDC in ETH
       expect(liquidatableBalances.weth).to.equal(0);
@@ -249,8 +261,8 @@ describe("DOS", () => {
       const {
         dos,
         user, user2,
-        usdc, usdcIdx,
-        weth, wethIdx
+        usdc,
+        weth
       } = await loadFixture(
         deployDOSFixture,
       );
@@ -258,9 +270,9 @@ describe("DOS", () => {
       const liquidator = await createPortfolio(dos, user2);
       // put WETH in system so we can borrow weth
       const other = await createPortfolio(dos, user);
-      await depositErc20(dos, other, weth, wethIdx, toWei(0.25));
-      await depositErc20(dos, nonLiquidatable, usdc, usdcIdx, tenThousandUsdc);
-      const tx = transfer(dos, nonLiquidatable, other, wethIdx, oneEth);
+      await depositErc20(dos, other, weth, toWei(0.25));
+      await depositErc20(dos, nonLiquidatable, usdc, tenThousandUsdc);
+      const tx = transfer(dos, nonLiquidatable, other, weth.address, oneEth);
       await (await tx).wait();
 
       const liquidationTx = liquidator.executeBatch([
@@ -293,9 +305,9 @@ describe("DOS", () => {
     });
 
     it("when portfolio has an ERC20 should return the ERC20 value", async () => {
-      const {dos, user, usdc, usdcIdx} = await loadFixture(deployDOSFixture);
+      const {dos, user, usdc} = await loadFixture(deployDOSFixture);
       const portfolio = await createPortfolio(dos, user);
-      await depositErc20(dos, portfolio, usdc, usdcIdx, toWei(10_000, USDC_DECIMALS));
+      await depositErc20(dos, portfolio, usdc, toWei(10_000, USDC_DECIMALS));
 
       const position = await dos.computePosition(portfolio.address);
 
@@ -307,12 +319,12 @@ describe("DOS", () => {
     });
 
     it("when portfolio has multiple ERC20s should return total ERC20s value", async () => {
-      const {dos, user, usdc, weth, usdcIdx, wethIdx} = await loadFixture(deployDOSFixture);
+      const {dos, user, usdc, weth} = await loadFixture(deployDOSFixture);
       const portfolio = await createPortfolio(dos, user);
 
       await Promise.all([
-        depositErc20(dos, portfolio, usdc, usdcIdx, toWeiUsdc(10_000)),
-        depositErc20(dos, portfolio, weth, wethIdx, toWei(1)),
+        depositErc20(dos, portfolio, usdc, toWeiUsdc(10_000)),
+        depositErc20(dos, portfolio, weth, toWei(1)),
       ]);
 
       const position = await dos.computePosition(portfolio.address);
@@ -360,8 +372,8 @@ describe("DOS", () => {
       const {
         dos,
         user,
-        usdc, usdcIdx,
-        weth, wethIdx,
+        usdc,
+        weth,
         nft, nftOracle
       } =
         await loadFixture(deployDOSFixture);
@@ -371,8 +383,8 @@ describe("DOS", () => {
         depositNft(dos, portfolio, nft, nftOracle, 100),
         depositNft(dos, portfolio, nft, nftOracle, 200),
         depositNft(dos, portfolio, nft, nftOracle, 300),
-        depositErc20(dos, portfolio, usdc, usdcIdx, toWeiUsdc(10_000)),
-        depositErc20(dos, portfolio, weth, wethIdx, toWei(1)),
+        depositErc20(dos, portfolio, usdc, toWeiUsdc(10_000)),
+        depositErc20(dos, portfolio, weth, toWei(1)),
       ]);
 
       const position = await dos.computePosition(portfolio.address);
@@ -410,10 +422,10 @@ describe("DOS", () => {
     });
 
     it("when portfolio to liquidate is empty should revert", async () => {
-      const {dos, user, user2, usdc, usdcIdx} = await loadFixture(deployDOSFixture);
+      const {dos, user, user2, usdc} = await loadFixture(deployDOSFixture);
       const emptyPortfolio = await createPortfolio(dos, user);
       const liquidator = await createPortfolio(dos, user2);
-      await depositErc20(dos, liquidator, usdc, usdcIdx, toWeiUsdc(1000));
+      await depositErc20(dos, liquidator, usdc, toWeiUsdc(1000));
 
       const liquidateTx = liquidator.executeBatch([
         makeCall(dos, "liquidate", [emptyPortfolio.address]),
@@ -423,11 +435,11 @@ describe("DOS", () => {
     });
 
     it("when debt is zero should revert", async () => {
-      const {dos, user, user2, usdc, usdcIdx} = await loadFixture(deployDOSFixture);
+      const {dos, user, user2, usdc} = await loadFixture(deployDOSFixture);
       const nonLiquidatable = await createPortfolio(dos, user);
-      await depositErc20(dos, nonLiquidatable, usdc, usdcIdx, toWeiUsdc(1000));
+      await depositErc20(dos, nonLiquidatable, usdc, toWeiUsdc(1000));
       const liquidator = await createPortfolio(dos, user2);
-      await depositErc20(dos, liquidator, usdc, usdcIdx, toWeiUsdc(1000));
+      await depositErc20(dos, liquidator, usdc, toWeiUsdc(1000));
 
       const liquidateTx = liquidator.executeBatch([
         makeCall(dos, "liquidate", [nonLiquidatable.address]),
@@ -441,18 +453,18 @@ describe("DOS", () => {
       const {
         dos,
         user, user2, user3,
-        usdc, usdcIdx,
-        weth, wethIdx
+        usdc,
+        weth
       } = await loadFixture(
         deployDOSFixture
       );
       const nonLiquidatable = await createPortfolio(dos, user);
-      await depositErc20(dos, nonLiquidatable, usdc, usdcIdx, toWeiUsdc(1000));
+      await depositErc20(dos, nonLiquidatable, usdc, toWeiUsdc(1000));
       const liquidator = await createPortfolio(dos, user2);
-      await depositErc20(dos, liquidator, usdc, usdcIdx, toWeiUsdc(1000));
+      await depositErc20(dos, liquidator, usdc, toWeiUsdc(1000));
       const other = await createPortfolio(dos, user3);
-      await depositErc20(dos, other, weth, wethIdx, toWei(1));
-      const tx = transfer(dos, nonLiquidatable, other, wethIdx, toWei(0.1));
+      await depositErc20(dos, other, weth, toWei(1));
+      const tx = transfer(dos, nonLiquidatable, other, weth.address, toWei(0.1));
       await (await tx).wait();
 
       const liquidateTx = liquidator.executeBatch([
@@ -467,18 +479,18 @@ describe("DOS", () => {
       const {
         dos,
         user, user2, user3,
-        usdc, usdcIdx,
-        weth, wethIdx,
+        usdc,
+        weth,
         ethChainlink
       } = await loadFixture(
         deployDOSFixture
       );
       const liquidatable = await createPortfolio(dos, user);
-      await depositErc20(dos, liquidatable, usdc, usdcIdx, toWeiUsdc(10_000));
+      await depositErc20(dos, liquidatable, usdc, toWeiUsdc(10_000));
       const liquidator = await createPortfolio(dos, user2);
       const other = await createPortfolio(dos, user3);
-      await depositErc20(dos, other, weth, wethIdx, toWei(10));
-      const tx = transfer(dos, liquidatable, other, wethIdx, toWei(4));
+      await depositErc20(dos, other, weth, toWei(10));
+      const tx = transfer(dos, liquidatable, other, weth.address, toWei(4));
       await (await tx).wait();
 
       await ethChainlink.setPrice(2_100); // 2_000 -> 2_100
@@ -494,17 +506,17 @@ describe("DOS", () => {
       const {
         dos,
         user, user2,
-        usdc, usdcIdx,
-        weth, wethIdx,
+        usdc,
+        weth,
         ethChainlink
       } = await loadFixture(
         deployDOSFixture
       );
       const liquidatable = await createPortfolio(dos, user);
-      await depositErc20(dos, liquidatable, usdc, usdcIdx, toWeiUsdc(10_000));
+      await depositErc20(dos, liquidatable, usdc, toWeiUsdc(10_000));
       const other = await createPortfolio(dos, user2);
-      await depositErc20(dos, other, weth, wethIdx, toWei(10));
-      const tx = transfer(dos, liquidatable, other, wethIdx, toWei(4));
+      await depositErc20(dos, other, weth, toWei(10));
+      const tx = transfer(dos, liquidatable, other, weth.address, toWei(4));
       await (await tx).wait();
 
       await ethChainlink.setPrice(2_100); // 2_000 -> 2_100
@@ -520,19 +532,19 @@ describe("DOS", () => {
       const {
         dos,
         user, user2, user3,
-        usdc, usdcIdx,
-        weth, wethIdx,
-        ethChainlink
+        usdc,
+        weth,
+        ethChainlink, getBalances
       } = await loadFixture(
         deployDOSFixture
       );
       const liquidatable = await createPortfolio(dos, user);
-      await depositErc20(dos, liquidatable, usdc, usdcIdx, toWeiUsdc(10_000));
+      await depositErc20(dos, liquidatable, usdc, toWeiUsdc(10_000));
       const liquidator = await createPortfolio(dos, user2);
-      await depositErc20(dos, liquidator, usdc, usdcIdx, toWeiUsdc(10_000));
+      await depositErc20(dos, liquidator, usdc, toWeiUsdc(10_000));
       const other = await createPortfolio(dos, user3);
-      await depositErc20(dos, other, weth, wethIdx, toWei(10));
-      const tx = transfer(dos, liquidatable, other, wethIdx, toWei(4));
+      await depositErc20(dos, other, weth, toWei(10));
+      const tx = transfer(dos, liquidatable, other, weth.address, toWei(4));
       await (await tx).wait();
 
       await ethChainlink.setPrice(2_100); // 2_000 -> 2_100
@@ -541,14 +553,14 @@ describe("DOS", () => {
       ]);
       await liquidateTx.wait();
 
-      const liquidatableBalance = await getBalances(dos, liquidatable);
+      const liquidatableBalance = await getBalances(liquidatable);
       // 10k - positive in USDC. 2_100 - current WETH price in USDC. 4 - debt
       const liquidatableTotal = 10_000 - 4 * 2_100;
       // 0.8 - liqFraction, defined in deployDOSFixture
       const liquidationOddMoney = toWei(liquidatableTotal * 0.8, USDC_DECIMALS);
       expect(liquidatableBalance.weth).to.equal(0);
       expect(liquidatableBalance.usdc).to.be.approximately(liquidationOddMoney, 2000);
-      const liquidatorBalance = await getBalances(dos, liquidator);
+      const liquidatorBalance = await getBalances(liquidator);
       // 10k initial USDC, 10k liquidated USDC - returned money to liquidated account
       expect(liquidatorBalance.usdc).to.be.approximately(
         toWei(10_000 + 10_000 - liquidatableTotal * 0.8, USDC_DECIMALS),
@@ -563,17 +575,17 @@ describe("DOS", () => {
         dos,
         user, user2, user3,
         nft, nftOracle,
-        usdc, weth, usdcIdx, wethIdx
+        usdc, weth, getBalances
       } = await loadFixture(
         deployDOSFixture
       );
       const liquidatable = await createPortfolio(dos, user);
       const tokenId = await depositNft(dos, liquidatable, nft, nftOracle, 2000);
       const liquidator = await createPortfolio(dos, user2);
-      await depositErc20(dos, liquidator, usdc, usdcIdx, toWeiUsdc(2000));
+      await depositErc20(dos, liquidator, usdc, toWeiUsdc(2000));
       const other = await createPortfolio(dos, user3);
-      await depositErc20(dos, other, weth, wethIdx, toWei(1));
-      const tx = transfer(dos, liquidatable, other, wethIdx, toWei(0.4));
+      await depositErc20(dos, other, weth, toWei(1));
+      const tx = transfer(dos, liquidatable, other, weth.address, toWei(0.4));
       await (await tx).wait();
 
       // drop the price of the NFT from 2000 Eth to 1600 Eth. Now portfolio should become liquidatable
@@ -583,7 +595,7 @@ describe("DOS", () => {
       ]);
       await liquidateTx.wait();
 
-      const liquidatableBalance = await getBalances(dos, liquidatable);
+      const liquidatableBalance = await getBalances(liquidatable);
       // 1600 - current price of the owned NFT. 0.4 eth - debt
       const liquidatableTotal = 1600 - 0.4 * 2000;
       // 0.8 - liqFraction, defined in deployDOSFixture
@@ -591,7 +603,7 @@ describe("DOS", () => {
       expect(liquidatableBalance.usdc).to.be.approximately(liquidationOddMoney, 2000);
       expect(liquidatableBalance.weth).to.be.equal(0);
       expect(liquidatableBalance.nfts).to.eql([]);
-      const liquidatorBalance = await getBalances(dos, liquidator);
+      const liquidatorBalance = await getBalances(liquidator);
       expect(liquidatorBalance.usdc).to.be.approximately(
         // 1 - initial balance; -0.4 transferred debt; 0.8 - liqFactor defined in deployDOSFixture
         toWeiUsdc(2000) - liquidationOddMoney,
@@ -610,21 +622,21 @@ describe("DOS", () => {
       const {
         dos,
         user, user2, user3,
-        usdc, usdcIdx,
-        weth, wethIdx,
+        usdc,
+        weth,
         nft, nftOracle,
-        ethChainlink,
+        ethChainlink, getBalances
       } = await loadFixture(
         deployDOSFixture
       );
       const liquidatable = await createPortfolio(dos, user);
       const tokenId = await depositNft(dos, liquidatable, nft, nftOracle, 2000);
-      await depositErc20(dos, liquidatable, usdc, usdcIdx, toWeiUsdc(1_500));
+      await depositErc20(dos, liquidatable, usdc, toWeiUsdc(1_500));
       const liquidator = await createPortfolio(dos, user2);
-      await depositErc20(dos, liquidator, weth, wethIdx, toWei(1));
+      await depositErc20(dos, liquidator, weth, toWei(1));
       const other = await createPortfolio(dos, user3);
-      await depositErc20(dos, other, weth, wethIdx, toWei(1));
-      const tx = transfer(dos, liquidatable, other, wethIdx, toWei(1));
+      await depositErc20(dos, other, weth, toWei(1));
+      const tx = transfer(dos, liquidatable, other, weth.address, toWei(1));
       await (await tx).wait();
 
       // with Eth price 2,000 -> 2,500 the collateral (in USDC) would become
@@ -639,7 +651,7 @@ describe("DOS", () => {
 
       // 2_500 - NFT; 1_500 - USDC; 2_500 - debt; 2_500 - ETH price, so the result is in ETH
       const liquidatableTotal = 2_000 + 1_500 - 2_500;
-      const liquidatableBalance = await getBalances(dos, liquidatable);
+      const liquidatableBalance = await getBalances(liquidatable);
       expect(liquidatableBalance.weth).to.equal(0);
       // 0.8 - liqFraction, defined in deployDOSFixture
       expect(liquidatableBalance.usdc).to.be.approximately(
@@ -647,7 +659,7 @@ describe("DOS", () => {
         2000,
       );
       expect(liquidatableBalance.nfts).to.eql([]);
-      const liquidatorBalance = await getBalances(dos, liquidator);
+      const liquidatorBalance = await getBalances(liquidator);
       expect(liquidatorBalance.usdc).to.equal(toWeiUsdc(1_500 - liquidatableTotal * 0.8));
       // 1 - initial balance; -1 transferred debt; 0.8 - liqFactor defined in deployDOSFixture
       expect(liquidatorBalance.weth).to.be.approximately(toWei(0), 2000);
@@ -822,95 +834,100 @@ describe("DOS", () => {
   });
   describe("#integrationAPI", () => {
     it("should set ERC20 token allowance when approve is called", async () => {
-      const {user, user2, dos, usdcIdx} = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, usdc} = await loadFixture(deployDOSFixture);
       const owner = await createPortfolio(dos, user);
       const spender = await createPortfolio(dos, user2);
       const amount = ethers.utils.parseEther("100");
 
-      const tx = await approveErc20(dos, owner, spender, usdcIdx, amount);
+      const tx = await approveErc20(dos, owner, spender, usdc.address, amount);
       await tx.wait();
 
-      expect(await dos.allowance(usdcIdx, owner.address, spender.address)).to.eql(amount);
+      expect(await dos.allowance(usdc.address, owner.address, spender.address)).to.eql(amount);
     });
 
     it("should deduct ERC20 token allowance after transferFromERC20", async () => {
-      const {user, user2, user3, dos, weth, wethIdx} = await loadFixture(deployDOSFixture);
+      const {user, user2, user3, dos, weth} = await loadFixture(deployDOSFixture);
       const owner = await createPortfolio(dos, user);
       const spender = await createPortfolio(dos, user2);
       const recipient = await createPortfolio(dos, user3);
       const amount = ethers.utils.parseEther("100");
 
-      await depositErc20(dos, owner, weth, wethIdx, toWei(100));
+      await depositErc20(dos, owner, weth, toWei(100));
 
-      const approveTx = await approveErc20(dos, owner, spender, wethIdx, amount);
+      const approveTx = await approveErc20(dos, owner, spender, weth.address, amount);
       await approveTx.wait();
 
-      expect(await dos.allowance(wethIdx, owner.address, spender.address)).to.eql(amount);
+      expect(await dos.allowance(weth.address, owner.address, spender.address)).to.eql(amount);
 
       const transferFromTx = await transferFromErc20(
         dos,
         spender,
         owner,
         recipient,
-        wethIdx,
+        weth.address,
         amount,
       );
       await transferFromTx.wait();
 
-      expect(await dos.allowance(wethIdx, owner.address, spender.address)).to.eql(
+      expect(await dos.allowance(weth.address, owner.address, spender.address)).to.eql(
         ethers.utils.parseEther("0"),
       );
     });
 
     it("should properly update portfolio balance with transferFromERC20", async () => {
-      const {user, user2, user3, dos, weth, wethIdx} = await loadFixture(deployDOSFixture);
+      const {user, user2, user3, dos, weth, getBalances} = await loadFixture(deployDOSFixture);
       const owner = await createPortfolio(dos, user);
       const spender = await createPortfolio(dos, user2);
       const recipient = await createPortfolio(dos, user3);
       const amount = ethers.utils.parseEther("100");
 
-      await depositErc20(dos, owner, weth, wethIdx, toWei(100));
+      await depositErc20(dos, owner, weth, toWei(100));
 
-      const approveTx = await approveErc20(dos, owner, spender, wethIdx, amount);
+      const approveTx = await approveErc20(dos, owner, spender, weth.address, amount);
       await approveTx.wait();
 
-      expect(await dos.allowance(wethIdx, owner.address, spender.address)).to.eql(amount);
+      expect(await dos.allowance(weth.address, owner.address, spender.address)).to.eql(amount);
 
-      const ownerBalanceBefore = (await getBalances(dos, owner)).weth;
-      const recipientBalanceBefore = (await getBalances(dos, recipient)).weth;
+      const ownerBalanceBefore = (await getBalances(owner)).weth;
+      const recipientBalanceBefore = (await getBalances(recipient)).weth;
 
       const transferFromTx = await transferFromErc20(
         dos,
         spender,
         owner,
         recipient,
-        wethIdx,
+        weth.address,
         amount,
       );
       await transferFromTx.wait();
 
-      const ownerBalanceAfter = (await getBalances(dos, owner)).weth;
-      const recipientBalanceAfter = (await getBalances(dos, recipient)).weth;
+      const ownerBalanceAfter = (await getBalances(owner)).weth;
+      const recipientBalanceAfter = (await getBalances(recipient)).weth;
 
       expect(ownerBalanceAfter).to.eql(ownerBalanceBefore.sub(amount));
       expect(recipientBalanceAfter).to.eql(recipientBalanceBefore.add(amount));
     });
 
     it("should revert transferFromERC20 if recipient is not a portfolio", async () => {
-      const {user, user2, user3, dos, weth, wethIdx} = await loadFixture(deployDOSFixture);
+      const {user, user2, user3, dos, weth} = await loadFixture(deployDOSFixture);
       const owner = await createPortfolio(dos, user);
       const spender = await createPortfolio(dos, user2);
       const recipient = user3;
       const amount = ethers.utils.parseEther("100");
 
-      await depositErc20(dos, owner, weth, wethIdx, toWei(100));
+      await depositErc20(dos, owner, weth, toWei(100));
 
-      const approveTx = await approveErc20(dos, owner, spender, wethIdx, amount);
+      const approveTx = await approveErc20(dos, owner, spender, weth.address, amount);
       await approveTx.wait();
 
       await expect(
         spender.executeBatch([
-          makeCall(dos, "transferFromERC20", [wethIdx, owner.address, recipient.address, amount]),
+          makeCall(dos, "transferFromERC20", [
+            weth.address,
+            owner.address,
+            recipient.address,
+            amount,
+          ]),
         ]),
       ).to.be.revertedWith("Recipient portfolio doesn't exist");
     });
@@ -955,7 +972,9 @@ describe("DOS", () => {
     });
 
     it("should properly update portfolio balance with transferFromERC721", async () => {
-      const {user, user2, user3, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
+      const {user, user2, user3, dos, nft, nftOracle, getBalances} = await loadFixture(
+        deployDOSFixture,
+      );
       const owner = await createPortfolio(dos, user);
       const spender = await createPortfolio(dos, user2);
       const recipient = await createPortfolio(dos, user3);
@@ -965,8 +984,8 @@ describe("DOS", () => {
       const tx = await approveERC721(dos, owner, spender, nft.address, tokenId);
       await tx.wait();
 
-      const ownerBalanceBefore = (await getBalances(dos, owner)).nfts.length;
-      const recipientBalanceBefore = (await getBalances(dos, recipient)).nfts.length;
+      const ownerBalanceBefore = (await getBalances(owner)).nfts.length;
+      const recipientBalanceBefore = (await getBalances(recipient)).nfts.length;
 
       expect(await dos.getApproved(nft.address, tokenId)).to.eql(spender.address);
 
@@ -980,8 +999,8 @@ describe("DOS", () => {
       );
       await transferTx.wait();
 
-      const ownerBalanceAfter = (await getBalances(dos, owner)).nfts.length;
-      const recipientBalanceAfter = (await getBalances(dos, recipient)).nfts.length;
+      const ownerBalanceAfter = (await getBalances(owner)).nfts.length;
+      const recipientBalanceAfter = (await getBalances(recipient)).nfts.length;
 
       expect(ownerBalanceAfter).to.eql(ownerBalanceBefore - 1);
       expect(recipientBalanceAfter).to.eql(recipientBalanceBefore + 1);
@@ -1043,13 +1062,12 @@ async function depositErc20(
   dos: DOS,
   portfolio: PortfolioLogic,
   erc20: TestERC20 | WETH9,
-  erc20DosIdx: number,
   amount: number | bigint,
 ) {
   await erc20.mint(portfolio.address, amount);
 
   const depositTx = await portfolio.executeBatch([
-    makeCall(dos, "depositERC20", [erc20DosIdx, amount]),
+    makeCall(dos, "depositERC20", [erc20.address, amount]),
   ]);
   await depositTx.wait();
 }
@@ -1099,32 +1117,16 @@ async function depositUserNft(
   return tokenId;
 }
 
-async function getBalances(
-  dos: DOS,
-  portfolio: PortfolioLogic,
-): Promise<{
-  nfts: [nftContract: string, tokenId: BigNumber][];
-  usdc: BigNumber;
-  weth: BigNumber;
-}> {
-  const [nfts, usdc, weth] = await Promise.all([
-    dos.viewNFTs(portfolio.address),
-    dos.viewBalance(portfolio.address, 0),
-    dos.viewBalance(portfolio.address, 1),
-  ]);
-  return {nfts, usdc, weth};
-}
-
 async function transfer(
   dos: DOS,
   from: PortfolioLogic,
   to: PortfolioLogic,
-  ...value: [erc20DosIdx: number, amount: BigNumberish] | [nft: TestNFT, tokenId: BigNumberish]
+  ...value: [erc20: string, amount: BigNumberish] | [nft: TestNFT, tokenId: BigNumberish]
 ): Promise<ContractTransaction> {
-  if (typeof value[0] == "number") {
+  if (typeof value[0] == "string") {
     // transfer erc20
-    const [erc20Idx, amount] = value;
-    return await from.executeBatch([makeCall(dos, "transfer", [erc20Idx, to.address, amount])]);
+    const [erc20, amount] = value;
+    return await from.executeBatch([makeCall(dos, "transfer", [erc20, to.address, amount])]);
   } else {
     // transfer NFT
     const [nft, tokenId] = value;
@@ -1136,11 +1138,11 @@ async function approveErc20(
   dos: DOS,
   owner: PortfolioLogic,
   spender: PortfolioLogic,
-  erc20Idx: number,
+  erc20: string,
   amount: BigNumberish,
 ): Promise<ContractTransaction> {
   return await owner.executeBatch([
-    makeCall(dos, "approveERC20", [erc20Idx, spender.address, amount]),
+    makeCall(dos, "approveERC20", [erc20, spender.address, amount]),
   ]);
 }
 
@@ -1161,11 +1163,11 @@ async function transferFromErc20(
   spender: PortfolioLogic,
   owner: PortfolioLogic,
   to: PortfolioLogic,
-  erc20Idx: number,
+  erc20: string,
   amount: BigNumberish,
 ): Promise<ContractTransaction> {
   return await spender.executeBatch([
-    makeCall(dos, "transferFromERC20", [erc20Idx, owner.address, to.address, amount]),
+    makeCall(dos, "transferFromERC20", [erc20, owner.address, to.address, amount]),
   ]);
 }
 
