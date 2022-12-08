@@ -14,7 +14,9 @@ export const getAddressesForNetwork = async () => {
   return (await getAllAddresses())[getNetwork()];
 };
 
-export const saveAddressesForNetwork = async (contractAddresses: {[contractName: string]: string}) => {
+export const saveAddressesForNetwork = async (contractAddresses: {
+  [contractName: string]: string;
+}) => {
   const network = getNetwork();
   const oldAddresses = await getAllAddresses();
   if (oldAddresses[network] === undefined) oldAddresses[network] = {};
