@@ -73,7 +73,7 @@ export const createPortfolio = async (dos: DOS, signer: ethers.Signer): Promise<
 
 export const sortTransfers = (
   transfers: {token: string; amount: ethers.BigNumberish}[],
-): Promise<{token: string; amount: ethers.BigNumberish}[]> => {
+): {token: string; amount: ethers.BigNumberish}[] => {
   return transfers.sort((a, b) => {
     const diff = BigInt(a.token) - BigInt(b.token);
     return diff > 0 ? 1 : diff < 0 ? -1 : 0;
