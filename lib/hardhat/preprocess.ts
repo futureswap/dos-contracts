@@ -55,8 +55,10 @@ export const preprocessCode = (
     // we are building for deployment on external chains so we like
     // to include the correct git hashes into the contracts.
 
-    // Make sure the repo is clean
+    const mustBeClean = true;
+    // make sure the repo is clean
     if (
+      mustBeClean &&
       (await new Promise((resolve, reject) => {
         exec("git status --porcelain", (error, stdout) => {
           if (error) reject(error);
@@ -68,6 +70,7 @@ export const preprocessCode = (
     }
     // make sure the repo is on master
     if (
+      mustBeClean &&
       (await new Promise((resolve, reject) => {
         exec("git rev-parse --abbrev-ref HEAD", (error, stdout) => {
           if (error) reject(error);
@@ -79,6 +82,7 @@ export const preprocessCode = (
     }
     // make sure the repo is pushed on GitHub
     if (
+      mustBeClean &&
       (await new Promise((resolve, reject) => {
         exec(
           "git fetch origin master > /dev/null && git log origin/master..master",

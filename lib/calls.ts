@@ -27,10 +27,10 @@ export function cleanResult(r: ethers.utils.Result): Record<string, unknown> {
   return x;
 }
 
-type Call = {
+export type Call = {
   to: string;
   callData: ethers.BytesLike;
-  value?: bigint;
+  value: bigint;
 };
 
 export function makeCall(
@@ -38,11 +38,7 @@ export function makeCall(
   func: string,
   params: unknown[],
   value?: bigint,
-): {
-  to: string;
-  callData: string;
-  value: bigint;
-} {
+): Call {
   return {
     to: to.address,
     callData: to.interface.encodeFunctionData(func, params),
@@ -73,4 +69,13 @@ export const createPortfolio = async (dos: DOS, signer: ethers.Signer): Promise<
     "PortfolioCreated",
   );
   return PortfolioLogic__factory.connect(portfolio as string, signer);
+};
+
+export const sortTransfers = (
+  transfers: {token: string; amount: ethers.BigNumberish}[],
+): {token: string; amount: ethers.BigNumberish}[] => {
+  return transfers.sort((a, b) => {
+    const diff = BigInt(a.token) - BigInt(b.token);
+    return diff > 0 ? 1 : diff < 0 ? -1 : 0;
+  });
 };

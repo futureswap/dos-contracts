@@ -32,6 +32,8 @@ library FsUtils {
         console.log(s, x);
     }
 
+    // END STRIP
+
     function nonNull(address _address) internal pure returns (address) {
         require(_address != address(0), "Zero address");
         return _address;
@@ -69,5 +71,4 @@ library FsUtils {
         assert(cond);
         // END STRIP
     }
-    // END STRIP
 }

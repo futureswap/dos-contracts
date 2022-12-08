@@ -74,9 +74,6 @@ describe("DOS", () => {
     await versionManager.addVersion("1.0.0", 2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
-    // const DosDeployData = await ethers.getContractFactory("DOS");
-    // const dos = await DosDeployData.deploy(unlockTime, { value: lockedAmount });
-
     await dos.setConfig({
       liqFraction: toWei(0.8),
       fractionalReserveLeverage: 9,
