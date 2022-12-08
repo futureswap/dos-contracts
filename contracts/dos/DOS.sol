@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "../lib/FsUtils.sol";
 import "../lib/FsMath.sol";
 import "../interfaces/IDOS.sol";
@@ -21,6 +22,9 @@ error NotApprovedOrOwner();
 error InsufficientAllowance();
 /// @notice Cannot approve self as spender
 error SelfApproval();
+error ReceiverNotContract();
+error ReceiverNoImplementation();
+error WrongDataReturned();
 
 // ERC20 standard token
 // ERC721 single non-fungible token support
@@ -28,6 +32,7 @@ error SelfApproval();
 // ERC165 interface support (solidity IDOS.interfaceId)
 // ERC777 token send
 // ERC1155 multi-token support
+// ERC1363 payable token (approveAndCall/transferAndCall)
 // ERC1820 interface registry support
 // EIP2612 permit support (uniswap permit2)
 
@@ -159,6 +164,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     using PortfolioLib for Portfolio;
     using PortfolioLib for ERC20Pool;
     using SafeERC20 for IERC20;
+    using Address for address;
 
     struct ERC20Info {
         address erc20Contract;
@@ -282,8 +288,8 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     }
 
     modifier onlyNFTOwner(address nftContract, uint256 tokenId) {
-        address owner = ERC721(nftContract).ownerOf(tokenId);
-        bool isOwner = owner == msg.sender || owner == portfolios[msg.sender].owner;
+        address _owner = ERC721(nftContract).ownerOf(tokenId);
+        bool isOwner = _owner == msg.sender || _owner == portfolios[msg.sender].owner;
         require(isOwner, "NFT must be owned the the user or user's portfolio");
         _;
     }
@@ -339,8 +345,13 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         onlyNFTOwner(nftContract, tokenId)
     {
         // NOTE: owner conflicts with the state variable. Should rename to nftOwner, owner_, or similar.
-        address owner = ERC721(nftContract).ownerOf(tokenId);
-        ERC721(nftContract).safeTransferFrom(owner, address(this), tokenId, abi.encode(msg.sender));
+        address _owner = ERC721(nftContract).ownerOf(tokenId);
+        ERC721(nftContract).safeTransferFrom(
+            _owner,
+            address(this),
+            tokenId,
+            abi.encode(msg.sender)
+        );
     }
 
     /*function depositDosERC20(uint16 erc20Idx, int256 amount) external onlyPortfolio {
@@ -486,6 +497,46 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         _tokenApprovals[collection][tokenId] = address(0);
         transferNFT(nftId, from, to);
     }
+
+    // TODO: update approval to only cover this call
+    /**
+     * @notice Approve the passed address to spend the specified amount of tokens on behalf of msg.sender
+     * and then call `onApprovalReceived` on spender.
+     * Beware that changing an allowance with this method brings the risk that someone may use both the old
+     * and the new allowance by unfortunate transaction ordering. One possible solution to mitigate this
+     * race condition is to first reduce the spender's allowance to 0 and set the desired value afterwards:
+     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+     * @param erc20 The erc20 token to approve
+     * @param spender address The address which will spend the funds
+     * @param amount uint256 The amount of tokens to be spent
+     */
+    function approveAndCall(IERC20 erc20, address spender, uint256 amount) external returns (bool) {
+        return approveAndCall(erc20, spender, amount, "");
+    }
+
+    /**
+     * @notice Transfer tokens from `msg.sender` to another address and then call `onTransferReceived` on receiver
+     * @param erc20 The erc20 token to transfer
+     * @param to address The address which you want to transfer to
+     * @param amount uint256 The amount of tokens to be transferred
+     * @return true unless throwing
+     */
+    function transferAndCall(IERC20 erc20, address to, uint256 amount) external returns (bool) {
+        return transferAndCall(erc20, to, amount, "");
+    }
+
+    // /**
+    //  * @notice Transfer tokens from one address to another and then call `onTransferReceived` on receiver
+    //  * @param from address The address which you want to send tokens from
+    //  * @param to address The address which you want to transfer to
+    //  * @param amount uint256 The amount of tokens to be transferred
+    //  * @return true unless throwing
+    //  */
+    // function transferFromAndCall(
+    //     address from,
+    //     address to,
+    //     uint256 amount
+    // ) external returns (bool) {}
 
     function liquidate(
         address portfolio
@@ -645,18 +696,67 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         return this.onERC721Received.selector;
     }
 
-    function getNFTId(address erc721, uint256 tokenId) internal view returns (NFTId) {
-        require(infoIdx[erc721].kind == 2, "Not an NFT");
-        uint16 erc721Idx = infoIdx[erc721].idx;
-        uint256 tokenHash = uint256(keccak256(abi.encodePacked(tokenId))) >> 32;
-        return NFTId.wrap(erc721Idx | (tokenHash << 16) | ((tokenId >> 240) << 240));
+    // TODO: update approval to only cover this call
+    /**
+     * @notice Approve the passed address to spend the specified amount of tokens on behalf of msg.sender
+     * and then call `onApprovalReceived` on spender.
+     * Beware that changing an allowance with this method brings the risk that someone may use both the old
+     * and the new allowance by unfortunate transaction ordering. One possible solution to mitigate this
+     * race condition is to first reduce the spender's allowance to 0 and set the desired value afterwards:
+     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+     * @param erc20 address The address of the ERC20 token
+     * @param spender address The address which will spend the funds
+     * @param amount uint256 The amount of tokens to be spent
+     * @param data bytes Additional data with no specified format, sent in call to `spender`
+     */
+    function approveAndCall(
+        IERC20 erc20,
+        address spender,
+        uint256 amount,
+        bytes memory data
+    ) public returns (bool) {
+        _approveERC20(msg.sender, erc20, spender, amount);
+        if (!_checkOnApprovalReceived(spender, amount, data)) {
+            revert WrongDataReturned();
+        }
+        return true;
     }
 
-    function getNFTData(NFTId nftId) internal view returns (uint16 erc721Idx, uint256 tokenId) {
-        uint256 unwrappedId = NFTId.unwrap(nftId);
-        erc721Idx = uint16(unwrappedId);
-        tokenId = tokenDataByNFTId[nftId].tokenId | ((unwrappedId >> 240) << 240);
+    /**
+     * @notice Transfer tokens from `msg.sender` to another address and then call `onTransferReceived` on receiver
+     * @param erc20 address The address of the ERC20 token
+     * @param to address The address which you want to transfer to
+     * @param amount uint256 The amount of tokens to be transferred
+     * @param data bytes Additional data with no specified format, sent in call to `to`
+     * @return true unless throwing
+     */
+    function transferAndCall(
+        IERC20 erc20,
+        address to,
+        uint256 amount,
+        bytes memory data
+    ) public returns (bool) {
+        transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
+        if (!_checkOnTransferReceived(msg.sender, to, amount, data)) {
+            revert WrongDataReturned();
+        }
+        return true;
     }
+
+    // /**
+    //  * @notice Transfer tokens from one address to another and then call `onTransferReceived` on receiver
+    //  * @param from address The address which you want to send tokens from
+    //  * @param to address The address which you want to transfer to
+    //  * @param amount uint256 The amount of tokens to be transferred
+    //  * @param data bytes Additional data with no specified format, sent in call to `to`
+    //  * @return true unless throwing
+    //  */
+    // function transferFromAndCall(
+    //     address from,
+    //     address to,
+    //     uint256 amount,
+    //     bytes calldata data
+    // ) public returns (bool) {}
 
     function getPortfolioOwner(address portfolio) public view override returns (address) {
         return portfolios[portfolio].owner;
@@ -801,6 +901,74 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         emit ApprovalForAll(collection, _owner, operator, approved);
     }
 
+    /**
+     * @dev Internal function to invoke {IERC1363Receiver-onTransferReceived} on a target address
+     *  The call is not executed if the target address is not a contract
+     * @param sender address Representing the previous owner of the given token amount
+     * @param recipient address Target address that will receive the tokens
+     * @param amount uint256 The amount mount of tokens to be transferred
+     * @param data bytes Optional data to send along with the call
+     * @return whether the call correctly returned the expected magic value
+     */
+    function _checkOnTransferReceived(
+        address sender,
+        address recipient,
+        uint256 amount,
+        bytes memory data
+    ) internal virtual returns (bool) {
+        if (!recipient.isContract()) {
+            revert ReceiverNotContract();
+        }
+
+        try
+            IERC1363Receiver(recipient).onTransferReceived(msg.sender, sender, amount, data)
+        returns (bytes4 retval) {
+            return retval == IERC1363Receiver.onTransferReceived.selector;
+        } catch (bytes memory reason) {
+            if (reason.length == 0) {
+                revert ReceiverNoImplementation();
+            } else {
+                /// @solidity memory-safe-assembly
+                assembly {
+                    revert(add(32, reason), mload(reason))
+                }
+            }
+        }
+    }
+
+    /**
+     * @dev Internal function to invoke {IERC1363Receiver-onApprovalReceived} on a target address
+     *  The call is not executed if the target address is not a contract
+     * @param spender address The address which will spend the funds
+     * @param amount uint256 The amount of tokens to be spent
+     * @param data bytes Optional data to send along with the call
+     * @return whether the call correctly returned the expected magic value
+     */
+    function _checkOnApprovalReceived(
+        address spender,
+        uint256 amount,
+        bytes memory data
+    ) internal virtual returns (bool) {
+        if (!spender.isContract()) {
+            revert ReceiverNotContract();
+        }
+
+        try IERC1363Spender(spender).onApprovalReceived(msg.sender, amount, data) returns (
+            bytes4 retval
+        ) {
+            return retval == IERC1363Spender.onApprovalReceived.selector;
+        } catch (bytes memory reason) {
+            if (reason.length == 0) {
+                revert ReceiverNoImplementation();
+            } else {
+                /// @solidity memory-safe-assembly
+                assembly {
+                    revert(add(32, reason), mload(reason))
+                }
+            }
+        }
+    }
+
     function transferERC20(IERC20 erc20, address from, address to, int256 amount) internal {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         updateBalance(erc20Idx, from, -amount);
@@ -874,6 +1042,19 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         p.debt.tokens -= interest;
         p.collateral.tokens += interest;
         // TODO(gerben) add to treasury
+    }
+
+    function getNFTId(address erc721, uint256 tokenId) internal view returns (NFTId) {
+        require(infoIdx[erc721].kind == 2, "Not an NFT");
+        uint16 erc721Idx = infoIdx[erc721].idx;
+        uint256 tokenHash = uint256(keccak256(abi.encodePacked(tokenId))) >> 32;
+        return NFTId.wrap(erc721Idx | (tokenHash << 16) | ((tokenId >> 240) << 240));
+    }
+
+    function getNFTData(NFTId nftId) internal view returns (uint16 erc721Idx, uint256 tokenId) {
+        uint256 unwrappedId = NFTId.unwrap(nftId);
+        erc721Idx = uint16(unwrappedId);
+        tokenId = tokenDataByNFTId[nftId].tokenId | ((unwrappedId >> 240) << 240);
     }
 
     function _isApprovedOrOwner(address spender, NFTId nftId) internal view returns (bool) {
