@@ -55,7 +55,7 @@ export const preprocessCode = (
     // we are building for deployment on external chains so we like
     // to include the correct git hashes into the contracts.
 
-    const mustBeClean = false;
+    const mustBeClean = true;
     // make sure the repo is clean
     if (
       mustBeClean &&
