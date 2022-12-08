@@ -125,7 +125,7 @@ rules:
   "@typescript-eslint/lines-between-class-members": [error, always, {exceptAfterSingleLine: true}]
   "@typescript-eslint/no-array-constructor": error
   "@typescript-eslint/no-empty-function": error
-  "@typescript-eslint/no-magic-numbers": [error, {
+  "@typescript-eslint/no-magic-numbers": [warn, {
     ignoreArrayIndexes: true,
     ignoreDefaultValues: true,
     ignoreClassFieldInitialValues: true,
@@ -184,7 +184,7 @@ overrides:
   rules:
     no-console: off
     "@typescript-eslint/naming-convention": off
-- files: ["./scripts/deploy.ts"]
+- files: ["./scripts/*.ts"]
   rules:
     no-console: off
     "@typescript-eslint/naming-convention": off

@@ -1,4 +1,4 @@
-import type {BigNumber, BigNumberish, ContractTransaction} from "ethers";
+import type {BigNumber} from "ethers";
 import type {PortfolioLogic} from "../../typechain-types";
 
 import {ethers} from "hardhat";
@@ -24,8 +24,6 @@ const ETH_PRICE = 2000;
 
 const USDC_DECIMALS = 6;
 const WETH_DECIMALS = 18;
-
-const NFT_PRICE = 200;
 
 const tenThousandUsdc = toWeiUsdc(10_000);
 const oneEth = toWei(1);
@@ -153,7 +151,7 @@ describe("Portfolio proxy", () => {
   });
 
   it("should be able to transferandcall into dos", async () => {
-    const {user, usdc, weth, dos, portfolio, getBalances, transferAndCall2} = await loadFixture(
+    const {user, usdc, weth, portfolio, getBalances, transferAndCall2} = await loadFixture(
       deployDOSFixture,
     );
 
@@ -175,13 +173,10 @@ describe("Portfolio proxy", () => {
   });
 
   it("should be able to transferandcall into other portfolio and make a swap with signatures", async () => {
-    const {user, user2, usdc, weth, dos, portfolio, getBalances, transferAndCall2} =
-      await loadFixture(deployDOSFixture);
+    const {user, user2, usdc, weth, dos, transferAndCall2} = await loadFixture(deployDOSFixture);
 
     const portfolio2 = await createPortfolio(dos, user2);
     await usdc.connect(user).transfer(portfolio2.address, tenThousandUsdc);
-
-    const transfer = {token: weth.address, amount: oneEth};
 
     const signedCall = {
       operator: user.address,
@@ -191,7 +186,7 @@ describe("Portfolio proxy", () => {
     };
 
     const signedData = await signOnTransferReceived2Call(portfolio2, signedCall, 0, user2);
-    const data = "0x02" + signedData.slice(2);
+    const data = `0x02${signedData.slice(2)}`;
 
     await transferAndCall2
       .connect(user)

@@ -1,16 +1,17 @@
 import type {IPermit2, PortfolioLogic} from "../typechain-types";
+import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import type {Call} from "./calls";
+import type {TypedDataField} from "ethers";
 
 import {ethers} from "hardhat";
-import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {Call, makeCall} from "./calls";
-import {TypedDataField} from "ethers";
+
 import {checkDefined} from "./preconditions";
 
 // this fixes random tests crash with
 // "contract call run out of gas and made the transaction revert" error
 // and, as a side effect, speeds tests in 2-3 times!
 // https://github.com/NomicFoundation/hardhat/issues/1721
-export const getFixedGasSigners = async function (gasLimit: number) {
+export const getFixedGasSigners = async function (gasLimit: number): Promise<SignerWithAddress[]> {
   const signers: SignerWithAddress[] = await ethers.getSigners();
   for (const signer of signers) {
     const sendTransactionOrig = signer.sendTransaction.bind(signer);
@@ -47,8 +48,10 @@ const basicTypes = [
   "bytes32",
 ];
 
-// Helper function to generate error prone typed data strings
-const generateTypedDataString = function (types: Record<string, TypedDataField[]>) {
+// helper function to generate error prone typed data strings
+export const generateTypedDataString = (
+  types: Record<string, TypedDataField[]>,
+): Record<string, string> => {
   const typesList = Object.entries(types);
   const structTypes = Object.fromEntries(
     typesList.map(([name, fields]) => [
@@ -66,9 +69,9 @@ const generateTypedDataString = function (types: Record<string, TypedDataField[]
     }
     visited.add(typeName);
     const fields = checkDefined(types[typeName], `type ${typeName} not found`);
-    fields.forEach(({name, type}) => visit(type, visited));
+    fields.forEach(({type}) => visit(type, visited));
   };
-  return typesList.map(([typeName]) => {
+  const l = typesList.map(([typeName]) => {
     const visited = new Set<string>();
     visit(typeName, visited);
     visited.delete(typeName);
@@ -79,8 +82,9 @@ const generateTypedDataString = function (types: Record<string, TypedDataField[]
           .sort()
           .map(typeName => structTypes[typeName]),
       ),
-    ];
+    ] as [string, string];
   });
+  return Object.fromEntries(l);
 };
 
 export const signOnTransferReceived2Call = async (
@@ -93,7 +97,7 @@ export const signOnTransferReceived2Call = async (
   },
   nonce: number,
   signer: SignerWithAddress,
-) => {
+): Promise<string> => {
   // corresponds with the EIP712 constructor call
   const domain = {
     name: "DOS Portfolio",

@@ -1,22 +1,20 @@
 import {readFile, writeFile} from "node:fs/promises";
 
-interface DeploymentAddresses {
-  [network: string]: {[contractName: string]: string};
-}
+type DeploymentAddresses = Record<string, Record<string, string>>;
 
 export const getAllAddresses = async (): Promise<DeploymentAddresses> => {
   const path = `./deployment/addresses.json`;
   const content = await readFile(path, {encoding: "utf-8"});
-  return JSON.parse(content);
+  return JSON.parse(content) as DeploymentAddresses;
 };
 
-export const getAddressesForNetwork = async () => {
+export const getAddressesForNetwork = async (): Promise<Record<string, string>> => {
   return (await getAllAddresses())[getNetwork()];
 };
 
-export const saveAddressesForNetwork = async (contractAddresses: {
-  [contractName: string]: string;
-}) => {
+export const saveAddressesForNetwork = async (
+  contractAddresses: Record<string, string>,
+): Promise<void> => {
   const network = getNetwork();
   const oldAddresses = await getAllAddresses();
   if (oldAddresses[network] === undefined) oldAddresses[network] = {};
@@ -33,6 +31,6 @@ export const saveAddressesForNetwork = async (contractAddresses: {
 };
 
 const getNetwork = () => {
-  const network = (process.env.HARDHAT_NETWORK || "localhost").toLowerCase();
+  const network = (process.env.HARDHAT_NETWORK ?? "localhost").toLowerCase();
   return network;
 };

@@ -1,5 +1,3 @@
-import type {BigNumberish} from "ethers";
-
 import {ethers, waffle} from "hardhat";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
