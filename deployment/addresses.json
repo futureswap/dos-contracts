@@ -1,7 +1,14 @@
 {
-    "ethereum": {},
-    "goerli": {
-        "anyswapCreate2Deployer": "0xDf7Cc8d582D213Db25FBfb9CF659c79e8E4263bd",
-        "batchDeployer": "0x403556CDC8EaeCDe9dC2311ab78E54E73a4A28Fb"
-    }
+  "ethereum": {
+    "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+    "weth": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    "usdc": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+  },
+  "goerli": {
+    "anyswapCreate2Deployer": "0xDf7Cc8d582D213Db25FBfb9CF659c79e8E4263bd",
+    "batchDeployer": "0x403556CDC8EaeCDe9dC2311ab78E54E73a4A28Fb",
+    "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+    "weth": "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6",
+    "transferAndCall2": "0x2652099fa420561A4A4758ED4FdDF18C6D54a48c"
+  }
 }

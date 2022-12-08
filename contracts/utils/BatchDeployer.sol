@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import "../external/interfaces/IAnyswapCreate2Deployer.sol";
 import "../lib/FsUtils.sol";
 
-contract BatchDeploy {
+contract BatchDeployer {
     struct InitCode {
         bytes initCode;
         bytes32 salt;

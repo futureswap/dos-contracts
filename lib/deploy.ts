@@ -203,7 +203,7 @@ export const deployFixedAddress = async (
 ): Promise<{permit2: IPermit2; transferAndCall2: TransferAndCall2}> => {
   const permit2 = IPermit2__factory.connect("0x000000000022D473030F116dDEE9F6B43aC78BA3", signer);
   const transferAndCall2 = TransferAndCall2__factory.connect(
-    "0x9848AB09c804dAfCE9e0b82d508aC6d2E8bACFfE",
+    "0x2652099fa420561A4A4758ED4FdDF18C6D54a48c",
     signer,
   );
   await setCode(permit2.address, permit2JSON.deployedBytecode.object);
