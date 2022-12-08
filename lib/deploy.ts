@@ -27,7 +27,6 @@ import {setCode} from "@nomicfoundation/hardhat-network-helpers";
 import {waffle} from "hardhat";
 
 import {getEventParams, getEventsTx} from "./events";
-import anyswapCreate2DeployerJSON from "../artifacts/contracts/external/AnyswapCreate2Deployer.sol/AnyswapCreate2Deployer.json";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {
   AggregatorV3Interface__factory,
@@ -42,6 +41,42 @@ import {
 import {toWei} from "./numbers";
 import {makeCall, proposeAndExecute} from "./calls";
 import {checkDefined} from "./preconditions";
+
+export async function deployAnyswapCreate2Deployer(signer: ethers.Signer) {
+  const deployerAddress = "0xB39734A1c2f6917c17b38C9Bc30ECB3fCC2dCBf8";
+  const contractAddress = "0xDf7Cc8d582D213Db25FBfb9CF659c79e8E4263bd";
+
+  const provider = checkDefined(signer.provider);
+  if ((await provider.getTransactionCount(deployerAddress)) == 0) {
+    // Deploy AnyswapCreate2Deployer to the same address on all networks
+    const tx = {
+      nonce: 0,
+      gasPrice: 116000000000,
+      gasLimit: 158155,
+      // EIP-1559 fields
+      // maxFeePerGas: gasPrice.maxFeePerGas,
+      // maxPriorityFeePerGas: gasPrice.maxPriorityFeePerGas,
+      value: 0,
+      data: "0x608060405234801561001057600080fd5b506101e7806100206000396000f3fe608060405234801561001057600080fd5b506004361061002b5760003560e01c80639c4ae2d014610030575b600080fd5b61004361003e3660046100b2565b610045565b005b6000818351602085016000f59050803b61005e57600080fd5b6040805173ffffffffffffffffffffffffffffffffffffffff83168152602081018490527fb03c53b28e78a88e31607a27e1fa48234dce28d5d9d9ec7b295aeb02e674a1e1910160405180910390a1505050565b600080604083850312156100c4578182fd5b823567ffffffffffffffff808211156100db578384fd5b818501915085601f8301126100ee578384fd5b81358181111561010057610100610182565b604051601f82017fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0908116603f0116810190838211818310171561014657610146610182565b8160405282815288602084870101111561015e578687fd5b82602086016020830137918201602090810196909652509694909301359450505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fdfea2646970667358221220144cba0fdb5118b83f6adff581cec1e3628ba45d2e73e9df71c331f8f8a4a13e64736f6c63430008020033",
+      type: 0,
+      // EIP-2718
+      // type: 0
+    };
+    const sig = {
+      v: 27,
+      r: "0x1820182018201820182018201820182018201820182018201820182018201820",
+      s: "0x1820182018201820182018201820182018201820182018201820182018201820",
+    };
+    // Make sure the money is send to the deployer address by awaiting the transaction confirmation
+    await (await signer.sendTransaction({to: deployerAddress, value: toWei(0.02)})).wait();
+    const deployTx = await checkDefined(signer.provider).sendTransaction(
+      ethers.utils.serializeTransaction(tx, sig),
+    );
+    const receipt = await deployTx.wait();
+    if (contractAddress != receipt.contractAddress) throw new Error("Incorrect contract addresss");
+  }
+  return AnyswapCreate2Deployer__factory.connect(contractAddress, signer);
+}
 
 export async function deployUniswapPool(
   uniswapFactory: ethers.Contract,
@@ -161,30 +196,18 @@ export async function provideLiquidity(
   };
 }
 
-export const deployFixedAddress = async (
-  signer: ethers.Signer,
-): Promise<{
-  permit2: IPermit2;
-  anyswapCreate2Deployer: AnyswapCreate2Deployer;
-  transferAndCall2: TransferAndCall2;
-}> => {
+export const deployFixedAddress = async (signer: ethers.Signer) => {
   const permit2 = IPermit2__factory.connect("0x000000000022D473030F116dDEE9F6B43aC78BA3", signer);
-  const anyswapCreate2Deployer = AnyswapCreate2Deployer__factory.connect(
-    "0x54F5A04417E29FF5D7141a6d33cb286F50d5d50e",
-    signer,
-  );
   const transferAndCall2 = TransferAndCall2__factory.connect(
     "0x9848AB09c804dAfCE9e0b82d508aC6d2E8bACFfE",
     signer,
   );
   await setCode(permit2.address, permit2JSON.deployedBytecode.object);
-  await setCode(anyswapCreate2Deployer.address, anyswapCreate2DeployerJSON.deployedBytecode);
   const deployedContract = await new TransferAndCall2__factory(signer).deploy();
   const deployedCode = await deployedContract.provider.getCode(deployedContract.address);
   await setCode(transferAndCall2.address, deployedCode);
   return {
     permit2,
-    anyswapCreate2Deployer,
     transferAndCall2,
   };
 };

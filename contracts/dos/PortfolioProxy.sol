@@ -333,10 +333,6 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712
 
             // Verify transfers match signed tfer
             if (from != signedCall.from || transfers.length != signedCall.transfers.length) {
-                console.log(from);
-                console.log(signedCall.from);
-                console.log(transfers.length);
-                console.log(signedCall.transfers.length);
                 revert InvalidSignature();
             }
             for (uint256 i = 0; i < transfers.length; i++) {

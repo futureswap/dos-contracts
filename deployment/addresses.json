@@ -1,0 +1,7 @@
+{
+    "ethereum": {},
+    "goerli": {
+        "anyswapCreate2Deployer": "0xDf7Cc8d582D213Db25FBfb9CF659c79e8E4263bd",
+        "batchDeployer": "0x403556CDC8EaeCDe9dC2311ab78E54E73a4A28Fb"
+    }
+}
