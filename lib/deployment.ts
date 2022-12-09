@@ -16,7 +16,7 @@ import {
   VersionManager__factory,
 } from "../typechain-types";
 import {IAnyswapCreate2Deployer__factory} from "../typechain-types/factories/contracts/external/interfaces/IAnyswapCreate2Deployer__factory";
-import { SignedGovernor__factory } from "../typechain-types/factories/contracts/utils/SignedGovernor__factory";
+import {SignedGovernor__factory} from "../typechain-types/factories/contracts/utils/SignedGovernor__factory";
 import {
   getSwapRouterFactory,
   getUniswapFactory,
