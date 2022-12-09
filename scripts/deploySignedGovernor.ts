@@ -5,7 +5,7 @@ import {ethers} from "hardhat";
 import {FUTURESWAP_DEPLOYER_MNEMONIC} from "../hardhat.config";
 import {deployAtFixedAddress, deployGovernanceProxy, fsSalt} from "../lib/deploy";
 import {getAddressesForNetwork, getContracts, saveAddressesForNetwork} from "../lib/deployment";
-import { SignedGovernor__factory} from "../typechain-types";
+import {SignedGovernor__factory} from "../typechain-types";
 
 async function main() {
   const [workDeployer] = await ethers.getSigners();
