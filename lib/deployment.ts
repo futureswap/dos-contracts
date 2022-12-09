@@ -16,6 +16,7 @@ import {
   VersionManager__factory,
 } from "../typechain-types";
 import {IAnyswapCreate2Deployer__factory} from "../typechain-types/factories/contracts/external/interfaces/IAnyswapCreate2Deployer__factory";
+import { SignedGovernor__factory } from "../typechain-types/factories/contracts/utils/SignedGovernor__factory";
 import {
   getSwapRouterFactory,
   getUniswapFactory,
@@ -80,6 +81,8 @@ export const getContractFactory = (
       return GovernanceProxy__factory.connect(address, signer);
     case "governance":
       return Governance__factory.connect(address, signer);
+    case "signedGovernor":
+      return SignedGovernor__factory.connect(address, signer);
     case "voteNFT":
       return HashNFT__factory.connect(address, signer);
     case "adminNFT":
