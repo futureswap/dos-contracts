@@ -4,7 +4,7 @@
   "license": "BUSL-1.1",
   "scripts": {
     "node": "yarn hardhat node",
-    "lint": "yarn eslint . && yarn solhint contracts/**/*.sol",
+    "lint": "yarn solhint contracts/**/*.sol && yarn eslint .",
     "test": "yarn hardhat test",
     "test:withTypesCheck": "yarn tsc --noEmit && yarn hardhat test",
     "compile": "yarn hardhat compile",
@@ -36,6 +36,7 @@
     "@types/mocha": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^5.45.1",
     "@typescript-eslint/parser": "^5.45.1",
+    "bip39": "^3.0.4",
     "dot-only-hunter": "^1.0.3",
     "dotenv": "^16.0.3",
     "eslint": "^8.29.0",

@@ -5,7 +5,7 @@ import {expect} from "chai";
 import {TestERC20__factory, WETH9__factory} from "../../typechain-types";
 import {toWei} from "../../lib/numbers";
 import {getFixedGasSigners} from "../../lib/signers";
-import {deployFixedAddress} from "../../lib/deploy";
+import {deployFixedAddressForTests} from "../../lib/deploy";
 import {ITransferReceiver2__factory} from "../../typechain-types/factories/contracts/interfaces/ITransferReceiver2__factory";
 import {sortTransfers} from "../../lib/calls";
 
@@ -26,7 +26,7 @@ describe("DOS", () => {
     const usdc = await new TestERC20__factory(owner).deploy("USDC", "USDC", USDC_DECIMALS);
     const uni = await new TestERC20__factory(owner).deploy("UNI", "UNI", WETH_DECIMALS);
 
-    const {transferAndCall2} = await deployFixedAddress(owner);
+    const {transferAndCall2} = await deployFixedAddressForTests(owner);
 
     const mockReceiver = await waffle.deployMockContract(owner, ITransferReceiver2__factory.abi);
     const magicValue = mockReceiver.interface.getSighash("onTransferReceived2");

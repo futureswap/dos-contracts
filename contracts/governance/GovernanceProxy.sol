@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/utils/Address.sol";
 import "../lib/FsUtils.sol";
 import "../lib/ImmutableOwnable.sol";
-import "../tokens/VoteNFT.sol";
+import "../tokens/HashNFT.sol";
 
 // This is a proxy contract representing governance. This allows a fixed
 // ethereum address to be the indefinite owner of the system. This works
@@ -33,8 +33,8 @@ contract GovernanceProxy {
     event NewGovernanceProposed(address newGovernance);
     event GovernanceChanged(address oldGovernance, address newGovernance);
 
-    constructor() {
-        governance = msg.sender;
+    constructor(address _governance) {
+        governance = FsUtils.nonNull(_governance);
     }
 
     /// @notice Execute a batch of contract calls.
