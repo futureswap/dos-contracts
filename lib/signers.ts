@@ -1,4 +1,4 @@
-import type {IPermit2, PortfolioLogic} from "../typechain-types";
+import type {IPermit2, DSafeLogic} from "../typechain-types";
 import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import type {Call} from "./calls";
 import type {TypedDataField} from "ethers";
@@ -88,7 +88,7 @@ export const generateTypedDataString = (
 };
 
 export const signOnTransferReceived2Call = async (
-  portfolio: PortfolioLogic,
+  dSafe: DSafeLogic,
   signedCall: {
     operator: string;
     from: string;
@@ -100,10 +100,10 @@ export const signOnTransferReceived2Call = async (
 ): Promise<string> => {
   // corresponds with the EIP712 constructor call
   const domain = {
-    name: "DOS Portfolio",
+    name: "DOS dSafe",
     version: "1",
-    chainId: (await portfolio.provider.getNetwork()).chainId,
-    verifyingContract: portfolio.address,
+    chainId: (await dSafe.provider.getNetwork()).chainId,
+    verifyingContract: dSafe.address,
   };
 
   // the named list of all type definitions

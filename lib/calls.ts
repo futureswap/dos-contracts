@@ -1,9 +1,9 @@
-import type {Governance, HashNFT, DOS, PortfolioLogic} from "../typechain-types";
+import type {Governance, HashNFT, DOS, DSafeLogic} from "../typechain-types";
 import type {ContractTransaction} from "ethers";
 
 import {ethers} from "ethers";
 
-import {PortfolioLogic__factory} from "../typechain-types";
+import {DSafeLogic__factory} from "../typechain-types";
 import {getEventParams} from "./events";
 
 function cleanValue(v: unknown): unknown {
@@ -62,13 +62,13 @@ export async function proposeAndExecute(
   return await governance.execute(nonce, calls);
 }
 
-export const createPortfolio = async (dos: DOS, signer: ethers.Signer): Promise<PortfolioLogic> => {
-  const {portfolio} = await getEventParams(
-    await dos.connect(signer).createPortfolio(),
+export const createDSafe = async (dos: DOS, signer: ethers.Signer): Promise<DSafeLogic> => {
+  const {dSafe} = await getEventParams(
+    await dos.connect(signer).createDSafe(),
     dos,
-    "PortfolioCreated",
+    "DSafeCreated",
   );
-  return PortfolioLogic__factory.connect(portfolio as string, signer);
+  return DSafeLogic__factory.connect(dSafe as string, signer);
 };
 
 export const sortTransfers = (

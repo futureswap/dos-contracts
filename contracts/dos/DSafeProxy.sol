@@ -16,7 +16,7 @@ import "../interfaces/ITransferReceiver2.sol";
 import "../external/interfaces/IPermit2.sol";
 
 // Inspired by TransparentUpdatableProxy
-contract PortfolioProxy is Proxy {
+contract DSafeProxy is Proxy {
     using Address for address;
 
     address public immutable dos;
@@ -49,7 +49,7 @@ contract PortfolioProxy is Proxy {
         }
     }
 
-    // Allow DOS to make arbitrary calls in lieu of this portfolio
+    // Allow DOS to make arbitrary calls in lieu of this dSafe
     function doCall(
         address to,
         bytes calldata callData,
@@ -65,21 +65,21 @@ contract PortfolioProxy is Proxy {
 }
 
 // Calls to the contract not coming from DOS itself are routed to this logic
-// contract. This allows for flexible extra addition to your portfolio.
-contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
+// contract. This allows for flexible extra addition to your dSafe.
+contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
     IDOS public immutable dos;
 
     mapping(uint248 => uint256) public nonces;
 
     modifier onlyOwner() {
-        require(IDOS(dos).getPortfolioOwner(address(this)) == msg.sender, "");
+        require(IDOS(dos).getDSafeOwner(address(this)) == msg.sender, "");
         _;
     }
 
     // Note EIP712 is implemented with immutable variables and is not using
     // storage and thus can be used in a proxy contract.
     // Version number should be in sync with VersionManager version.
-    constructor(address _dos) EIP712("DOS Portfolio", "1") {
+    constructor(address _dos) EIP712("DOS dSafe", "1") {
         // slither-disable-next-line missing-zero-check
         dos = IDOS(FsUtils.nonNull(_dos));
     }
@@ -89,20 +89,20 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712
     }
 
     function liquify(
-        address portfolio,
+        address dSafe,
         address swapRouter,
         address numeraire,
         IERC20[] calldata erc20s
     ) external {
         if (msg.sender != address(this)) {
-            require(msg.sender == IDOS(dos).getPortfolioOwner(address(this)), "only owner");
+            require(msg.sender == IDOS(dos).getDSafeOwner(address(this)), "only owner");
 
             IDOS.Call[] memory calls = new IDOS.Call[](1);
             calls[0] = IDOS.Call({
                 to: address(this),
                 callData: abi.encodeWithSelector(
                     this.liquify.selector,
-                    portfolio,
+                    dSafe,
                     swapRouter,
                     numeraire,
                     erc20s
@@ -112,8 +112,8 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712
             dos.executeBatch(calls);
             return;
         }
-        // Liquidate the portfolio
-        dos.liquidate(portfolio);
+        // Liquidate the dSafe
+        dos.liquidate(dSafe);
 
         // Withdraw all non-numeraire collateral
         int256[] memory balances = new int256[](erc20s.length);
@@ -181,7 +181,7 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712
     }
 
     function owner() external view returns (address) {
-        return IDOS(dos).getPortfolioOwner(address(this));
+        return IDOS(dos).getDSafeOwner(address(this));
     }
 
     function onERC721Received(
@@ -199,7 +199,7 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712
         bytes memory signature
     ) public view override returns (bytes4 magicValue) {
         magicValue = SignatureChecker.isValidSignatureNow(
-            IDOS(dos).getPortfolioOwner(address(this)),
+            IDOS(dos).getDSafeOwner(address(this)),
             hash,
             signature
         )
@@ -264,7 +264,7 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712
             /* just deposit in the proxy */
         } else if (data[0] == 0x01) {
             require(data.length == 1, "Invalid data - allowed are [], [1] and [2]");
-            // deposit in the dos portfolio
+            // deposit in the dos dSafe
             for (uint256 i = 0; i < transfers.length; i++) {
                 ITransferReceiver2.Transfer memory transfer = transfers[i];
 
@@ -322,7 +322,7 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712
             );
             if (
                 !SignatureChecker.isValidSignatureNow(
-                    IDOS(dos).getPortfolioOwner(address(this)),
+                    IDOS(dos).getDSafeOwner(address(this)),
                     digest,
                     signature
                 )
