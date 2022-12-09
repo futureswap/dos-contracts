@@ -13,8 +13,10 @@ import {
   IERC20__factory,
   IPermit2__factory,
   HashNFT__factory,
+  VersionManager__factory,
 } from "../typechain-types";
 import {IAnyswapCreate2Deployer__factory} from "../typechain-types/factories/contracts/external/interfaces/IAnyswapCreate2Deployer__factory";
+import { getSwapRouterFactory, getUniswapFactory, getUniswapNonfungiblePositionManagerFactory } from "./deploy";
 
 type NetworkAddresses = Record<string, string>;
 type DeploymentAddresses = Record<string, NetworkAddresses>;
@@ -68,6 +70,8 @@ export const getContractFactory = (
       return TransferAndCall2__factory.connect(address, signer);
     case "dos":
       return DOS__factory.connect(address, signer);
+    case "versionManager":
+      return VersionManager__factory.connect(address, signer);
     case "governanceProxy":
       return GovernanceProxy__factory.connect(address, signer);
     case "governance":
@@ -80,6 +84,12 @@ export const getContractFactory = (
       return IWETH9__factory.connect(address, signer);
     case "usdc":
       return IERC20__factory.connect(address, signer);
+    case "uniswapV3Factory":
+        return getUniswapFactory(signer).attach(address);
+    case "swapRouter":
+        return getSwapRouterFactory(signer).attach(address);
+    case "nonFungiblePositionManager":
+        return getUniswapNonfungiblePositionManagerFactory(signer).attach(address);
     default:
       throw new Error(`Unknown contract name: ${contractName}`);
   }

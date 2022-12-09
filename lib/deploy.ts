@@ -81,6 +81,28 @@ export async function deployUniswapPool(
   return pool;
 }
 
+export const getUniswapFactory = (signer: ethers.Signer): ethers.ContractFactory => {
+  return new ethers.ContractFactory(
+    uniV3FactJSON.abi,
+    uniV3FactJSON.bytecode,
+    signer,
+  );
+}
+export const getUniswapNonfungiblePositionManagerFactory = (signer: ethers.Signer): ethers.ContractFactory => {
+  return new ethers.ContractFactory(
+    uniNFTManagerJSON.abi,
+    uniNFTManagerJSON.bytecode,
+    signer,
+  );
+}
+export const getSwapRouterFactory = (signer: ethers.Signer): ethers.ContractFactory => {
+  return new ethers.ContractFactory(
+    swapRouterJSON.abi,
+    swapRouterJSON.bytecode,
+    signer,
+  );
+}
+
 export async function deployUniswapFactory(
   weth: string,
   signer: ethers.Signer,
@@ -89,11 +111,7 @@ export async function deployUniswapFactory(
   uniswapNFTManager: ethers.Contract;
   swapRouter: ethers.Contract;
 }> {
-  const uniswapFactory = await new ethers.ContractFactory(
-    uniV3FactJSON.abi,
-    uniV3FactJSON.bytecode,
-    signer,
-  ).deploy();
+  const uniswapFactory = await getUniswapFactory(signer).deploy();
   const nftDesc = await new ethers.ContractFactory(
     nftDescJSON.abi,
     nftDescJSON.bytecode,
@@ -110,16 +128,8 @@ export async function deployUniswapFactory(
     linkedBytecode,
     signer,
   ).deploy(weth, ethers.constants.MaxInt256);
-  const uniswapNFTManager = await new ethers.ContractFactory(
-    uniNFTManagerJSON.abi,
-    uniNFTManagerJSON.bytecode,
-    signer,
-  ).deploy(uniswapFactory.address, weth, tokenDescriptor.address);
-  const swapRouter = await new ethers.ContractFactory(
-    swapRouterJSON.abi,
-    swapRouterJSON.bytecode,
-    signer,
-  ).deploy(uniswapFactory.address, weth);
+  const uniswapNFTManager = await getUniswapNonfungiblePositionManagerFactory(signer).deploy(uniswapFactory.address, weth, tokenDescriptor.address);
+  const swapRouter = await getSwapRouterFactory(signer).deploy(uniswapFactory.address, weth);
   return {uniswapFactory, uniswapNFTManager, swapRouter};
 }
 
