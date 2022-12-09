@@ -3,9 +3,12 @@
 
 import type {HardhatRuntimeEnvironment} from "hardhat/types";
 
-import {exec} from "child_process";
+import {promisify} from "node:util";
+import {exec as execCallback} from "node:child_process";
 
 import {checkDefined, checkState} from "../preconditions";
+
+const exec = promisify(execCallback);
 
 export const preprocessCode = (
   isLocalBuild: (hre: HardhatRuntimeEnvironment) => boolean,
@@ -52,57 +55,26 @@ export const preprocessCode = (
 
   return async (hre: HardhatRuntimeEnvironment) => {
     if (isLocalBuild(hre)) return undefined;
-    // we are building for deployment on external chains so we like
+    // we are building for deployment on external chains, so we like
     // to include the correct git hashes into the contracts.
 
-    const mustBeClean = true;
     // make sure the repo is clean
-    if (
-      mustBeClean &&
-      (await new Promise((resolve, reject) => {
-        exec("git status --porcelain", (error, stdout) => {
-          if (error) reject(error);
-          resolve(stdout);
-        });
-      })) !== ""
-    ) {
-      throw new Error("Repo not clean");
-    }
+    const {stdout: gitStatusPorcelain} = await exec("git status --porcelain");
+    if (gitStatusPorcelain) throw new Error("Repo not clean");
+
     // make sure the repo is on master
-    if (
-      mustBeClean &&
-      (await new Promise((resolve, reject) => {
-        exec("git rev-parse --abbrev-ref HEAD", (error, stdout) => {
-          if (error) reject(error);
-          resolve(stdout);
-        });
-      })) !== "master\n"
-    ) {
-      throw new Error("Not on master");
-    }
+    const {stdout: gitBranch} = await exec("git rev-parse --abbrev-ref HEAD");
+    if (gitBranch !== "master\n") throw new Error("Not on master");
+
     // make sure the repo is pushed on GitHub
-    if (
-      mustBeClean &&
-      (await new Promise((resolve, reject) => {
-        exec(
-          "git fetch origin master > /dev/null && git log origin/master..master",
-          (error, stdout) => {
-            if (error) reject(error);
-            resolve(stdout);
-          },
-        );
-      })) !== ""
-    ) {
-      throw new Error("Master branch not pushed to github");
-    }
+    const {stdout: gitDiffWithRemote} = await exec(
+      "git fetch origin master > /dev/null && git log origin/master..master",
+    );
+    if (gitDiffWithRemote) throw new Error("Master branch not pushed to github");
 
     // todo make sure for prod builds we build from clean master
-    gitCommitHash ??= await new Promise<string>((resolve, reject) => {
-      exec('git log -1 --format=format:"%H"', (error, stdout) => {
-        if (error) reject(error);
-        resolve(`000000000000000000000000000000000000000000000000${stdout}`);
-      });
-    });
+    const {stdout: gitCommitHashRaw} = await exec('git log -1 --format=format:"%H"');
+    gitCommitHash ??= `000000000000000000000000000000000000000000000000${gitCommitHashRaw}`;
 
     return preprocess;
   };
