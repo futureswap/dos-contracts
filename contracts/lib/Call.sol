@@ -25,3 +25,47 @@ struct CallWithValue {
     bytes callData;
     uint256 value;
 }
+
+library CallLib {
+    /**
+     * @notice Execute a call.
+     *
+     * @param call The call to execute.
+     */
+    function execute(Call memory call) internal {
+        (bool success, bytes memory returnData) = call.to.call(call.callData);
+        require(success, string(returnData));
+    }
+
+    /**
+     * @notice Execute a call with value.
+     *
+     * @param call The call to execute.
+     */
+    function executeWithValue(CallWithValue memory call) internal {
+        (bool success, bytes memory returnData) = call.to.call{value: call.value}(call.callData);
+        require(success, string(returnData));
+    }
+
+    /**
+     * @notice Execute a batch of calls.
+     *
+     * @param calls The calls to execute.
+     */
+    function executeBatch(Call[] memory calls) internal {
+        for (uint256 i = 0; i < calls.length; i++) {
+            execute(calls[i]);
+        }
+    }
+
+    /**
+     * @notice Execute a batch of calls with value.
+     *
+     * @param calls The calls to execute.
+     */
+    function executeBatchWithValue(CallWithValue[] memory calls) internal {
+        for (uint256 i = 0; i < calls.length; i++) {
+            executeWithValue(calls[i]);
+        }
+    }
+}

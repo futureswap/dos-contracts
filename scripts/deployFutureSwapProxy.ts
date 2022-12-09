@@ -5,7 +5,7 @@ import {ethers} from "hardhat";
 import {FUTURESWAP_DEPLOYER_MNEMONIC} from "../hardhat.config";
 import {deployAtFixedAddress, deployGovernanceProxy, fsSalt} from "../lib/deploy";
 import {getAddressesForNetwork, getContracts, saveAddressesForNetwork} from "../lib/deployment";
-import {SignedGovernor__factory} from "../typechain-types";
+import {FutureSwapProxy__factory} from "../typechain-types";
 
 async function main() {
   const [workDeployer] = await ethers.getSigners();
@@ -15,8 +15,8 @@ async function main() {
   const networkAddresses = await getAddressesForNetwork();
   const networkContracts = getContracts(networkAddresses, workDeployer);
   const anyswapCreate2Deployer = networkContracts.anyswapCreate2Deployer as IAnyswapCreate2Deployer;
-  const signedGovernor = await deployAtFixedAddress(
-    new SignedGovernor__factory(fsDeployer),
+  const futureSwapProxy = await deployAtFixedAddress(
+    new FutureSwapProxy__factory(fsDeployer),
     anyswapCreate2Deployer,
     fsSalt,
     fsDeployer.address,
@@ -27,14 +27,13 @@ async function main() {
       value: ethers.utils.parseEther("0.01"),
     })
   ).wait();
-  await signedGovernor.connect(fsDeployer).transferOwnership(workDeployer.address);
   const governanceProxy = await deployGovernanceProxy(
-    signedGovernor.address,
+    futureSwapProxy.address,
     anyswapCreate2Deployer,
     fsSalt,
     workDeployer,
   );
-  await saveAddressesForNetwork({signedGovernor, governanceProxy});
+  await saveAddressesForNetwork({futureSwapProxy, governanceProxy});
 }
 
 // we recommend this pattern to be able to use async/await everywhere

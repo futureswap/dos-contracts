@@ -3,6 +3,7 @@
   "private": true,
   "license": "BUSL-1.1",
   "scripts": {
+    "clean": "rm -rf artifacts cache typechain-types",
     "node": "yarn hardhat node",
     "compile": "yarn hardhat compile",
     "typechain": "yarn hardhat typechain",
