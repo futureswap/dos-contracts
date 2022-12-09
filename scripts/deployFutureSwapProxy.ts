@@ -15,7 +15,7 @@ async function main() {
     new FutureSwapProxy__factory(workDeployer),
     anyswapCreate2Deployer,
     fsSalt,
-    workDeployer.address, // This should become FutureSwap team address.
+    workDeployer.address, // this should become FutureSwap team address.
   );
   const governanceProxy = await deployGovernanceProxy(
     futureSwapProxy.address,
