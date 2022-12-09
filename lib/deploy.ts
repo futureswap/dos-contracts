@@ -85,7 +85,7 @@ export const getUniswapFactory = (signer: ethers.Signer): ethers.ContractFactory
   return new ethers.ContractFactory(uniV3FactJSON.abi, uniV3FactJSON.bytecode, signer);
 };
 
-export const getUniswapNonfungiblePositionManagerFactory = (
+export const getUniswapNonFungiblePositionManagerFactory = (
   signer: ethers.Signer,
 ): ethers.ContractFactory => {
   return new ethers.ContractFactory(uniNFTManagerJSON.abi, uniNFTManagerJSON.bytecode, signer);
@@ -120,7 +120,7 @@ export async function deployUniswapFactory(
     linkedBytecode,
     signer,
   ).deploy(weth, ethers.constants.MaxInt256);
-  const uniswapNFTManager = await getUniswapNonfungiblePositionManagerFactory(signer).deploy(
+  const uniswapNFTManager = await getUniswapNonFungiblePositionManagerFactory(signer).deploy(
     uniswapFactory.address,
     weth,
     tokenDescriptor.address,
@@ -265,13 +265,13 @@ export async function deployAnyswapCreate2Deployer(
       r: "0x1820182018201820182018201820182018201820182018201820182018201820",
       s: "0x1820182018201820182018201820182018201820182018201820182018201820",
     };
-    // make sure the money is send to the deployer address by awaiting the transaction confirmation
+    // make sure the money is sent to the deployer address by awaiting the transaction confirmation
     await (await signer.sendTransaction({to: deployerAddress, value: toWei(0.02)})).wait();
     const deployTx = await checkDefined(signer.provider).sendTransaction(
       ethers.utils.serializeTransaction(tx, sig),
     );
     const receipt = await deployTx.wait();
-    if (contractAddress != receipt.contractAddress) throw new Error("Incorrect contract addresss");
+    if (contractAddress != receipt.contractAddress) throw new Error("Incorrect contract address");
   }
   return IAnyswapCreate2Deployer__factory.connect(contractAddress, signer);
 }
@@ -306,7 +306,7 @@ export const deployFixedAddressForTests = async (
       anyswapCreate2Deployer,
       signer,
     );
-    // for tests we can use impersonation to propose governance to make signer the owner
+    // for tests, we can use impersonation to propose governance to make signer the owner
     await impersonateAccount(signedGovernorAddress);
     await signer.sendTransaction({to: signedGovernorAddress, value: toWei(0.02)});
     await governanceProxy

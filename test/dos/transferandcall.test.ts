@@ -2,11 +2,14 @@ import {ethers, waffle} from "hardhat";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
 
-import {TestERC20__factory, WETH9__factory} from "../../typechain-types";
+import {
+  TestERC20__factory,
+  WETH9__factory,
+  ITransferReceiver2__factory,
+} from "../../typechain-types";
 import {toWei} from "../../lib/numbers";
 import {getFixedGasSigners} from "../../lib/signers";
 import {deployFixedAddressForTests} from "../../lib/deploy";
-import {ITransferReceiver2__factory} from "../../typechain-types/factories/contracts/interfaces/ITransferReceiver2__factory";
 import {sortTransfers} from "../../lib/calls";
 
 const USDC_DECIMALS = 6;

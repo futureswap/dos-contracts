@@ -20,7 +20,7 @@ import {
 import {
   getSwapRouterFactory,
   getUniswapFactory,
-  getUniswapNonfungiblePositionManagerFactory,
+  getUniswapNonFungiblePositionManagerFactory,
 } from "./deploy";
 
 type NetworkAddresses = Record<string, string>;
@@ -96,7 +96,7 @@ export const getContractFactory = (
     case "swapRouter":
       return getSwapRouterFactory(signer).attach(address);
     case "nonFungiblePositionManager":
-      return getUniswapNonfungiblePositionManagerFactory(signer).attach(address);
+      return getUniswapNonFungiblePositionManagerFactory(signer).attach(address);
     default:
       throw new Error(`Unknown contract name: ${contractName}`);
   }
