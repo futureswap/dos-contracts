@@ -4,15 +4,15 @@ pragma solidity ^0.8.17;
 import "./FsUtils.sol";
 
 contract ImmutableOwnable {
-    address public immutable owner;
+    address public immutable immutableOwner;
 
     modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner");
+        require(msg.sender == immutableOwner, "Only owner");
         _;
     }
 
     constructor(address _owner) {
         // slither-disable-next-line missing-zero-check
-        owner = FsUtils.nonNull(_owner);
+        immutableOwner = FsUtils.nonNull(_owner);
     }
 }
