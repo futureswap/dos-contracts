@@ -1,24 +1,26 @@
-import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import type {DOS, DSafeLogic, TestERC20, WETH9} from "../../typechain-types";
-import type {Signer, Contract} from "ethers";
+import type {IDOS, DSafeLogic, TestERC20, WETH9} from "../../typechain-types";
+import type {Contract} from "ethers";
 
 import {ethers} from "hardhat";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
-import {BigNumber} from "ethers";
 
 import {
-  DOS__factory,
   DSafeLogic__factory,
   TestERC20__factory,
   WETH9__factory,
   UniV3Oracle__factory,
-  VersionManager__factory,
 } from "../../typechain-types";
 import {toWei} from "../../lib/numbers";
-import {getEventsTx} from "../../lib/events";
-import {makeCall} from "../../lib/calls";
-import {Chainlink, deployUniswapFactory, deployUniswapPool} from "../../lib/deploy";
+import {createDSafe, makeCall} from "../../lib/calls";
+import {
+  Chainlink,
+  deployDos,
+  deployFixedAddressForTests,
+  deployUniswapFactory,
+  deployUniswapPool,
+} from "../../lib/deploy";
+import {getFixedGasSigners} from "../../lib/signers";
 
 const USDC_PRICE = 1;
 const ETH_PRICE = 2000;
@@ -32,6 +34,8 @@ describe("DOS swap integration", () => {
   // and reset Hardhat Network to that snapshot in every test.
   async function deployDOSFixture() {
     const [owner, user, user2, user3] = await getFixedGasSigners(10_000_000);
+
+    const {anyswapCreate2Deployer} = await deployFixedAddressForTests(owner);
 
     let usdc: TestERC20;
     let weth: WETH9;
@@ -52,8 +56,12 @@ describe("DOS swap integration", () => {
     );
     const ethChainlink = await Chainlink.deploy(owner, ETH_PRICE, 8, USDC_DECIMALS, WETH_DECIMALS);
 
-    const versionManager = await new VersionManager__factory(owner).deploy(owner.address);
-    const dos = await new DOS__factory(owner).deploy(owner.address, versionManager.address);
+    const {dos, versionManager} = await deployDos(
+      owner.address,
+      anyswapCreate2Deployer,
+      "0x02",
+      owner,
+    );
     const proxyLogic = await new DSafeLogic__factory(owner).deploy(dos.address);
     await versionManager.addVersion("1.0.0", 2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
@@ -267,17 +275,9 @@ describe("DOS swap integration", () => {
   });
 });
 
-async function createDSafe(dos: DOS, signer: Signer) {
-  const events = await getEventsTx<{DSafeCreated: {dSafe: string}}>(
-    dos.connect(signer).createDSafe(),
-    dos,
-  );
-  return DSafeLogic__factory.connect(events.DSafeCreated.dSafe, signer);
-}
-
 const leverageLP = async (
   dSafe: DSafeLogic,
-  dos: DOS,
+  dos: IDOS,
   usdc: TestERC20,
   weth: WETH9,
   uniswapNFTManager: Contract,
@@ -297,7 +297,7 @@ const leverageLP = async (
 
 const leveragePos = async (
   dSafe: DSafeLogic,
-  dos: DOS,
+  dos: IDOS,
   usdc: TestERC20,
   weth: WETH9,
   swapRouter: Contract,
@@ -321,20 +321,4 @@ const leveragePos = async (
     makeCall(swapRouter, "exactInputSingle", [exactInputSingleParams]),
     makeCall(dos, "depositFull", [[usdc.address, weth.address]]),
   ]);
-};
-
-// this fixes random tests crash with
-// "contract call run out of gas and made the transaction revert" error
-// and, as a side effect, speeds tests in 2-3 times!
-// https://github.com/NomicFoundation/hardhat/issues/1721
-export const getFixedGasSigners = async function (gasLimit: number): Promise<SignerWithAddress[]> {
-  const signers: SignerWithAddress[] = await ethers.getSigners();
-  for (const signer of signers) {
-    const sendTransactionOrig = signer.sendTransaction.bind(signer);
-    signer.sendTransaction = transaction => {
-      transaction.gasLimit = BigNumber.from(gasLimit.toString());
-      return sendTransactionOrig.apply(signer, [transaction]);
-    };
-  }
-  return signers;
 };

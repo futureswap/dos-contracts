@@ -1,4 +1,4 @@
-import type {Governance, HashNFT, DOS, DSafeLogic} from "../typechain-types";
+import type {Governance, HashNFT, IDOS, DSafeLogic} from "../typechain-types";
 import type {ContractTransaction} from "ethers";
 
 import {ethers} from "ethers";
@@ -60,7 +60,7 @@ export async function proposeAndExecute(
   return await governance.execute(nonce, calls);
 }
 
-export const createDSafe = async (dos: DOS, signer: ethers.Signer): Promise<DSafeLogic> => {
+export const createDSafe = async (dos: IDOS, signer: ethers.Signer): Promise<DSafeLogic> => {
   const {dSafe} = await getEventParams(
     await dos.connect(signer).createDSafe(),
     dos,
