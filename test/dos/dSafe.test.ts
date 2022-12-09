@@ -102,8 +102,8 @@ describe("DSafeProxy", () => {
     }> => {
       const [nfts, usdcBal, wethBal] = await Promise.all([
         dos.viewNFTs(dSafe.address),
-        dos.viewBalance(dSafe.address, usdc.address),
-        dos.viewBalance(dSafe.address, weth.address),
+        dos.getDAccountERC20(dSafe.address, usdc.address),
+        dos.getDAccountERC20(dSafe.address, weth.address),
       ]);
       return {nfts, usdc: usdcBal, weth: wethBal};
     };
