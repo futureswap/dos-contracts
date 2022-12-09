@@ -4,15 +4,17 @@
   "license": "BUSL-1.1",
   "scripts": {
     "node": "yarn hardhat node",
-    "lint": "yarn solhint contracts/**/*.sol && yarn eslint .",
+    "compile": "yarn hardhat compile",
+    "typechain": "yarn hardhat typechain",
     "test": "yarn hardhat test",
     "test:withTypesCheck": "yarn tsc --noEmit && yarn hardhat test",
-    "compile": "yarn hardhat compile",
     "coverage": "yarn hardhat coverage",
-    "typechain": "yarn hardhat typechain",
+    "lint": "yarn lint:typeScript && yarn lint:solidity",
+    "lint:typeScript": "yarn eslint .",
+    "lint:solidity": "yarn solhint contracts/**/*.sol",
     "prettier": "prettier *.md \"{docs,.github}/**/*.{md,yml}\" \"scripts/**/*.ts\"",
-    "format": "prettier --write \"contracts/**/*.sol\" \"lib/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"./*.ts\" \"./*.json\"",
     "prettier:check": "prettier --check \"contracts/**/*.sol\" \"lib/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"./*.ts\" \"./*.json\"",
+    "format": "prettier --write \"contracts/**/*.sol\" \"lib/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"./*.ts\" \"./*.json\"",
     "check_dot_only": "yarn run dot-only-hunter test"
   },
   "dependencies": {
