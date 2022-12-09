@@ -12,6 +12,16 @@ interface IDOSERC20 is IERC20 {
 }
 
 interface IDOSConfig {
+    struct Config {
+        int256 liqFraction; // Fraction for the user
+        int256 fractionalReserveLeverage; // Ratio of debt to reserves
+    }
+
+    struct NFTData {
+        address erc721;
+        uint256 tokenId;
+    }
+
     event ERC20Added(
         uint16 erc20Idx,
         address erc20,
@@ -46,19 +56,9 @@ interface IDOSConfig {
         int256 collateralFactor
     ) external;
 
-    struct Config {
-        int256 liqFraction; // Fraction for the user
-        int256 fractionalReserveLeverage; // Ratio of debt to reserves
-    }
-
     function setConfig(Config calldata _config) external;
 
     function createPortfolio() external returns (address portfolio);
-
-    struct NFTData {
-        address erc721;
-        uint256 tokenId;
-    }
 
     function viewBalance(address portfolio, IERC20 erc20) external view returns (int256);
 
@@ -111,10 +111,6 @@ interface IDOSCore {
     );
 
     function liquidate(address portfolio) external;
-
-    function computePosition(
-        address portfolioAddress
-    ) external view returns (int256 totalValue, int256 collateral, int256 debt);
 
     function depositERC20(IERC20 erc20, int256 amount) external;
 
@@ -173,6 +169,10 @@ interface IDOSCore {
     /// @param collection The address of the ERC721 token
     /// @param tokenId The id of the token to query
     function getApproved(address collection, uint256 tokenId) external view returns (address);
+
+    function computePosition(
+        address portfolioAddress
+    ) external view returns (int256 totalValue, int256 collateral, int256 debt);
 
     /// @notice Returns if the `operator` is allowed to manage all of the erc20s of `owner` on the `collection` contract
     /// @param collection The address of the collection contract

@@ -201,12 +201,6 @@ library DOSLib {
         IDOSConfig.Config config;
     }
 
-    function state() private pure returns (DOSState storage s) {
-        assembly {
-            s.slot := 0
-        }
-    }
-
     function getBalance(ERC20Share shares, ERC20Info storage p) internal view returns (int256) {
         ERC20Pool storage s = ERC20Share.unwrap(shares) > 0 ? p.collateral : p.debt;
         return s.computeERC20(shares);
@@ -228,6 +222,12 @@ library DOSLib {
         require(state().infoIdx[address(erc721)].kind == 2, "ERC721 not registered");
         uint16 idx = state().infoIdx[address(erc721)].idx;
         return (state().erc721Infos[idx], idx);
+    }
+
+    function state() private pure returns (DOSState storage s) {
+        assembly {
+            s.slot := 0
+        }
     }
 }
 
@@ -502,11 +502,6 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         require(isSolvent(msg.sender), "Result of operation is not sufficient liquid");
     }
 
-    function getImplementation(address portfolio) external view override returns (address) {
-        // not using msg.sender since this is an external view function
-        return state.portfolioLogic[portfolio];
-    }
-
     function onERC721Received(
         address operator, // solhint-disable-line no-unused-vars
         address from,
@@ -524,11 +519,9 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         return this.onERC721Received.selector;
     }
 
-    function getNFTId(address erc721, uint256 tokenId) internal view returns (NFTId) {
-        require(state.infoIdx[erc721].kind == 2, "Not an NFT");
-        uint16 erc721Idx = state.infoIdx[erc721].idx;
-        uint256 tokenHash = uint256(keccak256(abi.encodePacked(tokenId))) >> 32;
-        return NFTId.wrap(erc721Idx | (tokenHash << 16) | ((tokenId >> 240) << 240));
+    function getImplementation(address portfolio) external view override returns (address) {
+        // not using msg.sender since this is an external view function
+        return state.portfolioLogic[portfolio];
     }
 
     function getPortfolioOwner(address portfolio) external view override returns (address) {
@@ -735,6 +728,13 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         p.debt.tokens -= interest;
         p.collateral.tokens += interest;
         // TODO(gerben) add to treasury
+    }
+
+    function getNFTId(address erc721, uint256 tokenId) internal view returns (NFTId) {
+        require(state.infoIdx[erc721].kind == 2, "Not an NFT");
+        uint16 erc721Idx = state.infoIdx[erc721].idx;
+        uint256 tokenHash = uint256(keccak256(abi.encodePacked(tokenId))) >> 32;
+        return NFTId.wrap(erc721Idx | (tokenHash << 16) | ((tokenId >> 240) << 240));
     }
 
     function _isApprovedOrOwner(address spender, NFTId nftId) internal view returns (bool) {
