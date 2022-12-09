@@ -30,20 +30,20 @@ error SelfApproval();
 // ERC1155 multi-token support
 // ERC1820 interface registry support
 // EIP2612 permit support (uniswap permit2)
-
-// NFT's are stored in an array of nfts owned by some dSafe. To prevent looping over arrays we need to
-// know the following information for each NFT in the system (erc721, tokenId, dSafe, array index).
-// Given the expensive nature of storage on the EVM we want to store all information as small as possible.
-// The pair (erc721, tokenId) is describes a particular NFT but would take two storage slots (as a token id)
-// is 256 bits. The erc721 address is 160 bits however we only allow pre-approved erc721 contracts, so in
-// practice 16 bits would be enough to store an index into the allowed erc721 contracts. We can hash (erc721 + tokenId)
-// to get a unique number but that requires storing both tokenId, erc721 and array index. Instead we hash into
-// 224 (256 - 32) bits which is still sufficiently large to avoid collisions. This leaves 32 bits for additional
-// information. The 16 lsb's are used to store the index in the dSafe array. The 16 msb's are used to store
-// the 16 msb's of the tokenId. This allows us to store the tokenId + array index in a single storage slot as a map
-// from NFTId to NFTData. Note that the index in the dSafe array might change and thus cannot be part of
-// NFTId and thus has to be stored as part of NFTData, requiring the splitting of tokenId.
-
+/*
+ * NFTs are stored in an array of nfts owned by some dSafe. To prevent looping over arrays we need to
+ * know the following information for each NFT in the system (erc721, tokenId, dSafe, array index).
+ * Given the expensive nature of storage on the EVM we want to store all information as small as possible.
+ * The pair (erc721, tokenId) is describes a particular NFT but would take two storage slots (as a token id)
+ * is 256 bits. The erc721 address is 160 bits however we only allow pre-approved erc721 contracts, so in
+ * practice 16 bits would be enough to store an index into the allowed erc721 contracts. We can hash (erc721 + tokenId)
+ * to get a unique number but that requires storing both tokenId, erc721 and array index. Instead we hash into
+ * 224 (256 - 32) bits which is still sufficiently large to avoid collisions. This leaves 32 bits for additional
+ * information. The 16 LSB are used to store the index in the dSafe array. The 16 RSB are used to store
+ * the 16 RSB of the tokenId. This allows us to store the tokenId + array index in a single storage slot as a map
+ * from NFTId to NFTData. Note that the index in the dSafe array might change and thus cannot be part of
+ * NFTId and thus has to be stored as part of NFTData, requiring the splitting of tokenId.
+ */
 type NFTId is uint256; // 16 bits (tokenId) + 224 bits (hash) + 16 bits (erc721 index)
 
 struct NFTTokenData {
