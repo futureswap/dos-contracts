@@ -2,7 +2,7 @@ import type {IAnyswapCreate2Deployer} from "../typechain-types/contracts/externa
 
 import {ethers} from "hardhat";
 
-import {deployTransferAndCall2} from "../lib/deploy";
+import {deployTransferAndCall2, fsSalt} from "../lib/deploy";
 import {getAddressesForNetwork, getContracts, saveAddressesForNetwork} from "../lib/deployment";
 
 async function main() {
@@ -11,6 +11,7 @@ async function main() {
   const networkContracts = getContracts(networkAddresses, deployer);
   const transferAndCall2 = await deployTransferAndCall2(
     networkContracts.anyswapCreate2Deployer as IAnyswapCreate2Deployer,
+    fsSalt,
   );
   await saveAddressesForNetwork({transferAndCall2});
 }

@@ -1,11 +1,11 @@
 import type {BigNumber, BigNumberish, ContractTransaction} from "ethers";
 import type {
-  DOS,
   PortfolioLogic,
   TestNFT,
   MockNFTOracle,
   TestERC20,
   WETH9,
+  IDOS,
 } from "../../typechain-types";
 
 import {ethers} from "hardhat";
@@ -13,9 +13,7 @@ import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
 
 import {
-  DOS__factory,
   PortfolioLogic__factory,
-  VersionManager__factory,
   TestERC20__factory,
   WETH9__factory,
   TestNFT__factory,
@@ -25,7 +23,7 @@ import {toWei, toWeiUsdc} from "../../lib/numbers";
 import {getEventParams} from "../../lib/events";
 import {getFixedGasSigners, signPermit2TransferFrom} from "../../lib/signers";
 import {makeCall, createPortfolio} from "../../lib/calls";
-import {Chainlink, deployFixedAddressForTests} from "../../lib/deploy";
+import {Chainlink, deployDos, deployFixedAddressForTests} from "../../lib/deploy";
 
 const USDC_PRICE = 1;
 const ETH_PRICE = 2000;
@@ -45,7 +43,7 @@ describe("DOS", () => {
   async function deployDOSFixture() {
     const [owner, user, user2, user3] = await getFixedGasSigners(10_000_000);
 
-    const {permit2} = await deployFixedAddressForTests(owner);
+    const {permit2, anyswapCreate2Deployer} = await deployFixedAddressForTests(owner);
 
     const usdc = await new TestERC20__factory(owner).deploy(
       "USD Coin",
@@ -68,8 +66,12 @@ describe("DOS", () => {
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();
 
-    const versionManager = await new VersionManager__factory(owner).deploy(owner.address);
-    const dos = await new DOS__factory(owner).deploy(owner.address, versionManager.address);
+    const {dos, versionManager} = await deployDos(
+      owner.address,
+      anyswapCreate2Deployer,
+      "0x01",
+      owner,
+    );
     const proxyLogic = await new PortfolioLogic__factory(owner).deploy(dos.address);
     await versionManager.addVersion("1.0.0", 2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
@@ -1056,7 +1058,7 @@ describe("DOS", () => {
 });
 
 async function depositErc20(
-  dos: DOS,
+  dos: IDOS,
   portfolio: PortfolioLogic,
   erc20: TestERC20 | WETH9,
   amount: number | bigint,
@@ -1070,7 +1072,7 @@ async function depositErc20(
 }
 
 async function depositNft(
-  dos: DOS,
+  dos: IDOS,
   portfolio: PortfolioLogic,
   nft: TestNFT,
   priceOracle: MockNFTOracle,
@@ -1095,7 +1097,7 @@ async function depositNft(
 // In depositUserNft, nft is minted to the user and transferred from the user
 //   to DOS
 async function depositUserNft(
-  dos: DOS,
+  dos: IDOS,
   portfolio: PortfolioLogic,
   nft: TestNFT,
   priceOracle: MockNFTOracle,
@@ -1115,7 +1117,7 @@ async function depositUserNft(
 }
 
 async function transfer(
-  dos: DOS,
+  dos: IDOS,
   from: PortfolioLogic,
   to: PortfolioLogic,
   ...value: [erc20: string, amount: BigNumberish] | [nft: TestNFT, tokenId: BigNumberish]
@@ -1132,7 +1134,7 @@ async function transfer(
 }
 
 async function approveErc20(
-  dos: DOS,
+  dos: IDOS,
   owner: PortfolioLogic,
   spender: PortfolioLogic,
   erc20: string,
@@ -1144,7 +1146,7 @@ async function approveErc20(
 }
 
 async function approveERC721(
-  dos: DOS,
+  dos: IDOS,
   owner: PortfolioLogic,
   spender: PortfolioLogic,
   nft: string,
@@ -1156,7 +1158,7 @@ async function approveERC721(
 }
 
 async function transferFromErc20(
-  dos: DOS,
+  dos: IDOS,
   spender: PortfolioLogic,
   owner: PortfolioLogic,
   to: PortfolioLogic,
@@ -1169,7 +1171,7 @@ async function transferFromErc20(
 }
 
 async function transferFromERC721(
-  dos: DOS,
+  dos: IDOS,
   spender: PortfolioLogic,
   owner: PortfolioLogic,
   to: PortfolioLogic,

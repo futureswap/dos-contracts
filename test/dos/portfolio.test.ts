@@ -6,9 +6,7 @@ import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
 
 import {
-  DOS__factory,
   PortfolioLogic__factory,
-  VersionManager__factory,
   TestERC20__factory,
   WETH9__factory,
   TestNFT__factory,
@@ -17,7 +15,7 @@ import {
 import {toWei, toWeiUsdc} from "../../lib/numbers";
 import {getFixedGasSigners, signOnTransferReceived2Call} from "../../lib/signers";
 import {makeCall, createPortfolio, sortTransfers} from "../../lib/calls";
-import {Chainlink, deployFixedAddressForTests} from "../../lib/deploy";
+import {Chainlink, deployDos, deployFixedAddressForTests} from "../../lib/deploy";
 
 const USDC_PRICE = 1;
 const ETH_PRICE = 2000;
@@ -35,7 +33,9 @@ describe("Portfolio proxy", () => {
   async function deployDOSFixture() {
     const [owner, user, user2, user3] = await getFixedGasSigners(10_000_000);
 
-    const {permit2, transferAndCall2} = await deployFixedAddressForTests(owner);
+    const {permit2, transferAndCall2, anyswapCreate2Deployer} = await deployFixedAddressForTests(
+      owner,
+    );
 
     const usdc = await new TestERC20__factory(owner).deploy(
       "USD Coin",
@@ -58,8 +58,12 @@ describe("Portfolio proxy", () => {
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();
 
-    const versionManager = await new VersionManager__factory(owner).deploy(owner.address);
-    const dos = await new DOS__factory(owner).deploy(owner.address, versionManager.address);
+    const {dos, versionManager} = await deployDos(
+      owner.address,
+      anyswapCreate2Deployer,
+      "0x04",
+      owner,
+    );
     const proxyLogic = await new PortfolioLogic__factory(owner).deploy(dos.address);
     await versionManager.addVersion("1.0.0", 2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");

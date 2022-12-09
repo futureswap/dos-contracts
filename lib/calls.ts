@@ -1,4 +1,4 @@
-import type {Governance, HashNFT, DOS, PortfolioLogic} from "../typechain-types";
+import type {Governance, HashNFT, IDOS, PortfolioLogic} from "../typechain-types";
 import type {ContractTransaction} from "ethers";
 
 import {ethers} from "ethers";
@@ -62,7 +62,10 @@ export async function proposeAndExecute(
   return await governance.execute(nonce, calls);
 }
 
-export const createPortfolio = async (dos: DOS, signer: ethers.Signer): Promise<PortfolioLogic> => {
+export const createPortfolio = async (
+  dos: IDOS,
+  signer: ethers.Signer,
+): Promise<PortfolioLogic> => {
   const {portfolio} = await getEventParams(
     await dos.connect(signer).createPortfolio(),
     dos,

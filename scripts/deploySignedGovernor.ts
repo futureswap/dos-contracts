@@ -31,6 +31,7 @@ async function main() {
   const governanceProxy = await deployGovernanceProxy(
     signedGovernor.address,
     anyswapCreate2Deployer,
+    fsSalt,
     workDeployer,
   );
   await saveAddressesForNetwork({signedGovernor, governanceProxy});

@@ -13,6 +13,8 @@ import type {
   HashNFT,
   Governance,
   IPermit2,
+  VersionManager,
+  IDOS,
 } from "../typechain-types";
 import type {TransactionRequest} from "@ethersproject/abstract-provider";
 
@@ -30,10 +32,9 @@ import {
 } from "@nomicfoundation/hardhat-network-helpers";
 import {ethers as hardhatEthers, waffle} from "hardhat";
 
-import addressesJSON from "../deployment/addresses.json";
-import {getEventParams, getEventsTx} from "./events";
-import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {
+  VersionManager__factory,
+  IDOS__factory,
   AggregatorV3Interface__factory,
   ERC20ChainlinkValueOracle__factory,
   GovernanceProxy__factory,
@@ -42,7 +43,12 @@ import {
   IPermit2__factory,
   IAnyswapCreate2Deployer__factory,
   TransferAndCall2__factory,
+  DOS__factory,
+  DOSConfig__factory,
 } from "../typechain-types";
+import addressesJSON from "../deployment/addresses.json";
+import {getEventParams, getEventsTx} from "./events";
+import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
 import {makeCall, proposeAndExecute} from "./calls";
 import {checkDefined} from "./preconditions";
@@ -304,6 +310,7 @@ export const deployFixedAddressForTests = async (
     const governanceProxy = await deployGovernanceProxy(
       signedGovernorAddress,
       anyswapCreate2Deployer,
+      fsSalt,
       signer,
     );
     // for tests we can use impersonation to propose governance to make signer the owner
@@ -367,23 +374,53 @@ export const deployAtFixedAddress = async <Factory extends ContractFactoryLike>(
 
 export const deployTransferAndCall2 = async (
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
+  salt: ethers.BytesLike,
 ): Promise<TransferAndCall2> => {
   return await deployAtFixedAddress(
     new TransferAndCall2__factory(anyswapCreate2Deployer.signer),
     anyswapCreate2Deployer,
-    fsSalt,
+    salt,
   );
 };
 
 export async function deployGovernanceProxy(
   governor: string,
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
+  salt: ethers.BytesLike,
   signer: ethers.Signer,
 ): Promise<GovernanceProxy> {
   return await deployAtFixedAddress(
     new GovernanceProxy__factory(signer),
     anyswapCreate2Deployer,
-    fsSalt,
+    salt,
     governor,
   );
 }
+
+export const deployDos = async (
+  governanceProxy: string,
+  anyswapCreate2Deployer: IAnyswapCreate2Deployer,
+  salt: ethers.BytesLike,
+  signer: ethers.Signer,
+): Promise<{dos: IDOS; versionManager: VersionManager}> => {
+  const versionManager = await deployAtFixedAddress(
+    new VersionManager__factory(signer),
+    anyswapCreate2Deployer,
+    salt,
+    governanceProxy,
+  );
+  const dosConfig = await deployAtFixedAddress(
+    new DOSConfig__factory(signer),
+    anyswapCreate2Deployer,
+    salt,
+    governanceProxy,
+  );
+  const dos = await deployAtFixedAddress(
+    new DOS__factory(signer),
+    anyswapCreate2Deployer,
+    salt,
+    dosConfig.address,
+    versionManager.address,
+  );
+  return {dos: IDOS__factory.connect(dos.address, signer), versionManager};
+};

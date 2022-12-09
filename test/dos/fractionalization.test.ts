@@ -3,9 +3,7 @@ import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
 
 import {
-  DOS__factory,
   PortfolioLogic__factory,
-  VersionManager__factory,
   TestERC20__factory,
   WETH9__factory,
   TestNFT__factory,
@@ -13,7 +11,7 @@ import {
 } from "../../typechain-types";
 import {toWei} from "../../lib/numbers";
 import {createPortfolio, makeCall} from "../../lib/calls";
-import {Chainlink} from "../../lib/deploy";
+import {Chainlink, deployDos, deployFixedAddressForTests} from "../../lib/deploy";
 
 const USDC_DECIMALS = 6;
 const ETH_DECIMALS = 18;
@@ -22,6 +20,8 @@ const CHAINLINK_DECIMALS = 8;
 describe("Fractionalization", () => {
   async function deployDOSFixture() {
     const [owner, user, user2] = await ethers.getSigners();
+
+    const {anyswapCreate2Deployer} = await deployFixedAddressForTests(owner);
 
     const usdc = await new TestERC20__factory(owner).deploy("USD Coin", "USDC", USDC_DECIMALS);
 
@@ -47,8 +47,12 @@ describe("Fractionalization", () => {
 
     await nftOracle.setPrice(1, toWei(100));
 
-    const versionManager = await new VersionManager__factory(owner).deploy(owner.address);
-    const dos = await new DOS__factory(owner).deploy(owner.address, versionManager.address);
+    const {dos, versionManager} = await deployDos(
+      owner.address,
+      anyswapCreate2Deployer,
+      "0x3",
+      owner,
+    );
     const proxyLogic = await new PortfolioLogic__factory(owner).deploy(dos.address);
     await versionManager.addVersion("1.0.0", 2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");

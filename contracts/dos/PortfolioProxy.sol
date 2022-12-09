@@ -98,7 +98,7 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712
             require(msg.sender == IDOS(dos).getPortfolioOwner(address(this)), "only owner");
 
             IDOS.Call[] memory calls = new IDOS.Call[](1);
-            calls[0] = IDOS.Call({
+            calls[0] = IDOSCore.Call({
                 to: address(this),
                 callData: abi.encodeWithSelector(
                     this.liquify.selector,
