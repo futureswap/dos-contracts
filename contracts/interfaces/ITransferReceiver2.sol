@@ -11,7 +11,7 @@ abstract contract ITransferReceiver2 {
     // This address is in flux as long as the bytecode of this contract is not fixed. For now
     // we deploy it on local block chain on fixed address, when we go deploy this needs to change
     // to the permanent address.
-    address private constant TRANSFERANDCALL2 = address(0x2652099fa420561A4A4758ED4FdDF18C6D54a48c);
+    address private constant TRANSFERANDCALL2 = address(0xcdEa115AD55DaBC42596929Bba31f00092e5e25e);
 
     error InvalidSender(address sender);
 

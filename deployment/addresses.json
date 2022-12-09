@@ -9,6 +9,6 @@
     "batchDeployer": "0x403556CDC8EaeCDe9dC2311ab78E54E73a4A28Fb",
     "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
     "weth": "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6",
-    "transferAndCall2": "0x2652099fa420561A4A4758ED4FdDF18C6D54a48c"
+    "transferAndCall2": "0xcdEa115AD55DaBC42596929Bba31f00092e5e25e"
   }
 }

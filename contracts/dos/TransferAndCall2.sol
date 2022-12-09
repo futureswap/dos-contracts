@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../external/interfaces/IWETH9.sol";
 import "../interfaces/ITransferReceiver2.sol";
-import "../lib/FsUtils.sol";
 
 // Bringing ERC1363 to all tokens, it's to ERC1363 what Permit2 is to ERC2612.
 // This should be proposed as an ERC and should be deployed cross chain on
