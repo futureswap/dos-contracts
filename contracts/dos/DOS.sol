@@ -112,7 +112,6 @@ library PortfolioLib {
             map[lastNFTId].portfolioIdx = idx;
             p.nfts.pop();
         }
-        map[nftId].portfolioIdx = 0;
     }
 
     function insertNFT(
