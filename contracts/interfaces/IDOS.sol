@@ -18,9 +18,9 @@ interface IDOS {
         uint256 value;
     }
 
-    function upgradeImplementation(address portfolio, uint256 version) external;
+    function upgradeImplementation(address dSafe, uint256 version) external;
 
-    function liquidate(address portfolio) external;
+    function liquidate(address dSafe) external;
 
     function depositERC20(IERC20 erc20, int256 amount) external;
 
@@ -30,9 +30,9 @@ interface IDOS {
 
     function executeBatch(Call[] memory calls) external;
 
-    function viewBalance(address portfolio, IERC20 erc20) external view returns (int256);
+    function viewBalance(address dSafe, IERC20 erc20) external view returns (int256);
 
-    function getImplementation(address portfolio) external view returns (address);
+    function getImplementation(address dSafe) external view returns (address);
 
-    function getPortfolioOwner(address portfolio) external view returns (address);
+    function getDSafeOwner(address dSafe) external view returns (address);
 }

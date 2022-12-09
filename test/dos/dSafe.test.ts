@@ -1,5 +1,5 @@
 import type {BigNumber} from "ethers";
-import type {PortfolioLogic} from "../../typechain-types";
+import type {DSafeLogic} from "../../typechain-types";
 
 import {ethers} from "hardhat";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
@@ -7,7 +7,7 @@ import {expect} from "chai";
 
 import {
   DOS__factory,
-  PortfolioLogic__factory,
+  DSafeLogic__factory,
   VersionManager__factory,
   TestERC20__factory,
   WETH9__factory,
@@ -16,7 +16,7 @@ import {
 } from "../../typechain-types";
 import {toWei, toWeiUsdc} from "../../lib/numbers";
 import {getFixedGasSigners, signOnTransferReceived2Call} from "../../lib/signers";
-import {makeCall, createPortfolio, sortTransfers} from "../../lib/calls";
+import {makeCall, createDSafe, sortTransfers} from "../../lib/calls";
 import {Chainlink, deployFixedAddressForTests} from "../../lib/deploy";
 
 const USDC_PRICE = 1;
@@ -28,7 +28,7 @@ const WETH_DECIMALS = 18;
 const tenThousandUsdc = toWeiUsdc(10_000);
 const oneEth = toWei(1);
 
-describe("Portfolio proxy", () => {
+describe("DSafeProxy", () => {
   // we define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
@@ -60,7 +60,7 @@ describe("Portfolio proxy", () => {
 
     const versionManager = await new VersionManager__factory(owner).deploy(owner.address);
     const dos = await new DOS__factory(owner).deploy(owner.address, versionManager.address);
-    const proxyLogic = await new PortfolioLogic__factory(owner).deploy(dos.address);
+    const proxyLogic = await new DSafeLogic__factory(owner).deploy(dos.address);
     await versionManager.addVersion("1.0.0", 2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
@@ -94,21 +94,21 @@ describe("Portfolio proxy", () => {
     await dos.addNFTInfo(nft.address, nftOracle.address, toWei(0.5));
 
     const getBalances = async (
-      portfolio: PortfolioLogic,
+      dSafe: DSafeLogic,
     ): Promise<{
       nfts: [nftContract: string, tokenId: BigNumber][];
       usdc: BigNumber;
       weth: BigNumber;
     }> => {
       const [nfts, usdcBal, wethBal] = await Promise.all([
-        dos.viewNFTs(portfolio.address),
-        dos.viewBalance(portfolio.address, usdc.address),
-        dos.viewBalance(portfolio.address, weth.address),
+        dos.viewNFTs(dSafe.address),
+        dos.viewBalance(dSafe.address, usdc.address),
+        dos.viewBalance(dSafe.address, weth.address),
       ]);
       return {nfts, usdc: usdcBal, weth: wethBal};
     };
 
-    const portfolio = await createPortfolio(dos, user);
+    const dSafe = await createDSafe(dos, user);
     await usdc.mint(user.address, tenThousandUsdc);
     await weth.connect(user).deposit({value: oneEth});
     await usdc.connect(user).approve(transferAndCall2.address, ethers.constants.MaxUint256);
@@ -129,16 +129,16 @@ describe("Portfolio proxy", () => {
       dos,
       permit2,
       getBalances,
-      portfolio,
+      dSafe,
       transferAndCall2,
     };
   }
 
-  it("should be able to transferandcall into proxy", async () => {
-    const {user, usdc, weth, portfolio, transferAndCall2} = await loadFixture(deployDOSFixture);
+  it("should be able to transferAndCall2 into proxy", async () => {
+    const {user, usdc, weth, dSafe, transferAndCall2} = await loadFixture(deployDOSFixture);
 
     await transferAndCall2.connect(user).transferAndCall2(
-      portfolio.address,
+      dSafe.address,
       sortTransfers([
         {token: usdc.address, amount: tenThousandUsdc},
         {token: weth.address, amount: oneEth},
@@ -146,17 +146,17 @@ describe("Portfolio proxy", () => {
       "0x",
     );
 
-    expect(await usdc.balanceOf(portfolio.address)).to.equal(tenThousandUsdc);
-    expect(await weth.balanceOf(portfolio.address)).to.equal(oneEth);
+    expect(await usdc.balanceOf(dSafe.address)).to.equal(tenThousandUsdc);
+    expect(await weth.balanceOf(dSafe.address)).to.equal(oneEth);
   });
 
-  it("should be able to transferandcall into dos", async () => {
-    const {user, usdc, weth, portfolio, getBalances, transferAndCall2} = await loadFixture(
+  it("should be able to transferAndCall2 into DOS", async () => {
+    const {user, usdc, weth, dSafe, getBalances, transferAndCall2} = await loadFixture(
       deployDOSFixture,
     );
 
     await transferAndCall2.connect(user).transferAndCall2(
-      portfolio.address,
+      dSafe.address,
       sortTransfers([
         {token: usdc.address, amount: tenThousandUsdc},
         {token: weth.address, amount: oneEth},
@@ -164,19 +164,19 @@ describe("Portfolio proxy", () => {
       "0x01",
     );
 
-    expect(await usdc.balanceOf(portfolio.address)).to.equal(0);
-    expect(await weth.balanceOf(portfolio.address)).to.equal(0);
+    expect(await usdc.balanceOf(dSafe.address)).to.equal(0);
+    expect(await weth.balanceOf(dSafe.address)).to.equal(0);
 
-    const balances = await getBalances(portfolio);
+    const balances = await getBalances(dSafe);
     expect(balances.usdc).to.equal(tenThousandUsdc);
     expect(balances.weth).to.equal(oneEth);
   });
 
-  it("should be able to transferandcall into other portfolio and make a swap with signatures", async () => {
+  it("should be able to transferAndCall into other dSafe and make a swap with signatures", async () => {
     const {user, user2, usdc, weth, dos, transferAndCall2} = await loadFixture(deployDOSFixture);
 
-    const portfolio2 = await createPortfolio(dos, user2);
-    await usdc.connect(user).transfer(portfolio2.address, tenThousandUsdc);
+    const dSafe2 = await createDSafe(dos, user2);
+    await usdc.connect(user).transfer(dSafe2.address, tenThousandUsdc);
 
     const signedCall = {
       operator: user.address,
@@ -185,14 +185,14 @@ describe("Portfolio proxy", () => {
       calls: [makeCall(usdc, "transfer", [user.address, tenThousandUsdc])],
     };
 
-    const signedData = await signOnTransferReceived2Call(portfolio2, signedCall, 0, user2);
+    const signedData = await signOnTransferReceived2Call(dSafe2, signedCall, 0, user2);
     const data = `0x02${signedData.slice(2)}`;
 
     await transferAndCall2
       .connect(user)
-      .transferAndCall2(portfolio2.address, signedCall.transfers, data);
+      .transferAndCall2(dSafe2.address, signedCall.transfers, data);
 
     expect(await usdc.balanceOf(user.address)).to.equal(tenThousandUsdc);
-    expect(await weth.balanceOf(portfolio2.address)).to.equal(oneEth);
+    expect(await weth.balanceOf(dSafe2.address)).to.equal(oneEth);
   });
 });
