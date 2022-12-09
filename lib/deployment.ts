@@ -14,9 +14,9 @@ import {
   IPermit2__factory,
   HashNFT__factory,
   VersionManager__factory,
+  IAnyswapCreate2Deployer__factory,
+  SignedGovernor__factory,
 } from "../typechain-types";
-import {IAnyswapCreate2Deployer__factory} from "../typechain-types/factories/contracts/external/interfaces/IAnyswapCreate2Deployer__factory";
-import {SignedGovernor__factory} from "../typechain-types/factories/contracts/utils/SignedGovernor__factory";
 import {
   getSwapRouterFactory,
   getUniswapFactory,
@@ -41,7 +41,7 @@ export const saveAddressesForNetwork = async (
 ): Promise<void> => {
   const network = getNetwork();
   const oldAddresses = await getAllAddresses();
-  if (oldAddresses[network] === undefined) oldAddresses[network] = {};
+  oldAddresses[network] ??= {};
   const networkAddresses = oldAddresses[network];
   Object.entries(contractAddresses).forEach(([contractName, contract]) => {
     networkAddresses[contractName] = contract.address;

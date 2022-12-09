@@ -51,9 +51,7 @@ export async function proposeAndExecute(
   voteNFT: HashNFT,
   calls: Call[],
 ): Promise<ContractTransaction> {
-  calls.forEach(call => {
-    if (call.value !== undefined && call.value !== 0n) throw new Error("Value not supported");
-  });
+  if (calls.some(({value}) => value != 0n)) throw new Error("Value cannot be positive");
   const hash = ethers.utils.keccak256(
     ethers.utils.defaultAbiCoder.encode(["tuple(address to, bytes callData)[]"], [calls]),
   );
