@@ -30,7 +30,7 @@ interface IDOS {
 
     function executeBatch(Call[] memory calls) external;
 
-    function viewBalance(address dSafe, IERC20 erc20) external view returns (int256);
+    function getDAccountERC20(address dSafe, IERC20 erc20) external view returns (int256);
 
     function getImplementation(address dSafe) external view returns (address);
 

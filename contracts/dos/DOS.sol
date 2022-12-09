@@ -55,7 +55,8 @@ struct DSafe {
     address owner;
     mapping(uint16 => ERC20Share) erc20Share;
     NFTId[] nfts;
-    uint256[1] bitmask; // This can grow on updates
+    // bitmask of DOS indexes of ERC20 present in a dSafe. `1` can be increased on updates
+    uint256[1] dAccountErc20Idxs;
 }
 
 struct ERC20Pool {
@@ -64,12 +65,12 @@ struct ERC20Pool {
 }
 
 library DSafeLib {
-    function clearMask(DSafe storage dSafe, uint16 idx) internal {
-        dSafe.bitmask[idx >> 8] &= ~(1 << (idx & 255));
+    function removeERC20IdxFromDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
+        dSafe.dAccountErc20Idxs[erc20Idx >> 8] &= ~(1 << (erc20Idx & 255));
     }
 
-    function setMask(DSafe storage dSafe, uint16 idx) internal {
-        dSafe.bitmask[idx >> 8] |= (1 << (idx & 255));
+    function accERC20IdxToDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
+        dSafe.dAccountErc20Idxs[erc20Idx >> 8] |= (1 << (erc20Idx & 255));
     }
 
     function extractPosition(
@@ -124,13 +125,13 @@ library DSafeLib {
 
     function getERC20s(DSafe storage dSafe) internal view returns (uint16[] memory erc20s) {
         uint256 numberOfERC20 = 0;
-        for (uint256 i = 0; i < dSafe.bitmask.length; i++) {
-            numberOfERC20 += FsMath.bitCount(dSafe.bitmask[i]);
+        for (uint256 i = 0; i < dSafe.dAccountErc20Idxs.length; i++) {
+            numberOfERC20 += FsMath.bitCount(dSafe.dAccountErc20Idxs[i]);
         }
         erc20s = new uint16[](numberOfERC20);
         uint256 idx = 0;
-        for (uint256 i = 0; i < dSafe.bitmask.length; i++) {
-            uint256 mask = dSafe.bitmask[i];
+        for (uint256 i = 0; i < dSafe.dAccountErc20Idxs.length; i++) {
+            uint256 mask = dSafe.dAccountErc20Idxs[i];
             for (uint256 j = 0; j < 256; j++) {
                 uint256 x = mask >> j;
                 if (x == 0) break;
@@ -300,10 +301,10 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         if (amount > 0) {
             erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
-            updateBalance(erc20Idx, msg.sender, amount);
+            dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
         } else {
             erc20.safeTransfer(msg.sender, uint256(-amount));
-            updateBalance(erc20Idx, msg.sender, amount);
+            dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
         }
     }
 
@@ -313,7 +314,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
             uint256 amount = erc20.balanceOf(msg.sender);
             erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
-            updateBalance(erc20Idx, msg.sender, FsMath.safeCastToSigned(amount));
+            dAccountERC20ChangeBy(msg.sender, erc20Idx, FsMath.safeCastToSigned(amount));
         }
     }
 
@@ -321,7 +322,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         for (uint256 i = 0; i < erc20s.length; i++) {
             (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20s[i]);
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
-            int256 amount = clearBalance(erc20Idx, msg.sender);
+            int256 amount = dAccountERC20Clear(msg.sender, erc20Idx);
             require(amount >= 0, "Can't withdraw debt");
             erc20.safeTransfer(msg.sender, uint256(amount));
         }
@@ -346,10 +347,10 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         IDOSERC20 erc20 = IDOSERC20(erc20Info.dosContract);
         if (amount > 0) {
             erc20.burn(msg.sender, uint256(amount));
-            updateBalance(erc20Idx, msg.sender, amount);
+            dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
         } else {
             erc20.mint(msg.sender, uint256(-amount));
-            updateBalance(erc20Idx, msg.sender, amount);
+            dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
         }
     }
 
@@ -584,12 +585,12 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         emit DSafeCreated(dSafe, msg.sender);
     }
 
-    function viewBalance(address dSafe, IERC20 erc20) external view returns (int256) {
+    function getDAccountERC20(address dSafe, IERC20 erc20) external view returns (int256) {
         // TODO(gerben) interest computation
         DSafe storage dSafe = dSafes[dSafe];
         (ERC20Info storage info, uint16 erc20Idx) = getERC20Info(erc20);
         ERC20Share erc20Share = dSafe.erc20Share[erc20Idx];
-        return getBalance(erc20Share, info);
+        return erc20SharesToTokens(erc20Share, info);
     }
 
     struct NFTData {
@@ -661,7 +662,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         for (uint256 i = 0; i < erc20Idxs.length; i++) {
             uint16 erc20Idx = erc20Idxs[i];
             ERC20Info storage erc20Info = erc20Infos[erc20Idx];
-            int256 balance = getBalance(dSafe.erc20Share[erc20Idx], erc20Info);
+            int256 balance = erc20SharesToTokens(dSafe.erc20Share[erc20Idx], erc20Info);
             int256 value = erc20Info.valueOracle.calcValue(balance);
             totalValue += value;
             if (balance >= 0) {
@@ -787,8 +788,8 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
 
     function transferERC20(IERC20 erc20, address from, address to, int256 amount) internal {
         (, uint16 erc20Idx) = getERC20Info(erc20);
-        updateBalance(erc20Idx, from, -amount);
-        updateBalance(erc20Idx, to, amount);
+        dAccountERC20ChangeBy(from, erc20Idx, -amount);
+        dAccountERC20ChangeBy(to, erc20Idx, amount);
     }
 
     function transferNFT(NFTId nftId, address from, address to) internal {
@@ -799,11 +800,11 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     // TODO @derek - add method for withdraw
 
     function transferAllERC20(uint16 erc20Idx, address from, address to) internal {
-        int256 amount = clearBalance(erc20Idx, from);
-        updateBalance(erc20Idx, to, amount);
+        int256 amount = dAccountERC20Clear(from, erc20Idx);
+        dAccountERC20ChangeBy(to, erc20Idx, amount);
     }
 
-    function updateBalance(uint16 erc20Idx, address dSafeAddress, int256 amount) internal {
+    function dAccountERC20ChangeBy(address dSafeAddress, uint16 erc20Idx, int256 amount) internal {
         updateInterest(erc20Idx);
         DSafe storage dSafe = dSafes[dSafeAddress];
         ERC20Share shares = dSafe.erc20Share[erc20Idx];
@@ -813,13 +814,13 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         dSafe.erc20Share[erc20Idx] = insertPosition(newAmount, dSafe, erc20Idx);
     }
 
-    function clearBalance(uint16 erc20Idx, address dSafeAddress) internal returns (int256) {
+    function dAccountERC20Clear(address dSafeAddress, uint16 erc20Idx) internal returns (int256) {
         updateInterest(erc20Idx);
         DSafe storage dSafe = dSafes[dSafeAddress];
         ERC20Share shares = dSafe.erc20Share[erc20Idx];
         int256 erc20Amount = extractPosition(shares, erc20Infos[erc20Idx]);
         dSafe.erc20Share[erc20Idx] = ERC20Share.wrap(0);
-        dSafe.clearMask(erc20Idx);
+        dSafe.removeERC20IdxFromDAccount(erc20Idx);
         return erc20Amount;
     }
 
@@ -838,9 +839,9 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         uint16 erc20Idx
     ) internal returns (ERC20Share) {
         if (amount == 0) {
-            dSafe.clearMask(erc20Idx);
+            dSafe.removeERC20IdxFromDAccount(erc20Idx);
         } else {
-            dSafe.setMask(erc20Idx);
+            dSafe.accERC20IdxToDAccount(erc20Idx);
         }
         ERC20Info storage erc20Info = erc20Infos[erc20Idx];
         ERC20Pool storage pool = amount > 0 ? erc20Info.collateral : erc20Info.debt;
@@ -873,7 +874,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
             isApprovedForAll(collection, owner, spender));
     }
 
-    function getBalance(
+    function erc20SharesToTokens(
         ERC20Share shares,
         ERC20Info storage erc20Info
     ) internal view returns (int256) {

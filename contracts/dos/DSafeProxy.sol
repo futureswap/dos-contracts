@@ -120,7 +120,7 @@ contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
         {
             uint256 ncollaterals = 0;
             for (uint256 i = 0; i < erc20s.length; i++) {
-                int256 balance = IDOS(dos).viewBalance(address(this), erc20s[i]);
+                int256 balance = IDOS(dos).getDAccountERC20(address(this), erc20s[i]);
                 balances[i] = balance;
                 if (balance > 0) {
                     ncollaterals++;
