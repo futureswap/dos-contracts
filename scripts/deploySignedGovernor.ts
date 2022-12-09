@@ -31,6 +31,7 @@ async function main() {
   const governanceProxy = await deployGovernanceProxy(
     futureSwapProxy.address,
     anyswapCreate2Deployer,
+    fsSalt,
     workDeployer,
   );
   await saveAddressesForNetwork({futureSwapProxy, governanceProxy});

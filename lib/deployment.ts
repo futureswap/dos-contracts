@@ -14,13 +14,13 @@ import {
   IPermit2__factory,
   HashNFT__factory,
   VersionManager__factory,
+  IAnyswapCreate2Deployer__factory,
   FutureSwapProxy__factory,
 } from "../typechain-types";
-import {IAnyswapCreate2Deployer__factory} from "../typechain-types/factories/contracts/external/interfaces/IAnyswapCreate2Deployer__factory";
 import {
   getSwapRouterFactory,
   getUniswapFactory,
-  getUniswapNonfungiblePositionManagerFactory,
+  getUniswapNonFungiblePositionManagerFactory,
 } from "./deploy";
 
 type NetworkAddresses = Record<string, string>;
@@ -41,7 +41,7 @@ export const saveAddressesForNetwork = async (
 ): Promise<void> => {
   const network = getNetwork();
   const oldAddresses = await getAllAddresses();
-  if (oldAddresses[network] === undefined) oldAddresses[network] = {};
+  oldAddresses[network] ??= {};
   const networkAddresses = oldAddresses[network];
   Object.entries(contractAddresses).forEach(([contractName, contract]) => {
     networkAddresses[contractName] = contract.address;
@@ -96,7 +96,7 @@ export const getContractFactory = (
     case "swapRouter":
       return getSwapRouterFactory(signer).attach(address);
     case "nonFungiblePositionManager":
-      return getUniswapNonfungiblePositionManagerFactory(signer).attach(address);
+      return getUniswapNonFungiblePositionManagerFactory(signer).attach(address);
     default:
       throw new Error(`Unknown contract name: ${contractName}`);
   }

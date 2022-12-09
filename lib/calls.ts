@@ -1,9 +1,9 @@
-import type {Governance, HashNFT, DOS, PortfolioLogic} from "../typechain-types";
+import type {Governance, HashNFT, IDOS, DSafeLogic} from "../typechain-types";
 import type {ContractTransaction} from "ethers";
 
 import {ethers} from "ethers";
 
-import {PortfolioLogic__factory} from "../typechain-types";
+import {DSafeLogic__factory} from "../typechain-types";
 import {getEventParams} from "./events";
 
 function cleanValue(v: unknown): unknown {
@@ -51,9 +51,7 @@ export async function proposeAndExecute(
   voteNFT: HashNFT,
   calls: Call[],
 ): Promise<ContractTransaction> {
-  calls.forEach(call => {
-    if (call.value !== undefined && call.value !== 0n) throw new Error("Value not supported");
-  });
+  if (calls.some(({value}) => value != 0n)) throw new Error("Value cannot be positive");
   const hash = ethers.utils.keccak256(
     ethers.utils.defaultAbiCoder.encode(["tuple(address to, bytes callData)[]"], [calls]),
   );
@@ -62,13 +60,13 @@ export async function proposeAndExecute(
   return await governance.execute(nonce, calls);
 }
 
-export const createPortfolio = async (dos: DOS, signer: ethers.Signer): Promise<PortfolioLogic> => {
-  const {portfolio} = await getEventParams(
-    await dos.connect(signer).createPortfolio(),
+export const createDSafe = async (dos: IDOS, signer: ethers.Signer): Promise<DSafeLogic> => {
+  const {dSafe} = await getEventParams(
+    await dos.connect(signer).createDSafe(),
     dos,
-    "PortfolioCreated",
+    "DSafeCreated",
   );
-  return PortfolioLogic__factory.connect(portfolio as string, signer);
+  return DSafeLogic__factory.connect(dSafe as string, signer);
 };
 
 export const sortTransfers = (

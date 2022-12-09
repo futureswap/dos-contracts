@@ -13,6 +13,8 @@ import type {
   HashNFT,
   Governance,
   IPermit2,
+  VersionManager,
+  IDOS,
 } from "../typechain-types";
 import type {TransactionRequest} from "@ethersproject/abstract-provider";
 
@@ -30,10 +32,9 @@ import {
 } from "@nomicfoundation/hardhat-network-helpers";
 import {ethers as hardhatEthers, waffle} from "hardhat";
 
-import addressesJSON from "../deployment/addresses.json";
-import {getEventParams, getEventsTx} from "./events";
-import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {
+  VersionManager__factory,
+  IDOS__factory,
   AggregatorV3Interface__factory,
   ERC20ChainlinkValueOracle__factory,
   GovernanceProxy__factory,
@@ -42,7 +43,12 @@ import {
   IPermit2__factory,
   IAnyswapCreate2Deployer__factory,
   TransferAndCall2__factory,
+  DOS__factory,
+  DOSConfig__factory,
 } from "../typechain-types";
+import addressesJSON from "../deployment/addresses.json";
+import {getEventParams, getEventsTx} from "./events";
+import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
 import {makeCall, proposeAndExecute} from "./calls";
 import {checkDefined} from "./preconditions";
@@ -85,7 +91,7 @@ export const getUniswapFactory = (signer: ethers.Signer): ethers.ContractFactory
   return new ethers.ContractFactory(uniV3FactJSON.abi, uniV3FactJSON.bytecode, signer);
 };
 
-export const getUniswapNonfungiblePositionManagerFactory = (
+export const getUniswapNonFungiblePositionManagerFactory = (
   signer: ethers.Signer,
 ): ethers.ContractFactory => {
   return new ethers.ContractFactory(uniNFTManagerJSON.abi, uniNFTManagerJSON.bytecode, signer);
@@ -120,7 +126,7 @@ export async function deployUniswapFactory(
     linkedBytecode,
     signer,
   ).deploy(weth, ethers.constants.MaxInt256);
-  const uniswapNFTManager = await getUniswapNonfungiblePositionManagerFactory(signer).deploy(
+  const uniswapNFTManager = await getUniswapNonFungiblePositionManagerFactory(signer).deploy(
     uniswapFactory.address,
     weth,
     tokenDescriptor.address,
@@ -265,13 +271,13 @@ export async function deployAnyswapCreate2Deployer(
       r: "0x1820182018201820182018201820182018201820182018201820182018201820",
       s: "0x1820182018201820182018201820182018201820182018201820182018201820",
     };
-    // make sure the money is send to the deployer address by awaiting the transaction confirmation
+    // make sure the money is sent to the deployer address by awaiting the transaction confirmation
     await (await signer.sendTransaction({to: deployerAddress, value: toWei(0.02)})).wait();
     const deployTx = await checkDefined(signer.provider).sendTransaction(
       ethers.utils.serializeTransaction(tx, sig),
     );
     const receipt = await deployTx.wait();
-    if (contractAddress != receipt.contractAddress) throw new Error("Incorrect contract addresss");
+    if (contractAddress != receipt.contractAddress) throw new Error("Incorrect contract address");
   }
   return IAnyswapCreate2Deployer__factory.connect(contractAddress, signer);
 }
@@ -304,9 +310,10 @@ export const deployFixedAddressForTests = async (
     const governanceProxy = await deployGovernanceProxy(
       signedGovernorAddress,
       anyswapCreate2Deployer,
+      fsSalt,
       signer,
     );
-    // for tests we can use impersonation to propose governance to make signer the owner
+    // for tests, we can use impersonation to propose governance to make signer the owner
     await impersonateAccount(signedGovernorAddress);
     await signer.sendTransaction({to: signedGovernorAddress, value: toWei(0.02)});
     await governanceProxy
@@ -367,23 +374,53 @@ export const deployAtFixedAddress = async <Factory extends ContractFactoryLike>(
 
 export const deployTransferAndCall2 = async (
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
+  salt: ethers.BytesLike,
 ): Promise<TransferAndCall2> => {
   return await deployAtFixedAddress(
     new TransferAndCall2__factory(anyswapCreate2Deployer.signer),
     anyswapCreate2Deployer,
-    fsSalt,
+    salt,
   );
 };
 
 export async function deployGovernanceProxy(
   governor: string,
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
+  salt: ethers.BytesLike,
   signer: ethers.Signer,
 ): Promise<GovernanceProxy> {
   return await deployAtFixedAddress(
     new GovernanceProxy__factory(signer),
     anyswapCreate2Deployer,
-    fsSalt,
+    salt,
     governor,
   );
 }
+
+export const deployDos = async (
+  governanceProxy: string,
+  anyswapCreate2Deployer: IAnyswapCreate2Deployer,
+  salt: ethers.BytesLike,
+  signer: ethers.Signer,
+): Promise<{dos: IDOS; versionManager: VersionManager}> => {
+  const versionManager = await deployAtFixedAddress(
+    new VersionManager__factory(signer),
+    anyswapCreate2Deployer,
+    salt,
+    governanceProxy,
+  );
+  const dosConfig = await deployAtFixedAddress(
+    new DOSConfig__factory(signer),
+    anyswapCreate2Deployer,
+    salt,
+    governanceProxy,
+  );
+  const dos = await deployAtFixedAddress(
+    new DOS__factory(signer),
+    anyswapCreate2Deployer,
+    salt,
+    dosConfig.address,
+    versionManager.address,
+  );
+  return {dos: IDOS__factory.connect(dos.address, signer), versionManager};
+};

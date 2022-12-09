@@ -1,24 +1,26 @@
-import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import type {DOS, PortfolioLogic, TestERC20, WETH9} from "../../typechain-types";
-import type {Signer, Contract} from "ethers";
+import type {IDOS, DSafeLogic, TestERC20, WETH9} from "../../typechain-types";
+import type {Contract} from "ethers";
 
 import {ethers} from "hardhat";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
-import {BigNumber} from "ethers";
 
 import {
-  DOS__factory,
-  PortfolioLogic__factory,
+  DSafeLogic__factory,
   TestERC20__factory,
   WETH9__factory,
   UniV3Oracle__factory,
-  VersionManager__factory,
 } from "../../typechain-types";
 import {toWei} from "../../lib/numbers";
-import {getEventsTx} from "../../lib/events";
-import {makeCall} from "../../lib/calls";
-import {Chainlink, deployUniswapFactory, deployUniswapPool} from "../../lib/deploy";
+import {createDSafe, makeCall} from "../../lib/calls";
+import {
+  Chainlink,
+  deployDos,
+  deployFixedAddressForTests,
+  deployUniswapFactory,
+  deployUniswapPool,
+} from "../../lib/deploy";
+import {getFixedGasSigners} from "../../lib/signers";
 
 const USDC_PRICE = 1;
 const ETH_PRICE = 2000;
@@ -32,6 +34,8 @@ describe("DOS swap integration", () => {
   // and reset Hardhat Network to that snapshot in every test.
   async function deployDOSFixture() {
     const [owner, user, user2, user3] = await getFixedGasSigners(10_000_000);
+
+    const {anyswapCreate2Deployer} = await deployFixedAddressForTests(owner);
 
     let usdc: TestERC20;
     let weth: WETH9;
@@ -52,9 +56,13 @@ describe("DOS swap integration", () => {
     );
     const ethChainlink = await Chainlink.deploy(owner, ETH_PRICE, 8, USDC_DECIMALS, WETH_DECIMALS);
 
-    const versionManager = await new VersionManager__factory(owner).deploy(owner.address);
-    const dos = await new DOS__factory(owner).deploy(owner.address, versionManager.address);
-    const proxyLogic = await new PortfolioLogic__factory(owner).deploy(dos.address);
+    const {dos, versionManager} = await deployDos(
+      owner.address,
+      anyswapCreate2Deployer,
+      "0x02",
+      owner,
+    );
+    const proxyLogic = await new DSafeLogic__factory(owner).deploy(dos.address);
     await versionManager.addVersion("1.0.0", 2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
@@ -103,12 +111,12 @@ describe("DOS swap integration", () => {
 
     await dos.addNFTInfo(uniswapNFTManager.address, uniswapNftOracle.address, toWei(0.9));
 
-    const ownerPortfolio = await createPortfolio(dos, owner);
+    const ownerDSafe = await createDSafe(dos, owner);
     const usdcAmount = toWei(2000000, USDC_DECIMALS);
     const wethAmount = toWei(1000);
 
-    await usdc.mint(ownerPortfolio.address, usdcAmount);
-    await ownerPortfolio.executeBatch(
+    await usdc.mint(ownerDSafe.address, usdcAmount);
+    await ownerDSafe.executeBatch(
       [
         makeCall(weth, "deposit", [], toWei(1000) /* value */),
         makeCall(dos, "depositERC20", [usdc.address, usdcAmount]),
@@ -117,11 +125,11 @@ describe("DOS swap integration", () => {
       {value: wethAmount},
     );
 
-    const getBalances = async (portfolio: PortfolioLogic) => {
+    const getBalances = async (dSafe: DSafeLogic) => {
       const [nfts, usdcBalance, wethBalance] = await Promise.all([
-        dos.viewNFTs(portfolio.address),
-        dos.viewBalance(portfolio.address, usdc.address),
-        dos.viewBalance(portfolio.address, weth.address),
+        dos.viewNFTs(dSafe.address),
+        dos.getDAccountERC20(dSafe.address, usdc.address),
+        dos.getDAccountERC20(dSafe.address, weth.address),
       ]);
       return {nfts, usdcBalance: usdcBalance.toBigInt(), wethBalance: wethBalance.toBigInt()};
     };
@@ -148,8 +156,8 @@ describe("DOS swap integration", () => {
         deployDOSFixture,
       );
 
-      const portfolio = await createPortfolio(dos, user);
-      await usdc.mint(portfolio.address, toWei(1600, USDC_DECIMALS));
+      const dSafe = await createDSafe(dos, user);
+      await usdc.mint(dSafe.address, toWei(1600, USDC_DECIMALS));
 
       const mintParams = {
         token0: weth.address,
@@ -161,12 +169,12 @@ describe("DOS swap integration", () => {
         amount1Desired: toWei(2000, USDC_DECIMALS),
         amount0Min: 0,
         amount1Min: 0,
-        recipient: portfolio.address,
+        recipient: dSafe.address,
         deadline: ethers.constants.MaxUint256,
       };
-      await expect(leverageLP(portfolio, dos, usdc, weth, uniswapNFTManager, mintParams)).to.not.be
+      await expect(leverageLP(dSafe, dos, usdc, weth, uniswapNFTManager, mintParams)).to.not.be
         .reverted;
-      const {usdcBalance, wethBalance, nfts} = await getBalances(portfolio);
+      const {usdcBalance, wethBalance, nfts} = await getBalances(dSafe);
       // expect leveraged LP position with NFT as collateral
       expect(usdcBalance).to.be.lessThan(0);
       expect(wethBalance).to.be.lessThan(0);
@@ -177,8 +185,8 @@ describe("DOS swap integration", () => {
       const {user, user2, dos, usdc, weth, uniswapNFTManager, swapRouter, getBalances} =
         await loadFixture(deployDOSFixture);
 
-      const portfolio = await createPortfolio(dos, user);
-      await usdc.mint(portfolio.address, toWei(16000, USDC_DECIMALS));
+      const dSafe = await createDSafe(dos, user);
+      await usdc.mint(dSafe.address, toWei(16000, USDC_DECIMALS));
 
       const mintParams = {
         token0: weth.address,
@@ -190,17 +198,17 @@ describe("DOS swap integration", () => {
         amount1Desired: toWei(20000, USDC_DECIMALS),
         amount0Min: 0,
         amount1Min: 0,
-        recipient: portfolio.address,
+        recipient: dSafe.address,
         deadline: ethers.constants.MaxUint256,
       };
-      await leverageLP(portfolio, dos, usdc, weth, uniswapNFTManager, mintParams);
+      await leverageLP(dSafe, dos, usdc, weth, uniswapNFTManager, mintParams);
 
-      const portfolio2 = await createPortfolio(dos, user2);
-      await usdc.mint(portfolio2.address, toWei(1000, USDC_DECIMALS));
-      await expect(leveragePos(portfolio2, dos, usdc, weth, swapRouter, toWei(2000, USDC_DECIMALS)))
-        .to.not.be.reverted;
+      const dSafe2 = await createDSafe(dos, user2);
+      await usdc.mint(dSafe2.address, toWei(1000, USDC_DECIMALS));
+      await expect(leveragePos(dSafe2, dos, usdc, weth, swapRouter, toWei(2000, USDC_DECIMALS))).to
+        .not.be.reverted;
 
-      const {usdcBalance, wethBalance, nfts} = await getBalances(portfolio2);
+      const {usdcBalance, wethBalance, nfts} = await getBalances(dSafe2);
       // expect leveraged long eth position
       expect(usdcBalance).to.be.lessThan(0);
       expect(wethBalance).to.be.greaterThan(0);
@@ -221,8 +229,8 @@ describe("DOS swap integration", () => {
         getBalances,
       } = await loadFixture(deployDOSFixture);
 
-      const portfolio = await createPortfolio(dos, user);
-      await usdc.mint(portfolio.address, toWei(16000, USDC_DECIMALS));
+      const dSafe = await createDSafe(dos, user);
+      await usdc.mint(dSafe.address, toWei(16000, USDC_DECIMALS));
 
       const mintParams = {
         token0: weth.address,
@@ -234,57 +242,48 @@ describe("DOS swap integration", () => {
         amount1Desired: toWei(20000, USDC_DECIMALS),
         amount0Min: 0,
         amount1Min: 0,
-        recipient: portfolio.address,
+        recipient: dSafe.address,
         deadline: ethers.constants.MaxUint256,
       };
-      await leverageLP(portfolio, dos, usdc, weth, uniswapNFTManager, mintParams);
+      await leverageLP(dSafe, dos, usdc, weth, uniswapNFTManager, mintParams);
 
-      const portfolio2 = await createPortfolio(dos, user2);
-      await usdc.mint(portfolio2.address, toWei(1000, USDC_DECIMALS));
-      await leveragePos(portfolio2, dos, usdc, weth, swapRouter, toWei(2000, USDC_DECIMALS));
+      const dSafe2 = await createDSafe(dos, user2);
+      await usdc.mint(dSafe2.address, toWei(1000, USDC_DECIMALS));
+      await leveragePos(dSafe2, dos, usdc, weth, swapRouter, toWei(2000, USDC_DECIMALS));
 
-      // make portfolio2 liquidatable
+      // make dSafe2 liquidatable
       await ethChainlink.setPrice(ETH_PRICE / 2);
 
-      const portfolio3 = await createPortfolio(dos, user3);
-      await usdc.mint(portfolio3.address, toWei(1000, USDC_DECIMALS));
-      await portfolio3.executeBatch([
+      const dSafe3 = await createDSafe(dos, user3);
+      await usdc.mint(dSafe3.address, toWei(1000, USDC_DECIMALS));
+      await dSafe3.executeBatch([
         makeCall(usdc, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
         makeCall(weth, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
         makeCall(dos, "depositFull", [[usdc.address]]),
       ]);
 
-      // await portfolio3.liquify(portfolio2.address, swapRouter.address, usdc.address, [wethIdx], [weth.address]);
-      await expect(
-        portfolio3.liquify(portfolio2.address, swapRouter.address, usdc.address, [weth.address]),
-      ).to.not.be.reverted;
+      // await dSafe3.liquify(dSafe2.address, swapRouter.address, usdc.address, [wethIdx], [weth.address]);
+      await expect(dSafe3.liquify(dSafe2.address, swapRouter.address, usdc.address, [weth.address]))
+        .to.not.be.reverted;
 
-      const {usdcBalance, wethBalance} = await getBalances(portfolio3);
-      expect(await usdc.balanceOf(portfolio3.address)).to.be.equal(0);
-      expect(await weth.balanceOf(portfolio3.address)).to.be.equal(0);
+      const {usdcBalance, wethBalance} = await getBalances(dSafe3);
+      expect(await usdc.balanceOf(dSafe3.address)).to.be.equal(0);
+      expect(await weth.balanceOf(dSafe3.address)).to.be.equal(0);
       expect(wethBalance).to.equal(0);
       expect(usdcBalance).to.greaterThan(toWei(1000, USDC_DECIMALS));
     });
   });
 });
 
-async function createPortfolio(dos: DOS, signer: Signer) {
-  const events = await getEventsTx<{PortfolioCreated: {portfolio: string}}>(
-    dos.connect(signer).createPortfolio(),
-    dos,
-  );
-  return PortfolioLogic__factory.connect(events.PortfolioCreated.portfolio, signer);
-}
-
 const leverageLP = async (
-  portfolio: PortfolioLogic,
-  dos: DOS,
+  dSafe: DSafeLogic,
+  dos: IDOS,
   usdc: TestERC20,
   weth: WETH9,
   uniswapNFTManager: Contract,
   mintParams: unknown,
 ) => {
-  return await portfolio.executeBatch([
+  return await dSafe.executeBatch([
     makeCall(usdc, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
     makeCall(weth, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
     makeCall(uniswapNFTManager, "setApprovalForAll", [dos.address, true]),
@@ -297,8 +296,8 @@ const leverageLP = async (
 };
 
 const leveragePos = async (
-  portfolio: PortfolioLogic,
-  dos: DOS,
+  dSafe: DSafeLogic,
+  dos: IDOS,
   usdc: TestERC20,
   weth: WETH9,
   swapRouter: Contract,
@@ -308,34 +307,18 @@ const leveragePos = async (
     tokenIn: usdc.address,
     tokenOut: weth.address,
     fee: "500",
-    recipient: portfolio.address,
+    recipient: dSafe.address,
     deadline: ethers.constants.MaxUint256,
     amountIn: amount,
     amountOutMinimum: 0,
     sqrtPriceLimitX96: 0,
   };
 
-  return await portfolio.executeBatch([
+  return await dSafe.executeBatch([
     makeCall(usdc, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
     makeCall(weth, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
     makeCall(dos, "depositERC20", [usdc.address, -amount]),
     makeCall(swapRouter, "exactInputSingle", [exactInputSingleParams]),
     makeCall(dos, "depositFull", [[usdc.address, weth.address]]),
   ]);
-};
-
-// this fixes random tests crash with
-// "contract call run out of gas and made the transaction revert" error
-// and, as a side effect, speeds tests in 2-3 times!
-// https://github.com/NomicFoundation/hardhat/issues/1721
-export const getFixedGasSigners = async function (gasLimit: number): Promise<SignerWithAddress[]> {
-  const signers: SignerWithAddress[] = await ethers.getSigners();
-  for (const signer of signers) {
-    const sendTransactionOrig = signer.sendTransaction.bind(signer);
-    signer.sendTransaction = transaction => {
-      transaction.gasLimit = BigNumber.from(gasLimit.toString());
-      return sendTransactionOrig.apply(signer, [transaction]);
-    };
-  }
-  return signers;
 };
