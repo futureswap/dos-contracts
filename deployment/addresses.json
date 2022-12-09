@@ -13,7 +13,7 @@
     "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
     "weth": "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6",
     "transferAndCall2": "0xcdEa115AD55DaBC42596929Bba31f00092e5e25e",
-    "signedGovernor": "0x59e7aff31aa0e670c74e3105d92aa496abe51b47",
+    "futureSwapProxy": "0x59e7aff31aa0e670c74e3105d92aa496abe51b47",
     "governanceProxy": "0x9D66F47b0B06DF7240E5A35aC8C6a1615767F404",
     "uniswapV3Factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
     "swapRouter": "0xE592427A0AEce92De3Edee1F18E0157C05861564",

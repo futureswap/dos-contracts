@@ -284,7 +284,7 @@ export async function deployAnyswapCreate2Deployer(
 
 export const fsSalt = "0x1234567890123456789012345678901234567890123456789012345678901234";
 const permit2Address = addressesJSON.goerli.permit2;
-const signedGovernorAddress = addressesJSON.goerli.signedGovernor;
+const futureSwapProxyAddress = addressesJSON.goerli.futureSwapProxy;
 const governanceProxyAddress = addressesJSON.goerli.governanceProxy;
 const transferAndCall2Address = addressesJSON.goerli.transferAndCall2;
 
@@ -308,18 +308,18 @@ export const deployFixedAddressForTests = async (
     const deployedCode = await deployedContract.provider.getCode(deployedContract.address);
     await setCode(transferAndCall2.address, deployedCode);
     const governanceProxy = await deployGovernanceProxy(
-      signedGovernorAddress,
+      futureSwapProxyAddress,
       anyswapCreate2Deployer,
       fsSalt,
       signer,
     );
     // for tests, we can use impersonation to propose governance to make signer the owner
-    await impersonateAccount(signedGovernorAddress);
-    await signer.sendTransaction({to: signedGovernorAddress, value: toWei(0.02)});
+    await impersonateAccount(futureSwapProxyAddress);
+    await signer.sendTransaction({to: futureSwapProxyAddress, value: toWei(0.02)});
     await governanceProxy
-      .connect(await hardhatEthers.getSigner(signedGovernorAddress))
+      .connect(await hardhatEthers.getSigner(futureSwapProxyAddress))
       .execute([makeCall(governanceProxy, "proposeGovernance", [await signer.getAddress()])]);
-    await stopImpersonatingAccount(signedGovernorAddress);
+    await stopImpersonatingAccount(futureSwapProxyAddress);
   }
   return {
     permit2,
