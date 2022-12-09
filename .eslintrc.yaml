@@ -63,6 +63,12 @@ rules:
   no-new-object: error
   no-new-wrappers: error
   no-redeclare: off # handled by @typescript-eslint/no-redeclare
+  no-restricted-globals:
+  - error
+  - name: setTimeout
+    message: Please, use setTimeout from node:timers/promises instead
+  - name: setInterval
+    message: Please, use setInterval from node:timers/promises instead
   no-throw-literal: off # handled by @typescript-eslint/no-throw-literal
   no-undef-init: error
   no-underscore-dangle: [error, {allow: [_signTypedData]}]
