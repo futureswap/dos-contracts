@@ -33,8 +33,8 @@ contract GovernanceProxy {
     event NewGovernanceProposed(address newGovernance);
     event GovernanceChanged(address oldGovernance, address newGovernance);
 
-    constructor() {
-        governance = msg.sender;
+    constructor(address _governance) {
+        governance = FsUtils.nonNull(_governance);
     }
 
     /// @notice Execute a batch of contract calls.
@@ -87,9 +87,9 @@ contract Governance is ImmutableOwnable, IERC721Receiver {
     }
 
     function onERC721Received(
-        address /* operator */,
-        address /* from */,
-        uint256 /* tokenId */,
+        address, /* operator */
+        address, /* from */
+        uint256, /* tokenId */
         bytes calldata /* data */
     ) external view override returns (bytes4) {
         require(msg.sender == address(voteNFT), "only vote NFTs");

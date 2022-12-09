@@ -25,7 +25,7 @@ import {toWei, toWeiUsdc} from "../../lib/numbers";
 import {getEventParams} from "../../lib/events";
 import {getFixedGasSigners, signPermit2TransferFrom} from "../../lib/signers";
 import {makeCall, createPortfolio} from "../../lib/calls";
-import {Chainlink, deployFixedAddress} from "../../lib/deploy";
+import {Chainlink, deployFixedAddressForTests} from "../../lib/deploy";
 
 const USDC_PRICE = 1;
 const ETH_PRICE = 2000;
@@ -45,7 +45,7 @@ describe("DOS", () => {
   async function deployDOSFixture() {
     const [owner, user, user2, user3] = await getFixedGasSigners(10_000_000);
 
-    const {permit2} = await deployFixedAddress(owner);
+    const {permit2} = await deployFixedAddressForTests(owner);
 
     const usdc = await new TestERC20__factory(owner).deploy(
       "USD Coin",

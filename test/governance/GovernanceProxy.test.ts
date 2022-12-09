@@ -15,7 +15,7 @@ describe("Governance test", () => {
   async function deployGovernanceProxyFixture() {
     const [owner, user] = await ethers.getSigners();
 
-    const governanceProxy = await new GovernanceProxy__factory(owner).deploy();
+    const governanceProxy = await new GovernanceProxy__factory(owner).deploy(owner.address);
 
     return {
       owner,
@@ -27,7 +27,7 @@ describe("Governance test", () => {
   async function deployGovernance() {
     const [owner, voting, user] = await ethers.getSigners();
 
-    const governanceProxy = await new GovernanceProxy__factory(owner).deploy();
+    const governanceProxy = await new GovernanceProxy__factory(owner).deploy(owner.address);
     const voteNFT = await new HashNFT__factory(voting).deploy(
       "Voting token",
       "VTOK",

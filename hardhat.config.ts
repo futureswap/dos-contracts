@@ -19,6 +19,8 @@ const getEnvVariable = (varName: string) => {
 
 const TEST_MNEMONIC = "test test test test test test test test test test test junk";
 
+export const FUTURESWAP_DEPLOYER_MNEMONIC = getEnvVariable("FUTURESWAP_DEPLOYER_MNEMONIC");
+
 // mnemonic for futureswap work accounts these are individual for each
 // employee. These accounts carry real ETH for executing TX's but should
 // never carry to much and should have no special role in the system.
