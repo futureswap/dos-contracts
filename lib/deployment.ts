@@ -16,7 +16,11 @@ import {
   VersionManager__factory,
 } from "../typechain-types";
 import {IAnyswapCreate2Deployer__factory} from "../typechain-types/factories/contracts/external/interfaces/IAnyswapCreate2Deployer__factory";
-import { getSwapRouterFactory, getUniswapFactory, getUniswapNonfungiblePositionManagerFactory } from "./deploy";
+import {
+  getSwapRouterFactory,
+  getUniswapFactory,
+  getUniswapNonfungiblePositionManagerFactory,
+} from "./deploy";
 
 type NetworkAddresses = Record<string, string>;
 type DeploymentAddresses = Record<string, NetworkAddresses>;
@@ -85,11 +89,11 @@ export const getContractFactory = (
     case "usdc":
       return IERC20__factory.connect(address, signer);
     case "uniswapV3Factory":
-        return getUniswapFactory(signer).attach(address);
+      return getUniswapFactory(signer).attach(address);
     case "swapRouter":
-        return getSwapRouterFactory(signer).attach(address);
+      return getSwapRouterFactory(signer).attach(address);
     case "nonFungiblePositionManager":
-        return getUniswapNonfungiblePositionManagerFactory(signer).attach(address);
+      return getUniswapNonfungiblePositionManagerFactory(signer).attach(address);
     default:
       throw new Error(`Unknown contract name: ${contractName}`);
   }

@@ -82,26 +82,18 @@ export async function deployUniswapPool(
 }
 
 export const getUniswapFactory = (signer: ethers.Signer): ethers.ContractFactory => {
-  return new ethers.ContractFactory(
-    uniV3FactJSON.abi,
-    uniV3FactJSON.bytecode,
-    signer,
-  );
-}
-export const getUniswapNonfungiblePositionManagerFactory = (signer: ethers.Signer): ethers.ContractFactory => {
-  return new ethers.ContractFactory(
-    uniNFTManagerJSON.abi,
-    uniNFTManagerJSON.bytecode,
-    signer,
-  );
-}
+  return new ethers.ContractFactory(uniV3FactJSON.abi, uniV3FactJSON.bytecode, signer);
+};
+
+export const getUniswapNonfungiblePositionManagerFactory = (
+  signer: ethers.Signer,
+): ethers.ContractFactory => {
+  return new ethers.ContractFactory(uniNFTManagerJSON.abi, uniNFTManagerJSON.bytecode, signer);
+};
+
 export const getSwapRouterFactory = (signer: ethers.Signer): ethers.ContractFactory => {
-  return new ethers.ContractFactory(
-    swapRouterJSON.abi,
-    swapRouterJSON.bytecode,
-    signer,
-  );
-}
+  return new ethers.ContractFactory(swapRouterJSON.abi, swapRouterJSON.bytecode, signer);
+};
 
 export async function deployUniswapFactory(
   weth: string,
@@ -128,7 +120,11 @@ export async function deployUniswapFactory(
     linkedBytecode,
     signer,
   ).deploy(weth, ethers.constants.MaxInt256);
-  const uniswapNFTManager = await getUniswapNonfungiblePositionManagerFactory(signer).deploy(uniswapFactory.address, weth, tokenDescriptor.address);
+  const uniswapNFTManager = await getUniswapNonfungiblePositionManagerFactory(signer).deploy(
+    uniswapFactory.address,
+    weth,
+    tokenDescriptor.address,
+  );
   const swapRouter = await getSwapRouterFactory(signer).deploy(uniswapFactory.address, weth);
   return {uniswapFactory, uniswapNFTManager, swapRouter};
 }
