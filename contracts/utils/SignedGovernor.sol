@@ -23,10 +23,10 @@ contract SignedGovernor is Ownable, EIP712 {
         _transferOwnership(msg.sender);
     }
 
-    function execute(address governanceProxy, GovernanceProxy.Call[] memory calls)
-        external
-        onlyOwner
-    {
+    function execute(
+        address governanceProxy,
+        GovernanceProxy.Call[] memory calls
+    ) external onlyOwner {
         GovernanceProxy(governanceProxy).execute(calls);
     }
 }

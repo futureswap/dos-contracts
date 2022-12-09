@@ -38,7 +38,7 @@ const config: HardhatUserConfig = {
         version: "0.8.7",
         settings: {
           metadata: {
-            // Not including the metadata hash
+            // not including the metadata hash
             // https://github.com/paulrberg/solidity-template/issues/31
             bytecodeHash: "none",
           },
@@ -57,7 +57,7 @@ const config: HardhatUserConfig = {
         version: "0.8.17",
         settings: {
           metadata: {
-            // Not including the metadata hash
+            // not including the metadata hash
             // https://github.com/paulrberg/solidity-template/issues/31
             bytecodeHash: "none",
           },

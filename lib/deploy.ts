@@ -20,13 +20,17 @@ import uniV3FactJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Factory
 import uniNFTManagerJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json";
 import tokenPosDescJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungibleTokenPositionDescriptor.sol/NonfungibleTokenPositionDescriptor.json";
 import nftDescJSON from "@uniswap/v3-periphery/artifacts/contracts/libraries/NFTDescriptor.sol/NFTDescriptor.json";
-import uniswapPoolJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
 import swapRouterJSON from "@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json";
-import addressesJSON from "../deployment/addresses.json";
+import uniswapPoolJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
 import {ethers} from "ethers";
-import {impersonateAccount, setCode, stopImpersonatingAccount} from "@nomicfoundation/hardhat-network-helpers";
+import {
+  impersonateAccount,
+  setCode,
+  stopImpersonatingAccount,
+} from "@nomicfoundation/hardhat-network-helpers";
 import {ethers as hardhatEthers, waffle} from "hardhat";
 
+import addressesJSON from "../deployment/addresses.json";
 import {getEventParams, getEventsTx} from "./events";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {
@@ -42,8 +46,6 @@ import {
 import {toWei} from "./numbers";
 import {makeCall, proposeAndExecute} from "./calls";
 import {checkDefined} from "./preconditions";
-import { SignedGovernor__factory } from "../typechain-types/factories/contracts/utils/SignedGovernor__factory";
-import { HardhatEthersHelpers } from "hardhat/types";
 
 export async function deployUniswapPool(
   uniswapFactory: ethers.Contract,
@@ -228,7 +230,7 @@ export class Chainlink {
   }
 }
 
-/// Fixed address deployments
+// fixed address deployments
 
 export async function deployAnyswapCreate2Deployer(
   signer: ethers.Signer,
@@ -274,16 +276,18 @@ const signedGovernorAddress = addressesJSON.goerli.signedGovernor;
 const governanceProxyAddress = addressesJSON.goerli.governanceProxy;
 const transferAndCall2Address = addressesJSON.goerli.transferAndCall2;
 
-// Initialize the fixed address deployments
+// initialize the fixed address deployments
 export const deployFixedAddressForTests = async (
   signer: ethers.Signer,
-): Promise<{permit2: IPermit2; transferAndCall2: TransferAndCall2; anyswapCreate2Deployer: IAnyswapCreate2Deployer; governanceProxy: GovernanceProxy; }> => {
+): Promise<{
+  permit2: IPermit2;
+  transferAndCall2: TransferAndCall2;
+  anyswapCreate2Deployer: IAnyswapCreate2Deployer;
+  governanceProxy: GovernanceProxy;
+}> => {
   const permit2 = IPermit2__factory.connect(permit2Address, signer);
   const anyswapCreate2Deployer = await deployAnyswapCreate2Deployer(signer);
-  const transferAndCall2 = TransferAndCall2__factory.connect(
-    transferAndCall2Address,
-    signer,
-  );
+  const transferAndCall2 = TransferAndCall2__factory.connect(transferAndCall2Address, signer);
   const governanceProxy = GovernanceProxy__factory.connect(governanceProxyAddress, signer);
 
   if ((await permit2.provider.getCode(permit2.address)) === "0x") {
@@ -291,10 +295,17 @@ export const deployFixedAddressForTests = async (
     const deployedContract = await new TransferAndCall2__factory(signer).deploy();
     const deployedCode = await deployedContract.provider.getCode(deployedContract.address);
     await setCode(transferAndCall2.address, deployedCode);
-    const governanceProxy = await deployGovernanceProxy(signedGovernorAddress, anyswapCreate2Deployer, signer);
-    // For tests we can use impersonation to propose governance to make signer the owner
+    const governanceProxy = await deployGovernanceProxy(
+      signedGovernorAddress,
+      anyswapCreate2Deployer,
+      signer,
+    );
+    // for tests we can use impersonation to propose governance to make signer the owner
     await impersonateAccount(signedGovernorAddress);
-    await governanceProxy.connect(await hardhatEthers.getSigner(signedGovernorAddress)).execute([makeCall(governanceProxy, "proposeGovernance", [await signer.getAddress()])]);
+    await signer.sendTransaction({to: signedGovernorAddress, value: toWei(0.02)});
+    await governanceProxy
+      .connect(await hardhatEthers.getSigner(signedGovernorAddress))
+      .execute([makeCall(governanceProxy, "proposeGovernance", [await signer.getAddress()])]);
     await stopImpersonatingAccount(signedGovernorAddress);
   }
   return {
@@ -343,7 +354,7 @@ export const deployAtFixedAddress = async <Factory extends ContractFactoryLike>(
   const deployTx = factory.getDeployTransaction(...params);
   const {Deployed} = await getEventsTx<{Deployed: {addr: string}}>(
     anyswapCreate2Deployer.deploy(checkDefined(deployTx.data), salt),
-    anyswapCreate2Deployer
+    anyswapCreate2Deployer,
   );
   return factory.attach(Deployed.addr) as DeployResult<Factory>;
 };
@@ -354,12 +365,19 @@ export const deployTransferAndCall2 = async (
   return await deployAtFixedAddress(
     new TransferAndCall2__factory(anyswapCreate2Deployer.signer),
     anyswapCreate2Deployer,
-    fsSalt
+    fsSalt,
   );
 };
 
-export async function deployGovernanceProxy(governor: string, anyswapCreate2Deployer: IAnyswapCreate2Deployer, signer: ethers.Signer): Promise<GovernanceProxy> {
-  return await deployAtFixedAddress(new GovernanceProxy__factory(signer), anyswapCreate2Deployer, fsSalt, governor);
+export async function deployGovernanceProxy(
+  governor: string,
+  anyswapCreate2Deployer: IAnyswapCreate2Deployer,
+  signer: ethers.Signer,
+): Promise<GovernanceProxy> {
+  return await deployAtFixedAddress(
+    new GovernanceProxy__factory(signer),
+    anyswapCreate2Deployer,
+    fsSalt,
+    governor,
+  );
 }
-
-

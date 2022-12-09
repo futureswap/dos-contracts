@@ -4,7 +4,7 @@
   "license": "BUSL-1.1",
   "scripts": {
     "node": "yarn hardhat node",
-    "lint": "yarn eslint . && yarn solhint contracts/**/*.sol",
+    "lint": "yarn solhint contracts/**/*.sol && yarn eslint .",
     "test": "yarn hardhat test",
     "test:withTypesCheck": "yarn tsc --noEmit && yarn hardhat test",
     "compile": "yarn hardhat compile",

@@ -87,9 +87,9 @@ contract Governance is ImmutableOwnable, IERC721Receiver {
     }
 
     function onERC721Received(
-        address, /* operator */
-        address, /* from */
-        uint256, /* tokenId */
+        address /* operator */,
+        address /* from */,
+        uint256 /* tokenId */,
         bytes calldata /* data */
     ) external view override returns (bytes4) {
         require(msg.sender == address(voteNFT), "only vote NFTs");
