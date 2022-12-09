@@ -12,11 +12,11 @@ import "../interfaces/IDOS.sol";
 import "../interfaces/IERC20ValueOracle.sol";
 import "../interfaces/INFTValueOracle.sol";
 import {PERMIT2, IPermit2} from "../external/interfaces/IPermit2.sol";
-import {PortfolioProxy} from "./PortfolioProxy.sol";
+import {DSafeProxy} from "./DSafeProxy.sol";
 import "../dosERC20/DOSERC20.sol";
 import {IVersionManager} from "../interfaces/IVersionManager.sol";
 
-/// @notice Sender is not approved to spend portfolio erc20
+/// @notice Sender is not approved to spend dSafe erc20
 error NotApprovedOrOwner();
 /// @notice Transfer amount exceeds allowance
 error InsufficientAllowance();
@@ -31,32 +31,33 @@ error SelfApproval();
 // ERC1155 multi-token support
 // ERC1820 interface registry support
 // EIP2612 permit support (uniswap permit2)
-
-// NFT's are stored in an array of nfts owned by some portfolio. To prevent looping over arrays we need to
-// know the following information for each NFT in the system (erc721, tokenId, portfolio, array index).
-// Given the expensive nature of storage on the EVM we want to store all information as small as possible.
-// The pair (erc721, tokenId) is describes a particular NFT but would take two storage slots (as a token id)
-// is 256 bits. The erc721 address is 160 bits however we only allow pre-approved erc721 contracts, so in
-// practice 16 bits would be enough to store an index into the allowed erc721 contracts. We can hash (erc721 + tokenId)
-// to get a unique number but that requires storing both tokenId, erc721 and array index. Instead we hash into
-// 224 (256 - 32) bits which is still sufficiently large to avoid collisions. This leaves 32 bits for additional
-// information. The 16 lsb's are used to store the index in the portfolio array. The 16 msb's are used to store
-// the 16 msb's of the tokenId. This allows us to store the tokenId + array index in a single storage slot as a map
-// from NFTId to NFTData. Note that the index in the portfolio array might change and thus cannot be part of
-// NFTId and thus has to be stored as part of NFTData, requiring the splitting of tokenId.
-
+/*
+ * NFTs are stored in an array of nfts owned by some dSafe. To prevent looping over arrays we need to
+ * know the following information for each NFT in the system (erc721, tokenId, dSafe, array index).
+ * Given the expensive nature of storage on the EVM we want to store all information as small as possible.
+ * The pair (erc721, tokenId) is describes a particular NFT but would take two storage slots (as a token id)
+ * is 256 bits. The erc721 address is 160 bits however we only allow pre-approved erc721 contracts, so in
+ * practice 16 bits would be enough to store an index into the allowed erc721 contracts. We can hash (erc721 + tokenId)
+ * to get a unique number but that requires storing both tokenId, erc721 and array index. Instead we hash into
+ * 224 (256 - 32) bits which is still sufficiently large to avoid collisions. This leaves 32 bits for additional
+ * information. The 16 LSB are used to store the index in the dSafe array. The 16 RSB are used to store
+ * the 16 RSB of the tokenId. This allows us to store the tokenId + array index in a single storage slot as a map
+ * from NFTId to NFTData. Note that the index in the dSafe array might change and thus cannot be part of
+ * NFTId and thus has to be stored as part of NFTData, requiring the splitting of tokenId.
+ */
 type NFTId is uint256; // 16 bits (tokenId) + 224 bits (hash) + 16 bits (erc721 index)
 
 struct NFTTokenData {
     uint240 tokenId; // 240 LSB of the tokenId of the NFT
-    uint16 portfolioIdx; // index in portfolio NFT array
+    uint16 dSafeIdx; // index in dSafe NFT array
 }
 
-struct Portfolio {
+struct DSafe {
     address owner;
     mapping(uint16 => ERC20Share) erc20Share;
     NFTId[] nfts;
-    uint256[1] bitmask; // This can grow on updates
+    // bitmask of DOS indexes of ERC20 present in a dSafe. `1` can be increased on updates
+    uint256[1] dAccountErc20Idxs;
 }
 
 struct ERC20Pool {
@@ -64,13 +65,13 @@ struct ERC20Pool {
     int256 shares;
 }
 
-library PortfolioLib {
-    function clearMask(Portfolio storage p, uint16 idx) internal {
-        p.bitmask[idx >> 8] &= ~(1 << (idx & 255));
+library DSafeLib {
+    function removeERC20IdxFromDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
+        dSafe.dAccountErc20Idxs[erc20Idx >> 8] &= ~(1 << (erc20Idx & 255));
     }
 
-    function setMask(Portfolio storage p, uint16 idx) internal {
-        p.bitmask[idx >> 8] |= (1 << (idx & 255));
+    function accERC20IdxToDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
+        dSafe.dAccountErc20Idxs[erc20Idx >> 8] |= (1 << (erc20Idx & 255));
     }
 
     function extractPosition(
@@ -96,44 +97,42 @@ library PortfolioLib {
     }
 
     function extractNFT(
-        Portfolio storage p,
+        DSafe storage dSafe,
         NFTId nftId,
         mapping(NFTId => NFTTokenData) storage map
     ) internal {
-        uint16 idx = map[nftId].portfolioIdx;
-        require(idx < p.nfts.length, "NFT must be on the user's deposit");
-        require(
-            NFTId.unwrap(p.nfts[idx]) == NFTId.unwrap(nftId),
-            "NFT must be on the user's deposit"
-        );
-        if (idx == p.nfts.length - 1) {
-            p.nfts.pop();
+        uint16 idx = map[nftId].dSafeIdx;
+        bool userOwnsNFT = dSafe.nfts.length > 0 &&
+            NFTId.unwrap(dSafe.nfts[idx]) == NFTId.unwrap(nftId);
+        require(userOwnsNFT, "NFT must be in the user's dSafe");
+        if (idx == dSafe.nfts.length - 1) {
+            dSafe.nfts.pop();
         } else {
-            NFTId lastNFTId = p.nfts[p.nfts.length - 1];
-            map[lastNFTId].portfolioIdx = idx;
-            p.nfts.pop();
+            NFTId lastNFTId = dSafe.nfts[dSafe.nfts.length - 1];
+            map[lastNFTId].dSafeIdx = idx;
+            dSafe.nfts.pop();
         }
     }
 
     function insertNFT(
-        Portfolio storage p,
+        DSafe storage dSafe,
         NFTId nftId,
         mapping(NFTId => NFTTokenData) storage map
     ) internal {
-        uint16 idx = uint16(p.nfts.length);
-        p.nfts.push(nftId);
-        map[nftId].portfolioIdx = idx;
+        uint16 idx = uint16(dSafe.nfts.length);
+        dSafe.nfts.push(nftId);
+        map[nftId].dSafeIdx = idx;
     }
 
-    function getERC20s(Portfolio storage p) internal view returns (uint16[] memory erc20s) {
+    function getERC20s(DSafe storage dSafe) internal view returns (uint16[] memory erc20s) {
         uint256 numberOfERC20 = 0;
-        for (uint256 i = 0; i < p.bitmask.length; i++) {
-            numberOfERC20 += FsMath.bitCount(p.bitmask[i]);
+        for (uint256 i = 0; i < dSafe.dAccountErc20Idxs.length; i++) {
+            numberOfERC20 += FsMath.bitCount(dSafe.dAccountErc20Idxs[i]);
         }
         erc20s = new uint16[](numberOfERC20);
         uint256 idx = 0;
-        for (uint256 i = 0; i < p.bitmask.length; i++) {
-            uint256 mask = p.bitmask[i];
+        for (uint256 i = 0; i < dSafe.dAccountErc20Idxs.length; i++) {
+            uint256 mask = dSafe.dAccountErc20Idxs[i];
             for (uint256 j = 0; j < 256; j++) {
                 uint256 x = mask >> j;
                 if (x == 0) break;
@@ -185,9 +184,9 @@ uint16 constant K_NUMERAIRE_IDX = 0;
 library DOSLib {
     struct DOSState {
         IVersionManager versionManager;
-        mapping(address => Portfolio) portfolios;
+        mapping(address => DSafe) dSafes;
         // Note: This could be a mapping to a version index instead of the implementation address
-        mapping(address => address) portfolioLogic;
+        mapping(address => address) dSafeLogic;
         /// @dev erc20 allowances
         mapping(address => mapping(IERC20 => mapping(address => uint256))) _allowances;
         /// @dev erc721 approvals
@@ -231,24 +230,21 @@ library DOSLib {
     }
 }
 
-using PortfolioLib for Portfolio;
-using PortfolioLib for ERC20Pool;
+using DSafeLib for DSafe;
+using DSafeLib for ERC20Pool;
 using SafeERC20 for IERC20;
 
 contract DOS is IDOSCore, IERC721Receiver, Proxy {
     DOSLib.DOSState public state;
     address immutable dosConfig;
 
-    modifier onlyPortfolio() {
-        require(state.portfolios[msg.sender].owner != address(0), "Only portfolio can execute");
+    modifier onlyDSafe() {
+        require(state.dSafes[msg.sender].owner != address(0), "Only dSafe can execute");
         _;
     }
 
-    modifier portfolioExists(address portfolio) {
-        require(
-            state.portfolios[portfolio].owner != address(0),
-            "Recipient portfolio doesn't exist"
-        );
+    modifier dSafeExists(address dSafe) {
+        require(state.dSafes[dSafe].owner != address(0), "Recipient dSafe doesn't exist");
         _;
     }
 
@@ -261,8 +257,8 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
 
     modifier onlyNFTOwner(address nftContract, uint256 tokenId) {
         address owner = ERC721(nftContract).ownerOf(tokenId);
-        bool isOwner = owner == msg.sender || owner == state.portfolios[msg.sender].owner;
-        require(isOwner, "NFT must be owned the the user or user's portfolio");
+        bool isOwner = owner == msg.sender || owner == state.dSafes[msg.sender].owner;
+        require(isOwner, "NFT must be owned the the user or user's dSafe");
         _;
     }
 
@@ -271,32 +267,32 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         dosConfig = _dosConfig;
     }
 
-    function depositERC20(IERC20 erc20, int256 amount) external override onlyPortfolio {
+    function depositERC20(IERC20 erc20, int256 amount) external override onlyDSafe {
         (, uint16 erc20Idx) = DOSLib.getERC20Info(erc20);
         if (amount > 0) {
             erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
-            updateBalance(erc20Idx, msg.sender, amount);
+            dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
         } else {
             erc20.safeTransfer(msg.sender, uint256(-amount));
-            updateBalance(erc20Idx, msg.sender, amount);
+            dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
         }
     }
 
-    function depositFull(IERC20[] calldata erc20s) external override onlyPortfolio {
+    function depositFull(IERC20[] calldata erc20s) external override onlyDSafe {
         for (uint256 i = 0; i < erc20s.length; i++) {
             (ERC20Info storage erc20Info, uint16 erc20Idx) = DOSLib.getERC20Info(erc20s[i]);
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
             uint256 amount = erc20.balanceOf(msg.sender);
             erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
-            updateBalance(erc20Idx, msg.sender, FsMath.safeCastToSigned(amount));
+            dAccountERC20ChangeBy(msg.sender, erc20Idx, FsMath.safeCastToSigned(amount));
         }
     }
 
-    function withdrawFull(IERC20[] calldata erc20s) external onlyPortfolio {
+    function withdrawFull(IERC20[] calldata erc20s) external onlyDSafe {
         for (uint256 i = 0; i < erc20s.length; i++) {
             (ERC20Info storage erc20Info, uint16 erc20Idx) = DOSLib.getERC20Info(erc20s[i]);
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
-            int256 amount = clearBalance(erc20Idx, msg.sender);
+            int256 amount = dAccountERC20Clear(msg.sender, erc20Idx);
             require(amount >= 0, "Can't withdraw debt");
             erc20.safeTransfer(msg.sender, uint256(amount));
         }
@@ -307,7 +303,7 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         uint256 tokenId
     )
         external
-        onlyPortfolio
+        onlyDSafe
         onlyRegisteredNFT(nftContract, tokenId)
         onlyNFTOwner(nftContract, tokenId)
     {
@@ -316,39 +312,35 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         ERC721(nftContract).safeTransferFrom(owner, address(this), tokenId, abi.encode(msg.sender));
     }
 
-    /*function depositDosERC20(uint16 erc20Idx, int256 amount) external onlyPortfolio {
+    /*function depositDosERC20(uint16 erc20Idx, int256 amount) external onlyDSafe {
         ERC20Info storage erc20Info = getERC20Info(erc20Idx);
         IDOSERC20 erc20 = IDOSERC20(erc20Info.dosContract);
         if (amount > 0) {
             erc20.burn(msg.sender, uint256(amount));
-            updateBalance(erc20Idx, msg.sender, amount);
+            dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
         } else {
             erc20.mint(msg.sender, uint256(-amount));
-            updateBalance(erc20Idx, msg.sender, amount);
+            dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
         }
     }
 
-    function claim(uint16 erc20Idx, uint256 amount) external onlyPortfolio {
+    function claim(uint16 erc20Idx, uint256 amount) external onlyDSafe {
         ERC20Info storage erc20Info = getERC20Info(erc20Idx);
         IDOSERC20(erc20Info.dosContract).burn(msg.sender, amount);
         IERC20(erc20Info.erc20Contract).safeTransfer(msg.sender, amount);
         // TODO: require appropriate reserve
     }*/
 
-    function claimNFT(address erc721, uint256 tokenId) external onlyPortfolio {
+    function claimNFT(address erc721, uint256 tokenId) external onlyDSafe {
         NFTId nftId = getNFTId(erc721, tokenId);
 
         ERC721(erc721).safeTransferFrom(address(this), msg.sender, tokenId);
 
-        state.portfolios[msg.sender].extractNFT(nftId, state.tokenDataByNFTId);
+        state.dSafes[msg.sender].extractNFT(nftId, state.tokenDataByNFTId);
         delete state.tokenDataByNFTId[nftId];
     }
 
-    function transfer(
-        IERC20 erc20,
-        address to,
-        uint256 amount
-    ) external onlyPortfolio portfolioExists(to) {
+    function transfer(IERC20 erc20, address to, uint256 amount) external onlyDSafe dSafeExists(to) {
         if (amount == 0) return;
         transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
     }
@@ -357,7 +349,7 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         address erc721,
         uint256 tokenId,
         address to
-    ) external onlyPortfolio portfolioExists(to) {
+    ) external onlyDSafe dSafeExists(to) {
         NFTId nftId = getNFTId(erc721, tokenId);
         transferNFT(nftId, msg.sender, to);
     }
@@ -370,7 +362,7 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         IERC20 erc20,
         address spender,
         uint256 amount
-    ) external onlyPortfolio portfolioExists(spender) returns (bool) {
+    ) external onlyDSafe dSafeExists(spender) returns (bool) {
         _approveERC20(msg.sender, erc20, spender, amount);
         return true;
     }
@@ -383,7 +375,7 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         address collection,
         address to,
         uint256 tokenId
-    ) external onlyPortfolio portfolioExists(to) {
+    ) external onlyDSafe dSafeExists(to) {
         _approveERC721(collection, to, tokenId);
     }
 
@@ -395,22 +387,22 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         address collection,
         address operator,
         bool approved
-    ) external onlyPortfolio portfolioExists(operator) {
+    ) external onlyDSafe dSafeExists(operator) {
         _setApprovalForAll(collection, msg.sender, operator, approved);
     }
 
-    /// @notice Transfer ERC20 tokens from portfolio to another portfolio
+    /// @notice Transfer ERC20 tokens from dSafe to another dSafe
     /// @dev Note: Allowance must be set with approveERC20
     /// @param erc20 The index of the ERC20 token in erc20Infos array
-    /// @param from The address of the portfolio to transfer from
-    /// @param to The address of the portfolio to transfer to
+    /// @param from The address of the dSafe to transfer from
+    /// @param to The address of the dSafe to transfer to
     /// @param amount The amount of tokens to transfer
     function transferFromERC20(
         IERC20 erc20,
         address from,
         address to,
         uint256 amount
-    ) external onlyPortfolio portfolioExists(from) portfolioExists(to) returns (bool) {
+    ) external onlyDSafe dSafeExists(from) dSafeExists(to) returns (bool) {
         address spender = msg.sender;
         _spendAllowance(erc20, from, spender, amount);
         transferERC20(erc20, from, to, FsMath.safeCastToSigned(amount));
@@ -431,7 +423,7 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         uint256 amount,
         IPermit2.PermitTransferFrom memory permit,
         bytes calldata signature
-    ) external onlyPortfolio portfolioExists(_to) {
+    ) external onlyDSafe dSafeExists(_to) {
         PERMIT2.permitTransferFrom(
             permit,
             IPermit2.SignatureTransferDetails({to: _to, requestedAmount: amount}),
@@ -440,17 +432,17 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         );
     }*/
 
-    /// @notice Transfer ERC721 tokens from portfolio to another portfolio
+    /// @notice Transfer ERC721 tokens from dSafe to another dSafe
     /// @param collection The address of the ERC721 token
-    /// @param from The address of the portfolio to transfer from
-    /// @param to The address of the portfolio to transfer to
+    /// @param from The address of the dSafe to transfer from
+    /// @param to The address of the dSafe to transfer to
     /// @param tokenId The id of the token to transfer
     function transferFromERC721(
         address collection,
         address from,
         address to,
         uint256 tokenId
-    ) external onlyPortfolio portfolioExists(to) {
+    ) external onlyDSafe dSafeExists(to) {
         NFTId nftId = getNFTId(collection, tokenId);
         if (!_isApprovedOrOwner(msg.sender, nftId)) {
             revert NotApprovedOrOwner();
@@ -459,51 +451,45 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         transferNFT(nftId, from, to);
     }
 
-    function liquidate(
-        address portfolio
-    ) external override onlyPortfolio portfolioExists(portfolio) {
-        (int256 totalValue, int256 collateral, int256 debt) = computePosition(portfolio);
-        require(collateral < debt, "Portfolio is not liquidatable");
-        uint16[] memory portfolioERC20s = state.portfolios[portfolio].getERC20s();
-        for (uint256 i = 0; i < portfolioERC20s.length; i++) {
-            uint16 erc20Idx = portfolioERC20s[i];
-            transferAllERC20(erc20Idx, portfolio, msg.sender);
+    function liquidate(address dSafe) external override onlyDSafe dSafeExists(dSafe) {
+        (int256 totalValue, int256 collateral, int256 debt) = computePosition(dSafe);
+        require(collateral < debt, "DSafe is not liquidatable");
+        uint16[] memory dSafeERC20s = state.dSafes[dSafe].getERC20s();
+        for (uint256 i = 0; i < dSafeERC20s.length; i++) {
+            uint16 erc20Idx = dSafeERC20s[i];
+            transferAllERC20(erc20Idx, dSafe, msg.sender);
         }
-        while (state.portfolios[portfolio].nfts.length > 0) {
+        while (state.dSafes[dSafe].nfts.length > 0) {
             transferNFT(
-                state.portfolios[portfolio].nfts[state.portfolios[portfolio].nfts.length - 1],
-                portfolio,
+                state.dSafes[dSafe].nfts[state.dSafes[dSafe].nfts.length - 1],
+                dSafe,
                 msg.sender
             );
         }
         // TODO(gerben) make formula dependent on risk
         if (totalValue > 0) {
-            // totalValue of the liquidated portfolio is split between liquidatable and liquidator:
+            // totalValue of the liquidated dSafe is split between liquidatable and liquidator:
             // totalValue * (1 - liqFraction) - reward of the liquidator, and
             // totalValue * liqFraction - change, liquidator is sending back to liquidatable
             int256 leftover = (totalValue * state.config.liqFraction) / 1 ether;
             transferERC20(
                 IERC20(state.erc20Infos[K_NUMERAIRE_IDX].erc20Contract),
                 msg.sender,
-                portfolio,
+                dSafe,
                 leftover
             );
         }
     }
 
-    function executeBatch(Call[] memory calls) external override onlyPortfolio {
+    function executeBatch(Call[] memory calls) external override onlyDSafe {
         for (uint256 i = 0; i < calls.length; i++) {
-            PortfolioProxy(payable(msg.sender)).doCall(
-                calls[i].to,
-                calls[i].callData,
-                calls[i].value
-            );
+            DSafeProxy(payable(msg.sender)).doCall(calls[i].to, calls[i].callData, calls[i].value);
         }
         require(isSolvent(msg.sender), "Result of operation is not sufficient liquid");
     }
 
     function onERC721Received(
-        address operator, // solhint-disable-line no-unused-vars
+        address /* operator */,
         address from,
         uint256 tokenId,
         bytes calldata data
@@ -512,39 +498,39 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         if (data.length != 0) {
             from = abi.decode(data, (address));
         }
-        require(state.portfolios[from].owner != address(0), "Portfolio does not exist");
+        require(state.dSafes[from].owner != address(0), "DSafe does not exist");
         state.tokenDataByNFTId[nftId].tokenId = uint240(tokenId);
-        state.portfolios[from].insertNFT(nftId, state.tokenDataByNFTId);
-        // TODO(call portfolio?)
+        state.dSafes[from].insertNFT(nftId, state.tokenDataByNFTId);
+        // TODO(call dSafe?)
         return this.onERC721Received.selector;
     }
 
-    function getImplementation(address portfolio) external view override returns (address) {
+    function getImplementation(address dSafe) external view override returns (address) {
         // not using msg.sender since this is an external view function
-        return state.portfolioLogic[portfolio];
+        return state.dSafeLogic[dSafe];
     }
 
-    function getPortfolioOwner(address portfolio) external view override returns (address) {
-        return state.portfolios[portfolio].owner;
+    function getDSafeOwner(address dSafe) external view override returns (address) {
+        return state.dSafes[dSafe].owner;
     }
 
     function computePosition(
-        address portfolioAddress
+        address dSafeAddress
     )
         public
         view
-        portfolioExists(portfolioAddress)
+        dSafeExists(dSafeAddress)
         returns (int256 totalValue, int256 collateral, int256 debt)
     {
-        Portfolio storage portfolio = state.portfolios[portfolioAddress];
-        uint16[] memory erc20Idxs = portfolio.getERC20s();
+        DSafe storage dSafe = state.dSafes[dSafeAddress];
+        uint16[] memory erc20Idxs = dSafe.getERC20s();
         totalValue = 0;
         collateral = 0;
         debt = 0;
         for (uint256 i = 0; i < erc20Idxs.length; i++) {
             uint16 erc20Idx = erc20Idxs[i];
             ERC20Info storage erc20Info = state.erc20Infos[erc20Idx];
-            int256 balance = DOSLib.getBalance(portfolio.erc20Share[erc20Idx], erc20Info);
+            int256 balance = DOSLib.getBalance(dSafe.erc20Share[erc20Idx], erc20Info);
             int256 value = erc20Info.valueOracle.calcValue(balance);
             totalValue += value;
             if (balance >= 0) {
@@ -553,8 +539,8 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
                 debt += (-value * 1 ether) / erc20Info.borrowFactor;
             }
         }
-        for (uint256 i = 0; i < portfolio.nfts.length; i++) {
-            NFTId nftId = portfolio.nfts[i];
+        for (uint256 i = 0; i < dSafe.nfts.length; i++) {
+            NFTId nftId = dSafe.nfts[i];
             (uint16 erc721Idx, uint256 tokenId) = DOSLib.getNFTData(nftId);
             ERC721Info storage nftInfo = state.erc721Infos[erc721Idx];
             int256 nftValue = int256(nftInfo.valueOracle.calcValue(tokenId));
@@ -563,7 +549,7 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
-    function isSolvent(address portfolio) public view returns (bool) {
+    function isSolvent(address dSafe) public view returns (bool) {
         // todo track each erc20 on-change instead of iterating over all DOS stuff
         int256 leverage = state.config.fractionalReserveLeverage;
         for (uint256 i = 0; i < state.erc20Infos.length; i++) {
@@ -575,7 +561,7 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
             );
             require(reserve >= -totalDebt / leverage, "Not enough reserve for debt");
         }
-        (, int256 collateral, int256 debt) = computePosition(portfolio);
+        (, int256 collateral, int256 debt) = computePosition(dSafe);
         return collateral >= debt;
     }
 
@@ -657,39 +643,39 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
 
     function transferERC20(IERC20 erc20, address from, address to, int256 amount) internal {
         (, uint16 erc20Idx) = DOSLib.getERC20Info(erc20);
-        updateBalance(erc20Idx, from, -amount);
-        updateBalance(erc20Idx, to, amount);
+        dAccountERC20ChangeBy(from, erc20Idx, -amount);
+        dAccountERC20ChangeBy(to, erc20Idx, amount);
     }
 
     function transferNFT(NFTId nftId, address from, address to) internal {
-        state.portfolios[from].extractNFT(nftId, state.tokenDataByNFTId);
-        state.portfolios[to].insertNFT(nftId, state.tokenDataByNFTId);
+        state.dSafes[from].extractNFT(nftId, state.tokenDataByNFTId);
+        state.dSafes[to].insertNFT(nftId, state.tokenDataByNFTId);
     }
 
     // TODO @derek - add method for withdraw
 
     function transferAllERC20(uint16 erc20Idx, address from, address to) internal {
-        int256 amount = clearBalance(erc20Idx, from);
-        updateBalance(erc20Idx, to, amount);
+        int256 amount = dAccountERC20Clear(from, erc20Idx);
+        dAccountERC20ChangeBy(to, erc20Idx, amount);
     }
 
-    function updateBalance(uint16 erc20Idx, address portfolioAddress, int256 amount) internal {
+    function dAccountERC20ChangeBy(address dSafeAddress, uint16 erc20Idx, int256 amount) internal {
         updateInterest(erc20Idx);
-        Portfolio storage portfolio = state.portfolios[portfolioAddress];
-        ERC20Share shares = portfolio.erc20Share[erc20Idx];
+        DSafe storage dSafe = state.dSafes[dSafeAddress];
+        ERC20Share shares = dSafe.erc20Share[erc20Idx];
         ERC20Info storage erc20Info = state.erc20Infos[erc20Idx];
         int256 currentAmount = extractPosition(shares, erc20Info);
         int256 newAmount = currentAmount + amount;
-        portfolio.erc20Share[erc20Idx] = insertPosition(newAmount, portfolio, erc20Idx);
+        dSafe.erc20Share[erc20Idx] = insertPosition(newAmount, dSafe, erc20Idx);
     }
 
-    function clearBalance(uint16 erc20Idx, address portfolioAddress) internal returns (int256) {
+    function dAccountERC20Clear(address dSafeAddress, uint16 erc20Idx) internal returns (int256) {
         updateInterest(erc20Idx);
-        Portfolio storage portfolio = state.portfolios[portfolioAddress];
-        ERC20Share shares = portfolio.erc20Share[erc20Idx];
+        DSafe storage dSafe = state.dSafes[dSafeAddress];
+        ERC20Share shares = dSafe.erc20Share[erc20Idx];
         int256 erc20Amount = extractPosition(shares, state.erc20Infos[erc20Idx]);
-        portfolio.erc20Share[erc20Idx] = ERC20Share.wrap(0);
-        portfolio.clearMask(erc20Idx);
+        dSafe.erc20Share[erc20Idx] = ERC20Share.wrap(0);
+        dSafe.removeERC20IdxFromDAccount(erc20Idx);
         return erc20Amount;
     }
 
@@ -704,13 +690,13 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
 
     function insertPosition(
         int256 amount,
-        Portfolio storage portfolio,
+        DSafe storage dSafe,
         uint16 erc20Idx
     ) internal returns (ERC20Share) {
         if (amount == 0) {
-            portfolio.clearMask(erc20Idx);
+            dSafe.removeERC20IdxFromDAccount(erc20Idx);
         } else {
-            portfolio.setMask(erc20Idx);
+            dSafe.accERC20IdxToDAccount(erc20Idx);
         }
         ERC20Info storage erc20Info = state.erc20Infos[erc20Idx];
         ERC20Pool storage pool = amount > 0 ? erc20Info.collateral : erc20Info.debt;
@@ -718,15 +704,16 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
     }
 
     function updateInterest(uint16 erc20Idx) internal {
-        ERC20Info storage p = state.erc20Infos[erc20Idx];
-        if (p.timestamp == block.timestamp) return;
-        int256 delta = FsMath.safeCastToSigned(block.timestamp - p.timestamp);
-        p.timestamp = block.timestamp;
-        int256 debt = -p.debt.tokens;
-        int256 interest = (debt * (FsMath.exp(p.interest * delta) - FsMath.FIXED_POINT_SCALE)) /
+        ERC20Info storage erc20Info = state.erc20Infos[erc20Idx];
+        if (erc20Info.timestamp == block.timestamp) return;
+        int256 delta = FsMath.safeCastToSigned(block.timestamp - erc20Info.timestamp);
+        erc20Info.timestamp = block.timestamp;
+        int256 debt = -erc20Info.debt.tokens;
+        int256 interest = (debt *
+            (FsMath.exp(erc20Info.interest * delta) - FsMath.FIXED_POINT_SCALE)) /
             FsMath.FIXED_POINT_SCALE;
-        p.debt.tokens -= interest;
-        p.collateral.tokens += interest;
+        erc20Info.debt.tokens -= interest;
+        erc20Info.collateral.tokens += interest;
         // TODO(gerben) add to treasury
     }
 
@@ -738,10 +725,10 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
     }
 
     function _isApprovedOrOwner(address spender, NFTId nftId) internal view returns (bool) {
-        Portfolio storage p = state.portfolios[msg.sender];
+        DSafe storage p = state.dSafes[msg.sender];
         (uint16 infoIndex, uint256 tokenId) = DOSLib.getNFTData(nftId);
         address collection = state.erc721Infos[infoIndex].erc721Contract;
-        uint16 idx = state.tokenDataByNFTId[nftId].portfolioIdx;
+        uint16 idx = state.tokenDataByNFTId[nftId].dSafeIdx;
         bool isDepositNFTOwner = idx < p.nfts.length &&
             NFTId.unwrap(p.nfts[idx]) == NFTId.unwrap(nftId);
         return (isDepositNFTOwner ||
@@ -760,10 +747,10 @@ contract DOSConfig is ImmutableOwnable, IDOSConfig {
 
     constructor(address owner) ImmutableOwnable(owner) {}
 
-    function upgradeImplementation(address portfolio, uint256 version) external {
-        address portfolioOwner = state.portfolios[portfolio].owner;
-        require(msg.sender == portfolioOwner, "DOS: not owner");
-        state.portfolioLogic[portfolio] = state.versionManager.getVersionAddress(version);
+    function upgradeImplementation(address dSafe, uint256 version) external {
+        address dSafeOwner = state.dSafes[dSafe].owner;
+        require(msg.sender == dSafeOwner, "DOS: not owner");
+        state.dSafeLogic[dSafe] = state.versionManager.getVersionAddress(version);
     }
 
     function addERC20Info(
@@ -822,35 +809,33 @@ contract DOSConfig is ImmutableOwnable, IDOSConfig {
         state.config = _config;
     }
 
-    function createPortfolio() external returns (address portfolio) {
+    function createDSafe() external returns (address dSafe) {
         address[] memory erc20s = new address[](state.erc20Infos.length);
         address[] memory nfts = new address[](0);
         for (uint256 i = 0; i < state.erc20Infos.length; i++) {
             erc20s[i] = state.erc20Infos[i].erc20Contract;
         }
-        portfolio = address(new PortfolioProxy(address(this), erc20s, nfts));
-        state.portfolios[portfolio].owner = msg.sender;
+        dSafe = address(new DSafeProxy(address(this), erc20s, nfts));
+        state.dSafes[dSafe].owner = msg.sender;
 
         // add a version parameter if users should pick a specific version
         (, , , address implementation, ) = state.versionManager.getRecommendedVersion();
-        state.portfolioLogic[portfolio] = implementation;
-        emit IDOSConfig.PortfolioCreated(portfolio, msg.sender);
+        state.dSafeLogic[dSafe] = implementation;
+        emit IDOSConfig.DSafeCreated(dSafe, msg.sender);
     }
 
-    function viewBalance(address portfolio, IERC20 erc20) external view returns (int256) {
+    function getDAccountERC20(address dSafe, IERC20 erc20) external view returns (int256) {
         // TODO(gerben) interest computation
-        Portfolio storage p = state.portfolios[portfolio];
+        DSafe storage p = state.dSafes[dSafe];
         (ERC20Info storage info, uint16 erc20Idx) = DOSLib.getERC20Info(erc20);
         ERC20Share erc20Share = p.erc20Share[erc20Idx];
         return DOSLib.getBalance(erc20Share, info);
     }
 
-    function viewNFTs(address portfolio) external view returns (NFTData[] memory) {
-        NFTData[] memory nftData = new NFTData[](state.portfolios[portfolio].nfts.length);
+    function viewNFTs(address dSafe) external view returns (NFTData[] memory) {
+        NFTData[] memory nftData = new NFTData[](state.dSafes[dSafe].nfts.length);
         for (uint i = 0; i < nftData.length; i++) {
-            (uint16 erc721Idx, uint256 tokenId) = DOSLib.getNFTData(
-                state.portfolios[portfolio].nfts[i]
-            );
+            (uint16 erc721Idx, uint256 tokenId) = DOSLib.getNFTData(state.dSafes[dSafe].nfts[i]);
             nftData[i] = NFTData(state.erc721Infos[erc721Idx].erc721Contract, tokenId);
         }
         return nftData;

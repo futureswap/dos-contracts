@@ -1,4 +1,4 @@
-import type {IAnyswapCreate2Deployer} from "../typechain-types/contracts/external/interfaces/IAnyswapCreate2Deployer";
+import type {IAnyswapCreate2Deployer} from "../typechain-types";
 
 import {ethers} from "hardhat";
 

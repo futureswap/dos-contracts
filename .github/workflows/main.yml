@@ -19,7 +19,7 @@ jobs:
           node-version: "lts/*"
 
       - name: "Install the dependencies"
-        run: "yarn add typescript hardhat prettier typechain"
+        run: "yarn"
 
       - name: "Check prettier"
         run: "yarn run prettier:check"

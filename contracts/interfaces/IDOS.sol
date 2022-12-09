@@ -35,9 +35,9 @@ interface IDOSConfig {
         int256 interest
     );
 
-    event PortfolioCreated(address portfolio, address owner);
+    event DSafeCreated(address dSafe, address owner);
 
-    function upgradeImplementation(address portfolio, uint256 version) external;
+    function upgradeImplementation(address dSafe, uint256 version) external;
 
     function addERC20Info(
         address erc20Contract,
@@ -58,11 +58,11 @@ interface IDOSConfig {
 
     function setConfig(Config calldata _config) external;
 
-    function createPortfolio() external returns (address portfolio);
+    function createDSafe() external returns (address dSafe);
 
-    function viewBalance(address portfolio, IERC20 erc20) external view returns (int256);
+    function getDAccountERC20(address dSafe, IERC20 erc20) external view returns (int256);
 
-    function viewNFTs(address portfolio) external view returns (NFTData[] memory);
+    function viewNFTs(address dSafe) external view returns (NFTData[] memory);
 
     function getMaximumWithdrawableOfERC20(IERC20 erc20) external view returns (int256);
 }
@@ -110,7 +110,7 @@ interface IDOSCore {
         bool approved
     );
 
-    function liquidate(address portfolio) external;
+    function liquidate(address dSafe) external;
 
     function depositERC20(IERC20 erc20, int256 amount) external;
 
@@ -140,11 +140,11 @@ interface IDOSCore {
     /// @param tokenId The id of the token to approve
     function approveERC721(address collection, address to, uint256 tokenId) external;
 
-    /// @notice Transfer ERC20 tokens from portfolio to another portfolio
+    /// @notice Transfer ERC20 tokens from dSafe to another dSafe
     /// @dev Note: Allowance must be set with approveERC20
     /// @param erc20 The index of the ERC20 token in erc20Infos array
-    /// @param from The address of the portfolio to transfer from
-    /// @param to The address of the portfolio to transfer to
+    /// @param from The address of the dSafe to transfer from
+    /// @param to The address of the dSafe to transfer to
     /// @param amount The amount of tokens to transfer
     function transferFromERC20(
         IERC20 erc20,
@@ -153,10 +153,10 @@ interface IDOSCore {
         uint256 amount
     ) external returns (bool);
 
-    /// @notice Transfer ERC721 tokens from portfolio to another portfolio
+    /// @notice Transfer ERC721 tokens from dSafe to another dSafe
     /// @param collection The address of the ERC721 token
-    /// @param from The address of the portfolio to transfer from
-    /// @param to The address of the portfolio to transfer to
+    /// @param from The address of the dSafe to transfer from
+    /// @param to The address of the dSafe to transfer to
     /// @param tokenId The id of the token to transfer
     function transferFromERC721(
         address collection,
@@ -171,7 +171,7 @@ interface IDOSCore {
     function getApproved(address collection, uint256 tokenId) external view returns (address);
 
     function computePosition(
-        address portfolioAddress
+        address dSafeAddress
     ) external view returns (int256 totalValue, int256 collateral, int256 debt);
 
     /// @notice Returns if the `operator` is allowed to manage all of the erc20s of `owner` on the `collection` contract
@@ -197,9 +197,9 @@ interface IDOSCore {
         address spender
     ) external view returns (uint256);
 
-    function getImplementation(address portfolio) external view returns (address);
+    function getImplementation(address dSafe) external view returns (address);
 
-    function getPortfolioOwner(address portfolio) external view returns (address);
+    function getDSafeOwner(address dSafe) external view returns (address);
 }
 
 interface IDOS is IDOSCore, IDOSConfig {}
