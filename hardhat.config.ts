@@ -174,7 +174,21 @@ export default {
   ...config,
   preprocess: {
     eachLine: preprocessCode((hre: HardhatRuntimeEnvironment) => {
-      return hre.network.name === "hardhat" || hre.network.name === "localhost";
+      switch (hre.network.name) {
+        case "ethereum":
+        case "arbitrum":
+        case "avalanche":
+          return "production";
+        case "goerli":
+        case "arbitrum_goerli":
+        case "fuji":
+          return "testing";
+        case "hardhat":
+        case "localhost":
+          return "development";
+        default:
+          throw new Error("Unknown network");
+      }
     }),
   },
 };
