@@ -16,7 +16,9 @@ import {
   IAnyswapCreate2Deployer__factory,
   FutureSwapProxy__factory,
   IDOS__factory,
+  UniV3Oracle__factory,
 } from "../typechain-types";
+import {MockERC20Oracle__factory} from "../typechain-types/factories/contracts/testing/MockERC20Oracle__factory";
 import {
   getSwapRouterFactory,
   getUniswapFactory,
@@ -98,6 +100,12 @@ export const getContractFactory = (
       return getSwapRouterFactory(signer).attach(address);
     case "nonFungiblePositionManager":
       return getUniswapNonFungiblePositionManagerFactory(signer).attach(address);
+    case "usdcOracle":
+    case "uniOracle":
+    case "wethOracle":
+      return MockERC20Oracle__factory.connect(address, signer);
+    case "uniV3Oracle":
+      return UniV3Oracle__factory.connect(address, signer);
     default:
       throw new Error(`Unknown contract name: ${contractName}`);
   }
