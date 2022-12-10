@@ -17,13 +17,11 @@ import {
   FutureSwapProxy__factory,
   IDOS__factory,
   UniV3Oracle__factory,
+  ISwapRouter__factory,
+  IUniswapV3Factory__factory,
 } from "../typechain-types";
 import {MockERC20Oracle__factory} from "../typechain-types/factories/contracts/testing/MockERC20Oracle__factory";
-import {
-  getSwapRouterFactory,
-  getUniswapFactory,
-  getUniswapNonFungiblePositionManagerFactory,
-} from "./deploy";
+import {getUniswapNonFungiblePositionManagerFactory} from "./deploy";
 
 type NetworkAddresses = Record<string, string>;
 type DeploymentAddresses = Record<string, NetworkAddresses>;
@@ -95,14 +93,14 @@ export const getContractFactory = (
     case "uni":
       return IERC20WithMetadata__factory.connect(address, signer);
     case "uniswapV3Factory":
-      return getUniswapFactory(signer).attach(address);
+      return IUniswapV3Factory__factory.connect(address, signer);
     case "swapRouter":
-      return getSwapRouterFactory(signer).attach(address);
+      return ISwapRouter__factory.connect(address, signer);
     case "nonFungiblePositionManager":
       return getUniswapNonFungiblePositionManagerFactory(signer).attach(address);
     case "usdcOracle":
     case "uniOracle":
-    case "wethOracle":
+    case "ethOracle":
       return MockERC20Oracle__factory.connect(address, signer);
     case "uniV3Oracle":
       return UniV3Oracle__factory.connect(address, signer);

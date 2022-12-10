@@ -1,5 +1,4 @@
-import type {IDOS, DSafeLogic, TestERC20, WETH9} from "../../typechain-types";
-import type {Contract} from "ethers";
+import type {DSafeLogic, TestERC20, WETH9} from "../../typechain-types";
 
 import {ethers} from "hardhat";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
@@ -12,7 +11,7 @@ import {
   UniV3Oracle__factory,
 } from "../../typechain-types";
 import {toWei} from "../../lib/numbers";
-import {createDSafe, makeCall} from "../../lib/calls";
+import {createDSafe, leverageLP, leveragePos, makeCall} from "../../lib/calls";
 import {
   Chainlink,
   deployDos,
@@ -172,8 +171,9 @@ describe("DOS swap integration", () => {
         recipient: dSafe.address,
         deadline: ethers.constants.MaxUint256,
       };
-      await expect(leverageLP(dSafe, dos, usdc, weth, uniswapNFTManager, mintParams)).to.not.be
-        .reverted;
+      await expect(
+        dSafe.executeBatch(leverageLP(dos, weth, usdc, uniswapNFTManager, mintParams, 1)),
+      ).to.not.be.reverted;
       const {usdcBalance, wethBalance, nfts} = await getBalances(dSafe);
       // expect leveraged LP position with NFT as collateral
       expect(usdcBalance).to.be.lessThan(0);
@@ -201,12 +201,15 @@ describe("DOS swap integration", () => {
         recipient: dSafe.address,
         deadline: ethers.constants.MaxUint256,
       };
-      await leverageLP(dSafe, dos, usdc, weth, uniswapNFTManager, mintParams);
+      await dSafe.executeBatch(leverageLP(dos, weth, usdc, uniswapNFTManager, mintParams, 1));
 
       const dSafe2 = await createDSafe(dos, user2);
       await usdc.mint(dSafe2.address, toWei(1000, USDC_DECIMALS));
-      await expect(leveragePos(dSafe2, dos, usdc, weth, swapRouter, toWei(2000, USDC_DECIMALS))).to
-        .not.be.reverted;
+      await expect(
+        dSafe2.executeBatch(
+          leveragePos(dSafe2, dos, usdc, weth, 500, swapRouter, toWei(2000, USDC_DECIMALS)),
+        ),
+      ).to.not.be.reverted;
 
       const {usdcBalance, wethBalance, nfts} = await getBalances(dSafe2);
       // expect leveraged long eth position
@@ -245,11 +248,13 @@ describe("DOS swap integration", () => {
         recipient: dSafe.address,
         deadline: ethers.constants.MaxUint256,
       };
-      await leverageLP(dSafe, dos, usdc, weth, uniswapNFTManager, mintParams);
+      await dSafe.executeBatch(leverageLP(dos, weth, usdc, uniswapNFTManager, mintParams, 1));
 
       const dSafe2 = await createDSafe(dos, user2);
       await usdc.mint(dSafe2.address, toWei(1000, USDC_DECIMALS));
-      await leveragePos(dSafe2, dos, usdc, weth, swapRouter, toWei(2000, USDC_DECIMALS));
+      await dSafe2.executeBatch(
+        leveragePos(dSafe2, dos, usdc, weth, 500, swapRouter, toWei(2000, USDC_DECIMALS)),
+      );
 
       // make dSafe2 liquidatable
       await ethChainlink.setPrice(ETH_PRICE / 2);
@@ -274,51 +279,3 @@ describe("DOS swap integration", () => {
     });
   });
 });
-
-const leverageLP = async (
-  dSafe: DSafeLogic,
-  dos: IDOS,
-  usdc: TestERC20,
-  weth: WETH9,
-  uniswapNFTManager: Contract,
-  mintParams: unknown,
-) => {
-  return await dSafe.executeBatch([
-    makeCall(usdc, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
-    makeCall(weth, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
-    makeCall(uniswapNFTManager, "setApprovalForAll", [dos.address, true]),
-    makeCall(dos, "depositERC20", [usdc.address, -toWei(4000, USDC_DECIMALS)]),
-    makeCall(dos, "depositERC20", [weth.address, -toWei(10)]),
-    makeCall(uniswapNFTManager, "mint", [mintParams]),
-    makeCall(dos, "depositNFT", [uniswapNFTManager.address, 1 /* tokenId */]),
-    makeCall(dos, "depositFull", [[usdc.address, weth.address]]),
-  ]);
-};
-
-const leveragePos = async (
-  dSafe: DSafeLogic,
-  dos: IDOS,
-  usdc: TestERC20,
-  weth: WETH9,
-  swapRouter: Contract,
-  amount: bigint,
-) => {
-  const exactInputSingleParams = {
-    tokenIn: usdc.address,
-    tokenOut: weth.address,
-    fee: "500",
-    recipient: dSafe.address,
-    deadline: ethers.constants.MaxUint256,
-    amountIn: amount,
-    amountOutMinimum: 0,
-    sqrtPriceLimitX96: 0,
-  };
-
-  return await dSafe.executeBatch([
-    makeCall(usdc, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
-    makeCall(weth, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
-    makeCall(dos, "depositERC20", [usdc.address, -amount]),
-    makeCall(swapRouter, "exactInputSingle", [exactInputSingleParams]),
-    makeCall(dos, "depositFull", [[usdc.address, weth.address]]),
-  ]);
-};
