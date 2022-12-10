@@ -3,20 +3,22 @@ import type {ethers} from "ethers";
 import {readFile, writeFile} from "node:fs/promises";
 
 import {
-  DOS__factory,
   TransferAndCall2__factory,
   BatchDeployer__factory,
   GovernanceProxy__factory,
   Governance__factory,
   BridgeNFT__factory,
   IWETH9__factory,
-  IERC20__factory,
+  IERC20WithMetadata__factory,
   IPermit2__factory,
   HashNFT__factory,
   VersionManager__factory,
   IAnyswapCreate2Deployer__factory,
   FutureSwapProxy__factory,
+  IDOS__factory,
+  UniV3Oracle__factory,
 } from "../typechain-types";
+import {MockERC20Oracle__factory} from "../typechain-types/factories/contracts/testing/MockERC20Oracle__factory";
 import {
   getSwapRouterFactory,
   getUniswapFactory,
@@ -74,7 +76,7 @@ export const getContractFactory = (
     case "transferAndCall2":
       return TransferAndCall2__factory.connect(address, signer);
     case "dos":
-      return DOS__factory.connect(address, signer);
+      return IDOS__factory.connect(address, signer);
     case "versionManager":
       return VersionManager__factory.connect(address, signer);
     case "governanceProxy":
@@ -90,13 +92,20 @@ export const getContractFactory = (
     case "weth":
       return IWETH9__factory.connect(address, signer);
     case "usdc":
-      return IERC20__factory.connect(address, signer);
+    case "uni":
+      return IERC20WithMetadata__factory.connect(address, signer);
     case "uniswapV3Factory":
       return getUniswapFactory(signer).attach(address);
     case "swapRouter":
       return getSwapRouterFactory(signer).attach(address);
     case "nonFungiblePositionManager":
       return getUniswapNonFungiblePositionManagerFactory(signer).attach(address);
+    case "usdcOracle":
+    case "uniOracle":
+    case "wethOracle":
+      return MockERC20Oracle__factory.connect(address, signer);
+    case "uniV3Oracle":
+      return UniV3Oracle__factory.connect(address, signer);
     default:
       throw new Error(`Unknown contract name: ${contractName}`);
   }
