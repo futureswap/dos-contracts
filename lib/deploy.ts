@@ -15,6 +15,8 @@ import type {
   IPermit2,
   VersionManager,
   IDOS,
+  IUniswapV3Factory,
+  ISwapRouter,
 } from "../typechain-types";
 import type {TransactionRequest} from "@ethersproject/abstract-provider";
 
@@ -33,6 +35,8 @@ import {
 import {ethers as hardhatEthers, waffle} from "hardhat";
 
 import {
+  IUniswapV3Factory__factory,
+  ISwapRouter__factory,
   VersionManager__factory,
   IDOS__factory,
   AggregatorV3Interface__factory,
@@ -105,11 +109,14 @@ export async function deployUniswapFactory(
   weth: string,
   signer: ethers.Signer,
 ): Promise<{
-  uniswapFactory: ethers.Contract;
+  uniswapFactory: IUniswapV3Factory;
   uniswapNFTManager: ethers.Contract;
-  swapRouter: ethers.Contract;
+  swapRouter: ISwapRouter;
 }> {
-  const uniswapFactory = await getUniswapFactory(signer).deploy();
+  const uniswapFactory = IUniswapV3Factory__factory.connect(
+    (await getUniswapFactory(signer).deploy()).address,
+    signer,
+  );
   const nftDesc = await new ethers.ContractFactory(
     nftDescJSON.abi,
     nftDescJSON.bytecode,
@@ -131,7 +138,10 @@ export async function deployUniswapFactory(
     weth,
     tokenDescriptor.address,
   );
-  const swapRouter = await getSwapRouterFactory(signer).deploy(uniswapFactory.address, weth);
+  const swapRouter = ISwapRouter__factory.connect(
+    (await getSwapRouterFactory(signer).deploy(uniswapFactory.address, weth)).address,
+    signer,
+  );
   return {uniswapFactory, uniswapNFTManager, swapRouter};
 }
 
