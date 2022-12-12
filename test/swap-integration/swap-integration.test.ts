@@ -268,8 +268,7 @@ describe("DOS swap integration", () => {
       ]);
 
       // await dSafe3.liquify(dSafe2.address, swapRouter.address, usdc.address, [wethIdx], [weth.address]);
-      await expect(dSafe3.liquify(dSafe2.address, swapRouter.address, usdc.address, [weth.address]))
-        .to.not.be.reverted;
+      await dSafe3.liquify(dSafe2.address, swapRouter.address, usdc.address, [weth.address]);
 
       const {usdcBalance, wethBalance} = await getBalances(dSafe3);
       expect(await usdc.balanceOf(dSafe3.address)).to.be.equal(0);
