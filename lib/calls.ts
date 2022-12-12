@@ -7,7 +7,7 @@ import type {
   IERC20,
   ISwapRouter,
 } from "../typechain-types";
-import type { BigNumberish, ContractTransaction } from "ethers";
+import type {BigNumberish, ContractTransaction} from "ethers";
 import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 
 import {ethers} from "ethers";
@@ -43,10 +43,15 @@ export type Call = {
   value: bigint;
 };
 
-export function makeCall(
-  to: ethers.Contract,
-  func: string,
-  params: unknown[],
+type FunctionProps<Obj> = string &
+  keyof {
+    [prop in keyof Obj]: Obj[prop] extends (...args: unknown[]) => unknown ? Obj[prop] : never;
+  };
+
+export function makeCall<Contract extends ethers.Contract, Func extends FunctionProps<Contract>>(
+  to: Contract,
+  func: Func,
+  params: Parameters<Contract[Func]>,
   value?: bigint,
 ): Call {
   return {
@@ -199,8 +204,8 @@ type UniswapNFTManager = {
     amount1Min: BigNumberish;
     recipient: string;
     deadline: BigNumberish;
-  }
-}
+  };
+};
 
 export const leverageLP = (
   dos: IDOS,
