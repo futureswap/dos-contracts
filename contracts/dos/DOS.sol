@@ -696,7 +696,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         return this.onERC721Received.selector;
     }
 
-    // TODO: update approval to only cover this call
     /**
      * @notice Approve the passed address to spend the specified amount of tokens on behalf of msg.sender
      * and then call `onApprovalReceived` on spender.
@@ -708,6 +707,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
      * @param spender address The address which will spend the funds
      * @param amount uint256 The amount of tokens to be spent
      * @param data bytes Additional data with no specified format, sent in call to `spender`
+     * @return true unless throwing
      */
     function approveAndCall(
         IERC20 erc20,
@@ -718,6 +718,32 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         _approveERC20(msg.sender, erc20, spender, amount);
         if (!_checkOnApprovalReceived(spender, amount, data)) {
             revert WrongDataReturned();
+        }
+        _approveERC20(msg.sender, erc20, spender, 0); // reset allowance
+        return true;
+    }
+
+    /// @notice Approve an array of tokens and then call `onApprovalREceived` on spender.
+    /// @param erc20s An array of erc20 tokens
+    /// @param spender The address of the spender
+    /// @param amounts An array of the amounts of tokens to be spent
+    /// @param data Additional data with no specified format, sent in call to `spender`
+    /// @return true unless throwing
+    function approveBatchAndCall(
+        IERC20[] calldata erc20s,
+        address spender,
+        uint256[] calldata amounts,
+        bytes calldata data
+    ) external returns (bool) {
+        require(erc20s.length == amounts.length, "Lengths do not match");
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            _approveERC20(msg.sender, erc20s[i], spender, amounts[i]);
+        }
+        if (!_checkOnApprovalReceived(spender, 0, data)) {
+            revert WrongDataReturned();
+        }
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            _approveERC20(msg.sender, erc20s[i], spender, 0); // reset allowance
         }
         return true;
     }
@@ -738,6 +764,28 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     ) public returns (bool) {
         transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
         if (!_checkOnTransferReceived(msg.sender, to, amount, data)) {
+            revert WrongDataReturned();
+        }
+        return true;
+    }
+
+    /// @notice Transfer an array of tokens from `msg.sender` to another address and then call `onTransferReceived` on receiver
+    /// @param erc20s An array of ERC20 tokens
+    /// @param to The address which you want to transfer to
+    /// @param amounts An array of amounts of tokens to be transferred
+    /// @param data Additional data with no specified format, sent in call to `to`
+    /// @return true unless throwing
+    function transferBatchAndCall(
+        IERC20[] calldata erc20s,
+        address to,
+        uint256[] calldata amounts,
+        bytes calldata data
+    ) external returns (bool) {
+        require(erc20s.length == amounts.length, "Lengths do not match");
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            transferERC20(erc20s[i], msg.sender, to, FsMath.safeCastToSigned(amounts[i]));
+        }
+        if (!_checkOnTransferReceived(msg.sender, to, 0, data)) {
             revert WrongDataReturned();
         }
         return true;
