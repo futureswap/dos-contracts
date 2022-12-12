@@ -2,6 +2,7 @@
 pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Call} from "../lib/Call.sol";
 
 type ERC20Share is int256;
 
@@ -68,12 +69,6 @@ interface IDOSConfig {
 }
 
 interface IDOSCore {
-    struct Call {
-        address to;
-        bytes callData;
-        uint256 value;
-    }
-
     /// @dev Emitted when `owner` approves `spender` to spend `value` tokens on their behalf.
     /// @param erc20 The ERC20 token to approve
     /// @param owner The address of the token owner

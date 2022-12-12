@@ -3,7 +3,6 @@ pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/proxy/Proxy.sol";
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
@@ -11,14 +10,13 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "../lib/FsUtils.sol";
+import "../lib/Call.sol";
 import "../interfaces/IDOS.sol";
 import "../interfaces/ITransferReceiver2.sol";
 import "../external/interfaces/IPermit2.sol";
 
 // Inspired by TransparentUpdatableProxy
 contract DSafeProxy is Proxy {
-    using Address for address;
-
     address public immutable dos;
 
     modifier ifDos() {
@@ -50,12 +48,12 @@ contract DSafeProxy is Proxy {
     }
 
     // Allow DOS to make arbitrary calls in lieu of this dSafe
-    function doCall(
-        address to,
-        bytes calldata callData,
-        uint256 value
-    ) external ifDos returns (bytes memory) {
-        return to.functionCallWithValue(callData, value);
+    function executeBatch(Call[] calldata calls) external payable ifDos {
+        // Function is payable to allow for ETH transfers to the logic
+        // contract, but dos should never send eth (dos contract should
+        // never contain eth / other than what's self-destructed into it)
+        FsUtils.Assert(msg.value == 0);
+        CallLib.executeBatch(calls);
     }
 
     // The implementation of the delegate is controlled by DOS
@@ -67,9 +65,34 @@ contract DSafeProxy is Proxy {
 // Calls to the contract not coming from DOS itself are routed to this logic
 // contract. This allows for flexible extra addition to your dSafe.
 contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
+    bytes private constant EXECUTEBATCH_TYPESTRING = "ExecuteBatch(Call[] calls,uint256 nonce)";
+    bytes private constant TRANSFER_TYPESTRING = "Transfer(address token,uint256 amount)";
+    bytes private constant ONTRANSFERRECEIVED2CALL_TYPESTRING =
+        "OnTransferReceived2Call(address operator,address from,Transfer[] transfers,Call[] calls,uint256 nonce,uint256 deadline)";
+
+    bytes32 constant EXECUTEBATCH_TYPEHASH =
+        keccak256(
+            abi.encodePacked("ExecuteBatch(Call[] calls,uint256 nonce)", CallLib.CALL_TYPESTRING)
+        );
+
+    bytes32 constant TRANSFER_TYPEHASH = keccak256(TRANSFER_TYPESTRING);
+    bytes32 constant ONTRANSFERRECEIVED2CALL_TYPEHASH =
+        keccak256(
+            abi.encodePacked(
+                ONTRANSFERRECEIVED2CALL_TYPESTRING,
+                CallLib.CALL_TYPESTRING,
+                TRANSFER_TYPESTRING
+            )
+        );
+
     IDOS public immutable dos;
 
     mapping(uint248 => uint256) public nonces;
+
+    error InvalidData();
+    error InvalidSignature();
+    error NonceAlreadyUsed();
+    error DeadlineExpired();
 
     modifier onlyOwner() {
         require(IDOS(dos).getDSafeOwner(address(this)) == msg.sender, "");
@@ -84,7 +107,29 @@ contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
         dos = IDOS(FsUtils.nonNull(_dos));
     }
 
-    function executeBatch(IDOS.Call[] memory calls) external payable onlyOwner {
+    function executeBatch(Call[] memory calls) external payable onlyOwner {
+        IDOS(dos).executeBatch(calls);
+    }
+
+    function executeSignedBatch(
+        Call[] memory calls,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external payable {
+        if (deadline < block.timestamp) revert DeadlineExpired();
+        validateAndUseNonce(nonce);
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(abi.encode(EXECUTEBATCH_TYPEHASH, CallLib.hashCallArray(calls), nonce))
+        );
+        if (
+            !SignatureChecker.isValidSignatureNow(
+                IDOS(dos).getDSafeOwner(address(this)),
+                digest,
+                signature
+            )
+        ) revert InvalidSignature();
+
         IDOS(dos).executeBatch(calls);
     }
 
@@ -97,8 +142,8 @@ contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
         if (msg.sender != address(this)) {
             require(msg.sender == IDOS(dos).getDSafeOwner(address(this)), "only owner");
 
-            IDOS.Call[] memory calls = new IDOS.Call[](1);
-            calls[0] = IDOSCore.Call({
+            Call[] memory calls = new Call[](1);
+            calls[0] = Call({
                 to: address(this),
                 callData: abi.encodeWithSelector(
                     this.liquify.selector,
@@ -207,17 +252,12 @@ contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
             : bytes4(0);
     }
 
-    error InvalidSignature();
-
-    function useNonce(uint256 nonce) internal returns (bool) {
+    function validateAndUseNonce(uint256 nonce) internal {
         uint248 msp = uint248(nonce >> 8);
         uint256 bit = 1 << (nonce & 0xff);
         uint256 mask = nonces[msp];
-        if ((mask & bit) != 0) {
-            return false;
-        }
+        if ((mask & bit) != 0) revert NonceAlreadyUsed();
         nonces[msp] = mask | bit;
-        return true;
     }
 
     function setNonce(uint256 nonce) external onlyOwner {
@@ -232,38 +272,26 @@ contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
         return (nonces[msp] & bit) != 0;
     }
 
-    struct SignedCall {
-        address operator;
-        address from;
-        ITransferReceiver2.Transfer[] transfers;
-        IDOS.Call[] calls;
-    }
-
-    bytes32 constant ONTRANSFERRECEIVED2CALL_TYPEHASH =
-        keccak256(
-            "OnTransferReceived2Call(SignedCall signedCall,uint256 nonce,uint256 deadline)Call(address to,bytes callData,uint256 value)SignedCall(address operator,address from,Transfer[] transfers,Call[] calls)Transfer(address token,uint256 amount)"
-        );
-    bytes32 constant SIGNEDCALL_TYPEHASH =
-        keccak256(
-            "SignedCall(address operator,address from,Transfer[] transfers,Call[] calls)Call(address to,bytes callData,uint256 value)Transfer(address token,uint256 amount)"
-        );
-    bytes32 constant TRANSFER_TYPEHASH = keccak256("Transfer(address token,uint256 amount)");
-    bytes32 constant CALL_TYPEHASH = keccak256("Call(address to,bytes callData,uint256 value)");
-
     function onTransferReceived2(
-        address /* operator */,
+        address operator,
         address from,
         ITransferReceiver2.Transfer[] calldata transfers,
         bytes calldata data
     ) external override onlyTransferAndCall2 returns (bytes4) {
         // options:
-        // 1) deposit into dos contract
-        // 2) execute a signed batch of tx's
-        // 3) nothing
+        // 1) just deposit into proxy, nothing to do
+        // 2) execute a batch of calls (msg.sender is owner)
+        // 3) directly deposit into dos contract
+        // 3) execute a signed batch of tx's
         if (data.length == 0) {
-            /* just deposit in the proxy */
+            /* just deposit in the proxy, nothing to do */
+        } else if (data[0] == 0x00) {
+            // execute batch
+            require(msg.sender == IDOS(dos).getDSafeOwner(address(this)), "Not owner");
+            Call[] memory calls = abi.decode(data[1:], (Call[]));
+            dos.executeBatch(calls);
         } else if (data[0] == 0x01) {
-            require(data.length == 1, "Invalid data - allowed are [], [1] and [2]");
+            require(data.length == 1, "Invalid data - allowed are [], [0...], [1] and [2]");
             // deposit in the dos dSafe
             for (uint256 i = 0; i < transfers.length; i++) {
                 ITransferReceiver2.Transfer memory transfer = transfers[i];
@@ -275,46 +303,26 @@ contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
             // execute signed batch
 
             // Verify signature matches
-            (
-                SignedCall memory signedCall,
-                uint256 nonce,
-                uint256 deadline,
-                bytes memory signature
-            ) = abi.decode(data[1:], (SignedCall, uint256, uint256, bytes));
-            bytes32[] memory transferDigests = new bytes32[](signedCall.transfers.length);
-            for (uint256 i = 0; i < signedCall.transfers.length; i++) {
+            (Call[] memory calls, uint256 nonce, uint256 deadline, bytes memory signature) = abi
+                .decode(data[1:], (Call[], uint256, uint256, bytes));
+
+            if (deadline < block.timestamp) revert DeadlineExpired();
+            validateAndUseNonce(nonce);
+
+            bytes32[] memory transferDigests = new bytes32[](transfers.length);
+            for (uint256 i = 0; i < transfers.length; i++) {
                 transferDigests[i] = keccak256(
-                    abi.encode(
-                        TRANSFER_TYPEHASH,
-                        signedCall.transfers[i].token,
-                        signedCall.transfers[i].amount
-                    )
-                );
-            }
-            bytes32[] memory callDigests = new bytes32[](signedCall.calls.length);
-            for (uint256 i = 0; i < signedCall.calls.length; i++) {
-                callDigests[i] = keccak256(
-                    abi.encode(
-                        CALL_TYPEHASH,
-                        signedCall.calls[i].to,
-                        keccak256(signedCall.calls[i].callData),
-                        signedCall.calls[i].value
-                    )
+                    abi.encode(TRANSFER_TYPEHASH, transfers[i].token, transfers[i].amount)
                 );
             }
             bytes32 digest = _hashTypedDataV4(
                 keccak256(
                     abi.encode(
                         ONTRANSFERRECEIVED2CALL_TYPEHASH,
-                        keccak256(
-                            abi.encode(
-                                SIGNEDCALL_TYPEHASH,
-                                signedCall.operator,
-                                signedCall.from,
-                                keccak256(abi.encodePacked(transferDigests)),
-                                keccak256(abi.encodePacked(callDigests))
-                            )
-                        ),
+                        operator,
+                        from,
+                        keccak256(abi.encodePacked(transferDigests)),
+                        CallLib.hashCallArray(calls),
                         nonce,
                         deadline
                     )
@@ -328,23 +336,9 @@ contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
                 )
             ) revert InvalidSignature();
 
-            if (deadline < block.timestamp) revert InvalidSignature();
-            if (!useNonce(nonce)) revert InvalidSignature();
-
-            // Verify transfers match signed tfer
-            if (from != signedCall.from || transfers.length != signedCall.transfers.length) {
-                revert InvalidSignature();
-            }
-            for (uint256 i = 0; i < transfers.length; i++) {
-                if (
-                    transfers[i].token != signedCall.transfers[i].token ||
-                    transfers[i].amount < signedCall.transfers[i].amount
-                ) {
-                    revert InvalidSignature();
-                }
-            }
-
-            dos.executeBatch(signedCall.calls);
+            dos.executeBatch(calls);
+        } else {
+            revert("Invalid data - allowed are '', '0x00...', '0x01' and '0x02...'");
         }
         return ITransferReceiver2.onTransferReceived2.selector;
     }

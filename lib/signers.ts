@@ -118,14 +118,11 @@ export const signOnTransferReceived2Call = async (
       {name: "callData", type: "bytes"},
       {name: "value", type: "uint256"},
     ],
-    SignedCall: [
+    OnTransferReceived2Call: [
       {name: "operator", type: "address"},
       {name: "from", type: "address"},
       {name: "transfers", type: "Transfer[]"},
       {name: "calls", type: "Call[]"},
-    ],
-    OnTransferReceived2Call: [
-      {name: "signedCall", type: "SignedCall"},
       {name: "nonce", type: "uint256"},
       {name: "deadline", type: "uint256"},
     ],
@@ -133,7 +130,7 @@ export const signOnTransferReceived2Call = async (
   /* eslint-enable */
 
   const value = {
-    signedCall,
+    ...signedCall,
     nonce,
     deadline: ethers.constants.MaxUint256,
   };
@@ -142,12 +139,12 @@ export const signOnTransferReceived2Call = async (
 
   const signedData = ethers.utils.defaultAbiCoder.encode(
     [
-      "tuple(address operator,address from,tuple(address token, uint256 amount)[] transfers,tuple(address to,bytes callData,uint256 value)[] calls) signedCall",
+      "tuple(address to,bytes callData,uint256 value)[] calls",
       "uint256 nonce",
       "uint256 deadline",
       "bytes signature",
     ],
-    [signedCall, value.nonce, value.deadline, signature],
+    [signedCall.calls, value.nonce, value.deadline, signature],
   );
 
   return signedData;
