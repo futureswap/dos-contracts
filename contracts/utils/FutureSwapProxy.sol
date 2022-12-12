@@ -37,7 +37,7 @@ contract FutureSwapProxy is Ownable, EIP712 {
         _transferOwnership(msg.sender);
     }
 
-    function execute(CallWithValue[] memory calls) external onlyOwner {
-        CallLib.executeBatchWithValue(calls);
+    function execute(Call[] memory calls) external onlyOwner {
+        CallLib.executeBatch(calls);
     }
 }

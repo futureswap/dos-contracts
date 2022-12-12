@@ -15,6 +15,7 @@ import {PERMIT2, IPermit2} from "../external/interfaces/IPermit2.sol";
 import {DSafeProxy} from "./DSafeProxy.sol";
 import "../dosERC20/DOSERC20.sol";
 import {IVersionManager} from "../interfaces/IVersionManager.sol";
+import "../lib/Call.sol";
 
 /// @notice Sender is not approved to spend dSafe erc20
 error NotApprovedOrOwner();
@@ -482,9 +483,7 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
     }
 
     function executeBatch(Call[] memory calls) external override onlyDSafe {
-        for (uint256 i = 0; i < calls.length; i++) {
-            DSafeProxy(payable(msg.sender)).doCall(calls[i].to, calls[i].callData, calls[i].value);
-        }
+        DSafeProxy(payable(msg.sender)).executeBatch(calls);
         require(isSolvent(msg.sender), "Result of operation is not sufficient liquid");
     }
 
