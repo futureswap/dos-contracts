@@ -7,7 +7,7 @@ import type {
   IERC20,
   ISwapRouter,
 } from "../typechain-types";
-import type {ContractTransaction} from "ethers";
+import type { BigNumberish, ContractTransaction } from "ethers";
 import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 
 import {ethers} from "ethers";
@@ -185,12 +185,29 @@ export const depositIntoSafeAndCall = async (
   }
 };
 
+type UniswapNFTManager = {
+  // taken from node_modules/@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol:MintParams
+  mintParams: {
+    token0: string;
+    token1: string;
+    fee: number;
+    tickLower: number;
+    tickUpper: number;
+    amount0Desired: BigNumberish;
+    amount1Desired: BigNumberish;
+    amount0Min: BigNumberish;
+    amount1Min: BigNumberish;
+    recipient: string;
+    deadline: BigNumberish;
+  }
+}
+
 export const leverageLP = (
   dos: IDOS,
   token0: IERC20,
   token1: IERC20,
   uniswapNFTManager: ethers.Contract,
-  mintParams: any,
+  mintParams: UniswapNFTManager["mintParams"],
   tokenId: number,
 ): Call[] => {
   if (BigInt(token0.address) >= BigInt(token1.address))
