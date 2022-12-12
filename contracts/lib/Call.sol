@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
+import "@openzeppelin/contracts/utils/Address.sol";
+
 /**
  * @title A serialized contract method call.
  *
@@ -27,6 +29,8 @@ struct Call {
 }
 
 library CallLib {
+    using Address for address;
+
     bytes internal constant CALL_TYPESTRING = "Call(address to,bytes callData,uint256 value)";
     bytes32 constant CALL_TYPEHASH = keccak256(CALL_TYPESTRING);
 
@@ -36,8 +40,7 @@ library CallLib {
      * @param call The call to execute.
      */
     function executeWithoutValue(CallWithoutValue memory call) internal {
-        (bool success, bytes memory returnData) = call.to.call(call.callData);
-        require(success, string(returnData));
+        call.to.functionCall(call.callData);
     }
 
     /**
@@ -46,8 +49,7 @@ library CallLib {
      * @param call The call to execute.
      */
     function execute(Call memory call) internal {
-        (bool success, bytes memory returnData) = call.to.call{value: call.value}(call.callData);
-        require(success, string(returnData));
+        call.to.functionCallWithValue(call.callData, call.value);
     }
 
     /**
