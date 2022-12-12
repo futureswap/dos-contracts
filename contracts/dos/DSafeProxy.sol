@@ -65,13 +65,6 @@ contract DSafeProxy is Proxy {
 // Calls to the contract not coming from DOS itself are routed to this logic
 // contract. This allows for flexible extra addition to your dSafe.
 contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
-    struct SignedCall {
-        address operator;
-        address from;
-        ITransferReceiver2.Transfer[] transfers;
-        Call[] calls;
-    }
-
     bytes private constant EXECUTEBATCH_TYPESTRING = "ExecuteBatch(Call[] calls,uint256 nonce)";
     bytes private constant TRANSFER_TYPESTRING = "Transfer(address token,uint256 amount)";
     bytes private constant ONTRANSFERRECEIVED2CALL_TYPESTRING =
@@ -96,6 +89,11 @@ contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
 
     mapping(uint248 => uint256) public nonces;
 
+    error InvalidData();
+    error InvalidSignature();
+    error NonceAlreadyUsed();
+    error DeadlineExpired();
+
     modifier onlyOwner() {
         require(IDOS(dos).getDSafeOwner(address(this)) == msg.sender, "");
         _;
@@ -116,12 +114,14 @@ contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
     function executeSignedBatch(
         Call[] memory calls,
         uint256 nonce,
+        uint256 deadline,
         bytes calldata signature
     ) external payable {
+        if (deadline < block.timestamp) revert DeadlineExpired();
+        validateAndUseNonce(nonce);
         bytes32 digest = _hashTypedDataV4(
             keccak256(abi.encode(EXECUTEBATCH_TYPEHASH, CallLib.hashCallArray(calls), nonce))
         );
-        if (!useNonce(nonce)) revert InvalidSignature();
         if (
             !SignatureChecker.isValidSignatureNow(
                 IDOS(dos).getDSafeOwner(address(this)),
@@ -252,17 +252,12 @@ contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
             : bytes4(0);
     }
 
-    error InvalidSignature();
-
-    function useNonce(uint256 nonce) internal returns (bool) {
+    function validateAndUseNonce(uint256 nonce) internal {
         uint248 msp = uint248(nonce >> 8);
         uint256 bit = 1 << (nonce & 0xff);
         uint256 mask = nonces[msp];
-        if ((mask & bit) != 0) {
-            return false;
-        }
+        if ((mask & bit) != 0) revert NonceAlreadyUsed();
         nonces[msp] = mask | bit;
-        return true;
     }
 
     function setNonce(uint256 nonce) external onlyOwner {
@@ -310,6 +305,10 @@ contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
             // Verify signature matches
             (Call[] memory calls, uint256 nonce, uint256 deadline, bytes memory signature) = abi
                 .decode(data[1:], (Call[], uint256, uint256, bytes));
+
+            if (deadline < block.timestamp) revert DeadlineExpired();
+            validateAndUseNonce(nonce);
+
             bytes32[] memory transferDigests = new bytes32[](transfers.length);
             for (uint256 i = 0; i < transfers.length; i++) {
                 transferDigests[i] = keccak256(
@@ -337,12 +336,9 @@ contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
                 )
             ) revert InvalidSignature();
 
-            if (deadline < block.timestamp) revert InvalidSignature();
-            if (!useNonce(nonce)) revert InvalidSignature();
-
             dos.executeBatch(calls);
         } else {
-            revert("Invalid data - allowed are [], [0...], [1] and [2]");
+            revert("Invalid data - allowed are '', '0x00...', '0x01' and '0x02...'");
         }
         return ITransferReceiver2.onTransferReceived2.selector;
     }
