@@ -43,22 +43,55 @@ export type Call = {
   value: bigint;
 };
 
-type FunctionProps<Obj> = string &
+// filters Obj by keys that are functions. E.g.
+// OnlyFunctions<{x: number: foo: () => number}> -> {foo: () => number}
+type OnlyFunctions<Obj> = string &
   keyof {
     [prop in keyof Obj]: Obj[prop] extends (...args: unknown[]) => unknown ? Obj[prop] : never;
   };
 
-export function makeCall<Contract extends ethers.Contract, Func extends FunctionProps<Contract>>(
+// changes the return type of Func to NewReturn. E.g.
+// SetReturnType<(x: number) => number, string> -> (x: number) => string
+type SetReturnType<Func extends (...args: unknown[]) => unknown, NewReturn> = (
+  ...args: Parameters<Func>
+) => NewReturn;
+
+// returns an object with methods of Contract. Return value of each method is changed to Call.
+// So instead of calling a method of the Contract it would return call parameters that can be sent
+// to DOS.executeBatch([...]) or GovernanceProxy.execute(...)
+type WrappedContract<Contract extends ethers.Contract> = {
+  [key in OnlyFunctions<Contract>]: SetReturnType<Contract[key], Call>;
+};
+
+export function makeCall<Contract extends ethers.Contract & {withValue?: never}>(
   to: Contract,
-  func: Func,
-  params: Parameters<Contract[Func]>,
-  value?: bigint,
-): Call {
+): WrappedContract<Contract> & {withValue: (value: BigNumberish) => WrappedContract<Contract>} {
   return {
-    to: to.address,
-    callData: to.interface.encodeFunctionData(func, params),
-    value: value ?? 0n,
+    ...makeCallWithValue(to, 0n),
+    withValue: (value: BigNumberish) => makeCallWithValue(to, value),
   };
+}
+
+function makeCallWithValue<Contract extends ethers.Contract>(
+  to: Contract,
+  value: BigNumberish,
+): WrappedContract<Contract> {
+  const funcKeys = Object.entries(to).flatMap<OnlyFunctions<Contract>>(([key, value]) =>
+    typeof value == "function" ? [key] : [],
+  );
+
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return Object.fromEntries(
+    funcKeys.map(funcKey => [
+      funcKey,
+      (...args: unknown[]) => ({
+        to,
+        callData: to.interface.encodeFunctionData(funcKey, args),
+        value,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      }),
+    ]),
+  ) as any;
 }
 
 export const hashCallWithoutValue = ({
@@ -238,15 +271,16 @@ export const leverageLP = (
 ): Call[] => {
   if (BigInt(token0.address) >= BigInt(token1.address))
     throw new Error("Token0 must be smaller than token1");
+
   return [
-    makeCall(token0, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
-    makeCall(token1, "approve", [uniswapNFTManager.address, ethers.constants.MaxUint256]),
-    makeCall(uniswapNFTManager, "setApprovalForAll", [dos.address, true]),
-    makeCall(dos, "depositERC20", [token0.address, -mintParams.amount0Desired]),
-    makeCall(dos, "depositERC20", [token1.address, -mintParams.amount1Desired]),
-    makeCall(uniswapNFTManager, "mint", [mintParams]),
-    makeCall(dos, "depositNFT", [uniswapNFTManager.address, tokenId]),
-    makeCall(dos, "depositFull", [[token0.address, token1.address]]),
+    makeCall(token0).approve(uniswapNFTManager.address, ethers.constants.MaxUint256),
+    makeCall(token1).approve(uniswapNFTManager.address, ethers.constants.MaxUint256),
+    makeCall(uniswapNFTManager).setApprovalForAll(dos.address, true),
+    makeCall(dos).depositERC20(token0.address, -mintParams.amount0Desired),
+    makeCall(dos).depositERC20(token1.address, -mintParams.amount1Desired),
+    makeCall(uniswapNFTManager).mint(mintParams),
+    makeCall(dos).depositNFT(uniswapNFTManager.address, tokenId),
+    makeCall(dos).depositFull([token0.address, token1.address]),
   ];
 };
 
@@ -271,9 +305,9 @@ export const leveragePos = (
   };
 
   return [
-    makeCall(dos, "depositERC20", [tokenIn.address, -amount]),
-    makeCall(tokenIn, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
-    makeCall(swapRouter, "exactInputSingle", [exactInputSingleParams]),
-    makeCall(dos, "depositFull", [[tokenIn.address, tokenOut.address]]),
+    makeCall(dos).depositERC20(tokenIn.address, -amount),
+    makeCall(tokenIn).approve(swapRouter.address, ethers.constants.MaxUint256),
+    makeCall(swapRouter).exactInputSingle(exactInputSingleParams),
+    makeCall(dos).depositFull([tokenIn.address, tokenOut.address]),
   ];
 };

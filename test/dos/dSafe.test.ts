@@ -186,7 +186,7 @@ describe("DSafeProxy", () => {
       operator: user.address,
       from: user.address,
       transfers: [{token: weth.address, amount: oneEth}],
-      calls: [makeCall(usdc, "transfer", [user.address, tenThousandUsdc])],
+      calls: [makeCall(usdc).transfer(user.address, tenThousandUsdc)],
     };
 
     const signedData = await signOnTransferReceived2Call(dSafe2, signedCall, 0, user2);
