@@ -1,4 +1,4 @@
-import type {IPermit2, DSafeLogic} from "../typechain-types";
+import type {IPermit2, DSafeLogic, FutureSwapProxy} from "../typechain-types";
 import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import type {Call} from "./calls";
 import type {TypedDataField} from "ethers";
@@ -189,6 +189,38 @@ export const signPermit2TransferFrom = async (
     spender,
     nonce,
     deadline: ethers.constants.MaxUint256,
+  };
+
+  return await signer._signTypedData(domain, types, value);
+};
+
+export const signTakeFutureSwapProxyOwnership = async (
+  futureSwapProxy: FutureSwapProxy,
+  newOwner: string,
+  nonce: number,
+  signer: SignerWithAddress,
+): Promise<string> => {
+  // corresponds with the EIP712 constructor call
+  const domain = {
+    name: "FutureSwapProxy",
+    version: "1",
+    chainId: (await futureSwapProxy.provider.getNetwork()).chainId,
+    verifyingContract: futureSwapProxy.address,
+  };
+
+  // the named list of all type definitions
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const types = {
+    TakeOwnership: [
+      {name: "newOwner", type: "address"},
+      {name: "nonce", type: "uint256"},
+    ],
+  };
+  /* eslint-enable */
+
+  const value = {
+    newOwner,
+    nonce,
   };
 
   return await signer._signTypedData(domain, types, value);

@@ -17,7 +17,7 @@ import type {
   IDOS,
   IUniswapV3Factory,
   ISwapRouter,
-} from "../typechain-types";
+  FutureSwapProxy} from "../typechain-types";
 import type {TransactionRequest} from "@ethersproject/abstract-provider";
 
 import uniV3FactJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json";
@@ -35,6 +35,7 @@ import {
 import {ethers as hardhatEthers, waffle} from "hardhat";
 
 import {
+  FutureSwapProxy__factory,
   IUniswapV3Factory__factory,
   ISwapRouter__factory,
   VersionManager__factory,
@@ -248,11 +249,12 @@ export class Chainlink {
 
 // fixed address deployments
 
+export const anyswapCreate2DeployerAddress = "0xDf7Cc8d582D213Db25FBfb9CF659c79e8E4263bd";
+
 export async function deployAnyswapCreate2Deployer(
   signer: ethers.Signer,
 ): Promise<IAnyswapCreate2Deployer> {
   const deployerAddress = "0xB39734A1c2f6917c17b38C9Bc30ECB3fCC2dCBf8";
-  const contractAddress = "0xDf7Cc8d582D213Db25FBfb9CF659c79e8E4263bd";
 
   const provider = checkDefined(signer.provider);
   if ((await provider.getTransactionCount(deployerAddress)) == 0) {
@@ -281,10 +283,27 @@ export async function deployAnyswapCreate2Deployer(
       ethers.utils.serializeTransaction(tx, sig),
     );
     const receipt = await deployTx.wait();
-    if (contractAddress != receipt.contractAddress) throw new Error("Incorrect contract address");
+    if (anyswapCreate2DeployerAddress != receipt.contractAddress)
+      throw new Error("Incorrect contract address");
   }
-  return IAnyswapCreate2Deployer__factory.connect(contractAddress, signer);
+  return IAnyswapCreate2Deployer__factory.connect(anyswapCreate2DeployerAddress, signer);
 }
+
+export const governatorAddress = "0x6eEf89f0383dD76c06A8a6Ead63cf95795B5bA3F";
+
+export const deployFutureSwapProxy = async (
+  anyswapCreate2Deployer: IAnyswapCreate2Deployer,
+  salt: string,
+  governatorAddress: string,
+): Promise<FutureSwapProxy> => {
+  const futureSwapProxy = deployAtFixedAddress(
+    new FutureSwapProxy__factory(anyswapCreate2Deployer.signer),
+    anyswapCreate2Deployer,
+    salt,
+    governatorAddress,
+  );
+  return await futureSwapProxy;
+};
 
 export const fsSalt = "0x1234567890123456789012345678901234567890123456789012345678901234";
 const permit2Address = addressesJSON.goerli.permit2;
