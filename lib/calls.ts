@@ -10,7 +10,7 @@ import type {
 import type {BigNumberish, ContractTransaction} from "ethers";
 import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 
-import {ethers} from "ethers";
+import {BigNumber, ethers} from "ethers";
 
 import {DSafeLogic__factory} from "../typechain-types";
 import {getEventParams} from "./events";
@@ -80,18 +80,18 @@ function makeCallWithValue<Contract extends ethers.Contract>(
     typeof value == "function" ? [key] : [],
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  /* eslint-disable -- embedded types for fromEntries are not expressive enough to express this */
   return Object.fromEntries(
     funcKeys.map(funcKey => [
       funcKey,
-      (...args: unknown[]) => ({
-        to,
+      (...args: unknown[]): Call => ({
+        to: to.address,
         callData: to.interface.encodeFunctionData(funcKey, args),
-        value,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        value: BigNumber.from(value).toBigInt(),
       }),
     ]),
   ) as any;
+  /* eslint-enable */
 }
 
 export const hashCallWithoutValue = ({
