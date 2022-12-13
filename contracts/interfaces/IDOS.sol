@@ -18,6 +18,8 @@ interface IDOS {
         uint256 value;
     }
 
+    function createPortfolio() external returns (address);
+
     function upgradeImplementation(address portfolio, uint256 version) external;
 
     function liquidate(address portfolio) external;
@@ -27,6 +29,13 @@ interface IDOS {
     function withdrawFull(IERC20[] calldata erc20Idxs) external;
 
     function executeBatch(Call[] memory calls) external;
+
+    function transferFromERC20(
+        address erc20,
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool);
 
     function viewBalance(address portfolio, IERC20 erc20) external view returns (int256);
 
