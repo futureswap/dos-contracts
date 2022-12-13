@@ -58,18 +58,12 @@ contract DuoswapV2ERC20 is IUniswapV2ERC20 {
         emit Transfer(from, to, value);
     }
 
-    function approve(
-        address spender,
-        uint256 value
-    ) external override returns (bool) {
+    function approve(address spender, uint256 value) external override returns (bool) {
         _approve(msg.sender, spender, value);
         return true;
     }
 
-    function transfer(
-        address to,
-        uint256 value
-    ) external override returns (bool) {
+    function transfer(address to, uint256 value) external override returns (bool) {
         _transfer(msg.sender, to, value);
         return true;
     }
@@ -102,14 +96,7 @@ contract DuoswapV2ERC20 is IUniswapV2ERC20 {
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
                 keccak256(
-                    abi.encode(
-                        PERMIT_TYPEHASH,
-                        owner,
-                        spender,
-                        value,
-                        nonces[owner]++,
-                        deadline
-                    )
+                    abi.encode(PERMIT_TYPEHASH, owner, spender, value, nonces[owner]++, deadline)
                 )
             )
         );
