@@ -73,7 +73,12 @@ contract Governance is ImmutableOwnable, IERC721Receiver {
     }
 
     function execute(uint256 nonce, CallWithoutValue[] memory calls) external {
-        voteNFT.burnAsDigest(voting, nonce, CallLib.hashCallWithoutValueArray(calls));
+        uint256 tokenId = voteNFT.toTokenId(
+            voting,
+            nonce,
+            CallLib.hashCallWithoutValueArray(calls)
+        );
+        voteNFT.burn(tokenId); // reverts if tokenId isn't owned.
         GovernanceProxy(immutableOwner).execute(calls);
     }
 

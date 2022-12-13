@@ -810,11 +810,15 @@ contract DOSConfig is ImmutableOwnable, IDOSConfig {
 
     function createDSafe() external returns (address dSafe) {
         address[] memory erc20s = new address[](state.erc20Infos.length);
-        address[] memory nfts = new address[](0);
         for (uint256 i = 0; i < state.erc20Infos.length; i++) {
             erc20s[i] = state.erc20Infos[i].erc20Contract;
         }
-        dSafe = address(new DSafeProxy(address(this), erc20s, nfts));
+        address[] memory erc721s = new address[](state.erc721Infos.length);
+        for (uint256 i = 0; i < state.erc721Infos.length; i++) {
+            erc721s[i] = state.erc721Infos[i].erc721Contract;
+        }
+
+        dSafe = address(new DSafeProxy(address(this), erc20s, erc721s));
         state.dSafes[dSafe].owner = msg.sender;
 
         // add a version parameter if users should pick a specific version

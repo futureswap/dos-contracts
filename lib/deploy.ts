@@ -192,11 +192,7 @@ export async function deployGovernance(governanceProxy: GovernanceProxy): Promis
   governance: Governance;
 }> {
   const signer = governanceProxy.signer;
-  const voteNFT = await new HashNFT__factory(signer).deploy(
-    "Voting token",
-    "VTOK",
-    governanceProxy.address,
-  );
+  const voteNFT = await new HashNFT__factory(signer).deploy("Voting token", "VTOK");
   const governance = await new Governance__factory(signer).deploy(
     governanceProxy.address,
     voteNFT.address,
