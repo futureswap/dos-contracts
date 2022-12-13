@@ -15,6 +15,7 @@ import {PERMIT2, IPermit2} from "../external/interfaces/IPermit2.sol";
 import {PortfolioProxy} from "./PortfolioProxy.sol";
 import "../dosERC20/DOSERC20.sol";
 import {IVersionManager} from "../interfaces/IVersionManager.sol";
+import {IERC1363SpenderExtended, IERC1363ReceiverExtended} from "../interfaces/IERC1363-extended.sol";
 
 /// @notice Sender is not approved to spend portfolio erc20
 error NotApprovedOrOwner();
@@ -445,14 +446,14 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     /// @param to The address of the portfolio to transfer to
     /// @param amount The amount of tokens to transfer
     function transferFromERC20(
-        IERC20 erc20,
+        address erc20,
         address from,
         address to,
         uint256 amount
-    ) external onlyPortfolio portfolioExists(from) portfolioExists(to) returns (bool) {
+    ) external portfolioExists(from) portfolioExists(to) returns (bool) {
         address spender = msg.sender;
-        _spendAllowance(erc20, from, spender, amount);
-        transferERC20(erc20, from, to, FsMath.safeCastToSigned(amount));
+        _spendAllowance(IERC20(erc20), from, spender, amount);
+        transferERC20(IERC20(erc20), from, to, FsMath.safeCastToSigned(amount));
         return true;
     }
 
@@ -510,8 +511,13 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
      * @param spender address The address which will spend the funds
      * @param amount uint256 The amount of tokens to be spent
      */
-    function approveAndCall(IERC20 erc20, address spender, uint256 amount) external returns (bool) {
-        return approveAndCall(erc20, spender, amount, "");
+    function approveAndCall(
+        IERC20 erc20,
+        address spender,
+        uint256 amount,
+        address target
+    ) external returns (bool) {
+        return approveAndCall(erc20, spender, amount, target, "");
     }
 
     /**
@@ -521,8 +527,13 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
      * @param amount uint256 The amount of tokens to be transferred
      * @return true unless throwing
      */
-    function transferAndCall(IERC20 erc20, address to, uint256 amount) external returns (bool) {
-        return transferAndCall(erc20, to, amount, "");
+    function transferAndCall(
+        IERC20 erc20,
+        address to,
+        uint256 amount,
+        address target
+    ) external returns (bool) {
+        return transferAndCall(erc20, to, amount, target, "");
     }
 
     // /**
@@ -711,12 +722,13 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
      */
     function approveAndCall(
         IERC20 erc20,
-        address spender,
+        address spender, // portfolio
         uint256 amount,
+        address target, // router
         bytes memory data
-    ) public returns (bool) {
+    ) public onlyPortfolio returns (bool) {
         _approveERC20(msg.sender, erc20, spender, amount);
-        if (!_checkOnApprovalReceived(spender, amount, data)) {
+        if (!_checkOnApprovalReceived(spender, amount, target, data)) {
             revert WrongDataReturned();
         }
         _approveERC20(msg.sender, erc20, spender, 0); // reset allowance
@@ -733,13 +745,14 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         IERC20[] calldata erc20s,
         address spender,
         uint256[] calldata amounts,
+        address target,
         bytes calldata data
-    ) external returns (bool) {
+    ) public onlyPortfolio returns (bool) {
         require(erc20s.length == amounts.length, "Lengths do not match");
         for (uint256 i = 0; i < erc20s.length; i++) {
             _approveERC20(msg.sender, erc20s[i], spender, amounts[i]);
         }
-        if (!_checkOnApprovalReceived(spender, 0, data)) {
+        if (!_checkOnApprovalReceived(spender, 0, target, data)) {
             revert WrongDataReturned();
         }
         for (uint256 i = 0; i < erc20s.length; i++) {
@@ -760,10 +773,11 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         IERC20 erc20,
         address to,
         uint256 amount,
+        address target,
         bytes memory data
-    ) public returns (bool) {
+    ) public onlyPortfolio returns (bool) {
         transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
-        if (!_checkOnTransferReceived(msg.sender, to, amount, data)) {
+        if (!_checkOnTransferReceived(msg.sender, to, amount, target, data)) {
             revert WrongDataReturned();
         }
         return true;
@@ -779,13 +793,14 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         IERC20[] calldata erc20s,
         address to,
         uint256[] calldata amounts,
+        address target,
         bytes calldata data
-    ) external returns (bool) {
+    ) external onlyPortfolio returns (bool) {
         require(erc20s.length == amounts.length, "Lengths do not match");
         for (uint256 i = 0; i < erc20s.length; i++) {
             transferERC20(erc20s[i], msg.sender, to, FsMath.safeCastToSigned(amounts[i]));
         }
-        if (!_checkOnTransferReceived(msg.sender, to, 0, data)) {
+        if (!_checkOnTransferReceived(msg.sender, to, 0, target, data)) {
             revert WrongDataReturned();
         }
         return true;
@@ -962,6 +977,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         address sender,
         address recipient,
         uint256 amount,
+        address target,
         bytes memory data
     ) internal virtual returns (bool) {
         if (!recipient.isContract()) {
@@ -969,7 +985,13 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         }
 
         try
-            IERC1363Receiver(recipient).onTransferReceived(msg.sender, sender, amount, data)
+            IERC1363ReceiverExtended(recipient).onTransferReceived(
+                msg.sender,
+                sender,
+                amount,
+                target,
+                data
+            )
         returns (bytes4 retval) {
             return retval == IERC1363Receiver.onTransferReceived.selector;
         } catch (bytes memory reason) {
@@ -993,18 +1015,19 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
      * @return whether the call correctly returned the expected magic value
      */
     function _checkOnApprovalReceived(
-        address spender,
+        address spender, // safe
         uint256 amount,
+        address target, // router
         bytes memory data
     ) internal virtual returns (bool) {
         if (!spender.isContract()) {
             revert ReceiverNotContract();
         }
 
-        try IERC1363Spender(spender).onApprovalReceived(msg.sender, amount, data) returns (
-            bytes4 retval
-        ) {
-            return retval == IERC1363Spender.onApprovalReceived.selector;
+        try
+            IERC1363SpenderExtended(spender).onApprovalReceived(msg.sender, amount, target, data)
+        returns (bytes4 retval) {
+            return retval == IERC1363SpenderExtended.onApprovalReceived.selector;
         } catch (bytes memory reason) {
             if (reason.length == 0) {
                 revert ReceiverNoImplementation();
