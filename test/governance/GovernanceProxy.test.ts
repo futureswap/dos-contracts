@@ -9,7 +9,7 @@ import {
   BridgeNFT__factory,
 } from "../../typechain-types";
 import {getEventsTx} from "../../lib/events";
-import {proposeAndExecute, makeCall} from "../../lib/calls";
+import {proposeAndExecute, makeCall, hashCallWithoutValueArray} from "../../lib/calls";
 
 describe("Governance test", () => {
   async function deployGovernanceProxyFixture() {
@@ -166,14 +166,15 @@ describe("Governance test", () => {
   it("Bridge NFT can be converted to vote NFT", async () => {
     const {owner, voting, voteNFT, bridgeNFT, governance} = await loadFixture(deployGovernance);
 
-    const digest = ethers.utils.keccak256(
-      ethers.utils.defaultAbiCoder.encode(["tuple(address to, bytes callData)[]"], [[]]),
-    );
+    const digest = hashCallWithoutValueArray([]);
     // bypass voting address by directly constructing tokenId
+    const hashNFT_TypeHash = ethers.utils.keccak256(
+      ethers.utils.toUtf8Bytes("HashNFT(address minter,uint256 nonce,bytes32 digest)"),
+    );
     const tokenId = ethers.utils.keccak256(
       ethers.utils.defaultAbiCoder.encode(
-        ["address", "uint256", "bytes32"],
-        [voting.address, 0, digest],
+        ["bytes32", "address", "uint256", "bytes32"],
+        [hashNFT_TypeHash, voting.address, 0, digest],
       ),
     );
 
