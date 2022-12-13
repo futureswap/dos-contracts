@@ -202,10 +202,10 @@ contract DuoswapV2Router is IUniswapV2Router {
     ) external virtual override ensure(deadline) returns (uint256[] memory amounts) {
         amounts = UniswapV2Library.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= amountInMax, "UniswapV2Router: EXCESSIVE_INPUT_AMOUNT");
-        TransferHelper.safeTransferFrom(
+        IDOS(dos).transferFromERC20(
             path[0],
-            msg.sender,
-            UniswapV2Library.pairFor(factory, path[0], path[1]),
+            to, // changed to userSafe
+            IUniswapV2Pair(UniswapV2Library.pairFor(factory, path[0], path[1])).dSafe(), // changed to pairSafe
             amounts[0]
         );
         _swap(amounts, path, to);
@@ -265,45 +265,6 @@ contract DuoswapV2Router is IUniswapV2Router {
             IERC20(path[path.length - 1]).balanceOf(to) - balanceBefore >= amountOutMin,
             "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
         );
-    }
-
-    function swapExactETHForTokensSupportingFeeOnTransferTokens(
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external payable virtual override ensure(deadline) {
-        require(path[0] == WETH, "UniswapV2Router: INVALID_PATH");
-        uint256 amountIn = msg.value;
-        IWETH(WETH).deposit{value: amountIn}();
-        assert(IWETH(WETH).transfer(UniswapV2Library.pairFor(factory, path[0], path[1]), amountIn));
-        uint256 balanceBefore = IERC20(path[path.length - 1]).balanceOf(to);
-        _swapSupportingFeeOnTransferTokens(path, to);
-        require(
-            IERC20(path[path.length - 1]).balanceOf(to) - balanceBefore >= amountOutMin,
-            "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
-        );
-    }
-
-    function swapExactTokensForETHSupportingFeeOnTransferTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external virtual override ensure(deadline) {
-        require(path[path.length - 1] == WETH, "UniswapV2Router: INVALID_PATH");
-        TransferHelper.safeTransferFrom(
-            path[0],
-            msg.sender,
-            UniswapV2Library.pairFor(factory, path[0], path[1]),
-            amountIn
-        );
-        _swapSupportingFeeOnTransferTokens(path, address(this));
-        uint256 amountOut = IERC20(WETH).balanceOf(address(this));
-        require(amountOut >= amountOutMin, "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
-        IWETH(WETH).withdraw(amountOut);
-        TransferHelper.safeTransferETH(to, amountOut);
     }
 
     // **** LIBRARY FUNCTIONS ****
