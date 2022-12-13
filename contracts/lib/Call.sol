@@ -33,6 +33,9 @@ library CallLib {
 
     bytes internal constant CALL_TYPESTRING = "Call(address to,bytes callData,uint256 value)";
     bytes32 constant CALL_TYPEHASH = keccak256(CALL_TYPESTRING);
+    bytes internal constant CALLWITHOUTVALUE_TYPESTRING =
+        "CallWithoutValue(address to,bytes callData)";
+    bytes32 constant CALLWITHOUTVALUE_TYPEHASH = keccak256(CALLWITHOUTVALUE_TYPESTRING);
 
     /**
      * @notice Execute a call.
@@ -82,6 +85,20 @@ library CallLib {
         bytes32[] memory hashes = new bytes32[](calls.length);
         for (uint256 i = 0; i < calls.length; i++) {
             hashes[i] = hashCall(calls[i]);
+        }
+        return keccak256(abi.encodePacked(hashes));
+    }
+
+    function hashCallWithoutValue(CallWithoutValue memory call) internal pure returns (bytes32) {
+        return keccak256(abi.encode(CALLWITHOUTVALUE_TYPEHASH, call.to, keccak256(call.callData)));
+    }
+
+    function hashCallWithoutValueArray(
+        CallWithoutValue[] memory calls
+    ) internal pure returns (bytes32) {
+        bytes32[] memory hashes = new bytes32[](calls.length);
+        for (uint256 i = 0; i < calls.length; i++) {
+            hashes[i] = hashCallWithoutValue(calls[i]);
         }
         return keccak256(abi.encodePacked(hashes));
     }

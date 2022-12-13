@@ -73,7 +73,7 @@ contract Governance is ImmutableOwnable, IERC721Receiver {
     }
 
     function execute(uint256 nonce, CallWithoutValue[] memory calls) external {
-        voteNFT.burnAsDigest(voting, nonce, keccak256(abi.encode(calls)));
+        voteNFT.burnAsDigest(voting, nonce, CallLib.hashCallWithoutValueArray(calls));
         GovernanceProxy(immutableOwner).execute(calls);
     }
 

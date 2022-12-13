@@ -6,6 +6,9 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "../lib/ImmutableOwnable.sol";
 
 contract HashNFT is ERC721Burnable, ImmutableOwnable, IERC721Receiver {
+    bytes constant HASHNFT_TYPESTRING = "HashNFT(address minter,uint256 nonce,bytes32 digest)";
+    bytes32 constant HASHNFT_TYPEHASH = keccak256(HASHNFT_TYPESTRING);
+
     uint256 public mintingNonce;
     mapping(address => bool) isValidBridgeNFT;
 
@@ -50,7 +53,7 @@ contract HashNFT is ERC721Burnable, ImmutableOwnable, IERC721Receiver {
         uint256 nonce,
         bytes32 digest
     ) internal pure returns (uint256) {
-        return uint256(keccak256(abi.encode(minter, nonce, digest)));
+        return uint256(keccak256(abi.encode(HASHNFT_TYPEHASH, minter, nonce, digest)));
     }
 }
 

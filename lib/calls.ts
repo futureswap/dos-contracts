@@ -61,17 +61,38 @@ export function makeCall<Contract extends ethers.Contract, Func extends Function
   };
 }
 
+export const hashCallWithoutValue = ({
+  to,
+  callData,
+}: {
+  to: string;
+  callData: ethers.BytesLike;
+}): string => {
+  const typeHash = ethers.utils.keccak256(
+    ethers.utils.toUtf8Bytes("CallWithoutValue(address to,bytes callData)"),
+  );
+  return ethers.utils.keccak256(
+    ethers.utils.defaultAbiCoder.encode(
+      ["bytes32", "address", "bytes32"],
+      [typeHash, to, ethers.utils.keccak256(callData)],
+    ),
+  );
+};
+
+export const hashCallWithoutValueArray = (
+  calls: {to: string; callData: ethers.BytesLike}[],
+): string => {
+  return ethers.utils.keccak256(ethers.utils.concat(calls.map(hashCallWithoutValue)));
+};
+
 export async function proposeAndExecute(
   governance: Governance,
   voteNFT: HashNFT,
   calls: Call[],
 ): Promise<ContractTransaction> {
   if (calls.some(({value}) => value != 0n)) throw new Error("Value cannot be positive");
-  const hash = ethers.utils.keccak256(
-    ethers.utils.defaultAbiCoder.encode(["tuple(address to, bytes callData)[]"], [calls]),
-  );
   const nonce = await voteNFT.mintingNonce();
-  await voteNFT.mint(governance.address, hash);
+  await voteNFT.mint(governance.address, hashCallWithoutValueArray(calls));
   return await governance.execute(nonce, calls);
 }
 
