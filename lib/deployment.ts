@@ -7,7 +7,6 @@ import {
   BatchDeployer__factory,
   GovernanceProxy__factory,
   Governance__factory,
-  BridgeNFT__factory,
   IWETH9__factory,
   IERC20WithMetadata__factory,
   IPermit2__factory,
@@ -85,8 +84,6 @@ export const getContractFactory = (
       return FutureSwapProxy__factory.connect(address, signer);
     case "voteNFT":
       return HashNFT__factory.connect(address, signer);
-    case "adminNFT":
-      return BridgeNFT__factory.connect(address, signer);
     case "weth":
       return IWETH9__factory.connect(address, signer);
     case "usdc":

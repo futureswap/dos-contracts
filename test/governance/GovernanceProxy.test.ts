@@ -6,10 +6,8 @@ import {
   GovernanceProxy__factory,
   Governance__factory,
   HashNFT__factory,
-  BridgeNFT__factory,
 } from "../../typechain-types";
-import {getEventsTx} from "../../lib/events";
-import {proposeAndExecute, makeCall, hashCallWithoutValueArray} from "../../lib/calls";
+import {proposeAndExecute, makeCall} from "../../lib/calls";
 
 describe("Governance test", () => {
   async function deployGovernanceProxyFixture() {
@@ -28,17 +26,7 @@ describe("Governance test", () => {
     const [owner, voting, user] = await ethers.getSigners();
 
     const governanceProxy = await new GovernanceProxy__factory(owner).deploy(owner.address);
-    const voteNFT = await new HashNFT__factory(voting).deploy(
-      "Voting token",
-      "VTOK",
-      governanceProxy.address,
-    );
-    const bridgeNFT = await new BridgeNFT__factory(owner).deploy(
-      voteNFT.address,
-      "Bridge token",
-      "BTOK",
-      owner.address,
-    );
+    const voteNFT = await new HashNFT__factory(voting).deploy("Voting token", "VTOK");
     const governance = await new Governance__factory(owner).deploy(
       governanceProxy.address,
       voteNFT.address,
@@ -48,17 +36,12 @@ describe("Governance test", () => {
       makeCall(governanceProxy, "proposeGovernance", [governance.address]),
     ]);
 
-    await proposeAndExecute(governance, voteNFT, [
-      makeCall(voteNFT, "setBridgeNFT", [bridgeNFT.address, true]),
-    ]);
-
     return {
       owner,
       voting,
       user,
       governanceProxy,
       voteNFT,
-      bridgeNFT,
       governance,
     };
   }
@@ -135,14 +118,14 @@ describe("Governance test", () => {
   it("Cannot execute unless owning NFT", async () => {
     const {governance} = await loadFixture(deployGovernance);
 
-    await expect(governance.execute(0, [])).to.be.revertedWith("Invalid NFT");
+    await expect(governance.execute(0, [])).to.be.revertedWith("ERC721: invalid token ID");
   });
 
   it("Only voting can propose correct NFT", async () => {
     const {user, voteNFT, governance} = await loadFixture(deployGovernance);
 
     await expect(proposeAndExecute(governance, voteNFT.connect(user), [])).to.be.revertedWith(
-      "Invalid NFT",
+      "ERC721: invalid token ID",
     );
   });
 
@@ -150,7 +133,7 @@ describe("Governance test", () => {
     const {user, voteNFT, governance} = await loadFixture(deployGovernance);
 
     await expect(proposeAndExecute(governance, voteNFT.connect(user), [])).to.be.revertedWith(
-      "Invalid NFT",
+      "ERC721: invalid token ID",
     );
   });
 
@@ -161,52 +144,5 @@ describe("Governance test", () => {
       makeCall(governance, "transferVoting", [user.address]),
     ]);
     expect(await governance.voting()).to.equal(user.address);
-  });
-
-  it("Bridge NFT can be converted to vote NFT", async () => {
-    const {owner, voting, voteNFT, bridgeNFT, governance} = await loadFixture(deployGovernance);
-
-    const digest = hashCallWithoutValueArray([]);
-    // bypass voting address by directly constructing tokenId
-    const hashNFT_TypeHash = ethers.utils.keccak256(
-      ethers.utils.toUtf8Bytes("HashNFT(address minter,uint256 nonce,bytes32 digest)"),
-    );
-    const tokenId = ethers.utils.keccak256(
-      ethers.utils.defaultAbiCoder.encode(
-        ["bytes32", "address", "uint256", "bytes32"],
-        [hashNFT_TypeHash, voting.address, 0, digest],
-      ),
-    );
-
-    // mint token directly to voteNFT thus converting it into a voteNFT
-    await bridgeNFT.mint(voteNFT.address, tokenId);
-    expect(await voteNFT.ownerOf(tokenId)).to.equal(owner.address);
-    await expect(bridgeNFT.ownerOf(tokenId)).to.be.reverted;
-
-    await voteNFT
-      .connect(owner)
-      ["safeTransferFrom(address,address,uint256)"](owner.address, governance.address, tokenId);
-
-    await expect(governance.execute(0, [])).to.not.be.reverted;
-  });
-
-  it("Non-owner cannot mint bridge nft", async () => {
-    const {user, voteNFT, bridgeNFT} = await loadFixture(deployGovernance);
-
-    // mint token directly to voteNFT thus converting it into a voteNFT
-    await expect(bridgeNFT.connect(user).mint(voteNFT.address, 0)).to.be.reverted;
-  });
-
-  it("vote NFT can be converted into bridge NFT", async () => {
-    const {voting, voteNFT, bridgeNFT} = await loadFixture(deployGovernance);
-
-    const events = await getEventsTx<{Transfer: {tokenId: string}}>(
-      voteNFT.mint(bridgeNFT.address, ethers.utils.keccak256("0x")),
-      voteNFT,
-    );
-    const {tokenId} = events.Transfer;
-
-    // mint token directly to voteNFT thus converting it into a voteNFT
-    expect(await bridgeNFT.ownerOf(tokenId)).to.equal(voting.address);
   });
 });
