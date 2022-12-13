@@ -33,7 +33,7 @@ describe("Governance test", () => {
       voting.address,
     );
     await governanceProxy.execute([
-      makeCall(governanceProxy, "proposeGovernance", [governance.address]),
+      makeCall(governanceProxy).proposeGovernance(governance.address),
     ]);
 
     return {
@@ -141,7 +141,7 @@ describe("Governance test", () => {
     const {user, voteNFT, governance} = await loadFixture(deployGovernance);
 
     await proposeAndExecute(governance, voteNFT, [
-      makeCall(governance, "transferVoting", [user.address]),
+      makeCall(governance).transferVoting(user.address),
     ]);
     expect(await governance.voting()).to.equal(user.address);
   });

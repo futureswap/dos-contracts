@@ -117,9 +117,9 @@ describe("DOS swap integration", () => {
     await usdc.mint(ownerDSafe.address, usdcAmount);
     await ownerDSafe.executeBatch(
       [
-        makeCall(weth, "deposit", [], toWei(1000) /* value */),
-        makeCall(dos, "depositERC20", [usdc.address, usdcAmount]),
-        makeCall(dos, "depositERC20", [weth.address, wethAmount]),
+        makeCall(weth).withValue(toWei(1000)).deposit(),
+        makeCall(dos).depositERC20(usdc.address, usdcAmount),
+        makeCall(dos).depositERC20(weth.address, wethAmount),
       ],
       {value: wethAmount},
     );
@@ -262,9 +262,9 @@ describe("DOS swap integration", () => {
       const dSafe3 = await createDSafe(dos, user3);
       await usdc.mint(dSafe3.address, toWei(1000, USDC_DECIMALS));
       await dSafe3.executeBatch([
-        makeCall(usdc, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
-        makeCall(weth, "approve", [swapRouter.address, ethers.constants.MaxUint256]),
-        makeCall(dos, "depositFull", [[usdc.address]]),
+        makeCall(usdc).approve(swapRouter.address, ethers.constants.MaxUint256),
+        makeCall(weth).approve(swapRouter.address, ethers.constants.MaxUint256),
+        makeCall(dos).depositFull([usdc.address]),
       ]);
 
       // await dSafe3.liquify(dSafe2.address, swapRouter.address, usdc.address, [wethIdx], [weth.address]);

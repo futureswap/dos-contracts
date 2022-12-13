@@ -198,9 +198,7 @@ export async function deployGovernance(governanceProxy: GovernanceProxy): Promis
     voteNFT.address,
     await signer.getAddress(),
   );
-  await governanceProxy.execute([
-    makeCall(governanceProxy, "proposeGovernance", [governance.address]),
-  ]);
+  await governanceProxy.execute([makeCall(governanceProxy).proposeGovernance(governance.address)]);
   // empty execute such that governance accepts the governance role of the
   // governance proxy.
   await proposeAndExecute(governance, voteNFT, []);
@@ -324,7 +322,7 @@ export const deployFixedAddressForTests = async (
     await signer.sendTransaction({to: futureSwapProxyAddress, value: toWei(0.02)});
     await governanceProxy
       .connect(await hardhatEthers.getSigner(futureSwapProxyAddress))
-      .execute([makeCall(governanceProxy, "proposeGovernance", [await signer.getAddress()])]);
+      .execute([makeCall(governanceProxy).proposeGovernance(await signer.getAddress())]);
     await stopImpersonatingAccount(futureSwapProxyAddress);
   }
   return {

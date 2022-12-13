@@ -31,16 +31,14 @@ async function main() {
   );
 
   await governanceProxy.execute([
-    makeCall(usdcOracle, "setPrice", [toWei(1), 6, 6]),
-    makeCall(ethOracle, "setPrice", [toWei(1200), 6, 18]),
-    makeCall(uniOracle, "setPrice", [toWei(840), 6, 18]),
-    makeCall(dos, "setConfig", [
-      {
-        liqFraction: toWei(0.8),
-        fractionalReserveLeverage: 9,
-      },
-    ]),
-    makeCall(dos, "addERC20Info", [
+    makeCall(usdcOracle).setPrice(toWei(1), 6, 6),
+    makeCall(ethOracle).setPrice(toWei(1200), 6, 18),
+    makeCall(uniOracle).setPrice(toWei(840), 6, 18),
+    makeCall(dos).setConfig({
+      liqFraction: toWei(0.8),
+      fractionalReserveLeverage: 9,
+    }),
+    makeCall(dos).addERC20Info(
       usdc.address,
       await usdc.name(),
       await usdc.symbol(),
@@ -49,8 +47,8 @@ async function main() {
       toWei(0.9),
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
-    ]),
-    makeCall(dos, "addERC20Info", [
+    ),
+    makeCall(dos).addERC20Info(
       weth.address,
       await weth.name(),
       await weth.symbol(),
@@ -59,8 +57,8 @@ async function main() {
       toWei(0.9),
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
-    ]),
-    makeCall(dos, "addERC20Info", [
+    ),
+    makeCall(dos).addERC20Info(
       uni.address,
       await uni.name(),
       await uni.symbol(),
@@ -69,15 +67,15 @@ async function main() {
       toWei(0.9),
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
-    ]),
-    makeCall(uniV3Oracle, "setERC20ValueOracle", [usdc.address, usdcOracle.address]),
-    makeCall(uniV3Oracle, "setERC20ValueOracle", [weth.address, ethOracle.address]),
-    makeCall(uniV3Oracle, "setERC20ValueOracle", [uni.address, uniOracle.address]),
-    makeCall(dos, "addNFTInfo", [
+    ),
+    makeCall(uniV3Oracle).setERC20ValueOracle(usdc.address, usdcOracle.address),
+    makeCall(uniV3Oracle).setERC20ValueOracle(weth.address, ethOracle.address),
+    makeCall(uniV3Oracle).setERC20ValueOracle(uni.address, uniOracle.address),
+    makeCall(dos).addNFTInfo(
       networkAddresses.nonFungiblePositionManager,
       uniV3Oracle.address,
       toWei(0.5),
-    ]),
+    ),
   ]);
 
   await saveAddressesForNetwork({usdcOracle, ethOracle, uniOracle, uniV3Oracle});

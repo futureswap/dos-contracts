@@ -176,8 +176,8 @@ describe("DOS", () => {
       await usdc.mint(sender.address, tenThousandUsdc);
 
       await sender.executeBatch([
-        makeCall(dos, "transfer", [usdc.address, receiver.address, tenThousandUsdc]),
-        makeCall(dos, "depositERC20", [usdc.address, tenThousandUsdc]),
+        makeCall(dos).transfer(usdc.address, receiver.address, tenThousandUsdc),
+        makeCall(dos).depositERC20(usdc.address, tenThousandUsdc),
       ]);
 
       expect((await getBalances(sender)).usdc).to.equal(0);
@@ -240,7 +240,7 @@ describe("DOS", () => {
       await (await tx).wait();
       // make liquidatable debt overcome collateral. Now it can be liquidated
       await ethChainlink.setPrice(9_000);
-      await liquidator.executeBatch([makeCall(dos, "liquidate", [liquidatable.address])]);
+      await liquidator.executeBatch([makeCall(dos).liquidate(liquidatable.address)]);
 
       const liquidatableBalances = await getBalances(liquidatable);
       const liquidatorBalances = await getBalances(liquidator);
@@ -275,7 +275,7 @@ describe("DOS", () => {
       await (await tx).wait();
 
       const liquidationTx = liquidator.executeBatch([
-        makeCall(dos, "liquidate", [nonLiquidatable.address]),
+        makeCall(dos).liquidate(nonLiquidatable.address),
       ]);
 
       await expect(liquidationTx).to.be.revertedWith("DSafe is not liquidatable");
@@ -413,7 +413,7 @@ describe("DOS", () => {
       await depositNft(dos, liquidator, nft, nftOracle, NFT_PRICE);
       const nonDSafeAddress = "0xb4A50D202ca799AA07d4E9FE11C2919e5dFe4220";
 
-      const liquidateTx = liquidator.executeBatch([makeCall(dos, "liquidate", [nonDSafeAddress])]);
+      const liquidateTx = liquidator.executeBatch([makeCall(dos).liquidate(nonDSafeAddress)]);
 
       await expect(liquidateTx).to.be.revertedWith("Recipient dSafe doesn't exist");
     });
@@ -424,9 +424,7 @@ describe("DOS", () => {
       const liquidator = await createDSafe(dos, user2);
       await depositErc20(dos, liquidator, usdc, toWeiUsdc(1000));
 
-      const liquidateTx = liquidator.executeBatch([
-        makeCall(dos, "liquidate", [emptyDSafe.address]),
-      ]);
+      const liquidateTx = liquidator.executeBatch([makeCall(dos).liquidate(emptyDSafe.address)]);
 
       await expect(liquidateTx).to.be.revertedWith("DSafe is not liquidatable");
     });
@@ -439,7 +437,7 @@ describe("DOS", () => {
       await depositErc20(dos, liquidator, usdc, toWeiUsdc(1000));
 
       const liquidateTx = liquidator.executeBatch([
-        makeCall(dos, "liquidate", [nonLiquidatable.address]),
+        makeCall(dos).liquidate(nonLiquidatable.address),
       ]);
 
       await expect(liquidateTx).to.be.revertedWith("DSafe is not liquidatable");
@@ -465,7 +463,7 @@ describe("DOS", () => {
       await (await tx).wait();
 
       const liquidateTx = liquidator.executeBatch([
-        makeCall(dos, "liquidate", [nonLiquidatable.address]),
+        makeCall(dos).liquidate(nonLiquidatable.address),
       ]);
 
       await expect(liquidateTx).to.be.revertedWith("DSafe is not liquidatable");
@@ -491,9 +489,7 @@ describe("DOS", () => {
       await (await tx).wait();
 
       await ethChainlink.setPrice(2_100); // 2_000 -> 2_100
-      const liquidateTx = liquidator.executeBatch([
-        makeCall(dos, "liquidate", [liquidatable.address]),
-      ]);
+      const liquidateTx = liquidator.executeBatch([makeCall(dos).liquidate(liquidatable.address)]);
 
       await expect(liquidateTx).to.revertedWith("Result of operation is not sufficient liquid");
     });
@@ -518,7 +514,7 @@ describe("DOS", () => {
 
       await ethChainlink.setPrice(2_100); // 2_000 -> 2_100
       const liquidateTx = liquidatable.executeBatch([
-        makeCall(dos, "liquidate", [liquidatable.address]),
+        makeCall(dos).liquidate(liquidatable.address),
       ]);
 
       await expect(liquidateTx).to.revertedWith("Result of operation is not sufficient liquid");
@@ -546,7 +542,7 @@ describe("DOS", () => {
 
       await ethChainlink.setPrice(2_100); // 2_000 -> 2_100
       const liquidateTx = await liquidator.executeBatch([
-        makeCall(dos, "liquidate", [liquidatable.address]),
+        makeCall(dos).liquidate(liquidatable.address),
       ]);
       await liquidateTx.wait();
 
@@ -588,7 +584,7 @@ describe("DOS", () => {
       // drop the price of the NFT from 2000 Eth to 1600 Eth. Now dSafe should become liquidatable
       await (await nftOracle.setPrice(tokenId, toWeiUsdc(1600))).wait();
       const liquidateTx = await liquidator.executeBatch([
-        makeCall(dos, "liquidate", [liquidatable.address]),
+        makeCall(dos).liquidate(liquidatable.address),
       ]);
       await liquidateTx.wait();
 
@@ -642,7 +638,7 @@ describe("DOS", () => {
       // So the debt would exceed the collateral and the dSafe becomes liquidatable
       await ethChainlink.setPrice(2_500);
       const liquidateTx = await liquidator.executeBatch([
-        makeCall(dos, "liquidate", [liquidatable.address]),
+        makeCall(dos).liquidate(liquidatable.address),
       ]);
       await liquidateTx.wait();
 
@@ -714,9 +710,7 @@ describe("DOS", () => {
       const dSafe2 = await createDSafe(dos, user2);
       const tokenId = await depositNft(dos, dSafe, nft, nftOracle, NFT_PRICE);
 
-      const depositNftTx = dSafe2.executeBatch([
-        makeCall(dos, "depositNFT", [nft.address, tokenId]),
-      ]);
+      const depositNftTx = dSafe2.executeBatch([makeCall(dos).depositNFT(nft.address, tokenId)]);
 
       await expect(depositNftTx).to.be.revertedWith(
         "NFT must be owned the the user or user's dSafe",
@@ -753,9 +747,7 @@ describe("DOS", () => {
       const tokenId = await depositNft(dos, dSafeOwner, nft, nftOracle, NFT_PRICE);
       const nonDSafeOwner = await createDSafe(dos, user2);
 
-      const claimNftTx = nonDSafeOwner.executeBatch([
-        makeCall(dos, "claimNFT", [nft.address, tokenId]),
-      ]);
+      const claimNftTx = nonDSafeOwner.executeBatch([makeCall(dos).claimNFT(nft.address, tokenId)]);
 
       await expect(claimNftTx).to.be.revertedWith("NFT must be in the user's dSafe");
     });
@@ -769,9 +761,7 @@ describe("DOS", () => {
         const dSafe = await createDSafe(dos, user);
         const tokenId = await depositNft(dos, dSafe, nft, nftOracle, NFT_PRICE);
 
-        const claimNftTx = await dSafe.executeBatch([
-          makeCall(dos, "claimNFT", [nft.address, tokenId]),
-        ]);
+        const claimNftTx = await dSafe.executeBatch([makeCall(dos).claimNFT(nft.address, tokenId)]);
         await claimNftTx.wait();
 
         expect(await nft.ownerOf(tokenId)).to.eql(dSafe.address);
@@ -919,12 +909,7 @@ describe("DOS", () => {
 
       await expect(
         spender.executeBatch([
-          makeCall(dos, "transferFromERC20", [
-            weth.address,
-            owner.address,
-            recipient.address,
-            amount,
-          ]),
+          makeCall(dos).transferFromERC20(weth.address, owner.address, recipient.address, amount),
         ]),
       ).to.be.revertedWith("Recipient dSafe doesn't exist");
     });
@@ -1015,7 +1000,7 @@ describe("DOS", () => {
 
       await expect(
         spender.executeBatch([
-          makeCall(dos, "transferFromERC721", [nft.address, owner.address, user3.address, tokenId]),
+          makeCall(dos).transferFromERC721(nft.address, owner.address, user3.address, tokenId),
         ]),
       ).to.be.revertedWith("Recipient dSafe doesn't exist");
     });
@@ -1038,7 +1023,7 @@ describe("DOS", () => {
         user,
       );
       await port2.executeBatch([
-        makeCall(permit2, "permitTransferFrom", [
+        makeCall(permit2).permitTransferFrom(
           {
             permitted: {token: usdc.address, amount: hundredDollars},
             nonce: 1,
@@ -1047,7 +1032,7 @@ describe("DOS", () => {
           {to: port2.address, requestedAmount: hundredDollars},
           port1.address,
           signature,
-        ]),
+        ),
       ]);
       expect(await usdc.balanceOf(port1.address)).to.eq(0);
       expect(await usdc.balanceOf(port2.address)).to.eq(hundredDollars);
@@ -1063,9 +1048,7 @@ async function depositErc20(
 ) {
   await erc20.mint(dSafe.address, amount);
 
-  const depositTx = await dSafe.executeBatch([
-    makeCall(dos, "depositERC20", [erc20.address, amount]),
-  ]);
+  const depositTx = await dSafe.executeBatch([makeCall(dos).depositERC20(erc20.address, amount)]);
   await depositTx.wait();
 }
 
@@ -1081,8 +1064,8 @@ async function depositNft(
   const tokenId = mintEventArgs[0] as BigNumber;
   await priceOracle.setPrice(tokenId, toWeiUsdc(price));
   const depositNftTx = await dSafe.executeBatch([
-    makeCall(nft, "approve", [dos.address, tokenId]),
-    makeCall(dos, "depositNFT", [nft.address, tokenId]),
+    makeCall(nft).approve(dos.address, tokenId),
+    makeCall(dos).depositNFT(nft.address, tokenId),
   ]);
   await depositNftTx.wait();
   return tokenId;
@@ -1105,9 +1088,7 @@ async function depositUserNft(
   const tokenId = mintEventArgs[0] as BigNumber;
   await priceOracle.setPrice(tokenId, toWeiUsdc(price));
   await (await nft.connect(user).approve(dos.address, tokenId)).wait();
-  const depositNftTx = await dSafe.executeBatch([
-    makeCall(dos, "depositNFT", [nft.address, tokenId]),
-  ]);
+  const depositNftTx = await dSafe.executeBatch([makeCall(dos).depositNFT(nft.address, tokenId)]);
   await depositNftTx.wait();
   return tokenId;
 }
@@ -1121,11 +1102,11 @@ async function transfer(
   if (typeof value[0] == "string") {
     // transfer erc20
     const [erc20, amount] = value;
-    return await from.executeBatch([makeCall(dos, "transfer", [erc20, to.address, amount])]);
+    return await from.executeBatch([makeCall(dos).transfer(erc20, to.address, amount)]);
   } else {
     // transfer NFT
     const [nft, tokenId] = value;
-    return await from.executeBatch([makeCall(dos, "sendNFT", [nft.address, tokenId, to.address])]);
+    return await from.executeBatch([makeCall(dos).sendNFT(nft.address, tokenId, to.address)]);
   }
 }
 
@@ -1136,9 +1117,7 @@ async function approveErc20(
   erc20: string,
   amount: BigNumberish,
 ): Promise<ContractTransaction> {
-  return await owner.executeBatch([
-    makeCall(dos, "approveERC20", [erc20, spender.address, amount]),
-  ]);
+  return await owner.executeBatch([makeCall(dos).approveERC20(erc20, spender.address, amount)]);
 }
 
 async function approveERC721(
@@ -1148,9 +1127,7 @@ async function approveERC721(
   nft: string,
   tokenId: BigNumber,
 ): Promise<ContractTransaction> {
-  return await owner.executeBatch([
-    makeCall(dos, "approveERC721", [nft, spender.address, tokenId]),
-  ]);
+  return await owner.executeBatch([makeCall(dos).approveERC721(nft, spender.address, tokenId)]);
 }
 
 async function transferFromErc20(
@@ -1162,7 +1139,7 @@ async function transferFromErc20(
   amount: BigNumberish,
 ): Promise<ContractTransaction> {
   return await spender.executeBatch([
-    makeCall(dos, "transferFromERC20", [erc20, owner.address, to.address, amount]),
+    makeCall(dos).transferFromERC20(erc20, owner.address, to.address, amount),
   ]);
 }
 
@@ -1175,6 +1152,6 @@ async function transferFromERC721(
   tokenId: BigNumber,
 ): Promise<ContractTransaction> {
   return await spender.executeBatch([
-    makeCall(dos, "transferFromERC721", [nft, owner.address, to.address, tokenId]),
+    makeCall(dos).transferFromERC721(nft, owner.address, to.address, tokenId),
   ]);
 }
