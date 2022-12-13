@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "../lib/ImmutableOwnable.sol";
-import "../interfaces/IERC20ValueOracle.sol";
-import "../lib/FsMath.sol";
-
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import {ImmutableOwnable} from "../lib/ImmutableOwnable.sol";
+import {IERC20ValueOracle} from "../interfaces/IERC20ValueOracle.sol";
+import {FsMath} from "../lib/FsMath.sol";
 import {IDOS} from "../interfaces/IDOS.sol";
-import {IUniswapV2Pair} from "../duoswapV2/interfaces/IUniswapV2Pair.sol";
+import {IDuoswapV2Pair} from "../duoswapV2/interfaces/IDuoswapV2Pair.sol";
 
 contract UniV2Oracle is ImmutableOwnable, IERC20ValueOracle {
     IDOS public immutable dos;
-    IUniswapV2Pair public immutable pair;
+    IDuoswapV2Pair public immutable pair;
     // address public immutable dSafe;
     // address public immutable token0;
     // address public immutable token1;
@@ -21,7 +20,7 @@ contract UniV2Oracle is ImmutableOwnable, IERC20ValueOracle {
 
     constructor(address _dos, address _pair, address _owner) ImmutableOwnable(_owner) {
         dos = IDOS(_dos);
-        pair = IUniswapV2Pair(_pair);
+        pair = IDuoswapV2Pair(_pair);
 
         // dSafe = IUniswapV2Pair(_pair).dSafe();
         // token0 = IUniswapV2Pair(_pair).token0();

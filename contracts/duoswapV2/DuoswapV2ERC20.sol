@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.4;
 
-import "./interfaces/IUniswapV2ERC20.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol";
 
 //solhint-disable var-name-mixedcase
 //solhint-disable reason-string

@@ -5,16 +5,11 @@ pragma solidity >=0.5.0;
 
 //solhint-disable func-name-mixedcase
 
-import "./IUniswapV2ERC20.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol";
 
-interface IUniswapV2Pair is IUniswapV2ERC20 {
+interface IDuoswapV2Pair is IUniswapV2ERC20 {
     event Mint(address indexed sender, uint256 amount0, uint256 amount1);
-    event Burn(
-        address indexed sender,
-        uint256 amount0,
-        uint256 amount1,
-        address indexed to
-    );
+    event Burn(address indexed sender, uint256 amount0, uint256 amount1, address indexed to);
     event Swap(
         address indexed sender,
         uint256 amount0In,
@@ -48,16 +43,9 @@ interface IUniswapV2Pair is IUniswapV2ERC20 {
 
     function mint(address to) external returns (uint256 liquidity);
 
-    function burn(
-        address to
-    ) external returns (uint256 amount0, uint256 amount1);
+    function burn(address to) external returns (uint256 amount0, uint256 amount1);
 
-    function swap(
-        uint256 amount0Out,
-        uint256 amount1Out,
-        address to,
-        bytes calldata data
-    ) external;
+    function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) external;
 
     function skim(address to) external;
 

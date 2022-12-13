@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.4;
 
-import "./IUniswapV2Router01.sol";
+import "./IDuoswapV2Router01.sol";
 
-interface IUniswapV2Router is IUniswapV2Router01 {
+interface IDuoswapV2Router is IDuoswapV2Router01 {
     event TokensApproved(address sender, uint256 amount, bytes data);
     event TokensReceived(address spender, address sender, uint256 amount, bytes data);
 

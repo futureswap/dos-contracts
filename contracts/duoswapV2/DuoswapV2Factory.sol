@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.4;
 
-import "./interfaces/IUniswapV2Factory.sol";
-import "./DuoswapV2Pair.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+import {IDuoswapV2Pair, DuoswapV2Pair} from "./DuoswapV2Pair.sol";
 
 contract DuoswapV2Factory is IUniswapV2Factory {
     bytes32 public constant PAIR_HASH = keccak256(type(DuoswapV2Pair).creationCode);
@@ -30,7 +30,7 @@ contract DuoswapV2Factory is IUniswapV2Factory {
         require(getPair[token0][token1] == address(0), "UniswapV2: PAIR_EXISTS"); // single check is sufficient
 
         pair = address(new DuoswapV2Pair{salt: keccak256(abi.encodePacked(token0, token1))}());
-        IUniswapV2Pair(pair).initialize(dos, token0, token1);
+        IDuoswapV2Pair(pair).initialize(dos, token0, token1);
         getPair[token0][token1] = pair;
         getPair[token1][token0] = pair; // populate mapping in the reverse direction
         allPairs.push(pair);

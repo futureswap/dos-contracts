@@ -5,18 +5,19 @@ pragma solidity ^0.8.4;
 //solhint-disable var-name-mixedcase
 //solhint-disable reason-string
 
-import "./interfaces/IUniswapV2Factory.sol";
-import "./libraries/TransferHelper.sol";
+import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 
-import "./interfaces/IUniswapV2Router.sol";
-import "./libraries/UniswapV2Library.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+import "./interfaces/IDuoswapV2Router.sol";
+import "./libraries/DuoswapV2Library.sol";
 import "./interfaces/IWETH.sol";
 
-import {IUniswapV2Pair} from "./interfaces/IUniswapV2Pair.sol";
+import {IDuoswapV2Pair} from "./interfaces/IDuoswapV2Pair.sol";
 import {IDOS} from "../interfaces/IDOS.sol";
 
-contract DuoswapV2Router is IUniswapV2Router {
+contract DuoswapV2Router is IDuoswapV2Router {
     address public immutable override factory;
     address public immutable override WETH;
     address public immutable dos;
@@ -49,7 +50,7 @@ contract DuoswapV2Router is IUniswapV2Router {
         if (IUniswapV2Factory(factory).getPair(tokenA, tokenB) == address(0)) {
             IUniswapV2Factory(factory).createPair(tokenA, tokenB);
         }
-        (uint256 reserveA, uint256 reserveB) = UniswapV2Library.getReserves(
+        (uint256 reserveA, uint256 reserveB) = DuoswapV2Library.getReserves(
             factory,
             tokenA,
             tokenB
@@ -57,12 +58,12 @@ contract DuoswapV2Router is IUniswapV2Router {
         if (reserveA == 0 && reserveB == 0) {
             (amountA, amountB) = (amountADesired, amountBDesired);
         } else {
-            uint256 amountBOptimal = UniswapV2Library.quote(amountADesired, reserveA, reserveB);
+            uint256 amountBOptimal = DuoswapV2Library.quote(amountADesired, reserveA, reserveB);
             if (amountBOptimal <= amountBDesired) {
                 require(amountBOptimal >= amountBMin, "UniswapV2Router: INSUFFICIENT_B_AMOUNT");
                 (amountA, amountB) = (amountADesired, amountBOptimal);
             } else {
-                uint256 amountAOptimal = UniswapV2Library.quote(amountBDesired, reserveB, reserveA);
+                uint256 amountAOptimal = DuoswapV2Library.quote(amountBDesired, reserveB, reserveA);
                 assert(amountAOptimal <= amountADesired);
                 require(amountAOptimal >= amountAMin, "UniswapV2Router: INSUFFICIENT_A_AMOUNT");
                 (amountA, amountB) = (amountAOptimal, amountBDesired);
@@ -95,12 +96,12 @@ contract DuoswapV2Router is IUniswapV2Router {
             amountAMin,
             amountBMin
         );
-        address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
-        address pairSafe = IUniswapV2Pair(pair).dSafe();
+        address pair = DuoswapV2Library.pairFor(factory, tokenA, tokenB);
+        address pairSafe = IDuoswapV2Pair(pair).dSafe();
 
         IDOS(dos).transferFromERC20(tokenA, to, pairSafe, amountA);
         IDOS(dos).transferFromERC20(tokenB, to, pairSafe, amountB);
-        liquidity = IUniswapV2Pair(pair).mint(to);
+        liquidity = IDuoswapV2Pair(pair).mint(to);
         // TODO: deposit liquidity to dos
     }
 
@@ -114,10 +115,10 @@ contract DuoswapV2Router is IUniswapV2Router {
         address to,
         uint256 deadline
     ) public virtual override ensure(deadline) returns (uint256 amountA, uint256 amountB) {
-        address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
-        IUniswapV2Pair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
-        (uint256 amount0, uint256 amount1) = IUniswapV2Pair(pair).burn(to);
-        (address token0, ) = UniswapV2Library.sortTokens(tokenA, tokenB);
+        address pair = DuoswapV2Library.pairFor(factory, tokenA, tokenB);
+        IDuoswapV2Pair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
+        (uint256 amount0, uint256 amount1) = IDuoswapV2Pair(pair).burn(to);
+        (address token0, ) = DuoswapV2Library.sortTokens(tokenA, tokenB);
         (amountA, amountB) = tokenA == token0 ? (amount0, amount1) : (amount1, amount0);
         require(amountA >= amountAMin, "UniswapV2Router: INSUFFICIENT_A_AMOUNT");
         require(amountB >= amountBMin, "UniswapV2Router: INSUFFICIENT_B_AMOUNT");
@@ -136,9 +137,9 @@ contract DuoswapV2Router is IUniswapV2Router {
         bytes32 r,
         bytes32 s
     ) external virtual override returns (uint256 amountA, uint256 amountB) {
-        address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
+        address pair = DuoswapV2Library.pairFor(factory, tokenA, tokenB);
         uint256 value = approveMax ? type(uint256).max : liquidity;
-        IUniswapV2Pair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
+        IDuoswapV2Pair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
         (amountA, amountB) = removeLiquidity(
             tokenA,
             tokenB,
@@ -155,15 +156,15 @@ contract DuoswapV2Router is IUniswapV2Router {
     function _swap(uint256[] memory amounts, address[] memory path, address _to) internal virtual {
         for (uint256 i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
-            (address token0, ) = UniswapV2Library.sortTokens(input, output);
+            (address token0, ) = DuoswapV2Library.sortTokens(input, output);
             uint256 amountOut = amounts[i + 1];
             (uint256 amount0Out, uint256 amount1Out) = input == token0
                 ? (uint256(0), amountOut)
                 : (amountOut, uint256(0));
             address to = i < path.length - 2
-                ? UniswapV2Library.pairFor(factory, output, path[i + 2])
+                ? DuoswapV2Library.pairFor(factory, output, path[i + 2])
                 : _to;
-            IUniswapV2Pair(UniswapV2Library.pairFor(factory, input, output)).swap(
+            IDuoswapV2Pair(DuoswapV2Library.pairFor(factory, input, output)).swap(
                 amount0Out,
                 amount1Out,
                 to,
@@ -179,7 +180,7 @@ contract DuoswapV2Router is IUniswapV2Router {
         address to,
         uint256 deadline
     ) external virtual override ensure(deadline) returns (uint256[] memory amounts) {
-        amounts = UniswapV2Library.getAmountsOut(factory, amountIn, path);
+        amounts = DuoswapV2Library.getAmountsOut(factory, amountIn, path);
         require(
             amounts[amounts.length - 1] >= amountOutMin,
             "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
@@ -187,7 +188,7 @@ contract DuoswapV2Router is IUniswapV2Router {
         IDOS(dos).transferFromERC20(
             path[0],
             to, // changed to userSafe
-            IUniswapV2Pair(UniswapV2Library.pairFor(factory, path[0], path[1])).dSafe(), // changed to pairSafe
+            IDuoswapV2Pair(DuoswapV2Library.pairFor(factory, path[0], path[1])).dSafe(), // changed to pairSafe
             amounts[0]
         );
         _swap(amounts, path, to);
@@ -200,12 +201,12 @@ contract DuoswapV2Router is IUniswapV2Router {
         address to,
         uint256 deadline
     ) external virtual override ensure(deadline) returns (uint256[] memory amounts) {
-        amounts = UniswapV2Library.getAmountsIn(factory, amountOut, path);
+        amounts = DuoswapV2Library.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= amountInMax, "UniswapV2Router: EXCESSIVE_INPUT_AMOUNT");
         IDOS(dos).transferFromERC20(
             path[0],
             to, // changed to userSafe
-            IUniswapV2Pair(UniswapV2Library.pairFor(factory, path[0], path[1])).dSafe(), // changed to pairSafe
+            IDuoswapV2Pair(DuoswapV2Library.pairFor(factory, path[0], path[1])).dSafe(), // changed to pairSafe
             amounts[0]
         );
         _swap(amounts, path, to);
@@ -219,8 +220,8 @@ contract DuoswapV2Router is IUniswapV2Router {
     ) internal virtual {
         for (uint256 i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
-            (address token0, ) = UniswapV2Library.sortTokens(input, output);
-            IUniswapV2Pair pair = IUniswapV2Pair(UniswapV2Library.pairFor(factory, input, output));
+            (address token0, ) = DuoswapV2Library.sortTokens(input, output);
+            IDuoswapV2Pair pair = IDuoswapV2Pair(DuoswapV2Library.pairFor(factory, input, output));
             uint256 amountInput;
             uint256 amountOutput;
             {
@@ -230,7 +231,7 @@ contract DuoswapV2Router is IUniswapV2Router {
                     ? (reserve0, reserve1)
                     : (reserve1, reserve0);
                 amountInput = IERC20(input).balanceOf(address(pair)) - reserveInput;
-                amountOutput = UniswapV2Library.getAmountOut(
+                amountOutput = DuoswapV2Library.getAmountOut(
                     amountInput,
                     reserveInput,
                     reserveOutput
@@ -240,7 +241,7 @@ contract DuoswapV2Router is IUniswapV2Router {
                 ? (uint256(0), amountOutput)
                 : (amountOutput, uint256(0));
             address to = i < path.length - 2
-                ? UniswapV2Library.pairFor(factory, output, path[i + 2])
+                ? DuoswapV2Library.pairFor(factory, output, path[i + 2])
                 : _to;
             pair.swap(amount0Out, amount1Out, to, new bytes(0));
         }
@@ -256,7 +257,7 @@ contract DuoswapV2Router is IUniswapV2Router {
         TransferHelper.safeTransferFrom(
             path[0],
             msg.sender,
-            UniswapV2Library.pairFor(factory, path[0], path[1]),
+            DuoswapV2Library.pairFor(factory, path[0], path[1]),
             amountIn
         );
         uint256 balanceBefore = IERC20(path[path.length - 1]).balanceOf(to);
@@ -273,7 +274,7 @@ contract DuoswapV2Router is IUniswapV2Router {
         uint256 reserveA,
         uint256 reserveB
     ) public pure virtual override returns (uint256 amountB) {
-        return UniswapV2Library.quote(amountA, reserveA, reserveB);
+        return DuoswapV2Library.quote(amountA, reserveA, reserveB);
     }
 
     function getAmountOut(
@@ -281,7 +282,7 @@ contract DuoswapV2Router is IUniswapV2Router {
         uint256 reserveIn,
         uint256 reserveOut
     ) public pure virtual override returns (uint256 amountOut) {
-        return UniswapV2Library.getAmountOut(amountIn, reserveIn, reserveOut);
+        return DuoswapV2Library.getAmountOut(amountIn, reserveIn, reserveOut);
     }
 
     function getAmountIn(
@@ -289,21 +290,21 @@ contract DuoswapV2Router is IUniswapV2Router {
         uint256 reserveIn,
         uint256 reserveOut
     ) public pure virtual override returns (uint256 amountIn) {
-        return UniswapV2Library.getAmountIn(amountOut, reserveIn, reserveOut);
+        return DuoswapV2Library.getAmountIn(amountOut, reserveIn, reserveOut);
     }
 
     function getAmountsOut(
         uint256 amountIn,
         address[] memory path
     ) public view virtual override returns (uint256[] memory amounts) {
-        return UniswapV2Library.getAmountsOut(factory, amountIn, path);
+        return DuoswapV2Library.getAmountsOut(factory, amountIn, path);
     }
 
     function getAmountsIn(
         uint256 amountOut,
         address[] memory path
     ) public view virtual override returns (uint256[] memory amounts) {
-        return UniswapV2Library.getAmountsIn(factory, amountOut, path);
+        return DuoswapV2Library.getAmountsIn(factory, amountOut, path);
     }
 
     function onApprovalReceived(

@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.4;
 
-import "./interfaces/IUniswapV2Pair.sol";
-import "./DuoswapV2ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Callee.sol";
+
 import "./libraries/Math.sol";
 import "./libraries/UQ112x112.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./interfaces/IUniswapV2Factory.sol";
-import "./interfaces/IUniswapV2Callee.sol";
+
+import {IDuoswapV2Pair} from "./interfaces/IDuoswapV2Pair.sol";
+import {DuoswapV2ERC20} from "./DuoswapV2ERC20.sol";
 
 import {IDOS} from "../interfaces/IDOS.sol";
 import {ISafe} from "./interfaces/ISafe.sol";
@@ -17,7 +19,7 @@ import {ISafe} from "./interfaces/ISafe.sol";
 //solhint-disable reason-string
 //solhint-disable not-rely-on-time
 
-contract DuoswapV2Pair is IUniswapV2Pair, DuoswapV2ERC20 {
+contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
     using UQ112x112 for uint224;
 
     uint256 public constant override MINIMUM_LIQUIDITY = 10 ** 3;
