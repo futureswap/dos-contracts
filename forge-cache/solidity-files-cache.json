@@ -642,46 +642,6 @@
         }
       }
     },
-    "contracts/duoswapV2/interfaces/IERC20.sol": {
-      "lastModificationDate": 1670926646163,
-      "contentHash": "e7855cb067ed4ca9adbbaea708e17066",
-      "sourceName": "contracts/duoswapV2/interfaces/IERC20.sol",
-      "solcConfig": {
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "metadata": {
-            "bytecodeHash": "ipfs",
-            "appendCBOR": true
-          },
-          "outputSelection": {
-            "*": {
-              "": [
-                "ast"
-              ],
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ]
-            }
-          },
-          "evmVersion": "london",
-          "libraries": {}
-        }
-      },
-      "imports": [],
-      "versionRequirement": ">=0.5.0",
-      "artifacts": {
-        "IERC20": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "IERC20.sol/IERC20.json"
-        }
-      }
-    },
     "contracts/duoswapV2/interfaces/ISafe.sol": {
       "lastModificationDate": 1670926646163,
       "contentHash": "d7736284617a0177ffc7237b9d12df70",
