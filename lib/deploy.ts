@@ -17,7 +17,8 @@ import type {
   IDOS,
   IUniswapV3Factory,
   ISwapRouter,
-  FutureSwapProxy} from "../typechain-types";
+  FutureSwapProxy,
+} from "../typechain-types";
 import type {TransactionRequest} from "@ethersproject/abstract-provider";
 
 import uniV3FactJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json";
