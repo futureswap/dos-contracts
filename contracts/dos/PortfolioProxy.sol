@@ -286,4 +286,48 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2 {
         }
         return ITransferReceiver2.onTransferReceived2.selector;
     }
+
+    function onApprovalReceived(
+        address sender,
+        uint256 amount,
+        address target,
+        bytes calldata data
+    ) external returns (bytes4) {
+        if (data.length == 0) {
+            revert("PL: INVALID_DATA");
+        }
+        emit TokensApproved(sender, amount, data);
+
+        // use data to call pair functions
+        (bool success, ) = address(target).delegatecall(data);
+        if (!success) {
+            revert("PL: DELEGATECALL_FAILED");
+        }
+
+        return this.onApprovalReceived.selector;
+    }
+
+    event TokensApproved(address sender, uint256 amount, bytes data);
+    event TokensReceived(address spender, address sender, uint256 amount, bytes data);
+
+    function onTransferReceived(
+        address spender,
+        address sender,
+        uint256 amount,
+        address target,
+        bytes calldata data
+    ) external returns (bytes4) {
+        if (data.length == 0) {
+            revert("PL: INVALID_DATA");
+        }
+        emit TokensReceived(spender, sender, amount, data);
+
+        // use data to call pair functions
+        (bool success, ) = address(target).delegatecall(data);
+        if (!success) {
+            revert("PL: DELEGATECALL_FAILED");
+        }
+
+        return this.onTransferReceived.selector;
+    }
 }
