@@ -1,5 +1,7 @@
 {
   "ethereum": {
+    "anyswapCreate2Deployer": "0xDf7Cc8d582D213Db25FBfb9CF659c79e8E4263bd",
+    "futureSwapProxy": "0xBEb60190bCbd840c1Ec9452bDDf56c1BadcE4E43",
     "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
     "weth": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
     "usdc": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
@@ -9,11 +11,11 @@
   },
   "goerli": {
     "anyswapCreate2Deployer": "0xDf7Cc8d582D213Db25FBfb9CF659c79e8E4263bd",
-    "batchDeployer": "0x403556CDC8EaeCDe9dC2311ab78E54E73a4A28Fb",
+    "futureSwapProxy": "0xBEb60190bCbd840c1Ec9452bDDf56c1BadcE4E43",
     "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+    "batchDeployer": "0x403556CDC8EaeCDe9dC2311ab78E54E73a4A28Fb",
     "weth": "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6",
     "transferAndCall2": "0xcdEa115AD55DaBC42596929Bba31f00092e5e25e",
-    "futureSwapProxy": "0x75FE18B2cD81dda23A70997AD8920cDc18130995",
     "governanceProxy": "0x462919f77D98Fefa0ff62121fD29b00A4905D18C",
     "uniswapV3Factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
     "swapRouter": "0xE592427A0AEce92De3Edee1F18E0157C05861564",

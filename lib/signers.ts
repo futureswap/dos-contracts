@@ -1,9 +1,10 @@
 import type {IPermit2, DSafeLogic, FutureSwapProxy} from "../typechain-types";
 import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import type {Call} from "./calls";
-import type {TypedDataField} from "ethers";
+import type {TypedDataSigner} from "@ethersproject/abstract-signer";
 
-import {ethers} from "hardhat";
+import {ethers} from "ethers";
+import {ethers as hardhatEthers} from "hardhat";
 
 import {checkDefined} from "./preconditions";
 
@@ -12,7 +13,7 @@ import {checkDefined} from "./preconditions";
 // and, as a side effect, speeds tests in 2-3 times!
 // https://github.com/NomicFoundation/hardhat/issues/1721
 export const getFixedGasSigners = async function (gasLimit: number): Promise<SignerWithAddress[]> {
-  const signers: SignerWithAddress[] = await ethers.getSigners();
+  const signers: SignerWithAddress[] = await hardhatEthers.getSigners();
   for (const signer of signers) {
     const sendTransactionOrig = signer.sendTransaction.bind(signer);
     signer.sendTransaction = transaction => {
@@ -50,7 +51,7 @@ const basicTypes = [
 
 // helper function to generate error prone typed data strings
 export const generateTypedDataString = (
-  types: Record<string, TypedDataField[]>,
+  types: Record<string, ethers.TypedDataField[]>,
 ): Record<string, string> => {
   const typesList = Object.entries(types);
   const structTypes = Object.fromEntries(
@@ -96,7 +97,7 @@ export const signOnTransferReceived2Call = async (
     calls: Call[];
   },
   nonce: number,
-  signer: SignerWithAddress,
+  signer: TypedDataSigner,
 ): Promise<string> => {
   // corresponds with the EIP712 constructor call
   const domain = {
@@ -156,7 +157,7 @@ export const signPermit2TransferFrom = async (
   amount: bigint,
   spender: string,
   nonce: number,
-  signer: SignerWithAddress,
+  signer: TypedDataSigner,
 ): Promise<string> => {
   // corresponds with the EIP712 constructor call
   const domain = {
@@ -198,7 +199,7 @@ export const signTakeFutureSwapProxyOwnership = async (
   futureSwapProxy: FutureSwapProxy,
   newOwner: string,
   nonce: number,
-  signer: SignerWithAddress,
+  signer: TypedDataSigner,
 ): Promise<string> => {
   // corresponds with the EIP712 constructor call
   const domain = {
