@@ -62,12 +62,7 @@ contract DuoswapV2Test is Test {
         dos.addERC20Info(address(token0), "token0", "t0", 18, address(token0Oracle), 9e17, 9e17, 0);
         dos.addERC20Info(address(token1), "token1", "t1", 18, address(token1Oracle), 9e17, 9e17, 0);
 
-        dos.setConfig(
-            DOS.Config({
-                liqFraction: 8e17,
-                fractionalReserveLeverage: 100000 // TODO reduce to a reasonable value
-            })
-        );
+        dos.setConfig(DOS.Config({liqFraction: 8e17, fractionalReserveLeverage: 10}));
 
         versionManager.addVersion("v0.0.1", IVersionManager.Status.PRODUCTION, address(logic));
         versionManager.markRecommendedVersion("v0.0.1");
@@ -84,16 +79,58 @@ contract DuoswapV2Test is Test {
         assertEq(factory.getPair(address(token1), address(token0)), address(pair));
     }
 
-    // function testAddLiquidity() public {
-    //     token0.mint(address(this), 1e21);
-    //     token1.mint(address(this), 1e21);
-    //     token0.approve(address(router), 1e21);
-    //     token1.approve(address(router), 1e21);
-    //     pair = DuoswapV2Pair(factory.createPair(address(token0), address(token1)));
-    //     console2.log("test: pair address");
-    //     console2.logAddress(address(pair));
-    //     router.addLiquidity(address(token0), address(token1), 1e21, 1e21, 0, 0, address(this), block.timestamp);
-    // }
+    function testAddLiquidity(uint96 _amount0, uint96 _amount1) public {
+        uint256 amount0 = uint256(_amount0) + 1e18;
+        uint256 amount1 = uint256(_amount1) + 1e18;
+
+        userPortfolio = PortfolioProxy(payable(dos.createPortfolio()));
+        duoPortfolio = PortfolioProxy(payable(dos.createPortfolio()));
+
+        _depositTokens(amount0 * 100, amount1 * 100);
+
+        pair = _createPair(address(token0), address(token1));
+        address pairSafe = pair.dSafe();
+
+        token0.mint(address(userPortfolio), amount0);
+        token1.mint(address(userPortfolio), amount1);
+        IDOS.Call[] memory calls = new IDOS.Call[](1);
+        IERC20[] memory tokens = new IERC20[](2);
+        tokens[0] = token0;
+        tokens[1] = token1;
+
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = amount0;
+        amounts[1] = amount1;
+
+        address target = address(router);
+        bytes memory callData = abi.encodeWithSignature(
+            "addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256)",
+            address(token0),
+            address(token1),
+            amount0,
+            amount1,
+            0,
+            0,
+            address(userPortfolio),
+            block.timestamp
+        );
+
+        calls[0] = (
+            IDOS.Call({
+                to: address(dos),
+                callData: abi.encodeWithSignature(
+                    "approveBatchAndCall(address[],address,uint256[],address,bytes)",
+                    tokens,
+                    address(pairSafe),
+                    amounts,
+                    target,
+                    callData
+                ),
+                value: 0
+            })
+        );
+        PortfolioLogic(address(userPortfolio)).executeBatch(calls);
+    }
 
     function testDepositTokens() public {
         // mint tokens
@@ -323,7 +360,7 @@ contract DuoswapV2Test is Test {
 
     function _createPair(address _token0, address _token1) public returns (DuoswapV2Pair _pair) {
         _pair = DuoswapV2Pair(factory.createPair(_token0, _token1));
-        pairOracle = new UniV2Oracle(address(dos), address(pair), address(this));
+        pairOracle = new UniV2Oracle(address(dos), address(_pair), address(this));
         pairOracle.setERC20ValueOracle(address(token0), address(token0Oracle));
         pairOracle.setERC20ValueOracle(address(token1), address(token1Oracle));
         dos.addERC20Info(address(_pair), "uni-v2", "t0-t1", 18, address(pairOracle), 9e17, 9e17, 0);
