@@ -19,6 +19,9 @@ contract UniV2Oracle is ImmutableOwnable, IERC20ValueOracle {
     mapping(address => IERC20ValueOracle) public erc20ValueOracle;
 
     constructor(address _dos, address _pair, address _owner) ImmutableOwnable(_owner) {
+        if (_dos == address(0) || _pair == address(0) || _owner == address(0)) {
+            revert("Zero address");
+        }
         dos = IDOS(_dos);
         pair = IDuoswapV2Pair(_pair);
 
