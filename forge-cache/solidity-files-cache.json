@@ -13,8 +13,8 @@
   },
   "files": {
     "contracts/dos/DOS.sol": {
-      "lastModificationDate": 1670926870836,
-      "contentHash": "f9d7cc431a7a662fa5aee83ebc4282dd",
+      "lastModificationDate": 1671047351432,
+      "contentHash": "e00fee8decad45b23e482592df882262",
       "sourceName": "contracts/dos/DOS.sol",
       "solcConfig": {
         "settings": {
@@ -323,8 +323,8 @@
       }
     },
     "contracts/duoswapV2/DuoswapV2ERC20.sol": {
-      "lastModificationDate": 1670973226738,
-      "contentHash": "b191c9900f78817c941a085acf07d090",
+      "lastModificationDate": 1671049007250,
+      "contentHash": "d272ebfafae0580ef7242f1e3919761f",
       "sourceName": "contracts/duoswapV2/DuoswapV2ERC20.sol",
       "solcConfig": {
         "settings": {
@@ -417,8 +417,8 @@
       }
     },
     "contracts/duoswapV2/DuoswapV2Pair.sol": {
-      "lastModificationDate": 1670973524676,
-      "contentHash": "d7a5b773f810a4cd3f5ce114e5fae778",
+      "lastModificationDate": 1671048980403,
+      "contentHash": "6ead48426b79db22a5bba1cfc67176b1",
       "sourceName": "contracts/duoswapV2/DuoswapV2Pair.sol",
       "solcConfig": {
         "settings": {
@@ -468,8 +468,8 @@
       }
     },
     "contracts/duoswapV2/DuoswapV2Router.sol": {
-      "lastModificationDate": 1670973715402,
-      "contentHash": "88f7887c2b20d7e160c6560e2e02468d",
+      "lastModificationDate": 1671046929236,
+      "contentHash": "b5401506980cd975133d9f41e2b78146",
       "sourceName": "contracts/duoswapV2/DuoswapV2Router.sol",
       "solcConfig": {
         "settings": {
@@ -643,7 +643,7 @@
       }
     },
     "contracts/duoswapV2/interfaces/ISafe.sol": {
-      "lastModificationDate": 1670926646163,
+      "lastModificationDate": 1670971327223,
       "contentHash": "d7736284617a0177ffc7237b9d12df70",
       "sourceName": "contracts/duoswapV2/interfaces/ISafe.sol",
       "solcConfig": {
@@ -683,7 +683,7 @@
       }
     },
     "contracts/duoswapV2/interfaces/IWETH.sol": {
-      "lastModificationDate": 1670926646167,
+      "lastModificationDate": 1670971327227,
       "contentHash": "93beeae4136d57ce37676ca5288d8f64",
       "sourceName": "contracts/duoswapV2/interfaces/IWETH.sol",
       "solcConfig": {
@@ -723,8 +723,8 @@
       }
     },
     "contracts/duoswapV2/libraries/DuoswapV2Library.sol": {
-      "lastModificationDate": 1670973739174,
-      "contentHash": "d9ebd7198d5fd99766646b40afe6efb2",
+      "lastModificationDate": 1671049022565,
+      "contentHash": "3525ffaff99e87599eee30cf6d1354e1",
       "sourceName": "contracts/duoswapV2/libraries/DuoswapV2Library.sol",
       "solcConfig": {
         "settings": {
@@ -766,7 +766,7 @@
       }
     },
     "contracts/duoswapV2/libraries/Math.sol": {
-      "lastModificationDate": 1670926646168,
+      "lastModificationDate": 1670971337752,
       "contentHash": "73acbfa469a36d9e50db37fc5d393fac",
       "sourceName": "contracts/duoswapV2/libraries/Math.sol",
       "solcConfig": {
@@ -806,7 +806,7 @@
       }
     },
     "contracts/duoswapV2/libraries/UQ112x112.sol": {
-      "lastModificationDate": 1670926646169,
+      "lastModificationDate": 1670971337754,
       "contentHash": "0d997592f917ea4e63bff46660b042b5",
       "sourceName": "contracts/duoswapV2/libraries/UQ112x112.sol",
       "solcConfig": {
@@ -1027,8 +1027,8 @@
       }
     },
     "contracts/interfaces/IDOS.sol": {
-      "lastModificationDate": 1670926845148,
-      "contentHash": "bee3f4e005c95d720fcf1f1790dc67a1",
+      "lastModificationDate": 1671047343732,
+      "contentHash": "3aa9a200de25f909a8322bb387a66c95",
       "sourceName": "contracts/interfaces/IDOS.sol",
       "solcConfig": {
         "settings": {
@@ -1072,7 +1072,7 @@
       }
     },
     "contracts/interfaces/IERC1363-extended.sol": {
-      "lastModificationDate": 1670926867819,
+      "lastModificationDate": 1670975952107,
       "contentHash": "d6ccfe2ae7a05ccd5d9451fbe0944256",
       "sourceName": "contracts/interfaces/IERC1363-extended.sol",
       "solcConfig": {
@@ -1573,8 +1573,8 @@
       }
     },
     "contracts/oracles/UniV2Oracle.sol": {
-      "lastModificationDate": 1670973321222,
-      "contentHash": "95f8be3c15a48b80d4bb5c1753dfd82e",
+      "lastModificationDate": 1671048933615,
+      "contentHash": "ed1f3e5563ccb8852d4ae39498533fee",
       "sourceName": "contracts/oracles/UniV2Oracle.sol",
       "solcConfig": {
         "settings": {
@@ -3057,7 +3057,7 @@
       "versionRequirement": "^0.8.0",
       "artifacts": {
         "IERC20": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "ERC20/IERC20.sol/IERC20.json"
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "IERC20.sol/IERC20.json"
         }
       }
     },
@@ -4597,8 +4597,8 @@
       }
     },
     "test/foundry/DuoswapV2.t.sol": {
-      "lastModificationDate": 1670971020220,
-      "contentHash": "3c8e3c4281be66e030a02aba42436c7d",
+      "lastModificationDate": 1671048887369,
+      "contentHash": "b5dd471dca200787247cb29fa37dae8b",
       "sourceName": "test/foundry/DuoswapV2.t.sol",
       "solcConfig": {
         "settings": {

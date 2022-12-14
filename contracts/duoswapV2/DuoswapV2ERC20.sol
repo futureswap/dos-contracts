@@ -47,7 +47,7 @@ contract DuoswapV2ERC20 is IUniswapV2ERC20 {
         emit Transfer(from, address(0), value);
     }
 
-    function _approve(address owner, address spender, uint256 value) private {
+    function _approve(address owner, address spender, uint256 value) internal {
         allowance[owner][spender] = value;
         emit Approval(owner, spender, value);
     }

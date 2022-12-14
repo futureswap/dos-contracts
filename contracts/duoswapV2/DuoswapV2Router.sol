@@ -102,7 +102,6 @@ contract DuoswapV2Router is IDuoswapV2Router {
         IDOS(dos).transferFromERC20(tokenA, to, pairSafe, amountA);
         IDOS(dos).transferFromERC20(tokenB, to, pairSafe, amountB);
         liquidity = IDuoswapV2Pair(pair).mint(to);
-        // TODO: deposit liquidity to dos
     }
 
     // **** REMOVE LIQUIDITY ****

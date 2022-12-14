@@ -305,6 +305,14 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         portfolioLogic[portfolio] = versionManager.getVersionAddress(version);
     }
 
+    function depositERC20(address erc20, address to, uint256 amount) external portfolioExists(to) {
+        (, uint16 erc20Idx) = getERC20Info(IERC20(erc20));
+        if (amount > 0) {
+            IERC20(erc20).safeTransferFrom(msg.sender, address(this), uint256(amount));
+            updateBalance(erc20Idx, to, FsMath.safeCastToSigned(amount));
+        }
+    }
+
     function depositERC20(IERC20 erc20, int256 amount) external onlyPortfolio {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         if (amount > 0) {

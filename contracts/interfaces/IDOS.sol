@@ -37,6 +37,8 @@ interface IDOS {
         uint256 amount
     ) external returns (bool);
 
+    function depositERC20(address erc20, address portfolio, uint256 amount) external;
+
     function viewBalance(address portfolio, IERC20 erc20) external view returns (int256);
 
     function getImplementation(address portfolio) external view returns (address);
