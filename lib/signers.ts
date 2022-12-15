@@ -1,28 +1,10 @@
 import type {IPermit2, DSafeLogic, FutureSwapProxy} from "../typechain-types";
-import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import type {Call} from "./calls";
 import type {TypedDataSigner} from "@ethersproject/abstract-signer";
 
 import {ethers} from "ethers";
-import {ethers as hardhatEthers} from "hardhat";
 
 import {checkDefined} from "./preconditions";
-
-// this fixes random tests crash with
-// "contract call run out of gas and made the transaction revert" error
-// and, as a side effect, speeds tests in 2-3 times!
-// https://github.com/NomicFoundation/hardhat/issues/1721
-export const getFixedGasSigners = async function (gasLimit: number): Promise<SignerWithAddress[]> {
-  const signers: SignerWithAddress[] = await hardhatEthers.getSigners();
-  for (const signer of signers) {
-    const sendTransactionOrig = signer.sendTransaction.bind(signer);
-    signer.sendTransaction = transaction => {
-      transaction.gasLimit = ethers.BigNumber.from(gasLimit.toString());
-      return sendTransactionOrig(transaction);
-    };
-  }
-  return signers;
-};
 
 const basicTypes = [
   "address",
@@ -88,6 +70,42 @@ export const generateTypedDataString = (
   return Object.fromEntries(l);
 };
 
+const dSafeDomain = async (dSafe: DSafeLogic) => {
+  return {
+    name: "DOS dSafe",
+    version: "1",
+    chainId: (await dSafe.provider.getNetwork()).chainId,
+    verifyingContract: dSafe.address,
+  };
+};
+
+export const signExecuteBatch = async (
+  dSafe: DSafeLogic,
+  calls: Call[],
+  nonce: number,
+  deadline: bigint,
+  signer: TypedDataSigner,
+): Promise<string> => {
+  // corresponds with the EIP712 constructor call
+  const domain = await dSafeDomain(dSafe);
+
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const types = {
+    ExecuteBatch: [
+      {name: "calls", type: "Call[]"},
+      {name: "nonce", type: "uint256"},
+      {name: "deadline", type: "uint256"},
+    ],
+    Call: [
+      {name: "to", type: "address"},
+      {name: "callData", type: "bytes"},
+      {name: "value", type: "uint256"},
+    ],
+  };
+  /* eslint-enable */
+  return await signer._signTypedData(domain, types, {calls, nonce, deadline});
+};
+
 export const signOnTransferReceived2Call = async (
   dSafe: DSafeLogic,
   signedCall: {
@@ -100,12 +118,7 @@ export const signOnTransferReceived2Call = async (
   signer: TypedDataSigner,
 ): Promise<string> => {
   // corresponds with the EIP712 constructor call
-  const domain = {
-    name: "DOS dSafe",
-    version: "1",
-    chainId: (await dSafe.provider.getNetwork()).chainId,
-    verifyingContract: dSafe.address,
-  };
+  const domain = await dSafeDomain(dSafe);
 
   // the named list of all type definitions
   /* eslint-disable @typescript-eslint/naming-convention */

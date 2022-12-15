@@ -62,10 +62,10 @@ import {getEventParams, getEventsTx} from "./events";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
 import {createDSafe, depositIntoDos, leverageLP, makeCall, proposeAndExecute} from "./calls";
-import {checkDefined, checkState} from "./preconditions";
+import {checkDefined} from "./preconditions";
 
 export async function deployUniswapPool(
-  uniswapFactory: IUniswapV3Factory,
+  uniswapV3Factory: IUniswapV3Factory,
   token0: string,
   token1: string,
   fee: number,
@@ -74,11 +74,11 @@ export async function deployUniswapPool(
   if (BigInt(token0) >= BigInt(token1)) throw new Error("token0 address must be less than token1");
 
   const {PoolCreated} = await getEventsTx(
-    uniswapFactory.createPool(token0, token1, fee),
-    uniswapFactory,
+    uniswapV3Factory.createPool(token0, token1, fee),
+    uniswapV3Factory,
   );
   const poolAddress = PoolCreated.pool as string;
-  const pool = IUniswapV3Pool__factory.connect(poolAddress, uniswapFactory.signer);
+  const pool = IUniswapV3Pool__factory.connect(poolAddress, uniswapV3Factory.signer);
 
   // eslint-disable-next-line @typescript-eslint/no-magic-numbers -- false positive
   const Q96 = 2 ** 96; // on expression that is actually a number
@@ -105,11 +105,11 @@ export async function deployUniswapFactory(
   weth: string,
   signer: ethers.Signer,
 ): Promise<{
-  uniswapFactory: IUniswapV3Factory;
-  uniswapNFTManager: ethers.Contract;
+  uniswapV3Factory: IUniswapV3Factory;
+  nonFungiblePositionManager: ethers.Contract;
   swapRouter: ISwapRouter;
 }> {
-  const uniswapFactory = IUniswapV3Factory__factory.connect(
+  const uniswapV3Factory = IUniswapV3Factory__factory.connect(
     (await getUniswapFactory(signer).deploy()).address,
     signer,
   );
@@ -129,21 +129,19 @@ export async function deployUniswapFactory(
     linkedBytecode,
     signer,
   ).deploy(weth, ethers.constants.MaxInt256);
-  const uniswapNFTManager = await getUniswapNonFungiblePositionManagerFactory(signer).deploy(
-    uniswapFactory.address,
-    weth,
-    tokenDescriptor.address,
-  );
+  const nonFungiblePositionManager = await getUniswapNonFungiblePositionManagerFactory(
+    signer,
+  ).deploy(uniswapV3Factory.address, weth, tokenDescriptor.address);
   const swapRouter = ISwapRouter__factory.connect(
-    (await getSwapRouterFactory(signer).deploy(uniswapFactory.address, weth)).address,
+    (await getSwapRouterFactory(signer).deploy(uniswapV3Factory.address, weth)).address,
     signer,
   );
-  return {uniswapFactory, uniswapNFTManager, swapRouter};
+  return {uniswapV3Factory, nonFungiblePositionManager, swapRouter};
 }
 
 export async function provideLiquidity(
   owner: {address: string},
-  uniswapNFTManager: ethers.Contract,
+  nonFungiblePositionManager: ethers.Contract,
   uniswapPool: ethers.Contract,
   amount0Desired: bigint,
   amount1Desired: bigint,
@@ -171,8 +169,8 @@ export async function provideLiquidity(
     deadline: ethers.constants.MaxUint256,
   };
   const {tokenId, liquidity, amount0, amount1} = await getEventParams(
-    await uniswapNFTManager.mint(mintParams),
-    uniswapNFTManager,
+    await nonFungiblePositionManager.mint(mintParams),
+    nonFungiblePositionManager,
     "IncreaseLiquidity",
   );
   return {
@@ -334,6 +332,13 @@ export const deployFixedAddressForTests = async (
       anyswapCreate2Deployer,
       fsSalt,
     );
+    if (deployedTransferAndCall2.address !== transferAndCall2.address) {
+      console.warn("TransferAndCall2 address mismatch, maybe running coverage!");
+      await setCode(
+        transferAndCall2.address,
+        await checkDefined(signer.provider).getCode(deployedTransferAndCall2.address),
+      );
+    }
     const deployedFutureSwapProxy = await deployFutureSwapProxy(
       anyswapCreate2Deployer,
       fsSalt,
@@ -346,9 +351,19 @@ export const deployFixedAddressForTests = async (
       signer,
     );
 
+    /*
+    // TODO: coverage compiles binary with instrumentation and hence the addresses are different
+    //      this check should be enabled only when running tests on a real network
     checkState(deployedTransferAndCall2.address === transferAndCall2.address);
     checkState(deployedFutureSwapProxy.address === futureSwapProxy.address);
     checkState(deployedGovernanceProxy.address === governanceProxy.address);
+    */
+    if (deployedFutureSwapProxy.address !== futureSwapProxy.address) {
+      console.warn("FutureSwapProxy address mismatch, maybe running coverage!");
+    }
+    if (deployedGovernanceProxy.address !== governanceProxy.address) {
+      console.warn("GovernanceProxy address mismatch, maybe running coverage!");
+    }
 
     await futureSwapProxy.takeOwnership(governatorHardhatSignature);
 
@@ -554,7 +569,7 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
     dos.address,
   );
   await governanceProxy.execute([
-    makeCall(versionManager).addVersion("1.0.0", 2, dSafeLogic.address),
+    makeCall(versionManager).addVersion(2, dSafeLogic.address),
     makeCall(versionManager).markRecommendedVersion("1.0.0"),
   ]);
 
@@ -581,11 +596,10 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
     18,
   );
 
-  const {
-    uniswapFactory: uniswapV3Factory,
-    uniswapNFTManager: nonFungiblePositionManager,
-    swapRouter,
-  } = await deployUniswapFactory(weth.address, signer);
+  const {uniswapV3Factory, nonFungiblePositionManager, swapRouter} = await deployUniswapFactory(
+    weth.address,
+    signer,
+  );
 
   const uniAddresses = {
     uniswapV3Factory: uniswapV3Factory.address,

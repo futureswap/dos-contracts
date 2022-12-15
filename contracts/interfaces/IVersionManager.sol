@@ -10,6 +10,16 @@ error InvalidImplementation();
 /// @notice version is already registered
 error VersionAlreadyRegistered();
 
+contract ImmutableVersion {
+    bytes32 public immutable immutableVersion;
+
+    constructor(string memory _version) {
+        uint256 len = bytes(_version).length;
+        require(len > 0 && len < 31, "Version is empty");
+        immutableVersion = bytes32(abi.encodePacked(uint8(len), _version));
+    }
+}
+
 interface IVersionManager {
     /// @dev Signifies the status of a version
     enum Status {
@@ -48,11 +58,7 @@ interface IVersionManager {
 
     event RecommendedVersionRemoved();
 
-    function addVersion(
-        string calldata versionName,
-        Status status,
-        address implementation
-    ) external;
+    function addVersion(Status status, address implementation) external;
 
     function updateVersion(string calldata versionName, Status status, BugLevel bugLevel) external;
 

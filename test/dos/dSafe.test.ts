@@ -13,7 +13,8 @@ import {
   MockNFTOracle__factory,
 } from "../../typechain-types";
 import {toWei, toWeiUsdc} from "../../lib/numbers";
-import {getFixedGasSigners, signOnTransferReceived2Call} from "../../lib/signers";
+import {getFixedGasSigners} from "../../lib/hardhat/fixedGasSigners";
+import {signExecuteBatch, signOnTransferReceived2Call} from "../../lib/signers";
 import {makeCall, createDSafe, sortTransfers} from "../../lib/calls";
 import {Chainlink, deployDos, deployFixedAddressForTests} from "../../lib/deploy";
 
@@ -65,7 +66,7 @@ describe("DSafeProxy", () => {
       owner,
     );
     const proxyLogic = await new DSafeLogic__factory(owner).deploy(dos.address);
-    await versionManager.addVersion("1.0.0", 2, proxyLogic.address);
+    await versionManager.addVersion(2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
     await dos.setConfig({
@@ -137,6 +138,21 @@ describe("DSafeProxy", () => {
       transferAndCall2,
     };
   }
+
+  it("should be able to executebatch with a valid signature", async () => {
+    const {user, user2, dSafe} = await loadFixture(deployDOSFixture);
+
+    const signature = await signExecuteBatch(
+      dSafe,
+      [],
+      0,
+      ethers.constants.MaxUint256.toBigInt(),
+      user,
+    );
+    await expect(
+      dSafe.connect(user2).executeSignedBatch([], 0, ethers.constants.MaxUint256, signature),
+    ).to.not.be.reverted;
+  });
 
   it("should be able to transferAndCall2 into proxy", async () => {
     const {user, usdc, weth, dSafe, transferAndCall2} = await loadFixture(deployDOSFixture);

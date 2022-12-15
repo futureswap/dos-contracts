@@ -21,7 +21,8 @@ import {
 } from "../../typechain-types";
 import {toWei, toWeiUsdc} from "../../lib/numbers";
 import {getEventParams} from "../../lib/events";
-import {getFixedGasSigners, signPermit2TransferFrom} from "../../lib/signers";
+import {getFixedGasSigners} from "../../lib/hardhat/fixedGasSigners";
+import {signPermit2TransferFrom} from "../../lib/signers";
 import {makeCall, createDSafe} from "../../lib/calls";
 import {Chainlink, deployDos, deployFixedAddressForTests} from "../../lib/deploy";
 
@@ -73,7 +74,7 @@ describe("DOS", () => {
       owner,
     );
     const proxyLogic = await new DSafeLogic__factory(owner).deploy(dos.address);
-    await versionManager.addVersion("1.0.0", 2, proxyLogic.address);
+    await versionManager.addVersion(2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
     await dos.setConfig({
