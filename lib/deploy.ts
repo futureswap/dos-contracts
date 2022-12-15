@@ -62,7 +62,7 @@ import {getEventParams, getEventsTx} from "./events";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
 import {createDSafe, depositIntoDos, leverageLP, makeCall, proposeAndExecute} from "./calls";
-import {checkDefined, checkState} from "./preconditions";
+import {checkDefined} from "./preconditions";
 
 export async function deployUniswapPool(
   uniswapV3Factory: IUniswapV3Factory,
@@ -332,6 +332,13 @@ export const deployFixedAddressForTests = async (
       anyswapCreate2Deployer,
       fsSalt,
     );
+    if (deployedTransferAndCall2.address !== transferAndCall2.address) {
+      console.warn("TransferAndCall2 address mismatch, maybe running coverage!");
+      await setCode(
+        transferAndCall2.address,
+        await checkDefined(signer.provider).getCode(deployedTransferAndCall2.address),
+      );
+    }
     const deployedFutureSwapProxy = await deployFutureSwapProxy(
       anyswapCreate2Deployer,
       fsSalt,
@@ -344,9 +351,19 @@ export const deployFixedAddressForTests = async (
       signer,
     );
 
+    /*
+    // TODO: coverage compiles binary with instrumentation and hence the addresses are different
+    //      this check should be enabled only when running tests on a real network
     checkState(deployedTransferAndCall2.address === transferAndCall2.address);
     checkState(deployedFutureSwapProxy.address === futureSwapProxy.address);
     checkState(deployedGovernanceProxy.address === governanceProxy.address);
+    */
+    if (deployedFutureSwapProxy.address !== futureSwapProxy.address) {
+      console.warn("FutureSwapProxy address mismatch, maybe running coverage!");
+    }
+    if (deployedGovernanceProxy.address !== governanceProxy.address) {
+      console.warn("GovernanceProxy address mismatch, maybe running coverage!");
+    }
 
     await futureSwapProxy.takeOwnership(governatorHardhatSignature);
 
@@ -552,7 +569,7 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
     dos.address,
   );
   await governanceProxy.execute([
-    makeCall(versionManager).addVersion("1.0.0", 2, dSafeLogic.address),
+    makeCall(versionManager).addVersion(2, dSafeLogic.address),
     makeCall(versionManager).markRecommendedVersion("1.0.0"),
   ]);
 

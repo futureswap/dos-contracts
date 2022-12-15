@@ -74,7 +74,7 @@ describe("DOS", () => {
       owner,
     );
     const proxyLogic = await new DSafeLogic__factory(owner).deploy(dos.address);
-    await versionManager.addVersion("1.0.0", 2, proxyLogic.address);
+    await versionManager.addVersion(2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
     await dos.setConfig({

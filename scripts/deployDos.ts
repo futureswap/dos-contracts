@@ -26,7 +26,7 @@ async function main() {
     dos.address,
   );
   await governanceProxy.execute([
-    makeCall(versionManager).addVersion("1.0.0", 2, dSafeLogic.address),
+    makeCall(versionManager).addVersion(2, dSafeLogic.address),
     makeCall(versionManager).markRecommendedVersion("1.0.0"),
   ]);
   await saveAddressesForNetwork({versionManager, dos});
