@@ -4,7 +4,7 @@ import {expect} from "chai";
 import {BigNumber} from "ethers";
 
 import {VersionManager__factory, DOS__factory, DSafeLogic__factory} from "../../typechain-types";
-import {getFixedGasSigners} from "../../lib/signers";
+import {getFixedGasSigners} from "../../lib/hardhat/fixedGasSigners";
 
 describe("VersionManager", () => {
   async function deployVersionManagerFixture() {

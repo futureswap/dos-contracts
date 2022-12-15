@@ -65,15 +65,14 @@ contract DSafeProxy is Proxy {
 // Calls to the contract not coming from DOS itself are routed to this logic
 // contract. This allows for flexible extra addition to your dSafe.
 contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
-    bytes private constant EXECUTEBATCH_TYPESTRING = "ExecuteBatch(Call[] calls,uint256 nonce)";
+    bytes private constant EXECUTEBATCH_TYPESTRING =
+        "ExecuteBatch(Call[] calls,uint256 nonce,uint256 deadline)";
     bytes private constant TRANSFER_TYPESTRING = "Transfer(address token,uint256 amount)";
     bytes private constant ONTRANSFERRECEIVED2CALL_TYPESTRING =
         "OnTransferReceived2Call(address operator,address from,Transfer[] transfers,Call[] calls,uint256 nonce,uint256 deadline)";
 
     bytes32 constant EXECUTEBATCH_TYPEHASH =
-        keccak256(
-            abi.encodePacked("ExecuteBatch(Call[] calls,uint256 nonce)", CallLib.CALL_TYPESTRING)
-        );
+        keccak256(abi.encodePacked(EXECUTEBATCH_TYPESTRING, CallLib.CALL_TYPESTRING));
 
     bytes32 constant TRANSFER_TYPEHASH = keccak256(TRANSFER_TYPESTRING);
     bytes32 constant ONTRANSFERRECEIVED2CALL_TYPEHASH =
@@ -120,7 +119,9 @@ contract DSafeLogic is IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
         if (deadline < block.timestamp) revert DeadlineExpired();
         validateAndUseNonce(nonce);
         bytes32 digest = _hashTypedDataV4(
-            keccak256(abi.encode(EXECUTEBATCH_TYPEHASH, CallLib.hashCallArray(calls), nonce))
+            keccak256(
+                abi.encode(EXECUTEBATCH_TYPEHASH, CallLib.hashCallArray(calls), nonce, deadline)
+            )
         );
         if (
             !SignatureChecker.isValidSignatureNow(

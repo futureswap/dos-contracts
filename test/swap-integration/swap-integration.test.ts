@@ -19,7 +19,7 @@ import {
   deployUniswapFactory,
   deployUniswapPool,
 } from "../../lib/deploy";
-import {getFixedGasSigners} from "../../lib/signers";
+import {getFixedGasSigners} from "../../lib/hardhat/fixedGasSigners";
 
 const USDC_PRICE = 1;
 const ETH_PRICE = 2000;
@@ -92,23 +92,23 @@ describe("DOS swap integration", () => {
       0, // no interest which would include time sensitive calculations
     );
 
-    const {uniswapFactory, uniswapNFTManager, swapRouter} = await deployUniswapFactory(
+    const {uniswapV3Factory, nonFungiblePositionManager, swapRouter} = await deployUniswapFactory(
       weth.address,
       owner,
     );
 
     const price = (ETH_PRICE * 10 ** USDC_DECIMALS) / 10 ** WETH_DECIMALS;
-    await deployUniswapPool(uniswapFactory, weth.address, usdc.address, 500, price);
+    await deployUniswapPool(uniswapV3Factory, weth.address, usdc.address, 500, price);
     const uniswapNftOracle = await new UniV3Oracle__factory(owner).deploy(
-      uniswapFactory.address,
-      uniswapNFTManager.address,
+      uniswapV3Factory.address,
+      nonFungiblePositionManager.address,
       owner.address,
     );
 
     await uniswapNftOracle.setERC20ValueOracle(usdc.address, usdcChainlink.oracle.address);
     await uniswapNftOracle.setERC20ValueOracle(weth.address, ethChainlink.oracle.address);
 
-    await dos.addNFTInfo(uniswapNFTManager.address, uniswapNftOracle.address, toWei(0.9));
+    await dos.addNFTInfo(nonFungiblePositionManager.address, uniswapNftOracle.address, toWei(0.9));
 
     const ownerDSafe = await createDSafe(dos, owner);
     const usdcAmount = toWei(2000000, USDC_DECIMALS);
@@ -143,7 +143,7 @@ describe("DOS swap integration", () => {
       usdcChainlink,
       ethChainlink,
       dos,
-      uniswapNFTManager,
+      nonFungiblePositionManager,
       swapRouter,
       getBalances,
     };
@@ -151,7 +151,7 @@ describe("DOS swap integration", () => {
 
   describe("Dos tests", () => {
     it("User can leverage LP", async () => {
-      const {user, dos, usdc, weth, uniswapNFTManager, getBalances} = await loadFixture(
+      const {user, dos, usdc, weth, nonFungiblePositionManager, getBalances} = await loadFixture(
         deployDOSFixture,
       );
 
@@ -172,7 +172,7 @@ describe("DOS swap integration", () => {
         deadline: ethers.constants.MaxUint256,
       };
       await expect(
-        dSafe.executeBatch(leverageLP(dos, weth, usdc, uniswapNFTManager, mintParams, 1)),
+        dSafe.executeBatch(leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 1)),
       ).to.not.be.reverted;
       const {usdcBalance, wethBalance, nfts} = await getBalances(dSafe);
       // expect leveraged LP position with NFT as collateral
@@ -182,7 +182,7 @@ describe("DOS swap integration", () => {
     });
 
     it("User can create leveraged position", async () => {
-      const {user, user2, dos, usdc, weth, uniswapNFTManager, swapRouter, getBalances} =
+      const {user, user2, dos, usdc, weth, nonFungiblePositionManager, swapRouter, getBalances} =
         await loadFixture(deployDOSFixture);
 
       const dSafe = await createDSafe(dos, user);
@@ -201,7 +201,9 @@ describe("DOS swap integration", () => {
         recipient: dSafe.address,
         deadline: ethers.constants.MaxUint256,
       };
-      await dSafe.executeBatch(leverageLP(dos, weth, usdc, uniswapNFTManager, mintParams, 1));
+      await dSafe.executeBatch(
+        leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+      );
 
       const dSafe2 = await createDSafe(dos, user2);
       await usdc.mint(dSafe2.address, toWei(1000, USDC_DECIMALS));
@@ -226,7 +228,7 @@ describe("DOS swap integration", () => {
         dos,
         usdc,
         weth,
-        uniswapNFTManager,
+        nonFungiblePositionManager,
         swapRouter,
         ethChainlink,
         getBalances,
@@ -248,7 +250,9 @@ describe("DOS swap integration", () => {
         recipient: dSafe.address,
         deadline: ethers.constants.MaxUint256,
       };
-      await dSafe.executeBatch(leverageLP(dos, weth, usdc, uniswapNFTManager, mintParams, 1));
+      await dSafe.executeBatch(
+        leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+      );
 
       const dSafe2 = await createDSafe(dos, user2);
       await usdc.mint(dSafe2.address, toWei(1000, USDC_DECIMALS));

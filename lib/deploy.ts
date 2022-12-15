@@ -65,7 +65,7 @@ import {createDSafe, depositIntoDos, leverageLP, makeCall, proposeAndExecute} fr
 import {checkDefined, checkState} from "./preconditions";
 
 export async function deployUniswapPool(
-  uniswapFactory: IUniswapV3Factory,
+  uniswapV3Factory: IUniswapV3Factory,
   token0: string,
   token1: string,
   fee: number,
@@ -74,11 +74,11 @@ export async function deployUniswapPool(
   if (BigInt(token0) >= BigInt(token1)) throw new Error("token0 address must be less than token1");
 
   const {PoolCreated} = await getEventsTx(
-    uniswapFactory.createPool(token0, token1, fee),
-    uniswapFactory,
+    uniswapV3Factory.createPool(token0, token1, fee),
+    uniswapV3Factory,
   );
   const poolAddress = PoolCreated.pool as string;
-  const pool = IUniswapV3Pool__factory.connect(poolAddress, uniswapFactory.signer);
+  const pool = IUniswapV3Pool__factory.connect(poolAddress, uniswapV3Factory.signer);
 
   // eslint-disable-next-line @typescript-eslint/no-magic-numbers -- false positive
   const Q96 = 2 ** 96; // on expression that is actually a number
@@ -105,11 +105,11 @@ export async function deployUniswapFactory(
   weth: string,
   signer: ethers.Signer,
 ): Promise<{
-  uniswapFactory: IUniswapV3Factory;
-  uniswapNFTManager: ethers.Contract;
+  uniswapV3Factory: IUniswapV3Factory;
+  nonFungiblePositionManager: ethers.Contract;
   swapRouter: ISwapRouter;
 }> {
-  const uniswapFactory = IUniswapV3Factory__factory.connect(
+  const uniswapV3Factory = IUniswapV3Factory__factory.connect(
     (await getUniswapFactory(signer).deploy()).address,
     signer,
   );
@@ -129,21 +129,19 @@ export async function deployUniswapFactory(
     linkedBytecode,
     signer,
   ).deploy(weth, ethers.constants.MaxInt256);
-  const uniswapNFTManager = await getUniswapNonFungiblePositionManagerFactory(signer).deploy(
-    uniswapFactory.address,
-    weth,
-    tokenDescriptor.address,
-  );
+  const nonFungiblePositionManager = await getUniswapNonFungiblePositionManagerFactory(
+    signer,
+  ).deploy(uniswapV3Factory.address, weth, tokenDescriptor.address);
   const swapRouter = ISwapRouter__factory.connect(
-    (await getSwapRouterFactory(signer).deploy(uniswapFactory.address, weth)).address,
+    (await getSwapRouterFactory(signer).deploy(uniswapV3Factory.address, weth)).address,
     signer,
   );
-  return {uniswapFactory, uniswapNFTManager, swapRouter};
+  return {uniswapV3Factory, nonFungiblePositionManager, swapRouter};
 }
 
 export async function provideLiquidity(
   owner: {address: string},
-  uniswapNFTManager: ethers.Contract,
+  nonFungiblePositionManager: ethers.Contract,
   uniswapPool: ethers.Contract,
   amount0Desired: bigint,
   amount1Desired: bigint,
@@ -171,8 +169,8 @@ export async function provideLiquidity(
     deadline: ethers.constants.MaxUint256,
   };
   const {tokenId, liquidity, amount0, amount1} = await getEventParams(
-    await uniswapNFTManager.mint(mintParams),
-    uniswapNFTManager,
+    await nonFungiblePositionManager.mint(mintParams),
+    nonFungiblePositionManager,
     "IncreaseLiquidity",
   );
   return {
@@ -581,11 +579,10 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
     18,
   );
 
-  const {
-    uniswapFactory: uniswapV3Factory,
-    uniswapNFTManager: nonFungiblePositionManager,
-    swapRouter,
-  } = await deployUniswapFactory(weth.address, signer);
+  const {uniswapV3Factory, nonFungiblePositionManager, swapRouter} = await deployUniswapFactory(
+    weth.address,
+    signer,
+  );
 
   const uniAddresses = {
     uniswapV3Factory: uniswapV3Factory.address,

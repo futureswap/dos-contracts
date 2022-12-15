@@ -8,7 +8,7 @@ import {
   ITransferReceiver2__factory,
 } from "../../typechain-types";
 import {toWei} from "../../lib/numbers";
-import {getFixedGasSigners} from "../../lib/signers";
+import {getFixedGasSigners} from "../../lib/hardhat/fixedGasSigners";
 import {deployFixedAddressForTests} from "../../lib/deploy";
 import {sortTransfers} from "../../lib/calls";
 

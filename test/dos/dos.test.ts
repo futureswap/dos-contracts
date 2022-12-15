@@ -21,7 +21,8 @@ import {
 } from "../../typechain-types";
 import {toWei, toWeiUsdc} from "../../lib/numbers";
 import {getEventParams} from "../../lib/events";
-import {getFixedGasSigners, signPermit2TransferFrom} from "../../lib/signers";
+import {getFixedGasSigners} from "../../lib/hardhat/fixedGasSigners";
+import {signPermit2TransferFrom} from "../../lib/signers";
 import {makeCall, createDSafe} from "../../lib/calls";
 import {Chainlink, deployDos, deployFixedAddressForTests} from "../../lib/deploy";
 
