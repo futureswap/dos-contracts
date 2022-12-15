@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-await-in-loop */
 
 import type {MockContract} from "@ethereum-waffle/mock-contract";
 import type {
@@ -60,14 +61,7 @@ import addressesJSON from "../deployment/addresses.json";
 import {getEventParams, getEventsTx} from "./events";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
-import {
-  cleanResult,
-  createDSafe,
-  depositIntoDos,
-  leverageLP,
-  makeCall,
-  proposeAndExecute,
-} from "./calls";
+import {createDSafe, depositIntoDos, leverageLP, makeCall, proposeAndExecute} from "./calls";
 import {checkDefined, checkState} from "./preconditions";
 
 export async function deployUniswapPool(
@@ -79,9 +73,11 @@ export async function deployUniswapPool(
 ): Promise<IUniswapV3Pool> {
   if (BigInt(token0) >= BigInt(token1)) throw new Error("token0 address must be less than token1");
 
-  const tx = await uniswapFactory.createPool(token0, token1, fee);
-  const receipt = await tx.wait();
-  const poolAddress = receipt.events[0].args.pool as string;
+  const {PoolCreated} = await getEventsTx(
+    uniswapFactory.createPool(token0, token1, fee),
+    uniswapFactory,
+  );
+  const poolAddress = PoolCreated.pool as string;
   const pool = IUniswapV3Pool__factory.connect(poolAddress, uniswapFactory.signer);
 
   // eslint-disable-next-line @typescript-eslint/no-magic-numbers -- false positive
@@ -610,7 +606,6 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
 
   await usdc.mint(await signer.getAddress(), toWei(1000000, 6));
   await uni.mint(await signer.getAddress(), toWei(1000000));
-  // eslint-disable @typescript-eslint/no-await-in-loop
   for (const erc20 of [usdc, uni, weth]) {
     await erc20.approve(transferAndCall2.address, ethers.constants.MaxUint256);
     await erc20.approve(swapRouter.address, ethers.constants.MaxUint256);
