@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type {MockContract} from "@ethereum-waffle/mock-contract";
-import {
+import type {
   GovernanceProxy,
   IERC20ValueOracle,
   TransferAndCall2,
@@ -19,8 +19,6 @@ import {
   ISwapRouter,
   FutureSwapProxy,
   IERC20WithMetadata,
-  DSafeLogic__factory,
-  IUniswapV3Pool__factory,
   IUniswapV3Pool,
 } from "../typechain-types";
 import type {TransactionRequest} from "@ethersproject/abstract-provider";
@@ -30,12 +28,13 @@ import uniNFTManagerJSON from "@uniswap/v3-periphery/artifacts/contracts/Nonfung
 import tokenPosDescJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungibleTokenPositionDescriptor.sol/NonfungibleTokenPositionDescriptor.json";
 import nftDescJSON from "@uniswap/v3-periphery/artifacts/contracts/libraries/NFTDescriptor.sol/NFTDescriptor.json";
 import swapRouterJSON from "@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json";
-import uniswapPoolJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
 import {ethers} from "ethers";
 import {setCode} from "@nomicfoundation/hardhat-network-helpers";
 import {waffle} from "hardhat";
 
 import {
+  DSafeLogic__factory,
+  IUniswapV3Pool__factory,
   IERC20Metadata__factory,
   WETH9__factory,
   TestERC20__factory,
@@ -61,7 +60,14 @@ import addressesJSON from "../deployment/addresses.json";
 import {getEventParams, getEventsTx} from "./events";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
-import {cleanResult, createDSafe, depositIntoDos, leverageLP, makeCall, proposeAndExecute} from "./calls";
+import {
+  cleanResult,
+  createDSafe,
+  depositIntoDos,
+  leverageLP,
+  makeCall,
+  proposeAndExecute,
+} from "./calls";
 import {checkDefined, checkState} from "./preconditions";
 
 export async function deployUniswapPool(
@@ -77,7 +83,7 @@ export async function deployUniswapPool(
   const receipt = await tx.wait();
   const poolAddress = receipt.events[0].args.pool as string;
   const pool = IUniswapV3Pool__factory.connect(poolAddress, uniswapFactory.signer);
-  
+
   // eslint-disable-next-line @typescript-eslint/no-magic-numbers -- false positive
   const Q96 = 2 ** 96; // on expression that is actually a number
   await pool.initialize(BigInt(Math.sqrt(price) * Q96));
@@ -549,7 +555,7 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
     new DSafeLogic__factory(signer),
     anyswapCreate2Deployer,
     fsSalt,
-    dos.address
+    dos.address,
   );
   await governanceProxy.execute([
     makeCall(versionManager).addVersion("1.0.0", 2, dSafeLogic.address),
@@ -600,73 +606,81 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
     signer,
   );
 
-  // Setup some initial liquidity
+  // setup some initial liquidity
 
   await usdc.mint(await signer.getAddress(), toWei(1000000, 6));
   await uni.mint(await signer.getAddress(), toWei(1000000));
+  // eslint-disable @typescript-eslint/no-await-in-loop
   for (const erc20 of [usdc, uni, weth]) {
     await erc20.approve(transferAndCall2.address, ethers.constants.MaxUint256);
     await erc20.approve(swapRouter.address, ethers.constants.MaxUint256);
     await erc20.approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256);
   }
   const dsafe = await createDSafe(dos, signer);
-  await depositIntoDos(transferAndCall2, dsafe, 
-    [{token: usdc.address, amount: toWei(100000, 6)}, {token: uni.address, amount: toWei(100000)}], {weth: weth.address, amount: toWei(100000)});
-  await deployUniswapPool(uniswapV3Factory, weth.address, uni.address, 3000, 1);
-  const pool = await deployUniswapPool(uniswapV3Factory, weth.address, usdc.address, 3000, 1000 * 10**6 / 10**18);
-
-  await wethDeploy.deposit({value: toWei(100000)});
-  const ad = await signer.getAddress();
-  console.log(await weth.balanceOf(ad));
-  console.log(await usdc.balanceOf(ad));
-  await nonFungiblePositionManager.mint(
-    {
-      token0: weth.address,
-      token1: usdc.address,
-      fee: 3000,
-      tickLower: -208000,
-      tickUpper: -206000,
-      amount0Desired: toWei(10),
-      amount1Desired: toWei(10000, 6),
-      amount0Min: 0,
-      amount1Min: 0,
-      recipient: ad,
-      deadline: ethers.constants.MaxUint256,
-    }    
+  await depositIntoDos(
+    transferAndCall2,
+    dsafe,
+    [
+      {token: usdc.address, amount: toWei(100000, 6)},
+      {token: uni.address, amount: toWei(100000)},
+    ],
+    {weth: weth.address, amount: toWei(100000)},
   );
-  console.log(2);
+  await deployUniswapPool(uniswapV3Factory, weth.address, uni.address, 500, 1);
+  await deployUniswapPool(
+    uniswapV3Factory,
+    weth.address,
+    usdc.address,
+    500,
+    (1000 * 10 ** 6) / 10 ** 18,
+  );
 
-  /*await dsafe.executeBatch(leverageLP(dos, weth, usdc, nonFungiblePositionManager, 
-    {
-      token0: weth.address,
-      token1: usdc.address,
-      fee: 3000,
-      tickLower: -210000,
-      tickUpper: -190000,
-      amount0Desired: toWei(10),
-      amount1Desired: toWei(10000, 6),
-      amount0Min: 0,
-      amount1Min: 0,
-      recipient: dsafe.address,
-      deadline: ethers.constants.MaxUint256,
-    }, 1));
-  await dsafe.executeBatch(leverageLP(dos, weth, uni, nonFungiblePositionManager, 
-    {
-      token0: weth.address,
-      token1: uni.address,
-      fee: 3000,
-      tickLower: -10000,
-      tickUpper: 10000,
-      amount0Desired: toWei(10),
-      amount1Desired: toWei(10),
-      amount0Min: 0,
-      amount1Min: 0,
-      recipient: dsafe.address,
-      deadline: ethers.constants.MaxUint256,
-    }, 2));*/
+  await dsafe.executeBatch(
+    leverageLP(
+      dos,
+      weth,
+      usdc,
+      nonFungiblePositionManager,
+      {
+        token0: weth.address,
+        token1: usdc.address,
+        fee: 500,
+        tickLower: -210000,
+        tickUpper: -190000,
+        amount0Desired: toWei(10),
+        amount1Desired: toWei(10000, 6),
+        amount0Min: 0,
+        amount1Min: 0,
+        recipient: dsafe.address,
+        deadline: ethers.constants.MaxUint256,
+      },
+      1,
+    ),
+  );
+  await dsafe.executeBatch(
+    leverageLP(
+      dos,
+      weth,
+      uni,
+      nonFungiblePositionManager,
+      {
+        token0: weth.address,
+        token1: uni.address,
+        fee: 500,
+        tickLower: -10000,
+        tickUpper: 10000,
+        amount0Desired: toWei(10),
+        amount1Desired: toWei(10),
+        amount0Min: 0,
+        amount1Min: 0,
+        recipient: dsafe.address,
+        deadline: ethers.constants.MaxUint256,
+      },
+      2,
+    ),
+  );
 
   console.log("Setup complete");
-
 
   return {
     permit2,
@@ -683,7 +697,7 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
     uniOracle,
     uniV3Oracle,
     uniswapV3Factory,
-    uniswapNFTManager,
+    nonFungiblePositionManager,
     swapRouter,
   };
 };
