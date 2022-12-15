@@ -46,7 +46,7 @@ describe("UniswapOracle", () => {
     const tok0Chainlink = await Chainlink.deploy(owner, PRICE, 8, 18, 18);
     const tok1Chainlink = await Chainlink.deploy(owner, 1, 8, 18, 18);
 
-    const pool = await deployUniswapPool(uniswapFactory, tok0.address, tok1.address, PRICE);
+    const pool = await deployUniswapPool(uniswapFactory, tok0.address, tok1.address, 500, PRICE);
 
     const uniswapOracle = await new UniV3Oracle__factory(owner).deploy(
       uniswapFactory.address,

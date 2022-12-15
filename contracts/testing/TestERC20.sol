@@ -1,12 +1,20 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
-import "../dosERC20/DOSERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract TestERC20 is DOSERC20 {
-    constructor(
-        string memory name,
-        string memory symbol,
-        uint8 decimals
-    ) DOSERC20(name, symbol, decimals) {}
+contract TestERC20 is ERC20 {
+    uint8 private immutable _decimals;
+
+    constructor(string memory name, string memory symbol, uint8 deci) ERC20(name, symbol) {
+        _decimals = deci;
+    }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return _decimals;
+    }
 }

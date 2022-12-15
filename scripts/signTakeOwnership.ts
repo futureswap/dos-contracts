@@ -231,8 +231,10 @@ async function main() {
 
   const signature = await signTakeFutureSwapProxyOwnership(fsProxy, owner.address, 0, governator);
 
-  await fsProxy.takeOwnership(signature);
-  await fsProxy.transferOwnership("0x7aE171b52089Eb7D991FCdd2B9fC0CeaC1217B14");
+  console.log(signature);
+
+  //  await fsProxy.takeOwnership(signature);
+  //  await fsProxy.transferOwnership("0x7aE171b52089Eb7D991FCdd2B9fC0CeaC1217B14");
   console.log("Done");
 }
 

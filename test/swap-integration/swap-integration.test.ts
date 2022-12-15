@@ -98,7 +98,7 @@ describe("DOS swap integration", () => {
     );
 
     const price = (ETH_PRICE * 10 ** USDC_DECIMALS) / 10 ** WETH_DECIMALS;
-    await deployUniswapPool(uniswapFactory, weth.address, usdc.address, price);
+    await deployUniswapPool(uniswapFactory, weth.address, usdc.address, 500, price);
     const uniswapNftOracle = await new UniV3Oracle__factory(owner).deploy(
       uniswapFactory.address,
       uniswapNFTManager.address,

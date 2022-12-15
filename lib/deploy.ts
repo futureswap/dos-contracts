@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-await-in-loop */
 
 import type {MockContract} from "@ethereum-waffle/mock-contract";
 import type {
@@ -18,6 +19,8 @@ import type {
   IUniswapV3Factory,
   ISwapRouter,
   FutureSwapProxy,
+  IERC20WithMetadata,
+  IUniswapV3Pool,
 } from "../typechain-types";
 import type {TransactionRequest} from "@ethersproject/abstract-provider";
 
@@ -26,16 +29,18 @@ import uniNFTManagerJSON from "@uniswap/v3-periphery/artifacts/contracts/Nonfung
 import tokenPosDescJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungibleTokenPositionDescriptor.sol/NonfungibleTokenPositionDescriptor.json";
 import nftDescJSON from "@uniswap/v3-periphery/artifacts/contracts/libraries/NFTDescriptor.sol/NFTDescriptor.json";
 import swapRouterJSON from "@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json";
-import uniswapPoolJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
 import {ethers} from "ethers";
-import {
-  impersonateAccount,
-  setCode,
-  stopImpersonatingAccount,
-} from "@nomicfoundation/hardhat-network-helpers";
-import {ethers as hardhatEthers, waffle} from "hardhat";
+import {setCode} from "@nomicfoundation/hardhat-network-helpers";
+import {waffle} from "hardhat";
 
 import {
+  DSafeLogic__factory,
+  IUniswapV3Pool__factory,
+  IERC20Metadata__factory,
+  WETH9__factory,
+  TestERC20__factory,
+  MockERC20Oracle__factory,
+  UniV3Oracle__factory,
   FutureSwapProxy__factory,
   IUniswapV3Factory__factory,
   ISwapRouter__factory,
@@ -56,35 +61,24 @@ import addressesJSON from "../deployment/addresses.json";
 import {getEventParams, getEventsTx} from "./events";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
-import {makeCall, proposeAndExecute} from "./calls";
-import {checkDefined} from "./preconditions";
+import {createDSafe, depositIntoDos, leverageLP, makeCall, proposeAndExecute} from "./calls";
+import {checkDefined, checkState} from "./preconditions";
 
 export async function deployUniswapPool(
-  uniswapFactory: ethers.Contract,
+  uniswapFactory: IUniswapV3Factory,
   token0: string,
   token1: string,
+  fee: number,
   price: number,
-): Promise<ethers.Contract> {
+): Promise<IUniswapV3Pool> {
   if (BigInt(token0) >= BigInt(token1)) throw new Error("token0 address must be less than token1");
 
-  const feeTier: {
-    fee: ethers.BigNumberish;
-    tickSpacing?: ethers.BigNumberish;
-  } = {
-    fee: "500",
-  };
-  const {fee, tickSpacing} = feeTier;
-  if (tickSpacing !== undefined) {
-    if ((await uniswapFactory.feeAmountTickSpacing(fee)) === 0) {
-      const enableFeeAmountTx = await uniswapFactory.enableFeeAmount(fee, tickSpacing);
-      await enableFeeAmountTx.wait();
-    }
-  }
-
-  const tx = await uniswapFactory.createPool(token0, token1, fee);
-  const receipt = await tx.wait();
-  const poolAddress = receipt.events[0].args.pool;
-  const pool = new ethers.Contract(poolAddress, uniswapPoolJSON.abi, uniswapFactory.signer);
+  const {PoolCreated} = await getEventsTx(
+    uniswapFactory.createPool(token0, token1, fee),
+    uniswapFactory,
+  );
+  const poolAddress = PoolCreated.pool as string;
+  const pool = IUniswapV3Pool__factory.connect(poolAddress, uniswapFactory.signer);
 
   // eslint-disable-next-line @typescript-eslint/no-magic-numbers -- false positive
   const Q96 = 2 ** 96; // on expression that is actually a number
@@ -292,6 +286,9 @@ export async function deployAnyswapCreate2Deployer(
 
 export const governatorAddress = "0x6eEf89f0383dD76c06A8a6Ead63cf95795B5bA3F";
 
+export const governatorHardhatSignature =
+  "0xd96936163b3ca51694dce7ac7a832a7edb323195ea30f0ac5365b2a4fa9c15eb7cc0b70b152798696be0612f82e3bd6c0205ff3f09b52982e116f9af3ad58f4f1c";
+
 export const deployFutureSwapProxy = async (
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
   salt: string,
@@ -307,6 +304,7 @@ export const deployFutureSwapProxy = async (
 };
 
 export const fsSalt = "0x1234567890123456789012345678901234567890123456789012345678901234";
+
 const permit2Address = addressesJSON.goerli.permit2;
 const futureSwapProxyAddress = addressesJSON.goerli.futureSwapProxy;
 const governanceProxyAddress = addressesJSON.goerli.governanceProxy;
@@ -317,38 +315,54 @@ export const deployFixedAddressForTests = async (
   signer: ethers.Signer,
 ): Promise<{
   permit2: IPermit2;
-  transferAndCall2: TransferAndCall2;
   anyswapCreate2Deployer: IAnyswapCreate2Deployer;
+  futureSwapProxy: FutureSwapProxy;
+  transferAndCall2: TransferAndCall2;
   governanceProxy: GovernanceProxy;
 }> => {
-  const permit2 = IPermit2__factory.connect(permit2Address, signer);
   const anyswapCreate2Deployer = await deployAnyswapCreate2Deployer(signer);
+
+  const permit2 = IPermit2__factory.connect(permit2Address, signer);
   const transferAndCall2 = TransferAndCall2__factory.connect(transferAndCall2Address, signer);
+  const futureSwapProxy = FutureSwapProxy__factory.connect(futureSwapProxyAddress, signer);
   const governanceProxy = GovernanceProxy__factory.connect(governanceProxyAddress, signer);
 
   if ((await permit2.provider.getCode(permit2.address)) === "0x") {
     await setCode(permit2.address, permit2JSON.deployedBytecode.object);
-    const deployedContract = await new TransferAndCall2__factory(signer).deploy();
-    const deployedCode = await deployedContract.provider.getCode(deployedContract.address);
-    await setCode(transferAndCall2.address, deployedCode);
-    const governanceProxy = await deployGovernanceProxy(
-      futureSwapProxyAddress,
+    const deployedTransferAndCall2 = await deployAtFixedAddress(
+      new TransferAndCall2__factory(signer),
+      anyswapCreate2Deployer,
+      fsSalt,
+    );
+    const deployedFutureSwapProxy = await deployFutureSwapProxy(
+      anyswapCreate2Deployer,
+      fsSalt,
+      governatorAddress,
+    );
+    const deployedGovernanceProxy = await deployGovernanceProxy(
+      futureSwapProxy.address,
       anyswapCreate2Deployer,
       fsSalt,
       signer,
     );
-    // for tests, we can use impersonation to propose governance to make signer the owner
-    await impersonateAccount(futureSwapProxyAddress);
-    await signer.sendTransaction({to: futureSwapProxyAddress, value: toWei(0.02)});
-    await governanceProxy
-      .connect(await hardhatEthers.getSigner(futureSwapProxyAddress))
-      .execute([makeCall(governanceProxy).proposeGovernance(await signer.getAddress())]);
-    await stopImpersonatingAccount(futureSwapProxyAddress);
+
+    checkState(deployedTransferAndCall2.address === transferAndCall2.address);
+    checkState(deployedFutureSwapProxy.address === futureSwapProxy.address);
+    checkState(deployedGovernanceProxy.address === governanceProxy.address);
+
+    await futureSwapProxy.takeOwnership(governatorHardhatSignature);
+
+    await futureSwapProxy.execute([
+      makeCall(governanceProxy).execute([
+        makeCall(governanceProxy).proposeGovernance(await signer.getAddress()),
+      ]),
+    ]);
   }
   return {
     permit2,
-    transferAndCall2,
     anyswapCreate2Deployer,
+    futureSwapProxy,
+    transferAndCall2,
     governanceProxy,
   };
 };
@@ -447,4 +461,238 @@ export const deployDos = async (
     versionManager.address,
   );
   return {dos: IDOS__factory.connect(dos.address, signer), versionManager};
+};
+
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+export const setupDos = async (
+  governanceProxy: GovernanceProxy,
+  dos: IDOS,
+  usdc: IERC20WithMetadata,
+  weth: IERC20WithMetadata,
+  uni: IERC20WithMetadata,
+  uniAddresses: Record<string, string>,
+  deployer: ethers.Signer,
+) => {
+  const usdcOracle = await new MockERC20Oracle__factory(deployer).deploy(governanceProxy.address);
+  const ethOracle = await new MockERC20Oracle__factory(deployer).deploy(governanceProxy.address);
+  const uniOracle = await new MockERC20Oracle__factory(deployer).deploy(governanceProxy.address);
+  const uniV3Oracle = await new UniV3Oracle__factory(deployer).deploy(
+    uniAddresses.uniswapV3Factory,
+    uniAddresses.nonFungiblePositionManager,
+    governanceProxy.address,
+  );
+  await Promise.all(
+    [usdcOracle, ethOracle, uniOracle].map(oracle => oracle.deployTransaction.wait()),
+  );
+
+  await governanceProxy.execute([
+    makeCall(usdcOracle).setPrice(toWei(1), 6, 6),
+    makeCall(ethOracle).setPrice(toWei(1200), 6, 18),
+    makeCall(uniOracle).setPrice(toWei(840), 6, 18),
+    makeCall(dos).setConfig({
+      liqFraction: toWei(0.8),
+      fractionalReserveLeverage: 9,
+    }),
+    makeCall(dos).addERC20Info(
+      usdc.address,
+      await usdc.name(),
+      await usdc.symbol(),
+      await usdc.decimals(),
+      usdcOracle.address,
+      toWei(0.9),
+      toWei(0.9),
+      0, // no interest which would include time sensitive calculations
+    ),
+    makeCall(dos).addERC20Info(
+      weth.address,
+      await weth.name(),
+      await weth.symbol(),
+      await weth.decimals(),
+      ethOracle.address,
+      toWei(0.9),
+      toWei(0.9),
+      0, // no interest which would include time sensitive calculations
+    ),
+    makeCall(dos).addERC20Info(
+      uni.address,
+      await uni.name(),
+      await uni.symbol(),
+      await uni.decimals(),
+      uniOracle.address,
+      toWei(0.9),
+      toWei(0.9),
+      0, // no interest which would include time sensitive calculations
+    ),
+    makeCall(uniV3Oracle).setERC20ValueOracle(usdc.address, usdcOracle.address),
+    makeCall(uniV3Oracle).setERC20ValueOracle(weth.address, ethOracle.address),
+    makeCall(uniV3Oracle).setERC20ValueOracle(uni.address, uniOracle.address),
+    makeCall(dos).addNFTInfo(
+      uniAddresses.nonFungiblePositionManager,
+      uniV3Oracle.address,
+      toWei(0.5),
+    ),
+  ]);
+  return {usdcOracle, ethOracle, uniOracle, uniV3Oracle};
+};
+
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+export const setupLocalhost = async (signer: ethers.Signer) => {
+  const {permit2, anyswapCreate2Deployer, transferAndCall2, governanceProxy} =
+    await deployFixedAddressForTests(signer);
+
+  const {dos, versionManager} = await deployDos(
+    governanceProxy.address,
+    anyswapCreate2Deployer,
+    fsSalt,
+    signer,
+  );
+
+  const dSafeLogic = await deployAtFixedAddress(
+    new DSafeLogic__factory(signer),
+    anyswapCreate2Deployer,
+    fsSalt,
+    dos.address,
+  );
+  await governanceProxy.execute([
+    makeCall(versionManager).addVersion("1.0.0", 2, dSafeLogic.address),
+    makeCall(versionManager).markRecommendedVersion("1.0.0"),
+  ]);
+
+  const wethDeploy = await deployAtFixedAddress(
+    new WETH9__factory(signer),
+    anyswapCreate2Deployer,
+    fsSalt,
+  );
+  const weth = IERC20Metadata__factory.connect(wethDeploy.address, signer);
+  const usdc = await deployAtFixedAddress(
+    new TestERC20__factory(signer),
+    anyswapCreate2Deployer,
+    fsSalt,
+    "USDC",
+    "USDC",
+    6,
+  );
+  const uni = await deployAtFixedAddress(
+    new TestERC20__factory(signer),
+    anyswapCreate2Deployer,
+    fsSalt,
+    "UNI",
+    "UNI",
+    18,
+  );
+
+  const {
+    uniswapFactory: uniswapV3Factory,
+    uniswapNFTManager: nonFungiblePositionManager,
+    swapRouter,
+  } = await deployUniswapFactory(weth.address, signer);
+
+  const uniAddresses = {
+    uniswapV3Factory: uniswapV3Factory.address,
+    nonFungiblePositionManager: nonFungiblePositionManager.address,
+  };
+
+  const {usdcOracle, ethOracle, uniOracle, uniV3Oracle} = await setupDos(
+    governanceProxy,
+    dos,
+    usdc,
+    weth,
+    uni,
+    uniAddresses,
+    signer,
+  );
+
+  // setup some initial liquidity
+
+  await usdc.mint(await signer.getAddress(), toWei(1000000, 6));
+  await uni.mint(await signer.getAddress(), toWei(1000000));
+  for (const erc20 of [usdc, uni, weth]) {
+    await erc20.approve(transferAndCall2.address, ethers.constants.MaxUint256);
+    await erc20.approve(swapRouter.address, ethers.constants.MaxUint256);
+    await erc20.approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256);
+  }
+  const dsafe = await createDSafe(dos, signer);
+  await depositIntoDos(
+    transferAndCall2,
+    dsafe,
+    [
+      {token: usdc.address, amount: toWei(100000, 6)},
+      {token: uni.address, amount: toWei(100000)},
+    ],
+    {weth: weth.address, amount: toWei(100000)},
+  );
+  await deployUniswapPool(uniswapV3Factory, weth.address, uni.address, 500, 1);
+  await deployUniswapPool(
+    uniswapV3Factory,
+    weth.address,
+    usdc.address,
+    500,
+    (1000 * 10 ** 6) / 10 ** 18,
+  );
+
+  await dsafe.executeBatch(
+    leverageLP(
+      dos,
+      weth,
+      usdc,
+      nonFungiblePositionManager,
+      {
+        token0: weth.address,
+        token1: usdc.address,
+        fee: 500,
+        tickLower: -210000,
+        tickUpper: -190000,
+        amount0Desired: toWei(10),
+        amount1Desired: toWei(10000, 6),
+        amount0Min: 0,
+        amount1Min: 0,
+        recipient: dsafe.address,
+        deadline: ethers.constants.MaxUint256,
+      },
+      1,
+    ),
+  );
+  await dsafe.executeBatch(
+    leverageLP(
+      dos,
+      weth,
+      uni,
+      nonFungiblePositionManager,
+      {
+        token0: weth.address,
+        token1: uni.address,
+        fee: 500,
+        tickLower: -10000,
+        tickUpper: 10000,
+        amount0Desired: toWei(10),
+        amount1Desired: toWei(10),
+        amount0Min: 0,
+        amount1Min: 0,
+        recipient: dsafe.address,
+        deadline: ethers.constants.MaxUint256,
+      },
+      2,
+    ),
+  );
+
+  console.log("Setup complete");
+
+  return {
+    permit2,
+    anyswapCreate2Deployer,
+    transferAndCall2,
+    governanceProxy,
+    dos,
+    versionManager,
+    weth,
+    usdc,
+    uni,
+    usdcOracle,
+    ethOracle,
+    uniOracle,
+    uniV3Oracle,
+    uniswapV3Factory,
+    nonFungiblePositionManager,
+    swapRouter,
+  };
 };
