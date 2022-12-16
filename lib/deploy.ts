@@ -62,7 +62,7 @@ import {getEventsTx} from "./events";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
 import {createDSafe, depositIntoDos, leverageLP2, makeCall, proposeAndExecute} from "./calls";
-import {checkDefined} from "./preconditions";
+import {checkDefined, checkState} from "./preconditions";
 
 export async function deployUniswapPool(
   uniswapV3Factory: IUniswapV3Factory,
@@ -261,10 +261,13 @@ export const deployFutureSwapProxy = async (
 
 export const fsSalt = "0x1234567890123456789012345678901234567890123456789012345678901234";
 
-const permit2Address = addressesJSON.goerli.permit2;
-const futureSwapProxyAddress = addressesJSON.goerli.futureSwapProxy;
-const governanceProxyAddress = addressesJSON.goerli.governanceProxy;
-const transferAndCall2Address = addressesJSON.goerli.transferAndCall2;
+const permit2Address = addressesJSON.localhost.permit2;
+const futureSwapProxyAddress = addressesJSON.localhost.futureSwapProxy;
+const governanceProxyAddress = addressesJSON.localhost.governanceProxy;
+const transferAndCall2Address = addressesJSON.localhost.transferAndCall2;
+
+let futureSwapProxy: FutureSwapProxy;
+let governanceProxy: GovernanceProxy | undefined;
 
 // initialize the fixed address deployments
 export const deployFixedAddressForTests = async (
@@ -280,56 +283,50 @@ export const deployFixedAddressForTests = async (
 
   const permit2 = IPermit2__factory.connect(permit2Address, signer);
   const transferAndCall2 = TransferAndCall2__factory.connect(transferAndCall2Address, signer);
-  const futureSwapProxy = FutureSwapProxy__factory.connect(futureSwapProxyAddress, signer);
-  const governanceProxy = GovernanceProxy__factory.connect(governanceProxyAddress, signer);
 
-  if ((await permit2.provider.getCode(permit2.address)) === "0x") {
+  if (governanceProxy === undefined) {
     await setCode(permit2.address, permit2JSON.deployedBytecode.object);
     const deployedTransferAndCall2 = await deployAtFixedAddress(
       new TransferAndCall2__factory(signer),
       anyswapCreate2Deployer,
       fsSalt,
     );
-    if (deployedTransferAndCall2.address !== transferAndCall2.address) {
-      console.warn("TransferAndCall2 address mismatch, maybe running coverage!");
+    const isCoverage = process.argv.includes("coverage");
+    if (isCoverage) {
+      checkState(deployedTransferAndCall2.address !== transferAndCall2.address);
+      // to get coverage working we need to set the code at the expected address to
+      // to be the code just deployed.
       await setCode(
         transferAndCall2.address,
         await checkDefined(signer.provider).getCode(deployedTransferAndCall2.address),
       );
     }
-    const deployedFutureSwapProxy = await deployFutureSwapProxy(
+    futureSwapProxy = await deployFutureSwapProxy(
       anyswapCreate2Deployer,
       fsSalt,
       governatorAddress,
     );
-    const deployedGovernanceProxy = await deployGovernanceProxy(
-      futureSwapProxy.address,
+    // eslint-disable-next-line require-atomic-updates
+    governanceProxy = await deployGovernanceProxy(
+      isCoverage ? await signer.getAddress() : futureSwapProxy.address,
       anyswapCreate2Deployer,
       fsSalt,
       signer,
     );
 
-    /*
-    // TODO: coverage compiles binary with instrumentation and hence the addresses are different
-    //      this check should be enabled only when running tests on a real network
-    checkState(deployedTransferAndCall2.address === transferAndCall2.address);
-    checkState(deployedFutureSwapProxy.address === futureSwapProxy.address);
-    checkState(deployedGovernanceProxy.address === governanceProxy.address);
-    */
-    if (deployedFutureSwapProxy.address !== futureSwapProxy.address) {
-      console.warn("FutureSwapProxy address mismatch, maybe running coverage!");
-    }
-    if (deployedGovernanceProxy.address !== governanceProxy.address) {
-      console.warn("GovernanceProxy address mismatch, maybe running coverage!");
-    }
+    if (!isCoverage) {
+      checkState(deployedTransferAndCall2.address === transferAndCall2.address);
+      checkState(futureSwapProxyAddress === futureSwapProxy.address);
+      checkState(governanceProxyAddress === governanceProxy.address);
 
-    await futureSwapProxy.takeOwnership(governatorHardhatSignature);
+      await futureSwapProxy.takeOwnership(governatorHardhatSignature);
 
-    await futureSwapProxy.execute([
-      makeCall(governanceProxy).execute([
-        makeCall(governanceProxy).proposeGovernance(await signer.getAddress()),
-      ]),
-    ]);
+      await futureSwapProxy.execute([
+        makeCall(governanceProxy).execute([
+          makeCall(governanceProxy).proposeGovernance(await signer.getAddress()),
+        ]),
+      ]);
+    }
   }
   return {
     permit2,

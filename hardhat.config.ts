@@ -153,9 +153,6 @@ const config: HardhatUserConfig = {
       },
       gasPrice: 60000000000,
     },
-    coverage: {
-      url: "http://127.0.0.1:8555", // coverage launches its own ganache-cli client
-    },
     etheno: {
       url: "http://localhost:8550",
       chainId: 31337,
