@@ -731,11 +731,12 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         address target, // router
         bytes memory data
     ) public onlyPortfolio returns (bool) {
+        uint256 prevAllowance = allowance(erc20, msg.sender, spender);
         _approveERC20(msg.sender, erc20, spender, amount);
         if (!_checkOnApprovalReceived(spender, amount, target, data)) {
             revert WrongDataReturned();
         }
-        _approveERC20(msg.sender, erc20, spender, 0); // reset allowance
+        _approveERC20(msg.sender, erc20, spender, prevAllowance); // reset allowance
         return true;
     }
 
@@ -753,14 +754,16 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         bytes calldata data
     ) public onlyPortfolio returns (bool) {
         require(erc20s.length == amounts.length, "Lengths do not match");
+        uint256[] memory prevAllowances = new uint256[](erc20s.length);
         for (uint256 i = 0; i < erc20s.length; i++) {
+            prevAllowances[i] = allowance(erc20s[i], msg.sender, spender);
             _approveERC20(msg.sender, erc20s[i], spender, amounts[i]);
         }
         if (!_checkOnApprovalReceived(spender, 0, target, data)) {
             revert WrongDataReturned();
         }
         for (uint256 i = 0; i < erc20s.length; i++) {
-            _approveERC20(msg.sender, erc20s[i], spender, 0); // reset allowance
+            _approveERC20(msg.sender, erc20s[i], spender, prevAllowances[i]); // reset allowance
         }
         return true;
     }
