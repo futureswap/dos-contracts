@@ -382,9 +382,6 @@ contract DSafeLogic is
         return this.onApprovalReceived.selector;
     }
 
-    event TokensApproved(address sender, uint256 amount, bytes data);
-    event TokensReceived(address spender, address sender, uint256 amount, bytes data);
-
     function onTransferReceived(
         address spender,
         address sender,
