@@ -14,8 +14,8 @@ interface IERC1363SpenderExtended {
 interface IERC1363ReceiverExtended {
     function onTransferReceived(
         address operator,
-        address from,
+        address token,
         uint256 value,
-        Call calldata call
+        bytes calldata data
     ) external returns (bytes4);
 }

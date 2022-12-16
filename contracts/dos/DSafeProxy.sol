@@ -381,23 +381,4 @@ contract DSafeLogic is
 
         return this.onApprovalReceived.selector;
     }
-
-    function onTransferReceived(
-        address spender,
-        address sender,
-        uint256 amount,
-        Call memory call
-    ) external returns (bytes4) {
-        if (call.callData.length == 0) {
-            revert("PL: INVALID_DATA");
-        }
-        emit TokensReceived(spender, sender, amount, call.callData);
-
-        Call[] memory calls = new Call[](1);
-        calls[0] = call;
-
-        IDOS(dos).executeBatch(calls);
-
-        return this.onTransferReceived.selector;
-    }
 }

@@ -542,28 +542,6 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
-    /// @notice Transfer an array of tokens from `msg.sender` to another address and then call `onTransferReceived` on receiver
-    /// @param erc20s An array of ERC20 tokens
-    /// @param to The address which you want to transfer to
-    /// @param amounts An array of amounts of tokens to be transferred
-    /// @param data Additional data with no specified format, sent in call to `to`
-    /// @return true unless throwing
-    function transferBatchAndCall(
-        IERC20[] calldata erc20s,
-        address to,
-        uint256[] calldata amounts,
-        bytes calldata data
-    ) external onlyDSafe returns (bool) {
-        require(erc20s.length == amounts.length, "Lengths do not match");
-        for (uint256 i = 0; i < erc20s.length; i++) {
-            transferERC20(erc20s[i], msg.sender, to, FsMath.safeCastToSigned(amounts[i]));
-        }
-        if (!_checkOnTransferReceived(msg.sender, to, 0, data)) {
-            revert WrongDataReturned();
-        }
-        return true;
-    }
-
     function executeBatch(Call[] memory calls) external override onlyDSafe {
         DSafeProxy(payable(msg.sender)).executeBatch(calls);
         require(isSolvent(msg.sender), "Result of operation is not sufficient liquid");
@@ -661,7 +639,7 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         bytes memory data
     ) public onlyDSafe returns (bool) {
         transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
-        if (!_checkOnTransferReceived(msg.sender, to, amount, data)) {
+        if (!_checkOnTransferReceived(to, address(erc20), amount, data)) {
             revert WrongDataReturned();
         }
         return true;
@@ -796,16 +774,15 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
 
     /**
      * @dev Internal function to invoke {IERC1363Receiver-onTransferReceived} on a target address
-     *  The call is not executed if the target address is not a contract
-     * @param sender address Representing the previous owner of the given token amount
+     *  The call is not executed if the recipient address is not a contract
      * @param recipient address Target address that will receive the tokens
      * @param amount uint256 The amount mount of tokens to be transferred
      * @param data bytes Optional data to send along with the call
      * @return whether the call correctly returned the expected magic value
      */
     function _checkOnTransferReceived(
-        address sender,
         address recipient,
+        address token,
         uint256 amount,
         bytes memory data
     ) internal virtual returns (bool) {
@@ -813,10 +790,8 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
             revert ReceiverNotContract();
         }
 
-        Call memory call = Call({to: recipient, callData: data, value: msg.value});
-
         try
-            IERC1363ReceiverExtended(sender).onTransferReceived(msg.sender, sender, amount, call)
+            IERC1363ReceiverExtended(recipient).onTransferReceived(msg.sender, token, amount, data)
         returns (bytes4 retval) {
             return retval == IERC1363Receiver.onTransferReceived.selector;
         } catch (bytes memory reason) {
