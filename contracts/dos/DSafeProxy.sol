@@ -172,24 +172,35 @@ contract DSafeLogic is ImmutableVersion, IERC721Receiver, IERC1271, ITransferRec
 
         // Withdraw all non-numeraire collateral
         int256[] memory balances = new int256[](erc20s.length);
+        uint256 ncollaterals = 0;
+        uint256 ndebts = 0;
         {
-            uint256 ncollaterals = 0;
             for (uint256 i = 0; i < erc20s.length; i++) {
                 int256 balance = IDOS(dos).getDAccountERC20(address(this), erc20s[i]);
                 balances[i] = balance;
                 if (balance > 0) {
                     ncollaterals++;
+                } else if (balance < 0) {
+                    ndebts++;
                 }
             }
-            IERC20[] memory collaterals = new IERC20[](ncollaterals);
-            uint256 j = 0;
+        }
+        IERC20[] memory collaterals = new IERC20[](ncollaterals + 1);
+        collaterals[0] = IERC20(numeraire);
+        IERC20[] memory debts = new IERC20[](ndebts + 1);
+        debts[0] = IERC20(numeraire);
+        {
+            uint256 colI = 1;
+            uint256 debI = 1;
             for (uint256 i = 0; i < erc20s.length; i++) {
                 if (balances[i] > 0) {
-                    collaterals[j++] = erc20s[i];
+                    collaterals[colI++] = erc20s[i];
+                } else if (balances[i] < 0) {
+                    debts[debI++] = erc20s[i];
                 }
             }
-            dos.withdrawFull(collaterals);
         }
+        dos.withdrawFull(collaterals);
 
         // Swap all non-numeraire collateral to numeraire
         for (uint256 i = 0; i < erc20s.length; i++) {
@@ -230,9 +241,7 @@ contract DSafeLogic is ImmutableVersion, IERC721Receiver, IERC1271, ITransferRec
         }
 
         // Deposit numeraire
-        IERC20[] memory numeraireArray = new IERC20[](1);
-        numeraireArray[0] = IERC20(numeraire);
-        dos.depositFull(numeraireArray);
+        dos.depositFull(debts);
     }
 
     function owner() external view returns (address) {
