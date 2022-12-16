@@ -718,10 +718,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     /**
      * @notice Approve the passed address to spend the specified amount of tokens on behalf of msg.sender
      * and then call `onApprovalReceived` on spender.
-     * Beware that changing an allowance with this method brings the risk that someone may use both the old
-     * and the new allowance by unfortunate transaction ordering. One possible solution to mitigate this
-     * race condition is to first reduce the spender's allowance to 0 and set the desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
      * @param erc20 address The address of the ERC20 token
      * @param spender address The address which will spend the funds
      * @param amount uint256 The amount of tokens to be spent
@@ -743,7 +739,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         return true;
     }
 
-    /// @notice Approve an array of tokens and then call `onApprovalREceived` on spender.
+    /// @notice Approve an array of tokens and then call `onApprovalReceived` on spender.
     /// @param erc20s An array of erc20 tokens
     /// @param spender The address of the spender
     /// @param amounts An array of the amounts of tokens to be spent
