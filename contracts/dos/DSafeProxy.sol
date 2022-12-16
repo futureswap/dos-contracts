@@ -367,16 +367,15 @@ contract DSafeLogic is
     function onApprovalReceived(
         address sender,
         uint256 amount,
-        address target,
-        bytes calldata data
+        Call memory call
     ) external returns (bytes4) {
-        if (data.length == 0) {
+        if (call.callData.length == 0) {
             revert("PL: INVALID_DATA");
         }
-        emit TokensApproved(sender, amount, data);
+        emit TokensApproved(sender, amount, call.callData);
 
         Call[] memory calls = new Call[](1);
-        calls[0] = Call({to: target, callData: data, value: 0});
+        calls[0] = call;
 
         IDOS(dos).executeBatch(calls);
 
@@ -390,19 +389,17 @@ contract DSafeLogic is
         address spender,
         address sender,
         uint256 amount,
-        address target,
-        bytes calldata data
+        Call memory call
     ) external returns (bytes4) {
-        if (data.length == 0) {
+        if (call.callData.length == 0) {
             revert("PL: INVALID_DATA");
         }
-        emit TokensReceived(spender, sender, amount, data);
+        emit TokensReceived(spender, sender, amount, call.callData);
 
-        // use data to call pair functions
-        (bool success, ) = address(target).delegatecall(data);
-        if (!success) {
-            revert("PL: DELEGATECALL_FAILED");
-        }
+        Call[] memory calls = new Call[](1);
+        calls[0] = call;
+
+        IDOS(dos).executeBatch(calls);
 
         return this.onTransferReceived.selector;
     }
