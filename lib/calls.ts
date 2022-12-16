@@ -289,6 +289,7 @@ export const leverageLP = (
 };
 
 export const leverageLP2 = async (
+  dSafe: DSafeLogic,
   dos: IDOS,
   nonFungiblePositionManager: ethers.Contract,
   {token0, token1, fee}: {token0: IERC20; token1: IERC20; fee: number},
@@ -297,7 +298,6 @@ export const leverageLP2 = async (
   amount0Desired: bigint,
   amount1Desired: bigint,
   recipient: string,
-  tokenId: number,
 ): Promise<Call[]> => {
   if (BigInt(token0.address) >= BigInt(token1.address))
     throw new Error("Token0 must be smaller than token1");
@@ -333,13 +333,13 @@ export const leverageLP2 = async (
   );
 
   return [
-    makeCall(token0).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
+    makeCall(token0).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256), // tODO: remove
     makeCall(token1).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
-    makeCall(nonFungiblePositionManager).setApprovalForAll(dos.address, true),
+    //    makeCall(nonFungiblePositionManager).setApprovalForAll(dos.address, true),
     makeCall(dos).depositERC20(token0.address, -mintParams.amount0Desired),
     makeCall(dos).depositERC20(token1.address, -mintParams.amount1Desired),
+    makeCall(dSafe).forwardNFTs(true),
     makeCall(nonFungiblePositionManager).mint(mintParams),
-    makeCall(dos).depositNFT(nonFungiblePositionManager.address, tokenId),
     makeCall(dos).depositFull([token0.address, token1.address]),
   ];
 };
