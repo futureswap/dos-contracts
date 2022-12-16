@@ -13,6 +13,7 @@ import {FsUtils} from "../lib/FsUtils.sol";
 import "../interfaces/IDOS.sol";
 import "../interfaces/ITransferReceiver2.sol";
 import "../external/interfaces/IPermit2.sol";
+import {ISafe} from "../interfaces/ISafe.sol";
 
 // Inspired by TransparentUpdatableProxy
 contract PortfolioProxy is Proxy {
@@ -65,7 +66,7 @@ contract PortfolioProxy is Proxy {
 
 // Calls to the contract not coming from DOS itself are routed to this logic
 // contract. This allows for flexible extra addition to your portfolio.
-contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2 {
+contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, ISafe {
     IDOS public immutable dos;
 
     mapping(uint248 => uint256) public nonces;
@@ -298,11 +299,16 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2 {
         }
         emit TokensApproved(sender, amount, data);
 
-        // use data to call pair functions
-        (bool success, ) = address(target).delegatecall(data);
-        if (!success) {
-            revert("PL: DELEGATECALL_FAILED");
-        }
+        IDOS.Call[] memory calls = new IDOS.Call[](1);
+        calls[0] = IDOS.Call({to: target, callData: data, value: 0});
+
+        IDOS(dos).executeBatch(calls);
+
+        // // use data to call pair functions
+        // (bool success, ) = address(target).delegatecall(data);
+        // if (!success) {
+        //     revert("PL: DELEGATECALL_FAILED");
+        // }
 
         return this.onApprovalReceived.selector;
     }
