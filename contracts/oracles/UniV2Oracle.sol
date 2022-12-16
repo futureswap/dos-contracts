@@ -49,8 +49,8 @@ contract UniV2Oracle is ImmutableOwnable, IERC20ValueOracle {
         address token0 = pair.token0();
         address token1 = pair.token1();
 
-        uint256 balance0 = uint256(IDOS(dos).viewBalance(dSafe, IERC20(token0)));
-        uint256 balance1 = uint256(IDOS(dos).viewBalance(dSafe, IERC20(token1)));
+        uint256 balance0 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token0)));
+        uint256 balance1 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token1)));
 
         int256 price0 = erc20ValueOracle[token0].calcValue(FsMath.safeCastToSigned(balance0));
         int256 price1 = erc20ValueOracle[token1].calcValue(FsMath.safeCastToSigned(balance1));

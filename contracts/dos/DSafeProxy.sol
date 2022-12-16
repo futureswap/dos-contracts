@@ -375,8 +375,8 @@ contract DSafeLogic is
         }
         emit TokensApproved(sender, amount, data);
 
-        IDOS.Call[] memory calls = new IDOS.Call[](1);
-        calls[0] = IDOS.Call({to: target, callData: data, value: 0});
+        Call[] memory calls = new Call[](1);
+        calls[0] = Call({to: target, callData: data, value: 0});
 
         IDOS(dos).executeBatch(calls);
 

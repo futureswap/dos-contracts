@@ -13,8 +13,8 @@
   },
   "files": {
     "contracts/dos/DOS.sol": {
-      "lastModificationDate": 1671173920285,
-      "contentHash": "810d0b500e1e4431cb0853ac7aff1bf3",
+      "lastModificationDate": 1671214456023,
+      "contentHash": "69ba2900cbff19765fb3bf3b492fb74c",
       "sourceName": "contracts/dos/DOS.sol",
       "solcConfig": {
         "settings": {
@@ -45,7 +45,7 @@
         }
       },
       "imports": [
-        "contracts/dos/PortfolioProxy.sol",
+        "contracts/dos/DSafeProxy.sol",
         "contracts/dosERC20/DOSERC20.sol",
         "contracts/external/interfaces/IPermit2.sol",
         "contracts/interfaces/IDOS.sol",
@@ -55,6 +55,7 @@
         "contracts/interfaces/ISafe.sol",
         "contracts/interfaces/ITransferReceiver2.sol",
         "contracts/interfaces/IVersionManager.sol",
+        "contracts/lib/Call.sol",
         "contracts/lib/FsMath.sol",
         "contracts/lib/FsUtils.sol",
         "contracts/lib/ImmutableOwnable.sol",
@@ -94,15 +95,21 @@
         "DOS": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "DOS.sol/DOS.json"
         },
-        "PortfolioLib": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "DOS.sol/PortfolioLib.json"
+        "DOSConfig": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "DOS.sol/DOSConfig.json"
+        },
+        "DOSLib": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "DOS.sol/DOSLib.json"
+        },
+        "DSafeLib": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "DOS.sol/DSafeLib.json"
         }
       }
     },
-    "contracts/dos/PortfolioProxy.sol": {
-      "lastModificationDate": 1671174157745,
-      "contentHash": "5f3da8fa4b8535e21ac84c0a14673a44",
-      "sourceName": "contracts/dos/PortfolioProxy.sol",
+    "contracts/dos/DSafeProxy.sol": {
+      "lastModificationDate": 1671211614664,
+      "contentHash": "f0d00d8c4de0e5c2118785190d32ba56",
+      "sourceName": "contracts/dos/DSafeProxy.sol",
       "solcConfig": {
         "settings": {
           "optimizer": {
@@ -136,6 +143,8 @@
         "contracts/interfaces/IDOS.sol",
         "contracts/interfaces/ISafe.sol",
         "contracts/interfaces/ITransferReceiver2.sol",
+        "contracts/interfaces/IVersionManager.sol",
+        "contracts/lib/Call.sol",
         "contracts/lib/FsUtils.sol",
         "node_modules/@openzeppelin/contracts/interfaces/IERC1271.sol",
         "node_modules/@openzeppelin/contracts/proxy/Proxy.sol",
@@ -147,6 +156,7 @@
         "node_modules/@openzeppelin/contracts/utils/Address.sol",
         "node_modules/@openzeppelin/contracts/utils/Strings.sol",
         "node_modules/@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
+        "node_modules/@openzeppelin/contracts/utils/cryptography/EIP712.sol",
         "node_modules/@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol",
         "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol",
         "node_modules/@openzeppelin/contracts/utils/math/Math.sol",
@@ -156,17 +166,17 @@
       ],
       "versionRequirement": "^0.8.7",
       "artifacts": {
-        "PortfolioLogic": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "PortfolioProxy.sol/PortfolioLogic.json"
+        "DSafeLogic": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "DSafeProxy.sol/DSafeLogic.json"
         },
-        "PortfolioProxy": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "PortfolioProxy.sol/PortfolioProxy.json"
+        "DSafeProxy": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "DSafeProxy.sol/DSafeProxy.json"
         }
       }
     },
     "contracts/dos/TransferAndCall2.sol": {
-      "lastModificationDate": 1670436095588,
-      "contentHash": "9b00dcfdac4e8dab876d9eba5a815805",
+      "lastModificationDate": 1671210470206,
+      "contentHash": "3bc34b47962804d075a15b10d8e6eb67",
       "sourceName": "contracts/dos/TransferAndCall2.sol",
       "solcConfig": {
         "settings": {
@@ -199,13 +209,12 @@
       "imports": [
         "contracts/external/interfaces/IWETH9.sol",
         "contracts/interfaces/ITransferReceiver2.sol",
-        "contracts/lib/FsUtils.sol",
         "node_modules/@openzeppelin/contracts/interfaces/IERC1363Receiver.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
-        "node_modules/@openzeppelin/contracts/utils/Address.sol",
-        "node_modules/hardhat/console.sol"
+        "node_modules/@openzeppelin/contracts/utils/Address.sol"
       ],
       "versionRequirement": "^0.8.17",
       "artifacts": {
@@ -215,8 +224,8 @@
       }
     },
     "contracts/dos/VersionManager.sol": {
-      "lastModificationDate": 1670436095589,
-      "contentHash": "dde93521a745f9e947dea1311d7a4be0",
+      "lastModificationDate": 1671213583243,
+      "contentHash": "2295966c8147b083c8bb87f6747fbc0a",
       "sourceName": "contracts/dos/VersionManager.sol",
       "solcConfig": {
         "settings": {
@@ -261,8 +270,8 @@
       }
     },
     "contracts/dosERC20/DOSERC20.sol": {
-      "lastModificationDate": 1670436095589,
-      "contentHash": "987062358df55c7f85037b2b17166017",
+      "lastModificationDate": 1671210470206,
+      "contentHash": "1dcbdadde9bbd455ebedae16510e8500",
       "sourceName": "contracts/dosERC20/DOSERC20.sol",
       "solcConfig": {
         "settings": {
@@ -294,6 +303,7 @@
       },
       "imports": [
         "contracts/interfaces/IDOS.sol",
+        "contracts/lib/Call.sol",
         "contracts/lib/FsUtils.sol",
         "contracts/lib/ImmutableOwnable.sol",
         "node_modules/@openzeppelin/contracts/interfaces/IERC1363.sol",
@@ -406,7 +416,9 @@
         "contracts/duoswapV2/libraries/UQ112x112.sol",
         "contracts/interfaces/IDOS.sol",
         "contracts/interfaces/ISafe.sol",
+        "contracts/lib/Call.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Callee.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol"
@@ -419,8 +431,8 @@
       }
     },
     "contracts/duoswapV2/DuoswapV2Pair.sol": {
-      "lastModificationDate": 1671172171008,
-      "contentHash": "6fbc7248d7dfc469343a76b79f0f46b4",
+      "lastModificationDate": 1671212400970,
+      "contentHash": "2b230769932eb25fbca24d8f8c911a46",
       "sourceName": "contracts/duoswapV2/DuoswapV2Pair.sol",
       "solcConfig": {
         "settings": {
@@ -457,7 +469,9 @@
         "contracts/duoswapV2/libraries/UQ112x112.sol",
         "contracts/interfaces/IDOS.sol",
         "contracts/interfaces/ISafe.sol",
+        "contracts/lib/Call.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Callee.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol"
@@ -508,7 +522,10 @@
         "contracts/duoswapV2/libraries/DuoswapV2Library.sol",
         "contracts/external/interfaces/IWETH9.sol",
         "contracts/interfaces/IDOS.sol",
+        "contracts/lib/Call.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
         "node_modules/@uniswap/lib/contracts/libraries/TransferHelper.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol"
@@ -767,10 +784,10 @@
         }
       }
     },
-    "contracts/external/AnyswapCreate2Deployer.sol": {
-      "lastModificationDate": 1670436095589,
-      "contentHash": "c6f2a33aa86f92b1fed5ec19a43c722c",
-      "sourceName": "contracts/external/AnyswapCreate2Deployer.sol",
+    "contracts/external/interfaces/IAnyswapCreate2Deployer.sol": {
+      "lastModificationDate": 1671210470206,
+      "contentHash": "1c5a9b0c13e74eae82e27a228b8be448",
+      "sourceName": "contracts/external/interfaces/IAnyswapCreate2Deployer.sol",
       "solcConfig": {
         "settings": {
           "optimizer": {
@@ -800,16 +817,16 @@
         }
       },
       "imports": [],
-      "versionRequirement": "^0.8.2",
+      "versionRequirement": "^0.8.17",
       "artifacts": {
-        "AnyswapCreate2Deployer": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "AnyswapCreate2Deployer.sol/AnyswapCreate2Deployer.json"
+        "IAnyswapCreate2Deployer": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "IAnyswapCreate2Deployer.sol/IAnyswapCreate2Deployer.json"
         }
       }
     },
     "contracts/external/interfaces/IPermit2.sol": {
-      "lastModificationDate": 1670436095589,
-      "contentHash": "a052053bba6513ec600fd206e81a6db3",
+      "lastModificationDate": 1671210470207,
+      "contentHash": "c3eaa4fb8ec602a81a3679a03a80b8fb",
       "sourceName": "contracts/external/interfaces/IPermit2.sol",
       "solcConfig": {
         "settings": {
@@ -850,8 +867,8 @@
       }
     },
     "contracts/external/interfaces/IWETH9.sol": {
-      "lastModificationDate": 1670436095589,
-      "contentHash": "f03c9156648a076ddf18a1a4a6d9a2d0",
+      "lastModificationDate": 1671210470207,
+      "contentHash": "7def23e6d6a5cacb47b396fbf3f0806f",
       "sourceName": "contracts/external/interfaces/IWETH9.sol",
       "solcConfig": {
         "settings": {
@@ -881,17 +898,23 @@
           "libraries": {}
         }
       },
-      "imports": [],
+      "imports": [
+        "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol"
+      ],
       "versionRequirement": "^0.8.17",
       "artifacts": {
+        "IERC20WithMetadata": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "IWETH9.sol/IERC20WithMetadata.json"
+        },
         "IWETH9": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "IWETH9.sol/IWETH9.json"
         }
       }
     },
     "contracts/governance/GovernanceProxy.sol": {
-      "lastModificationDate": 1670436095589,
-      "contentHash": "6446460afacfd6b5f2a271fd9e448434",
+      "lastModificationDate": 1671210470207,
+      "contentHash": "5b1cb2a953af3328f860d0258ca2c868",
       "sourceName": "contracts/governance/GovernanceProxy.sol",
       "solcConfig": {
         "settings": {
@@ -922,9 +945,10 @@
         }
       },
       "imports": [
+        "contracts/lib/Call.sol",
         "contracts/lib/FsUtils.sol",
         "contracts/lib/ImmutableOwnable.sol",
-        "contracts/tokens/VoteNFT.sol",
+        "contracts/tokens/HashNFT.sol",
         "node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol",
         "node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol",
         "node_modules/@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol",
@@ -949,8 +973,8 @@
       }
     },
     "contracts/interfaces/IDOS.sol": {
-      "lastModificationDate": 1671047343732,
-      "contentHash": "3aa9a200de25f909a8322bb387a66c95",
+      "lastModificationDate": 1671212311394,
+      "contentHash": "dacd6ee2402df3d8c28a3b2b664f0935",
       "sourceName": "contracts/interfaces/IDOS.sol",
       "solcConfig": {
         "settings": {
@@ -981,12 +1005,20 @@
         }
       },
       "imports": [
-        "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol"
+        "contracts/lib/Call.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol"
       ],
       "versionRequirement": "^0.8.7",
       "artifacts": {
         "IDOS": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "IDOS.sol/IDOS.json"
+        },
+        "IDOSConfig": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "IDOS.sol/IDOSConfig.json"
+        },
+        "IDOSCore": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "IDOS.sol/IDOSCore.json"
         },
         "IDOSERC20": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "IDOS.sol/IDOSERC20.json"
@@ -1117,8 +1149,8 @@
       }
     },
     "contracts/interfaces/ISafe.sol": {
-      "lastModificationDate": 1671171522750,
-      "contentHash": "3731880504d921ec5df3649672f5caaa",
+      "lastModificationDate": 1671211588903,
+      "contentHash": "a0cb1d2262d525973cba855bb8b7035f",
       "sourceName": "contracts/interfaces/ISafe.sol",
       "solcConfig": {
         "settings": {
@@ -1149,8 +1181,8 @@
         }
       },
       "imports": [
-        "contracts/interfaces/IDOS.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol"
+        "contracts/lib/Call.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol"
       ],
       "versionRequirement": "^0.8.13",
       "artifacts": {
@@ -1160,8 +1192,8 @@
       }
     },
     "contracts/interfaces/ITransferReceiver2.sol": {
-      "lastModificationDate": 1670436095589,
-      "contentHash": "da2714d2aa3e636288bfe852c63030b8",
+      "lastModificationDate": 1671210470207,
+      "contentHash": "9305b6a1ff77dfe0f8a909b1342e18c2",
       "sourceName": "contracts/interfaces/ITransferReceiver2.sol",
       "solcConfig": {
         "settings": {
@@ -1205,8 +1237,8 @@
       }
     },
     "contracts/interfaces/IVersionManager.sol": {
-      "lastModificationDate": 1670436095590,
-      "contentHash": "5e0402e6be95361b979292feac4dcfc4",
+      "lastModificationDate": 1671210470208,
+      "contentHash": "ef12a168be9e89696bd1bd4a9b3cdd90",
       "sourceName": "contracts/interfaces/IVersionManager.sol",
       "solcConfig": {
         "settings": {
@@ -1241,12 +1273,15 @@
       "artifacts": {
         "IVersionManager": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "IVersionManager.sol/IVersionManager.json"
+        },
+        "ImmutableVersion": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "IVersionManager.sol/ImmutableVersion.json"
         }
       }
     },
     "contracts/lib/Call.sol": {
-      "lastModificationDate": 1669745251373,
-      "contentHash": "92613cbe1ab6dac67c704fcf5dfe9022",
+      "lastModificationDate": 1671210470208,
+      "contentHash": "7e1ba02aa0ed86cde4701de0afa74006",
       "sourceName": "contracts/lib/Call.sol",
       "solcConfig": {
         "settings": {
@@ -1276,17 +1311,19 @@
           "libraries": {}
         }
       },
-      "imports": [],
+      "imports": [
+        "node_modules/@openzeppelin/contracts/utils/Address.sol"
+      ],
       "versionRequirement": "^0.8.17",
       "artifacts": {
-        "Call": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "Call.sol/Call.json"
+        "CallLib": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "Call.sol/CallLib.json"
         }
       }
     },
     "contracts/lib/FsBits.sol": {
-      "lastModificationDate": 1669745251373,
-      "contentHash": "79fe6850539161829c235f838ad3411c",
+      "lastModificationDate": 1671210470208,
+      "contentHash": "ea8994e41f9a2f605ba46368b43a4650",
       "sourceName": "contracts/lib/FsBits.sol",
       "solcConfig": {
         "settings": {
@@ -1368,8 +1405,8 @@
       }
     },
     "contracts/lib/FsUtils.sol": {
-      "lastModificationDate": 1670436095590,
-      "contentHash": "f1687acb2da11ae1b53e3544ee6063b3",
+      "lastModificationDate": 1671210470208,
+      "contentHash": "1ed685323ce956736ba1ca60cac9fc10",
       "sourceName": "contracts/lib/FsUtils.sol",
       "solcConfig": {
         "settings": {
@@ -1450,8 +1487,8 @@
       }
     },
     "contracts/lib/ImmutableOwnable.sol": {
-      "lastModificationDate": 1670436095590,
-      "contentHash": "15120952b954eaa698ed93351977ff2f",
+      "lastModificationDate": 1671210470209,
+      "contentHash": "f86574314996ae77bd3b284a6b5d20a6",
       "sourceName": "contracts/lib/ImmutableOwnable.sol",
       "solcConfig": {
         "settings": {
@@ -1538,8 +1575,8 @@
       }
     },
     "contracts/oracles/UniV2Oracle.sol": {
-      "lastModificationDate": 1671048933615,
-      "contentHash": "ed1f3e5563ccb8852d4ae39498533fee",
+      "lastModificationDate": 1671212409775,
+      "contentHash": "c01486098101abd07d37ea7918bfc981",
       "sourceName": "contracts/oracles/UniV2Oracle.sol",
       "solcConfig": {
         "settings": {
@@ -1573,10 +1610,12 @@
         "contracts/duoswapV2/interfaces/IDuoswapV2Pair.sol",
         "contracts/interfaces/IDOS.sol",
         "contracts/interfaces/IERC20ValueOracle.sol",
+        "contracts/lib/Call.sol",
         "contracts/lib/FsMath.sol",
         "contracts/lib/FsUtils.sol",
         "contracts/lib/ImmutableOwnable.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol",
         "node_modules/hardhat/console.sol"
       ],
@@ -1588,8 +1627,8 @@
       }
     },
     "contracts/oracles/UniV3Oracle.sol": {
-      "lastModificationDate": 1670436095590,
-      "contentHash": "d14c666186b11373de57669876e01f24",
+      "lastModificationDate": 1671210470209,
+      "contentHash": "974d9599da9d69abfac6db7158eea4ff",
       "sourceName": "contracts/oracles/UniV3Oracle.sol",
       "solcConfig": {
         "settings": {
@@ -1649,6 +1688,51 @@
         }
       }
     },
+    "contracts/testing/MockERC20Oracle.sol": {
+      "lastModificationDate": 1671210470209,
+      "contentHash": "5f9cf4d81580a8be725d25c3e598031f",
+      "sourceName": "contracts/testing/MockERC20Oracle.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/interfaces/IERC20ValueOracle.sol",
+        "contracts/lib/FsUtils.sol",
+        "contracts/lib/ImmutableOwnable.sol",
+        "node_modules/hardhat/console.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "MockERC20Oracle": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "MockERC20Oracle.sol/MockERC20Oracle.json"
+        }
+      }
+    },
     "contracts/testing/MockNFTOracle.sol": {
       "lastModificationDate": 1670436095591,
       "contentHash": "9076a640d5e4ce67ae8ac4c01499f7f4",
@@ -1694,8 +1778,8 @@
       }
     },
     "contracts/testing/TestERC20.sol": {
-      "lastModificationDate": 1669745251374,
-      "contentHash": "a748abbfb95f819c7db3503a3f963c4c",
+      "lastModificationDate": 1671210470209,
+      "contentHash": "969e0ff435304118864b199b6f8abddc",
       "sourceName": "contracts/testing/TestERC20.sol",
       "solcConfig": {
         "settings": {
@@ -1726,30 +1810,10 @@
         }
       },
       "imports": [
-        "contracts/dosERC20/DOSERC20.sol",
-        "contracts/interfaces/IDOS.sol",
-        "contracts/lib/FsUtils.sol",
-        "contracts/lib/ImmutableOwnable.sol",
-        "node_modules/@openzeppelin/contracts/interfaces/IERC1363.sol",
-        "node_modules/@openzeppelin/contracts/interfaces/IERC1363Receiver.sol",
-        "node_modules/@openzeppelin/contracts/interfaces/IERC1363Spender.sol",
-        "node_modules/@openzeppelin/contracts/interfaces/IERC165.sol",
-        "node_modules/@openzeppelin/contracts/interfaces/IERC20.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
-        "node_modules/@openzeppelin/contracts/utils/Address.sol",
-        "node_modules/@openzeppelin/contracts/utils/Context.sol",
-        "node_modules/@openzeppelin/contracts/utils/Counters.sol",
-        "node_modules/@openzeppelin/contracts/utils/Strings.sol",
-        "node_modules/@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
-        "node_modules/@openzeppelin/contracts/utils/cryptography/EIP712.sol",
-        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol",
-        "node_modules/@openzeppelin/contracts/utils/math/Math.sol",
-        "node_modules/hardhat/console.sol"
+        "node_modules/@openzeppelin/contracts/utils/Context.sol"
       ],
       "versionRequirement": "^0.8.7",
       "artifacts": {
@@ -1759,8 +1823,8 @@
       }
     },
     "contracts/testing/TestNFT.sol": {
-      "lastModificationDate": 1669835683431,
-      "contentHash": "d00844c270a07fa5df14956d35e01922",
+      "lastModificationDate": 1671210470210,
+      "contentHash": "25ddb9cba4b53d1b6d5d9135b9c996ad",
       "sourceName": "contracts/testing/TestNFT.sol",
       "solcConfig": {
         "settings": {
@@ -1845,6 +1909,7 @@
       "imports": [
         "contracts/dosERC20/DOSERC20.sol",
         "contracts/interfaces/IDOS.sol",
+        "contracts/lib/Call.sol",
         "contracts/lib/FsUtils.sol",
         "contracts/lib/ImmutableOwnable.sol",
         "node_modules/@openzeppelin/contracts/interfaces/IERC1363.sol",
@@ -1875,10 +1940,10 @@
         }
       }
     },
-    "contracts/tokens/VoteNFT.sol": {
-      "lastModificationDate": 1669745251375,
-      "contentHash": "ebafb118fa305bb5ed13a6fa9e328261",
-      "sourceName": "contracts/tokens/VoteNFT.sol",
+    "contracts/tokens/HashNFT.sol": {
+      "lastModificationDate": 1671210470210,
+      "contentHash": "d53707c42f3ddf416e01a587882a89d1",
+      "sourceName": "contracts/tokens/HashNFT.sol",
       "solcConfig": {
         "settings": {
           "optimizer": {
@@ -1908,8 +1973,6 @@
         }
       },
       "imports": [
-        "contracts/lib/FsUtils.sol",
-        "contracts/lib/ImmutableOwnable.sol",
         "node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol",
         "node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol",
         "node_modules/@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol",
@@ -1920,16 +1983,156 @@
         "node_modules/@openzeppelin/contracts/utils/Strings.sol",
         "node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol",
         "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol",
-        "node_modules/@openzeppelin/contracts/utils/math/Math.sol",
+        "node_modules/@openzeppelin/contracts/utils/math/Math.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "HashNFT": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "HashNFT.sol/HashNFT.json"
+        }
+      }
+    },
+    "contracts/utils/BatchDeployer.sol": {
+      "lastModificationDate": 1671210470210,
+      "contentHash": "cce2efef76e18e623acf2f15f7c1feed",
+      "sourceName": "contracts/utils/BatchDeployer.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/external/interfaces/IAnyswapCreate2Deployer.sol",
+        "contracts/lib/FsUtils.sol",
         "node_modules/hardhat/console.sol"
       ],
       "versionRequirement": "^0.8.17",
       "artifacts": {
-        "BridgeNFT": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "VoteNFT.sol/BridgeNFT.json"
-        },
-        "HashNFT": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "VoteNFT.sol/HashNFT.json"
+        "BatchDeployer": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "BatchDeployer.sol/BatchDeployer.json"
+        }
+      }
+    },
+    "contracts/utils/FutureSwapProxy.sol": {
+      "lastModificationDate": 1671210470210,
+      "contentHash": "1a98e091c11e267333ff49e353d43233",
+      "sourceName": "contracts/utils/FutureSwapProxy.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/lib/Call.sol",
+        "node_modules/@openzeppelin/contracts/access/Ownable.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
+        "node_modules/@openzeppelin/contracts/utils/Context.sol",
+        "node_modules/@openzeppelin/contracts/utils/Strings.sol",
+        "node_modules/@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
+        "node_modules/@openzeppelin/contracts/utils/cryptography/EIP712.sol",
+        "node_modules/@openzeppelin/contracts/utils/math/Math.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "FutureSwapProxy": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "FutureSwapProxy.sol/FutureSwapProxy.json"
+        }
+      }
+    },
+    "contracts/utils/TypeChainGeneration.sol": {
+      "lastModificationDate": 1671210470210,
+      "contentHash": "9178393a11874763e467e532e2fe8652",
+      "sourceName": "contracts/utils/TypeChainGeneration.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "node_modules/@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol",
+        "node_modules/@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol",
+        "node_modules/@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol",
+        "node_modules/@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolActions.sol",
+        "node_modules/@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolDerivedState.sol",
+        "node_modules/@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolEvents.sol",
+        "node_modules/@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolImmutables.sol",
+        "node_modules/@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolOwnerActions.sol",
+        "node_modules/@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolState.sol",
+        "node_modules/@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "TypeChainGeneration": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "TypeChainGeneration.sol/TypeChainGeneration.json"
         }
       }
     },
@@ -2650,6 +2853,48 @@
       "artifacts": {
         "AggregatorV3Interface": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "AggregatorV3Interface.sol/AggregatorV3Interface.json"
+        }
+      }
+    },
+    "node_modules/@openzeppelin/contracts/access/Ownable.sol": {
+      "lastModificationDate": 1669752558102,
+      "contentHash": "e436cea06129be2c73cda4b1acc848b5",
+      "sourceName": "node_modules/@openzeppelin/contracts/access/Ownable.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "node_modules/@openzeppelin/contracts/utils/Context.sol"
+      ],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "Ownable": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "Ownable.sol/Ownable.json"
         }
       }
     },
@@ -4535,6 +4780,7 @@
         "contracts/duoswapV2/libraries/UQ112x112.sol",
         "contracts/interfaces/IDOS.sol",
         "contracts/interfaces/ISafe.sol",
+        "contracts/lib/Call.sol",
         "lib/forge-std/lib/ds-test/src/test.sol",
         "lib/forge-std/src/Common.sol",
         "lib/forge-std/src/Components.sol",
@@ -4550,6 +4796,7 @@
         "lib/forge-std/src/console.sol",
         "lib/forge-std/src/console2.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Callee.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol"
@@ -4562,8 +4809,8 @@
       }
     },
     "test/foundry/DuoswapV2.t.sol": {
-      "lastModificationDate": 1671174049346,
-      "contentHash": "fbc03682d73907eb43dbadaf544a18c7",
+      "lastModificationDate": 1671214321341,
+      "contentHash": "234de354392ecbd9de5b59912e52efea",
       "sourceName": "test/foundry/DuoswapV2.t.sol",
       "solcConfig": {
         "settings": {
@@ -4595,7 +4842,7 @@
       },
       "imports": [
         "contracts/dos/DOS.sol",
-        "contracts/dos/PortfolioProxy.sol",
+        "contracts/dos/DSafeProxy.sol",
         "contracts/dos/VersionManager.sol",
         "contracts/dosERC20/DOSERC20.sol",
         "contracts/duoswapV2/DuoswapV2ERC20.sol",
@@ -4617,6 +4864,7 @@
         "contracts/interfaces/ISafe.sol",
         "contracts/interfaces/ITransferReceiver2.sol",
         "contracts/interfaces/IVersionManager.sol",
+        "contracts/lib/Call.sol",
         "contracts/lib/FsMath.sol",
         "contracts/lib/FsUtils.sol",
         "contracts/lib/ImmutableOwnable.sol",

@@ -240,6 +240,7 @@ library DOSLib {
 using DSafeLib for DSafe;
 using DSafeLib for ERC20Pool;
 using SafeERC20 for IERC20;
+using Address for address;
 
 contract DOS is IDOSCore, IERC721Receiver, Proxy {
     DOSLib.DOSState public state;
@@ -270,6 +271,7 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
     }
 
     constructor(address _dosConfig, address _versionManager) {
+        console.log("versionManager:", _versionManager);
         state.versionManager = IVersionManager(_versionManager);
         dosConfig = _dosConfig;
     }
@@ -278,7 +280,7 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         (, uint16 erc20Idx) = DOSLib.getERC20Info(IERC20(erc20));
         if (amount > 0) {
             IERC20(erc20).safeTransferFrom(msg.sender, address(this), uint256(amount));
-            updateBalance(erc20Idx, to, FsMath.safeCastToSigned(amount));
+            dAccountERC20ChangeBy(to, erc20Idx, FsMath.safeCastToSigned(amount));
         }
     }
 
@@ -542,6 +544,102 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
+    /**
+     * @notice Approve the passed address to spend the specified amount of tokens on behalf of msg.sender
+     * and then call `onApprovalReceived` on spender.
+     * @param erc20 address The address of the ERC20 token
+     * @param spender address The address which will spend the funds
+     * @param amount uint256 The amount of tokens to be spent
+     * @param data bytes Additional data with no specified format, sent in call to `spender`
+     * @return true unless throwing
+     */
+    function approveAndCall(
+        IERC20 erc20,
+        address spender,
+        uint256 amount,
+        bytes memory data
+    ) public onlyDSafe returns (bool) {
+        uint256 prevAllowance = allowance(erc20, msg.sender, spender);
+        _approveERC20(msg.sender, erc20, spender, amount);
+        if (!_checkOnApprovalReceived(msg.sender, amount, spender, data)) {
+            revert WrongDataReturned();
+        }
+        _approveERC20(msg.sender, erc20, spender, prevAllowance); // reset allowance
+        return true;
+    }
+
+    /// @notice Approve an array of tokens and then call `onApprovalReceived` on spender.
+    /// @param erc20s An array of erc20 tokens
+    /// @param spender The address of the spender
+    /// @param amounts An array of the amounts of tokens to be spent
+    /// @param data Additional data with no specified format, sent in call to `spender`
+    /// @return true unless throwing
+    function approveBatchAndCall(
+        IERC20[] calldata erc20s,
+        address spender,
+        uint256[] calldata amounts,
+        bytes calldata data
+    ) public onlyDSafe returns (bool) {
+        require(erc20s.length == amounts.length, "Lengths do not match");
+        uint256[] memory prevAllowances = new uint256[](erc20s.length);
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            prevAllowances[i] = allowance(erc20s[i], msg.sender, spender);
+            _approveERC20(msg.sender, erc20s[i], spender, amounts[i]);
+        }
+        if (!_checkOnApprovalReceived(msg.sender, 0, spender, data)) {
+            revert WrongDataReturned();
+        }
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            _approveERC20(msg.sender, erc20s[i], spender, prevAllowances[i]); // reset allowance
+        }
+        return true;
+    }
+
+    /**
+     * @notice Transfer tokens from `msg.sender` to another address and then call `onTransferReceived` on receiver
+     * @param erc20 address The address of the ERC20 token
+     * @param to address The address which you want to transfer to
+     * @param amount uint256 The amount of tokens to be transferred
+     * @param data bytes Additional data with no specified format, sent in call to `to`
+     * @return true unless throwing
+     */
+    function transferAndCall(
+        IERC20 erc20,
+        address to,
+        uint256 amount,
+        address target,
+        bytes memory data
+    ) public onlyDSafe returns (bool) {
+        transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
+        if (!_checkOnTransferReceived(msg.sender, to, amount, target, data)) {
+            revert WrongDataReturned();
+        }
+        return true;
+    }
+
+    /// @notice Transfer an array of tokens from `msg.sender` to another address and then call `onTransferReceived` on receiver
+    /// @param erc20s An array of ERC20 tokens
+    /// @param to The address which you want to transfer to
+    /// @param amounts An array of amounts of tokens to be transferred
+    /// @param data Additional data with no specified format, sent in call to `to`
+    /// @return true unless throwing
+    function transferBatchAndCall(
+        IERC20[] calldata erc20s,
+        address to,
+        uint256[] calldata amounts,
+        address target,
+        bytes calldata data
+    ) external onlyDSafe returns (bool) {
+        require(erc20s.length == amounts.length, "Lengths do not match");
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            transferERC20(erc20s[i], msg.sender, to, FsMath.safeCastToSigned(amounts[i]));
+        }
+        if (!_checkOnTransferReceived(msg.sender, to, 0, target, data)) {
+            revert WrongDataReturned();
+        }
+        return true;
+    }
+
     function executeBatch(Call[] memory calls) external override onlyDSafe {
         DSafeProxy(payable(msg.sender)).executeBatch(calls);
         require(isSolvent(msg.sender), "Result of operation is not sufficient liquid");
@@ -567,12 +665,6 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
     function getImplementation(address dSafe) external view override returns (address) {
         // not using msg.sender since this is an external view function
         return state.dSafeLogic[dSafe];
-    }
-
-    function getNFTData(NFTId nftId) internal view returns (uint16 erc721Idx, uint256 tokenId) {
-        uint256 unwrappedId = NFTId.unwrap(nftId);
-        erc721Idx = uint16(unwrappedId);
-        tokenId = tokenDataByNFTId[nftId].tokenId | ((unwrappedId >> 240) << 240);
     }
 
     function getDSafeOwner(address dSafe) external view override returns (address) {
@@ -890,7 +982,7 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
 contract DOSConfig is ImmutableOwnable, IDOSConfig {
     DOSLib.DOSState state;
 
-    constructor(address owner) ImmutableOwnable(owner) {}
+    constructor(address _owner) ImmutableOwnable(_owner) {}
 
     function upgradeImplementation(address dSafe, uint256 version) external {
         address dSafeOwner = state.dSafes[dSafe].owner;

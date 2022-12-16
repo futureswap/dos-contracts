@@ -12,6 +12,7 @@ import {IDuoswapV2Pair} from "./interfaces/IDuoswapV2Pair.sol";
 import {DuoswapV2ERC20} from "./DuoswapV2ERC20.sol";
 
 import {IDOS} from "../interfaces/IDOS.sol";
+import {Call} from "../lib/Call.sol";
 import {ISafe} from "../interfaces/ISafe.sol";
 
 //solhint-disable func-name-mixedcase
@@ -59,9 +60,9 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
     }
 
     function _safeTransfer(address token, address to, uint256 amount) private {
-        IDOS.Call[] memory call = new IDOS.Call[](1);
+        Call[] memory call = new Call[](1);
         call[0] = (
-            IDOS.Call({
+            Call({
                 to: address(dos),
                 callData: abi.encodeWithSignature(
                     "transfer(address,address,uint256)",
@@ -91,7 +92,7 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
     function initialize(address _dos, address _token0, address _token1) external override {
         require(msg.sender == factory, "UniswapV2: FORBIDDEN"); // sufficient check
         dos = _dos;
-        dSafe = IDOS(dos).createPortfolio();
+        dSafe = IDOS(dos).createDSafe();
         token0 = _token0;
         token1 = _token1;
     }
@@ -150,8 +151,8 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
     // this low-level function should be called from a contract which performs important safety checks
     function mint(address to) external override lock returns (uint256 liquidity) {
         (uint112 _reserve0, uint112 _reserve1, ) = getReserves(); // gas savings
-        uint256 balance0 = uint256(IDOS(dos).viewBalance(dSafe, IERC20(token0)));
-        uint256 balance1 = uint256(IDOS(dos).viewBalance(dSafe, IERC20(token1)));
+        uint256 balance0 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token0)));
+        uint256 balance1 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token1)));
         uint256 amount0 = balance0 - _reserve0;
         uint256 amount1 = balance1 - _reserve1;
 
@@ -181,8 +182,8 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
         (uint112 _reserve0, uint112 _reserve1, ) = getReserves(); // gas savings
         address _token0 = token0; // gas savings
         address _token1 = token1; // gas savings
-        uint256 balance0 = uint256(IDOS(dos).viewBalance(dSafe, IERC20(_token0)));
-        uint256 balance1 = uint256(IDOS(dos).viewBalance(dSafe, IERC20(_token1)));
+        uint256 balance0 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(_token0)));
+        uint256 balance1 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(_token1)));
         uint256 liquidity = balanceOf[address(this)];
 
         bool feeOn = _mintFee(_reserve0, _reserve1);
@@ -193,8 +194,8 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
         _burn(address(this), liquidity);
         _safeTransfer(_token0, to, amount0);
         _safeTransfer(_token1, to, amount1);
-        balance0 = uint256(IDOS(dos).viewBalance(dSafe, IERC20(_token0)));
-        balance1 = uint256(IDOS(dos).viewBalance(dSafe, IERC20(_token1)));
+        balance0 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(_token0)));
+        balance1 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(_token1)));
 
         _update(balance0, balance1, _reserve0, _reserve1);
         if (feeOn) kLast = uint256(reserve0) * reserve1; // reserve0 and reserve1 are up-to-date
@@ -227,8 +228,8 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
             if (data.length > 0)
                 IUniswapV2Callee(to).uniswapV2Call(msg.sender, amount0Out, amount1Out, data);
 
-            balance0 = uint256(IDOS(dos).viewBalance(dSafe, IERC20(_token0)));
-            balance1 = uint256(IDOS(dos).viewBalance(dSafe, IERC20(_token1)));
+            balance0 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(_token0)));
+            balance1 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(_token1)));
         }
         uint256 amount0In = balance0 > _reserve0 - amount0Out
             ? balance0 - (_reserve0 - amount0Out)
@@ -258,16 +259,16 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
         _safeTransfer(
             _token0,
             to,
-            uint256(IDOS(dos).viewBalance(dSafe, IERC20(token0))) - reserve0
+            uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token0))) - reserve0
         );
-        _safeTransfer(_token1, to, uint256(IDOS(dos).viewBalance(dSafe, IERC20(token1))));
+        _safeTransfer(_token1, to, uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token1))));
     }
 
     // force reserves to match balances
     function sync() external override lock {
         _update(
-            uint256(IDOS(dos).viewBalance(dSafe, IERC20(token0))),
-            uint256(IDOS(dos).viewBalance(dSafe, IERC20(token1))),
+            uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token0))),
+            uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token1))),
             reserve0,
             reserve1
         );

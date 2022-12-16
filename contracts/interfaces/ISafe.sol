@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {IDOS} from "./IDOS.sol";
+import {Call} from "../lib/Call.sol";
 
 interface ISafe {
-    function executeBatch(IDOS.Call[] memory calls) external payable;
+    function executeBatch(Call[] memory calls) external payable;
 }
