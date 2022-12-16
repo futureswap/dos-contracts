@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./interfaces/IDuoswapV2Router.sol";
 import "./libraries/DuoswapV2Library.sol";
-import "./interfaces/IWETH.sol";
+import "../external/interfaces/IWETH9.sol";
 
 import {IDuoswapV2Pair} from "./interfaces/IDuoswapV2Pair.sol";
 import {IDOS} from "../interfaces/IDOS.sol";
