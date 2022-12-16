@@ -20,6 +20,8 @@ import "../external/interfaces/IPermit2.sol";
 contract DSafeProxy is Proxy {
     address public immutable dos;
 
+    bool private forwardNFT; // TODO: find better way to dedup between proxy / logic
+
     modifier ifDos() {
         if (msg.sender == dos) {
             _;
@@ -55,6 +57,7 @@ contract DSafeProxy is Proxy {
         // never contain eth / other than what's self-destructed into it)
         FsUtils.Assert(msg.value == 0);
         CallLib.executeBatch(calls);
+        forwardNFT = false;
     }
 
     // The implementation of the delegate is controlled by DOS
@@ -87,6 +90,7 @@ contract DSafeLogic is ImmutableVersion, IERC721Receiver, IERC1271, ITransferRec
     IDOS public immutable dos;
 
     mapping(uint248 => uint256) public nonces;
+    bool private forwardNFT;
 
     error InvalidData();
     error InvalidSignature();
@@ -132,6 +136,11 @@ contract DSafeLogic is ImmutableVersion, IERC721Receiver, IERC1271, ITransferRec
         ) revert InvalidSignature();
 
         IDOS(dos).executeBatch(calls);
+    }
+
+    function forwardNFTs(bool _forwardNFT) external {
+        require(msg.sender == address(this), "only this");
+        forwardNFT = _forwardNFT;
     }
 
     function liquify(
@@ -233,9 +242,12 @@ contract DSafeLogic is ImmutableVersion, IERC721Receiver, IERC1271, ITransferRec
     function onERC721Received(
         address /* operator */,
         address /* from */,
-        uint256 /* tokenId */,
-        bytes memory /* data */
+        uint256 tokenId,
+        bytes memory data
     ) public virtual override returns (bytes4) {
+        if (forwardNFT) {
+            IERC721(msg.sender).safeTransferFrom(address(this), address(dos), tokenId, data);
+        }
         return this.onERC721Received.selector;
     }
 

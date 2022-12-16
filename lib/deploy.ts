@@ -601,6 +601,7 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
     await getEventsTx(
       dsafe.executeBatch(
         await leverageLP2(
+          dsafe,
           dos,
           nonFungiblePositionManager,
           {token0: weth, token1: usdc, fee: 500},
@@ -609,7 +610,6 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
           toWei(10),
           toWei(10000, 6),
           dsafe.address,
-          1,
         ),
       ),
       nonFungiblePositionManager,
@@ -619,6 +619,7 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
     await getEventsTx(
       dsafe.executeBatch(
         await leverageLP2(
+          dsafe,
           dos,
           nonFungiblePositionManager,
           {token0: weth, token1: uni, fee: 500},
@@ -627,7 +628,6 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
           toWei(10),
           toWei(10),
           dsafe.address,
-          2,
         ),
       ),
       nonFungiblePositionManager,
