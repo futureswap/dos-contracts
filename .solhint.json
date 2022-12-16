@@ -1,0 +1,34 @@
+{
+  "extends": "solhint:recommended",
+  "rules": {
+    "no-empty-blocks": "off",
+    "no-unused-vars": "error",
+    "reason-string": ["error", {"maxLength": 100}],
+    "constructor-syntax": "error",
+    "const-name-snakecase": "error",
+    "contract-name-camelcase": "error",
+    "event-name-camelcase": "error",
+    "func-name-mixedcase": "error",
+    "func-param-name-mixedcase": "error",
+    "modifier-name-mixedcase": "error",
+    "use-forbidden-name": "error",
+    "var-name-mixedcase": "error",
+    "imports-on-top": "error",
+    "ordering": "warn",
+    "visibility-modifier-order": "error",
+
+    "avoid-call-value": "error",
+    "avoid-sha3": "error",
+    "avoid-suicide": "error",
+    "avoid-throw": "error",
+    "check-send-result": "error",
+    "compiler-version": ["error", "^0.8.7"],
+    "func-visibility": ["off"],
+    "multiple-sends": "error",
+    "no-inline-assembly": "off",
+    "not-rely-on-block-hash": "error",
+    "not-rely-on-time": "off",
+    "reentrancy": "error",
+    "state-visibility": "off"
+  }
+}

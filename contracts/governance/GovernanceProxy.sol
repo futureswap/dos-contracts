@@ -4,7 +4,8 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/utils/Address.sol";
 import "../lib/FsUtils.sol";
 import "../lib/ImmutableOwnable.sol";
-import "../tokens/VoteNFT.sol";
+import "../tokens/HashNFT.sol";
+import "../lib/Call.sol";
 
 // This is a proxy contract representing governance. This allows a fixed
 // ethereum address to be the indefinite owner of the system. This works
@@ -16,10 +17,6 @@ import "../tokens/VoteNFT.sol";
 contract GovernanceProxy {
     using Address for address;
 
-    struct Call {
-        address to;
-        bytes callData;
-    }
     // This address controls the proxy and is allowed to execute
     // contract calls from this contracts account.
     address public governance;
@@ -33,13 +30,13 @@ contract GovernanceProxy {
     event NewGovernanceProposed(address newGovernance);
     event GovernanceChanged(address oldGovernance, address newGovernance);
 
-    constructor() {
-        governance = msg.sender;
+    constructor(address _governance) {
+        governance = FsUtils.nonNull(_governance);
     }
 
     /// @notice Execute a batch of contract calls.
     /// @param calls an array of calls.
-    function execute(Call[] calldata calls) external {
+    function execute(CallWithoutValue[] calldata calls) external {
         if (msg.sender != governance) {
             // If the caller is not governance we only accept if the previous
             // governance has proposed it as the new governance account.
@@ -48,9 +45,7 @@ contract GovernanceProxy {
             governance = msg.sender;
             proposedGovernance = address(0);
         }
-        for (uint256 i = 0; i < calls.length; i++) {
-            calls[i].to.functionCall(calls[i].callData);
-        }
+        CallLib.executeBatchWithoutValue(calls);
     }
 
     /// @notice Propose a new account as governance account. Note that this can
@@ -77,9 +72,14 @@ contract Governance is ImmutableOwnable, IERC721Receiver {
         voting = FsUtils.nonNull(_voting);
     }
 
-    function execute(uint256 nonce, GovernanceProxy.Call[] memory calls) external {
-        voteNFT.burnAsDigest(voting, nonce, keccak256(abi.encode(calls)));
-        GovernanceProxy(owner).execute(calls);
+    function execute(uint256 nonce, CallWithoutValue[] memory calls) external {
+        uint256 tokenId = voteNFT.toTokenId(
+            voting,
+            nonce,
+            CallLib.hashCallWithoutValueArray(calls)
+        );
+        voteNFT.burn(tokenId); // reverts if tokenId isn't owned.
+        GovernanceProxy(immutableOwner).execute(calls);
     }
 
     function transferVoting(address newVoting) external onlyOwner {

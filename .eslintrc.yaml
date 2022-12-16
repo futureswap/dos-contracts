@@ -63,6 +63,12 @@ rules:
   no-new-object: error
   no-new-wrappers: error
   no-redeclare: off # handled by @typescript-eslint/no-redeclare
+  no-restricted-globals:
+  - error
+  - name: setTimeout
+    message: Please, use setTimeout from node:timers/promises instead
+  - name: setInterval
+    message: Please, use setInterval from node:timers/promises instead
   no-throw-literal: off # handled by @typescript-eslint/no-throw-literal
   no-undef-init: error
   no-underscore-dangle: [error, {allow: [_signTypedData]}]
@@ -112,8 +118,10 @@ rules:
   "@typescript-eslint/naming-convention": error
   "@typescript-eslint/no-explicit-any": error
   "@typescript-eslint/no-redundant-type-constituents": error
+  "@typescript-eslint/no-unnecessary-condition": error
   "@typescript-eslint/no-unnecessary-qualifier": error
   "@typescript-eslint/prefer-nullish-coalescing": error
+  "@typescript-eslint/prefer-optional-chain": error
   "@typescript-eslint/prefer-readonly": error
   # I didn't manage to fix code to work with it. Maybe later
   #  "@typescript-eslint/prefer-readonly-parameter-types": error
@@ -122,7 +130,7 @@ rules:
   "@typescript-eslint/lines-between-class-members": [error, always, {exceptAfterSingleLine: true}]
   "@typescript-eslint/no-array-constructor": error
   "@typescript-eslint/no-empty-function": error
-  "@typescript-eslint/no-magic-numbers": [error, {
+  "@typescript-eslint/no-magic-numbers": [warn, {
     ignoreArrayIndexes: true,
     ignoreDefaultValues: true,
     ignoreClassFieldInitialValues: true,
@@ -181,7 +189,7 @@ overrides:
   rules:
     no-console: off
     "@typescript-eslint/naming-convention": off
-- files: ["./scripts/deploy.ts"]
+- files: ["./scripts/*.ts"]
   rules:
     no-console: off
     "@typescript-eslint/naming-convention": off

@@ -4,6 +4,7 @@ import type {HardhatRuntimeEnvironment} from "hardhat/types";
 import "hardhat-preprocessor";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-waffle";
+import "@nomiclabs/hardhat-ethers";
 import {config as dotEnvConfig} from "dotenv";
 
 import {preprocessCode} from "./lib/hardhat/preprocess";
@@ -17,6 +18,8 @@ const getEnvVariable = (varName: string) => {
 };
 
 const TEST_MNEMONIC = "test test test test test test test test test test test junk";
+
+export const FUTURESWAP_DEPLOYER_MNEMONIC = getEnvVariable("FUTURESWAP_DEPLOYER_MNEMONIC");
 
 // mnemonic for futureswap work accounts these are individual for each
 // employee. These accounts carry real ETH for executing TX's but should
@@ -34,6 +37,11 @@ const config: HardhatUserConfig = {
       {
         version: "0.8.7",
         settings: {
+          metadata: {
+            // not including the metadata hash
+            // https://github.com/paulrberg/solidity-template/issues/31
+            bytecodeHash: "none",
+          },
           optimizer: {
             enabled: true,
             runs: 200,
@@ -48,6 +56,11 @@ const config: HardhatUserConfig = {
       {
         version: "0.8.17",
         settings: {
+          metadata: {
+            // not including the metadata hash
+            // https://github.com/paulrberg/solidity-template/issues/31
+            bytecodeHash: "none",
+          },
           optimizer: {
             enabled: true,
             runs: 200,
@@ -79,7 +92,7 @@ const config: HardhatUserConfig = {
       allowUnlimitedContractSize: true,
     },
     localhost: {
-      url: "http://localhost:8545/",
+      url: "http://127.0.0.1:8545/",
       chainId: 31337,
       accounts: {
         count: 200,
@@ -161,7 +174,21 @@ export default {
   ...config,
   preprocess: {
     eachLine: preprocessCode((hre: HardhatRuntimeEnvironment) => {
-      return hre.network.name === "hardhat" || hre.network.name === "localhost";
+      switch (hre.network.name) {
+        case "ethereum":
+        case "arbitrum":
+        case "avalanche":
+          return "production";
+        case "goerli":
+        case "arbitrum_goerli":
+        case "fuji":
+          return "testing";
+        case "hardhat":
+        case "localhost":
+          return "development";
+        default:
+          throw new Error("Unknown network");
+      }
     }),
   },
 };

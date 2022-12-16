@@ -28,7 +28,10 @@ describe("UniswapOracle", () => {
     const [owner] = await ethers.getSigners();
 
     const weth = await new WETH9__factory(owner).deploy();
-    const {uniswapFactory, uniswapNFTManager} = await deployUniswapFactory(weth.address, owner);
+    const {uniswapV3Factory, nonFungiblePositionManager} = await deployUniswapFactory(
+      weth.address,
+      owner,
+    );
 
     let tok0 = await new TestERC20__factory(owner).deploy("TOKA", "TOKA", 18);
     let tok1 = await new TestERC20__factory(owner).deploy("TOKB", "TOKB", 18);
@@ -46,16 +49,16 @@ describe("UniswapOracle", () => {
     const tok0Chainlink = await Chainlink.deploy(owner, PRICE, 8, 18, 18);
     const tok1Chainlink = await Chainlink.deploy(owner, 1, 8, 18, 18);
 
-    const pool = await deployUniswapPool(uniswapFactory, tok0.address, tok1.address, PRICE);
+    const pool = await deployUniswapPool(uniswapV3Factory, tok0.address, tok1.address, 500, PRICE);
 
     const uniswapOracle = await new UniV3Oracle__factory(owner).deploy(
-      uniswapFactory.address,
-      uniswapNFTManager.address,
+      uniswapV3Factory.address,
+      nonFungiblePositionManager.address,
       owner.address,
     );
     await uniswapOracle.setERC20ValueOracle(tok0.address, tok0Chainlink.oracle.address);
     await uniswapOracle.setERC20ValueOracle(tok1.address, tok1Chainlink.oracle.address);
-    return {owner, pool, uniswapNFTManager, tok0, tok1, uniswapOracle};
+    return {owner, pool, nonFungiblePositionManager, tok0, tok1, uniswapOracle};
   }
 
   describe("#mint", () => {
@@ -64,13 +67,13 @@ describe("UniswapOracle", () => {
         "then liquidity of both tokens in the pool get increased " +
         "and total liquidity is increased by the sum of liquidity of both tokens",
       async () => {
-        const {owner, uniswapNFTManager, tok0, tok1, uniswapOracle} = await loadFixture(
+        const {owner, nonFungiblePositionManager, tok0, tok1, uniswapOracle} = await loadFixture(
           deployUniswapFixture,
         );
         await tok0.mint(owner.address, toWei(10));
         await tok1.mint(owner.address, toWei(1000));
-        await tok0.approve(uniswapNFTManager.address, ethers.constants.MaxUint256);
-        await tok1.approve(uniswapNFTManager.address, ethers.constants.MaxUint256);
+        await tok0.approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256);
+        await tok1.approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256);
 
         const mintParams = {
           token0: tok0.address,
@@ -88,7 +91,10 @@ describe("UniswapOracle", () => {
 
         const {IncreaseLiquidity} = await getEventsTx<{
           IncreaseLiquidity: IncreaseLiquidity;
-        }>(uniswapNFTManager.mint(mintParams, {gasLimit: 9e6}), uniswapNFTManager);
+        }>(
+          nonFungiblePositionManager.mint(mintParams, {gasLimit: 9e6}),
+          nonFungiblePositionManager,
+        );
         const token0IncreaseLiquidity = IncreaseLiquidity.amount0 * BigInt(PRICE);
         const token1IncreaseLiquidity = IncreaseLiquidity.amount1;
         // the exact values calculation dependents on the internal Uniswap logic
@@ -109,13 +115,13 @@ describe("UniswapOracle", () => {
         "then only liquidity of token0 get increased" +
         "and total liquidity is increased by the same amount",
       async () => {
-        const {owner, uniswapNFTManager, tok0, tok1, uniswapOracle} = await loadFixture(
+        const {owner, nonFungiblePositionManager, tok0, tok1, uniswapOracle} = await loadFixture(
           deployUniswapFixture,
         );
         await tok0.mint(owner.address, toWei(10));
         await tok1.mint(owner.address, toWei(1000));
-        await tok0.approve(uniswapNFTManager.address, ethers.constants.MaxUint256);
-        await tok1.approve(uniswapNFTManager.address, ethers.constants.MaxUint256);
+        await tok0.approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256);
+        await tok1.approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256);
 
         const mintParams = {
           token0: tok0.address,
@@ -135,7 +141,7 @@ describe("UniswapOracle", () => {
 
         const {IncreaseLiquidity} = await getEventsTx<{
           IncreaseLiquidity: IncreaseLiquidity;
-        }>(uniswapNFTManager.mint(mintParams), uniswapNFTManager);
+        }>(nonFungiblePositionManager.mint(mintParams), nonFungiblePositionManager);
         const token0IncreaseLiquidity = IncreaseLiquidity.amount0 * BigInt(PRICE);
         const token1IncreaseLiquidity = IncreaseLiquidity.amount1;
         // the exact value calculation dependents on the internal Uniswap logic
@@ -152,13 +158,13 @@ describe("UniswapOracle", () => {
         "then only liquidity of token0 get increased" +
         "and total liquidity is increased by the same amount",
       async () => {
-        const {owner, uniswapNFTManager, tok0, tok1, uniswapOracle} = await loadFixture(
+        const {owner, nonFungiblePositionManager, tok0, tok1, uniswapOracle} = await loadFixture(
           deployUniswapFixture,
         );
         await tok0.mint(owner.address, toWei(10));
         await tok1.mint(owner.address, toWei(1000));
-        await tok0.approve(uniswapNFTManager.address, ethers.constants.MaxUint256);
-        await tok1.approve(uniswapNFTManager.address, ethers.constants.MaxUint256);
+        await tok0.approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256);
+        await tok1.approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256);
 
         const mintParams = {
           token0: tok0.address,
@@ -178,7 +184,7 @@ describe("UniswapOracle", () => {
 
         const {IncreaseLiquidity} = await getEventsTx<{
           IncreaseLiquidity: IncreaseLiquidity;
-        }>(uniswapNFTManager.mint(mintParams), uniswapNFTManager);
+        }>(nonFungiblePositionManager.mint(mintParams), nonFungiblePositionManager);
         const token0IncreaseLiquidity = IncreaseLiquidity.amount0 * BigInt(PRICE);
         const token1IncreaseLiquidity = IncreaseLiquidity.amount1;
         expect(token0IncreaseLiquidity).to.equal(0);

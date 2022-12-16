@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
 // Inspired by the following contract: https://github.com/OpenBazaar/smart-contracts/blob/22d3f190163102f9ceee95ac705001c82ca55624/contracts/registry/ContractManager.sol
@@ -28,23 +28,30 @@ contract VersionManager is IVersionManager, ImmutableOwnable {
     constructor(address owner) ImmutableOwnable(owner) {}
 
     /// @notice Registers a new version of the store contract
-    /// @param versionName The name of the version to be added
     /// @param status Status of the version to be added
     /// @param _implementation The address of the implementation of the version
-    function addVersion(
-        string calldata versionName,
-        Status status,
-        address _implementation
-    ) external onlyOwner {
+    function addVersion(Status status, address _implementation) external onlyOwner {
         address implementation = FsUtils.nonNull(_implementation);
-        // version name must not be the empty string
-        if (bytes(versionName).length == 0) {
-            revert InvalidVersionName();
-        }
-
         // implementation must be a contract
         if (!Address.isContract(implementation)) {
             revert InvalidImplementation();
+        }
+
+        string memory versionName;
+        try ImmutableVersion(implementation).immutableVersion() returns (bytes32 immutableVersion) {
+            uint256 len = uint8(immutableVersion[0]);
+            bytes memory res = new bytes(len);
+            for (uint256 i = 0; i < len; i++) {
+                res[i] = immutableVersion[i + 1];
+            }
+            versionName = string(res);
+        } catch {
+            revert InvalidImplementation();
+        }
+
+        // version name must not be the empty string
+        if (bytes(versionName).length == 0) {
+            revert InvalidVersionName();
         }
 
         // the version name should not already be registered

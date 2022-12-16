@@ -65,7 +65,7 @@ library TickMath {
 
 // Incompatible with our version of OZ
 // import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
-
+// solhint-disable-next-line ordering
 interface INPM {
     function positions(
         uint256 tokenId
@@ -148,8 +148,18 @@ contract UniV3Oracle is ImmutableOwnable, INFTValueOracle {
         int256 amountX = (liquidity * Q96) / sqrtPrice - baseX;
 
         int256 value = 0;
-        value += erc20ValueOracle[token0].calcValue(amountX);
-        value += erc20ValueOracle[token1].calcValue(amountY);
+        {
+            IERC20ValueOracle valueOracle = erc20ValueOracle[token0];
+            value += (address(valueOracle) == address(0))
+                ? int256(0)
+                : valueOracle.calcValue(amountX);
+        }
+        {
+            IERC20ValueOracle valueOracle = erc20ValueOracle[token1];
+            value += (address(valueOracle) == address(0))
+                ? int256(0)
+                : valueOracle.calcValue(amountY);
+        }
         return value;
     }
 }

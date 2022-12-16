@@ -23,13 +23,13 @@ library FsBits {
      *   See https://en.wikipedia.org/wiki/Hamming_weight#Efficient_implementation
      */
     function bitCount(uint256 x) internal pure returns (uint256) {
-        uint256 uint256_max = type(uint256).max;
+        uint256 uint256max = type(uint256).max;
 
         /*
          * We sum bits into a single byte, and `UINT256_MAX` would overflow that.  So we handle this
          * particular case separately.
          */
-        if (x == uint256_max) return 256;
+        if (x == uint256max) return 256;
 
         /*
          * We use an implementation that we know either does not overflow (for `-` and `+`) or
@@ -37,26 +37,26 @@ library FsBits {
          */
         unchecked {
             // Count 1's in 128 2-bit groups
-            uint256 mask = uint256_max / 3; // 0x5555...
+            uint256 mask = uint256max / 3; // 0x5555...
             // Special case (x & mask) + ((x >> 1) & mask) equals formula below with less
             // instructions.
             x = x - ((x >> 1) & mask);
 
             // Count 1's in 64 4-bit groups
-            mask = uint256_max / 5; // 0x3333....
+            mask = uint256max / 5; // 0x3333....
             x = (x & mask) + ((x >> 2) & mask);
 
             // Count 1's in 32 8-bit groups. Note At this point there is no danger of overflowing
             // between count of groups so we can have
             // (x & mask) + ((x >> n) & mask) = (x + (x >> n)) & mask
             // which saves an instruction
-            mask = uint256_max / 17; // 0x0F0F...
+            mask = uint256max / 17; // 0x0F0F...
             x = (x + (x >> 4)) & mask;
 
             // At this point we have the count of each of the 32 bytes. In 8 bits we can store
             // 0 to 255, so only UINT_MAX would overflow when represented in a single byte, which
             // is case we have excluded. So we can calculate the
-            mask = uint256_max / 255;
+            mask = uint256max / 255;
             x = (x * mask) >> (256 - 8);
         }
 
