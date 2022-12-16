@@ -109,7 +109,7 @@ interface IDOSCore {
 
     function depositERC20(IERC20 erc20, int256 amount) external;
 
-    function depositERC20(address erc20, address to, uint256 amount) external;
+    function depositERC20ForSafe(address erc20, address to, uint256 amount) external;
 
     function depositFull(IERC20[] calldata erc20s) external;
 

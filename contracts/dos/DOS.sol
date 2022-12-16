@@ -276,7 +276,11 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         dosConfig = _dosConfig;
     }
 
-    function depositERC20(address erc20, address to, uint256 amount) external dSafeExists(to) {
+    function depositERC20ForSafe(
+        address erc20,
+        address to,
+        uint256 amount
+    ) external dSafeExists(to) {
         (, uint16 erc20Idx) = DOSLib.getERC20Info(IERC20(erc20));
         if (amount > 0) {
             IERC20(erc20).safeTransferFrom(msg.sender, address(this), uint256(amount));
