@@ -495,13 +495,8 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
      * @param amount uint256 The amount of tokens to be transferred
      * @return true unless throwing
      */
-    function transferAndCall(
-        IERC20 erc20,
-        address to,
-        uint256 amount,
-        address target
-    ) external returns (bool) {
-        return transferAndCall(erc20, to, amount, target, "");
+    function transferAndCall(IERC20 erc20, address to, uint256 amount) external returns (bool) {
+        return transferAndCall(erc20, to, amount, "");
     }
 
     // /**
@@ -557,14 +552,13 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         IERC20[] calldata erc20s,
         address to,
         uint256[] calldata amounts,
-        address target,
         bytes calldata data
     ) external onlyDSafe returns (bool) {
         require(erc20s.length == amounts.length, "Lengths do not match");
         for (uint256 i = 0; i < erc20s.length; i++) {
             transferERC20(erc20s[i], msg.sender, to, FsMath.safeCastToSigned(amounts[i]));
         }
-        if (!_checkOnTransferReceived(msg.sender, to, 0, target, data)) {
+        if (!_checkOnTransferReceived(msg.sender, to, 0, data)) {
             revert WrongDataReturned();
         }
         return true;
@@ -664,11 +658,10 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         IERC20 erc20,
         address to,
         uint256 amount,
-        address target,
         bytes memory data
     ) public onlyDSafe returns (bool) {
         transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
-        if (!_checkOnTransferReceived(msg.sender, to, amount, target, data)) {
+        if (!_checkOnTransferReceived(msg.sender, to, amount, data)) {
             revert WrongDataReturned();
         }
         return true;
@@ -814,17 +807,16 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         address sender,
         address recipient,
         uint256 amount,
-        address target,
         bytes memory data
     ) internal virtual returns (bool) {
         if (!recipient.isContract()) {
             revert ReceiverNotContract();
         }
 
-        Call memory call = Call({to: target, callData: data, value: msg.value});
+        Call memory call = Call({to: recipient, callData: data, value: msg.value});
 
         try
-            IERC1363ReceiverExtended(recipient).onTransferReceived(msg.sender, sender, amount, call)
+            IERC1363ReceiverExtended(sender).onTransferReceived(msg.sender, sender, amount, call)
         returns (bytes4 retval) {
             return retval == IERC1363Receiver.onTransferReceived.selector;
         } catch (bytes memory reason) {

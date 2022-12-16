@@ -59,11 +59,9 @@ contract DuoswapV2Test is Test {
 
         versionManager = new VersionManager(address(this));
         dosConfig = new DOSConfig(address(this));
-        console.log("dosConfig", address(dosConfig));
         dos = new DOS(address(dosConfig), address(versionManager));
         logic = new DSafeLogic(address(dos));
         bytes32 iVersion = ImmutableVersion(logic).immutableVersion();
-        console.logBytes32(iVersion);
 
         string memory version = "1.0.0";
 
@@ -97,10 +95,6 @@ contract DuoswapV2Test is Test {
 
         (string memory versionName, , , address implementation, ) = versionManager
             .getRecommendedVersion();
-        console.log("versionName", versionName);
-        console.log("implementation", implementation);
-
-        console.log("before factory deploy");
         factory = new DuoswapV2Factory(address(dos), address(this));
         router = new DuoswapV2Router(address(factory), address(weth), address(dos));
     }

@@ -13,8 +13,8 @@
   },
   "files": {
     "contracts/dos/DOS.sol": {
-      "lastModificationDate": 1671225323826,
-      "contentHash": "41833dd3b366732e45fa01166ec018f5",
+      "lastModificationDate": 1671231590943,
+      "contentHash": "fe94e885678b49b754c2c05427a93c70",
       "sourceName": "contracts/dos/DOS.sol",
       "solcConfig": {
         "settings": {
@@ -107,8 +107,8 @@
       }
     },
     "contracts/dos/DSafeProxy.sol": {
-      "lastModificationDate": 1671225301878,
-      "contentHash": "5f384dcb0dc06d96b59f8094b1751ba7",
+      "lastModificationDate": 1671226490304,
+      "contentHash": "8dd8c7320d8b3a0129470e60fae30587",
       "sourceName": "contracts/dos/DSafeProxy.sol",
       "solcConfig": {
         "settings": {
@@ -662,8 +662,8 @@
       }
     },
     "contracts/duoswapV2/libraries/DuoswapV2Library.sol": {
-      "lastModificationDate": 1671224885540,
-      "contentHash": "8d331150ef29049131cf2d484353c7df",
+      "lastModificationDate": 1671231780572,
+      "contentHash": "f7a49c43d2ae173408b26dee3f93acd7",
       "sourceName": "contracts/duoswapV2/libraries/DuoswapV2Library.sol",
       "solcConfig": {
         "settings": {
@@ -1152,8 +1152,8 @@
       }
     },
     "contracts/interfaces/ISafe.sol": {
-      "lastModificationDate": 1671215886478,
-      "contentHash": "a0cb1d2262d525973cba855bb8b7035f",
+      "lastModificationDate": 1671226480920,
+      "contentHash": "293fb15775220b519364fd1b0a68d642",
       "sourceName": "contracts/interfaces/ISafe.sol",
       "solcConfig": {
         "settings": {
@@ -4812,8 +4812,8 @@
       }
     },
     "test/foundry/DuoswapV2.t.sol": {
-      "lastModificationDate": 1671224837234,
-      "contentHash": "aee542d2ec6a533c1a7a45c3be00d25b",
+      "lastModificationDate": 1671231825058,
+      "contentHash": "452cc87e32865d9615eec8363867fd37",
       "sourceName": "test/foundry/DuoswapV2.t.sol",
       "solcConfig": {
         "settings": {
