@@ -13,8 +13,8 @@
   },
   "files": {
     "contracts/dos/DOS.sol": {
-      "lastModificationDate": 1671047351432,
-      "contentHash": "e00fee8decad45b23e482592df882262",
+      "lastModificationDate": 1671173920285,
+      "contentHash": "810d0b500e1e4431cb0853ac7aff1bf3",
       "sourceName": "contracts/dos/DOS.sol",
       "solcConfig": {
         "settings": {
@@ -52,6 +52,7 @@
         "contracts/interfaces/IERC1363-extended.sol",
         "contracts/interfaces/IERC20ValueOracle.sol",
         "contracts/interfaces/INFTValueOracle.sol",
+        "contracts/interfaces/ISafe.sol",
         "contracts/interfaces/ITransferReceiver2.sol",
         "contracts/interfaces/IVersionManager.sol",
         "contracts/lib/FsMath.sol",
@@ -99,8 +100,8 @@
       }
     },
     "contracts/dos/PortfolioProxy.sol": {
-      "lastModificationDate": 1670971145414,
-      "contentHash": "541aaec20dfe51b6bab85ab6a0ab0594",
+      "lastModificationDate": 1671174157745,
+      "contentHash": "5f3da8fa4b8535e21ac84c0a14673a44",
       "sourceName": "contracts/dos/PortfolioProxy.sol",
       "solcConfig": {
         "settings": {
@@ -133,6 +134,7 @@
       "imports": [
         "contracts/external/interfaces/IPermit2.sol",
         "contracts/interfaces/IDOS.sol",
+        "contracts/interfaces/ISafe.sol",
         "contracts/interfaces/ITransferReceiver2.sol",
         "contracts/lib/FsUtils.sol",
         "node_modules/@openzeppelin/contracts/interfaces/IERC1271.sol",
@@ -400,10 +402,10 @@
         "contracts/duoswapV2/DuoswapV2ERC20.sol",
         "contracts/duoswapV2/DuoswapV2Pair.sol",
         "contracts/duoswapV2/interfaces/IDuoswapV2Pair.sol",
-        "contracts/duoswapV2/interfaces/ISafe.sol",
         "contracts/duoswapV2/libraries/Math.sol",
         "contracts/duoswapV2/libraries/UQ112x112.sol",
         "contracts/interfaces/IDOS.sol",
+        "contracts/interfaces/ISafe.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Callee.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol",
@@ -417,8 +419,8 @@
       }
     },
     "contracts/duoswapV2/DuoswapV2Pair.sol": {
-      "lastModificationDate": 1671048980403,
-      "contentHash": "6ead48426b79db22a5bba1cfc67176b1",
+      "lastModificationDate": 1671172171008,
+      "contentHash": "6fbc7248d7dfc469343a76b79f0f46b4",
       "sourceName": "contracts/duoswapV2/DuoswapV2Pair.sol",
       "solcConfig": {
         "settings": {
@@ -451,10 +453,10 @@
       "imports": [
         "contracts/duoswapV2/DuoswapV2ERC20.sol",
         "contracts/duoswapV2/interfaces/IDuoswapV2Pair.sol",
-        "contracts/duoswapV2/interfaces/ISafe.sol",
         "contracts/duoswapV2/libraries/Math.sol",
         "contracts/duoswapV2/libraries/UQ112x112.sol",
         "contracts/interfaces/IDOS.sol",
+        "contracts/interfaces/ISafe.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Callee.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol",
@@ -468,8 +470,8 @@
       }
     },
     "contracts/duoswapV2/DuoswapV2Router.sol": {
-      "lastModificationDate": 1671046929236,
-      "contentHash": "b5401506980cd975133d9f41e2b78146",
+      "lastModificationDate": 1671174260131,
+      "contentHash": "fd3c4c42f90bbd9a7637c1ae68ba314d",
       "sourceName": "contracts/duoswapV2/DuoswapV2Router.sol",
       "solcConfig": {
         "settings": {
@@ -503,8 +505,8 @@
         "contracts/duoswapV2/interfaces/IDuoswapV2Pair.sol",
         "contracts/duoswapV2/interfaces/IDuoswapV2Router.sol",
         "contracts/duoswapV2/interfaces/IDuoswapV2Router01.sol",
-        "contracts/duoswapV2/interfaces/IWETH.sol",
         "contracts/duoswapV2/libraries/DuoswapV2Library.sol",
+        "contracts/external/interfaces/IWETH9.sol",
         "contracts/interfaces/IDOS.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
         "node_modules/@uniswap/lib/contracts/libraries/TransferHelper.sol",
@@ -642,89 +644,9 @@
         }
       }
     },
-    "contracts/duoswapV2/interfaces/ISafe.sol": {
-      "lastModificationDate": 1670971327223,
-      "contentHash": "d7736284617a0177ffc7237b9d12df70",
-      "sourceName": "contracts/duoswapV2/interfaces/ISafe.sol",
-      "solcConfig": {
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "metadata": {
-            "bytecodeHash": "ipfs",
-            "appendCBOR": true
-          },
-          "outputSelection": {
-            "*": {
-              "": [
-                "ast"
-              ],
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ]
-            }
-          },
-          "evmVersion": "london",
-          "libraries": {}
-        }
-      },
-      "imports": [],
-      "versionRequirement": "^0.8.13",
-      "artifacts": {
-        "ISafe": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "ISafe.sol/ISafe.json"
-        }
-      }
-    },
-    "contracts/duoswapV2/interfaces/IWETH.sol": {
-      "lastModificationDate": 1670971327227,
-      "contentHash": "93beeae4136d57ce37676ca5288d8f64",
-      "sourceName": "contracts/duoswapV2/interfaces/IWETH.sol",
-      "solcConfig": {
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "metadata": {
-            "bytecodeHash": "ipfs",
-            "appendCBOR": true
-          },
-          "outputSelection": {
-            "*": {
-              "": [
-                "ast"
-              ],
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ]
-            }
-          },
-          "evmVersion": "london",
-          "libraries": {}
-        }
-      },
-      "imports": [],
-      "versionRequirement": "^0.8.4",
-      "artifacts": {
-        "IWETH": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "IWETH.sol/IWETH.json"
-        }
-      }
-    },
     "contracts/duoswapV2/libraries/DuoswapV2Library.sol": {
-      "lastModificationDate": 1671049022565,
-      "contentHash": "3525ffaff99e87599eee30cf6d1354e1",
+      "lastModificationDate": 1671172209639,
+      "contentHash": "973832d998e0e65a2ee128c449794c55",
       "sourceName": "contracts/duoswapV2/libraries/DuoswapV2Library.sol",
       "solcConfig": {
         "settings": {
@@ -1191,6 +1113,49 @@
       "artifacts": {
         "INFTValueOracle": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "INFTValueOracle.sol/INFTValueOracle.json"
+        }
+      }
+    },
+    "contracts/interfaces/ISafe.sol": {
+      "lastModificationDate": 1671171522750,
+      "contentHash": "3731880504d921ec5df3649672f5caaa",
+      "sourceName": "contracts/interfaces/ISafe.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/interfaces/IDOS.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol"
+      ],
+      "versionRequirement": "^0.8.13",
+      "artifacts": {
+        "ISafe": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "ISafe.sol/ISafe.json"
         }
       }
     },
@@ -4566,10 +4531,10 @@
         "contracts/duoswapV2/DuoswapV2ERC20.sol",
         "contracts/duoswapV2/DuoswapV2Pair.sol",
         "contracts/duoswapV2/interfaces/IDuoswapV2Pair.sol",
-        "contracts/duoswapV2/interfaces/ISafe.sol",
         "contracts/duoswapV2/libraries/Math.sol",
         "contracts/duoswapV2/libraries/UQ112x112.sol",
         "contracts/interfaces/IDOS.sol",
+        "contracts/interfaces/ISafe.sol",
         "lib/forge-std/lib/ds-test/src/test.sol",
         "lib/forge-std/src/Common.sol",
         "lib/forge-std/src/Components.sol",
@@ -4597,8 +4562,8 @@
       }
     },
     "test/foundry/DuoswapV2.t.sol": {
-      "lastModificationDate": 1671048887369,
-      "contentHash": "b5dd471dca200787247cb29fa37dae8b",
+      "lastModificationDate": 1671174049346,
+      "contentHash": "fbc03682d73907eb43dbadaf544a18c7",
       "sourceName": "test/foundry/DuoswapV2.t.sol",
       "solcConfig": {
         "settings": {
@@ -4640,16 +4605,16 @@
         "contracts/duoswapV2/interfaces/IDuoswapV2Pair.sol",
         "contracts/duoswapV2/interfaces/IDuoswapV2Router.sol",
         "contracts/duoswapV2/interfaces/IDuoswapV2Router01.sol",
-        "contracts/duoswapV2/interfaces/ISafe.sol",
-        "contracts/duoswapV2/interfaces/IWETH.sol",
         "contracts/duoswapV2/libraries/DuoswapV2Library.sol",
         "contracts/duoswapV2/libraries/Math.sol",
         "contracts/duoswapV2/libraries/UQ112x112.sol",
         "contracts/external/interfaces/IPermit2.sol",
+        "contracts/external/interfaces/IWETH9.sol",
         "contracts/interfaces/IDOS.sol",
         "contracts/interfaces/IERC1363-extended.sol",
         "contracts/interfaces/IERC20ValueOracle.sol",
         "contracts/interfaces/INFTValueOracle.sol",
+        "contracts/interfaces/ISafe.sol",
         "contracts/interfaces/ITransferReceiver2.sol",
         "contracts/interfaces/IVersionManager.sol",
         "contracts/lib/FsMath.sol",

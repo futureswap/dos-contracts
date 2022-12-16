@@ -17,7 +17,7 @@ import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TestERC20} from "../../contracts/testing/TestERC20.sol";
-import {IWETH} from "../../contracts/duoswapV2/interfaces/IWETH.sol";
+import {IWETH9} from "../../contracts/external/interfaces/IWETH9.sol";
 
 contract DuoswapV2Test is Test {
     uint256 mainnetFork;
@@ -28,11 +28,11 @@ contract DuoswapV2Test is Test {
     DuoswapV2Router public router;
 
     DOS public dos;
-    PortfolioProxy public userPortfolio;
-    PortfolioProxy public duoPortfolio;
+    PortfolioProxy public userSafe;
+    address public pairSafe;
     PortfolioLogic public logic;
 
-    IWETH public weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    IWETH9 public weth = IWETH9(payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
 
     // Create 2 tokens
     TestERC20 public token0;
@@ -83,16 +83,15 @@ contract DuoswapV2Test is Test {
         uint256 amount0 = uint256(_amount0) + 1e18;
         uint256 amount1 = uint256(_amount1) + 1e18;
 
-        userPortfolio = PortfolioProxy(payable(dos.createPortfolio()));
-        duoPortfolio = PortfolioProxy(payable(dos.createPortfolio()));
+        userSafe = PortfolioProxy(payable(dos.createPortfolio()));
 
         _depositTokens(amount0 * 100, amount1 * 100);
 
         pair = _createPair(address(token0), address(token1));
-        address pairSafe = pair.dSafe();
+        pairSafe = pair.dSafe();
 
-        token0.mint(address(userPortfolio), amount0);
-        token1.mint(address(userPortfolio), amount1);
+        token0.mint(address(userSafe), amount0);
+        token1.mint(address(userSafe), amount1);
         IDOS.Call[] memory calls = new IDOS.Call[](1);
         IERC20[] memory tokens = new IERC20[](2);
         tokens[0] = token0;
@@ -102,7 +101,6 @@ contract DuoswapV2Test is Test {
         amounts[0] = amount0;
         amounts[1] = amount1;
 
-        address target = address(router);
         bytes memory callData = abi.encodeWithSignature(
             "addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256)",
             address(token0),
@@ -111,7 +109,7 @@ contract DuoswapV2Test is Test {
             amount1,
             0,
             0,
-            address(userPortfolio),
+            address(userSafe),
             block.timestamp
         );
 
@@ -119,17 +117,16 @@ contract DuoswapV2Test is Test {
             IDOS.Call({
                 to: address(dos),
                 callData: abi.encodeWithSignature(
-                    "approveBatchAndCall(address[],address,uint256[],address,bytes)",
+                    "approveBatchAndCall(address[],address,uint256[],bytes)",
                     tokens,
-                    address(pairSafe),
+                    address(router),
                     amounts,
-                    target,
                     callData
                 ),
                 value: 0
             })
         );
-        PortfolioLogic(address(userPortfolio)).executeBatch(calls);
+        PortfolioLogic(address(userSafe)).executeBatch(calls);
     }
 
     function testDepositTokens() public {
@@ -138,16 +135,15 @@ contract DuoswapV2Test is Test {
         token1.mint(address(this), 1e21);
 
         // deposit tokens to portfolios
-        userPortfolio = PortfolioProxy(payable(dos.createPortfolio()));
-        duoPortfolio = PortfolioProxy(payable(dos.createPortfolio()));
+        userSafe = PortfolioProxy(payable(dos.createPortfolio()));
 
-        token0.transfer(address(userPortfolio), 1e21);
-        token1.transfer(address(userPortfolio), 1e21);
+        token0.transfer(address(userSafe), 1e21);
+        token1.transfer(address(userSafe), 1e21);
 
-        uint256 userPortfolioBalance0 = token0.balanceOf(address(userPortfolio));
-        uint256 userPortfolioBalance1 = token1.balanceOf(address(userPortfolio));
-        assertEq(userPortfolioBalance0, 1e21);
-        assertEq(userPortfolioBalance1, 1e21);
+        uint256 userSafeBalance0 = token0.balanceOf(address(userSafe));
+        uint256 userSafeBalance1 = token1.balanceOf(address(userSafe));
+        assertEq(userSafeBalance0, 1e21);
+        assertEq(userSafeBalance1, 1e21);
 
         IDOS.Call[] memory calls = new IDOS.Call[](4);
         calls[0] = (
@@ -156,7 +152,7 @@ contract DuoswapV2Test is Test {
                 callData: abi.encodeWithSignature(
                     "approve(address,uint256)",
                     address(dos),
-                    userPortfolioBalance0
+                    userSafeBalance0
                 ),
                 value: 0
             })
@@ -168,7 +164,7 @@ contract DuoswapV2Test is Test {
                 callData: abi.encodeWithSignature(
                     "approve(address,uint256)",
                     address(dos),
-                    userPortfolioBalance1
+                    userSafeBalance1
                 ),
                 value: 0
             })
@@ -198,19 +194,18 @@ contract DuoswapV2Test is Test {
             })
         );
 
-        PortfolioLogic(address(userPortfolio)).executeBatch(calls);
+        PortfolioLogic(address(userSafe)).executeBatch(calls);
     }
 
     function testSwap() public {
         // deposit tokens to portfolios
-        userPortfolio = PortfolioProxy(payable(dos.createPortfolio()));
-        duoPortfolio = PortfolioProxy(payable(dos.createPortfolio()));
+        userSafe = PortfolioProxy(payable(dos.createPortfolio()));
 
         _depositTokens(1e30, 1e30);
 
         // mint tokens
-        token0.mint(address(userPortfolio), 1e21);
-        token1.mint(address(userPortfolio), 1e21);
+        token0.mint(address(userSafe), 1e21);
+        token1.mint(address(userSafe), 1e21);
 
         _addLiquidity(1e23, 1e23);
 
@@ -219,49 +214,48 @@ contract DuoswapV2Test is Test {
         path[1] = address(token1);
         uint256 swapAmount = 1e21;
 
-        int256 userPortfolioBalance0Before = dos.viewBalance(address(userPortfolio), token0);
-        int256 userPortfolioBalance1Before = dos.viewBalance(address(userPortfolio), token1);
+        int256 userSafeBalance0Before = dos.viewBalance(address(userSafe), token0);
+        int256 userSafeBalance1Before = dos.viewBalance(address(userSafe), token1);
 
         bytes memory data = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             swapAmount,
             0,
             path,
-            address(userPortfolio),
+            address(userSafe),
             block.timestamp
         );
 
         bytes memory callData = abi.encodeWithSignature(
-            "approveAndCall(address,address,uint256,address,bytes)",
+            "approveAndCall(address,address,uint256,bytes)",
             address(token0),
-            address(duoPortfolio),
-            swapAmount,
             address(router),
+            swapAmount,
             data
         );
         IDOS.Call[] memory calls = new IDOS.Call[](1);
         calls[0] = (IDOS.Call({to: address(dos), callData: callData, value: 0}));
 
-        PortfolioLogic(address(userPortfolio)).executeBatch(calls);
+        PortfolioLogic(address(userSafe)).executeBatch(calls);
 
-        int256 userPortfolioBalance0After = dos.viewBalance(address(userPortfolio), token0);
-        int256 userPortfolioBalance1After = dos.viewBalance(address(userPortfolio), token1);
+        int256 userSafeBalance0After = dos.viewBalance(address(userSafe), token0);
+        int256 userSafeBalance1After = dos.viewBalance(address(userSafe), token1);
 
-        int256 userPortfolioBalance0Diff = userPortfolioBalance0After - userPortfolioBalance0Before;
-        int256 userPortfolioBalance1Diff = userPortfolioBalance1After - userPortfolioBalance1Before;
+        int256 userSafeBalance0Diff = userSafeBalance0After - userSafeBalance0Before;
+        int256 userSafeBalance1Diff = userSafeBalance1After - userSafeBalance1Before;
 
-        assertEq(userPortfolioBalance0After, userPortfolioBalance0Before - int256(swapAmount));
-        assert(userPortfolioBalance1After > userPortfolioBalance1Before);
-        assert(userPortfolioBalance1Diff > 0);
-        assert(userPortfolioBalance0Diff < 0);
+        assertEq(userSafeBalance0After, userSafeBalance0Before - int256(swapAmount));
+        assert(userSafeBalance1After > userSafeBalance1Before);
+        assert(userSafeBalance1Diff > 0);
+        assert(userSafeBalance0Diff < 0);
     }
 
     function _addLiquidity(uint256 _amount0, uint256 _amount1) public {
         pair = _createPair(address(token0), address(token1));
-        address pairSafe = pair.dSafe();
+        pairSafe = pair.dSafe();
 
-        token0.mint(address(userPortfolio), _amount0);
-        token1.mint(address(userPortfolio), _amount1);
+        token0.mint(address(userSafe), _amount0);
+        token1.mint(address(userSafe), _amount1);
         IDOS.Call[] memory calls = new IDOS.Call[](1);
         IERC20[] memory tokens = new IERC20[](2);
         tokens[0] = token0;
@@ -271,7 +265,6 @@ contract DuoswapV2Test is Test {
         amounts[0] = _amount0;
         amounts[1] = _amount1;
 
-        address target = address(router);
         bytes memory callData = abi.encodeWithSignature(
             "addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256)",
             address(token0),
@@ -280,7 +273,7 @@ contract DuoswapV2Test is Test {
             _amount1,
             0,
             0,
-            address(userPortfolio),
+            address(userSafe),
             block.timestamp
         );
 
@@ -288,23 +281,22 @@ contract DuoswapV2Test is Test {
             IDOS.Call({
                 to: address(dos),
                 callData: abi.encodeWithSignature(
-                    "approveBatchAndCall(address[],address,uint256[],address,bytes)",
+                    "approveBatchAndCall(address[],address,uint256[],bytes)",
                     tokens,
-                    address(pairSafe),
+                    address(router),
                     amounts,
-                    target,
                     callData
                 ),
                 value: 0
             })
         );
-        PortfolioLogic(address(userPortfolio)).executeBatch(calls);
+        PortfolioLogic(address(userSafe)).executeBatch(calls);
     }
 
     function _depositTokens(uint256 _amount0, uint256 _amount1) public {
         // mint tokens
-        token0.mint(address(userPortfolio), _amount0);
-        token1.mint(address(userPortfolio), _amount1);
+        token0.mint(address(userSafe), _amount0);
+        token1.mint(address(userSafe), _amount1);
 
         IDOS.Call[] memory calls = new IDOS.Call[](4);
         calls[0] = (
@@ -355,7 +347,7 @@ contract DuoswapV2Test is Test {
             })
         );
 
-        PortfolioLogic(address(userPortfolio)).executeBatch(calls);
+        PortfolioLogic(address(userSafe)).executeBatch(calls);
     }
 
     function _createPair(address _token0, address _token1) public returns (DuoswapV2Pair _pair) {
