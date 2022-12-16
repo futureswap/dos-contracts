@@ -59,6 +59,7 @@ contract DuoswapV2Test is Test {
 
         versionManager = new VersionManager(address(this));
         dosConfig = new DOSConfig(address(this));
+        console.log("dosConfig", address(dosConfig));
         dos = new DOS(address(dosConfig), address(versionManager));
         logic = new DSafeLogic(address(dos));
         bytes32 iVersion = ImmutableVersion(logic).immutableVersion();
@@ -66,7 +67,7 @@ contract DuoswapV2Test is Test {
 
         string memory version = "1.0.0";
 
-        dosConfig.addERC20Info(
+        IDOSConfig(address(dos)).addERC20Info(
             address(token0),
             "token0",
             "t0",
@@ -76,7 +77,7 @@ contract DuoswapV2Test is Test {
             9e17,
             0
         );
-        dosConfig.addERC20Info(
+        IDOSConfig(address(dos)).addERC20Info(
             address(token1),
             "token1",
             "t1",
@@ -87,7 +88,9 @@ contract DuoswapV2Test is Test {
             0
         );
 
-        dosConfig.setConfig(IDOSConfig.Config({liqFraction: 8e17, fractionalReserveLeverage: 10}));
+        IDOSConfig(address(dos)).setConfig(
+            IDOSConfig.Config({liqFraction: 8e17, fractionalReserveLeverage: 10})
+        );
 
         versionManager.addVersion(IVersionManager.Status.PRODUCTION, address(logic));
         versionManager.markRecommendedVersion(version);
@@ -114,7 +117,7 @@ contract DuoswapV2Test is Test {
         uint256 amount0 = uint256(_amount0) + 1e18;
         uint256 amount1 = uint256(_amount1) + 1e18;
 
-        userSafe = DSafeProxy(payable(dosConfig.createDSafe()));
+        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
 
         _depositTokens(amount0 * 100, amount1 * 100);
 
@@ -166,7 +169,7 @@ contract DuoswapV2Test is Test {
         token1.mint(address(this), 1e21);
 
         // deposit tokens to portfolios
-        userSafe = DSafeProxy(payable(dosConfig.createDSafe()));
+        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
 
         token0.transfer(address(userSafe), 1e21);
         token1.transfer(address(userSafe), 1e21);
@@ -230,7 +233,7 @@ contract DuoswapV2Test is Test {
 
     function testSwap() public {
         // deposit tokens to portfolios
-        userSafe = DSafeProxy(payable(dosConfig.createDSafe()));
+        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
 
         _depositTokens(1e30, 1e30);
 
@@ -245,8 +248,14 @@ contract DuoswapV2Test is Test {
         path[1] = address(token1);
         uint256 swapAmount = 1e21;
 
-        int256 userSafeBalance0Before = dosConfig.getDAccountERC20(address(userSafe), token0);
-        int256 userSafeBalance1Before = dosConfig.getDAccountERC20(address(userSafe), token1);
+        int256 userSafeBalance0Before = IDOSConfig(address(dos)).getDAccountERC20(
+            address(userSafe),
+            token0
+        );
+        int256 userSafeBalance1Before = IDOSConfig(address(dos)).getDAccountERC20(
+            address(userSafe),
+            token1
+        );
 
         bytes memory data = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
@@ -269,8 +278,14 @@ contract DuoswapV2Test is Test {
 
         DSafeLogic(address(userSafe)).executeBatch(calls);
 
-        int256 userSafeBalance0After = dosConfig.getDAccountERC20(address(userSafe), token0);
-        int256 userSafeBalance1After = dosConfig.getDAccountERC20(address(userSafe), token1);
+        int256 userSafeBalance0After = IDOSConfig(address(dos)).getDAccountERC20(
+            address(userSafe),
+            token0
+        );
+        int256 userSafeBalance1After = IDOSConfig(address(dos)).getDAccountERC20(
+            address(userSafe),
+            token1
+        );
 
         int256 userSafeBalance0Diff = userSafeBalance0After - userSafeBalance0Before;
         int256 userSafeBalance1Diff = userSafeBalance1After - userSafeBalance1Before;
@@ -386,7 +401,7 @@ contract DuoswapV2Test is Test {
         pairOracle = new UniV2Oracle(address(dos), address(_pair), address(this));
         pairOracle.setERC20ValueOracle(address(token0), address(token0Oracle));
         pairOracle.setERC20ValueOracle(address(token1), address(token1Oracle));
-        dosConfig.addERC20Info(
+        IDOSConfig(address(dos)).addERC20Info(
             address(_pair),
             "uni-v2",
             "t0-t1",
