@@ -13,8 +13,8 @@
   },
   "files": {
     "contracts/dos/DOS.sol": {
-      "lastModificationDate": 1671214456023,
-      "contentHash": "69ba2900cbff19765fb3bf3b492fb74c",
+      "lastModificationDate": 1671225323826,
+      "contentHash": "41833dd3b366732e45fa01166ec018f5",
       "sourceName": "contracts/dos/DOS.sol",
       "solcConfig": {
         "settings": {
@@ -107,8 +107,8 @@
       }
     },
     "contracts/dos/DSafeProxy.sol": {
-      "lastModificationDate": 1671211614664,
-      "contentHash": "f0d00d8c4de0e5c2118785190d32ba56",
+      "lastModificationDate": 1671225301878,
+      "contentHash": "5f384dcb0dc06d96b59f8094b1751ba7",
       "sourceName": "contracts/dos/DSafeProxy.sol",
       "solcConfig": {
         "settings": {
@@ -224,7 +224,7 @@
       }
     },
     "contracts/dos/VersionManager.sol": {
-      "lastModificationDate": 1671213583243,
+      "lastModificationDate": 1671215886473,
       "contentHash": "2295966c8147b083c8bb87f6747fbc0a",
       "sourceName": "contracts/dos/VersionManager.sol",
       "solcConfig": {
@@ -335,8 +335,8 @@
       }
     },
     "contracts/duoswapV2/DuoswapV2ERC20.sol": {
-      "lastModificationDate": 1671049007250,
-      "contentHash": "d272ebfafae0580ef7242f1e3919761f",
+      "lastModificationDate": 1671223543991,
+      "contentHash": "ad3ddd8028b6bf9d75486293b23434f9",
       "sourceName": "contracts/duoswapV2/DuoswapV2ERC20.sol",
       "solcConfig": {
         "settings": {
@@ -369,7 +369,7 @@
       "imports": [
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol"
       ],
-      "versionRequirement": "^0.8.4",
+      "versionRequirement": "^0.8.7",
       "artifacts": {
         "DuoswapV2ERC20": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "DuoswapV2ERC20.sol/DuoswapV2ERC20.json"
@@ -377,8 +377,8 @@
       }
     },
     "contracts/duoswapV2/DuoswapV2Factory.sol": {
-      "lastModificationDate": 1670973570152,
-      "contentHash": "3d0189f8e16b3cbf20047b7293d7d16a",
+      "lastModificationDate": 1671223610118,
+      "contentHash": "f62877a1c71af230fb1b12459c1a04cf",
       "sourceName": "contracts/duoswapV2/DuoswapV2Factory.sol",
       "solcConfig": {
         "settings": {
@@ -423,7 +423,7 @@
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol"
       ],
-      "versionRequirement": "^0.8.4",
+      "versionRequirement": "^0.8.7",
       "artifacts": {
         "DuoswapV2Factory": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "DuoswapV2Factory.sol/DuoswapV2Factory.json"
@@ -431,8 +431,8 @@
       }
     },
     "contracts/duoswapV2/DuoswapV2Pair.sol": {
-      "lastModificationDate": 1671212400970,
-      "contentHash": "2b230769932eb25fbca24d8f8c911a46",
+      "lastModificationDate": 1671223750846,
+      "contentHash": "478feeca68b1a60d6e8b76e30aaf16bb",
       "sourceName": "contracts/duoswapV2/DuoswapV2Pair.sol",
       "solcConfig": {
         "settings": {
@@ -476,7 +476,7 @@
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol"
       ],
-      "versionRequirement": "^0.8.4",
+      "versionRequirement": "^0.8.7",
       "artifacts": {
         "DuoswapV2Pair": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "DuoswapV2Pair.sol/DuoswapV2Pair.json"
@@ -484,8 +484,8 @@
       }
     },
     "contracts/duoswapV2/DuoswapV2Router.sol": {
-      "lastModificationDate": 1671174260131,
-      "contentHash": "fd3c4c42f90bbd9a7637c1ae68ba314d",
+      "lastModificationDate": 1671223718265,
+      "contentHash": "52e8513b44978026b79283fa790747c9",
       "sourceName": "contracts/duoswapV2/DuoswapV2Router.sol",
       "solcConfig": {
         "settings": {
@@ -530,7 +530,7 @@
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol",
         "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol"
       ],
-      "versionRequirement": "^0.8.4",
+      "versionRequirement": "^0.8.7",
       "artifacts": {
         "DuoswapV2Router": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "DuoswapV2Router.sol/DuoswapV2Router.json"
@@ -538,7 +538,7 @@
       }
     },
     "contracts/duoswapV2/interfaces/IDuoswapV2Pair.sol": {
-      "lastModificationDate": 1670973187130,
+      "lastModificationDate": 1671215886476,
       "contentHash": "57419176ab85ceaa86f905ce29ea9948",
       "sourceName": "contracts/duoswapV2/interfaces/IDuoswapV2Pair.sol",
       "solcConfig": {
@@ -580,8 +580,8 @@
       }
     },
     "contracts/duoswapV2/interfaces/IDuoswapV2Router.sol": {
-      "lastModificationDate": 1670973065192,
-      "contentHash": "15ae971b7875e9e1b152e8c76fbdfb08",
+      "lastModificationDate": 1671217789566,
+      "contentHash": "dd596b2915527e2a9e3db9a4ac752dc4",
       "sourceName": "contracts/duoswapV2/interfaces/IDuoswapV2Router.sol",
       "solcConfig": {
         "settings": {
@@ -614,7 +614,7 @@
       "imports": [
         "contracts/duoswapV2/interfaces/IDuoswapV2Router01.sol"
       ],
-      "versionRequirement": "^0.8.4",
+      "versionRequirement": "^0.8.7",
       "artifacts": {
         "IDuoswapV2Router": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "IDuoswapV2Router.sol/IDuoswapV2Router.json"
@@ -622,8 +622,8 @@
       }
     },
     "contracts/duoswapV2/interfaces/IDuoswapV2Router01.sol": {
-      "lastModificationDate": 1670973055824,
-      "contentHash": "9cee29ace9c68fc570d11be367b6b334",
+      "lastModificationDate": 1671217793588,
+      "contentHash": "e1e333e138cd2164915d39f1097a7160",
       "sourceName": "contracts/duoswapV2/interfaces/IDuoswapV2Router01.sol",
       "solcConfig": {
         "settings": {
@@ -654,7 +654,7 @@
         }
       },
       "imports": [],
-      "versionRequirement": "^0.8.4",
+      "versionRequirement": "^0.8.7",
       "artifacts": {
         "IDuoswapV2Router01": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "IDuoswapV2Router01.sol/IDuoswapV2Router01.json"
@@ -662,8 +662,8 @@
       }
     },
     "contracts/duoswapV2/libraries/DuoswapV2Library.sol": {
-      "lastModificationDate": 1671172209639,
-      "contentHash": "973832d998e0e65a2ee128c449794c55",
+      "lastModificationDate": 1671224885540,
+      "contentHash": "8d331150ef29049131cf2d484353c7df",
       "sourceName": "contracts/duoswapV2/libraries/DuoswapV2Library.sol",
       "solcConfig": {
         "settings": {
@@ -705,7 +705,7 @@
       }
     },
     "contracts/duoswapV2/libraries/Math.sol": {
-      "lastModificationDate": 1670971337752,
+      "lastModificationDate": 1671215886477,
       "contentHash": "73acbfa469a36d9e50db37fc5d393fac",
       "sourceName": "contracts/duoswapV2/libraries/Math.sol",
       "solcConfig": {
@@ -745,7 +745,7 @@
       }
     },
     "contracts/duoswapV2/libraries/UQ112x112.sol": {
-      "lastModificationDate": 1670971337754,
+      "lastModificationDate": 1671215886477,
       "contentHash": "0d997592f917ea4e63bff46660b042b5",
       "sourceName": "contracts/duoswapV2/libraries/UQ112x112.sol",
       "solcConfig": {
@@ -973,8 +973,8 @@
       }
     },
     "contracts/interfaces/IDOS.sol": {
-      "lastModificationDate": 1671212311394,
-      "contentHash": "dacd6ee2402df3d8c28a3b2b664f0935",
+      "lastModificationDate": 1671217173079,
+      "contentHash": "c6af8a7e72ef1f9eac2430de2451a8b9",
       "sourceName": "contracts/interfaces/IDOS.sol",
       "solcConfig": {
         "settings": {
@@ -1026,8 +1026,8 @@
       }
     },
     "contracts/interfaces/IERC1363-extended.sol": {
-      "lastModificationDate": 1670975952107,
-      "contentHash": "d6ccfe2ae7a05ccd5d9451fbe0944256",
+      "lastModificationDate": 1671225351818,
+      "contentHash": "15a4b1725936d61b50413d195648f4fe",
       "sourceName": "contracts/interfaces/IERC1363-extended.sol",
       "solcConfig": {
         "settings": {
@@ -1057,7 +1057,10 @@
           "libraries": {}
         }
       },
-      "imports": [],
+      "imports": [
+        "contracts/lib/Call.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol"
+      ],
       "versionRequirement": "^0.8.7",
       "artifacts": {
         "IERC1363ReceiverExtended": {
@@ -1149,7 +1152,7 @@
       }
     },
     "contracts/interfaces/ISafe.sol": {
-      "lastModificationDate": 1671211588903,
+      "lastModificationDate": 1671215886478,
       "contentHash": "a0cb1d2262d525973cba855bb8b7035f",
       "sourceName": "contracts/interfaces/ISafe.sol",
       "solcConfig": {
@@ -1575,7 +1578,7 @@
       }
     },
     "contracts/oracles/UniV2Oracle.sol": {
-      "lastModificationDate": 1671212409775,
+      "lastModificationDate": 1671215886478,
       "contentHash": "c01486098101abd07d37ea7918bfc981",
       "sourceName": "contracts/oracles/UniV2Oracle.sol",
       "solcConfig": {
@@ -2137,7 +2140,7 @@
       }
     },
     "lib/forge-std/lib/ds-test/src/test.sol": {
-      "lastModificationDate": 1670970613884,
+      "lastModificationDate": 1671215886482,
       "contentHash": "962996f0e05d5218857a538a62d7c47e",
       "sourceName": "lib/forge-std/lib/ds-test/src/test.sol",
       "solcConfig": {
@@ -2177,7 +2180,7 @@
       }
     },
     "lib/forge-std/src/Common.sol": {
-      "lastModificationDate": 1670970613885,
+      "lastModificationDate": 1671215886483,
       "contentHash": "385215973dee04c2a4bfefa3a37e253c",
       "sourceName": "lib/forge-std/src/Common.sol",
       "solcConfig": {
@@ -2230,7 +2233,7 @@
       }
     },
     "lib/forge-std/src/Components.sol": {
-      "lastModificationDate": 1670970613885,
+      "lastModificationDate": 1671215886483,
       "contentHash": "745a7e4623550699a5e0333bcf4f0184",
       "sourceName": "lib/forge-std/src/Components.sol",
       "solcConfig": {
@@ -2282,7 +2285,7 @@
       }
     },
     "lib/forge-std/src/Script.sol": {
-      "lastModificationDate": 1670970613886,
+      "lastModificationDate": 1671215886483,
       "contentHash": "a0d7ca329f3374a1698e48c493ab4f1a",
       "sourceName": "lib/forge-std/src/Script.sol",
       "solcConfig": {
@@ -2339,7 +2342,7 @@
       }
     },
     "lib/forge-std/src/StdAssertions.sol": {
-      "lastModificationDate": 1670970613886,
+      "lastModificationDate": 1671215886483,
       "contentHash": "d3f7487aaf77c715fdbdea89ea4f8399",
       "sourceName": "lib/forge-std/src/StdAssertions.sol",
       "solcConfig": {
@@ -2382,7 +2385,7 @@
       }
     },
     "lib/forge-std/src/StdCheats.sol": {
-      "lastModificationDate": 1670970613886,
+      "lastModificationDate": 1671215886483,
       "contentHash": "e7337996cb2aa604814b2994c9e65826",
       "sourceName": "lib/forge-std/src/StdCheats.sol",
       "solcConfig": {
@@ -2428,7 +2431,7 @@
       }
     },
     "lib/forge-std/src/StdError.sol": {
-      "lastModificationDate": 1670970613887,
+      "lastModificationDate": 1671215886483,
       "contentHash": "64c896e1276a291776e5ea5aecb3870a",
       "sourceName": "lib/forge-std/src/StdError.sol",
       "solcConfig": {
@@ -2468,7 +2471,7 @@
       }
     },
     "lib/forge-std/src/StdJson.sol": {
-      "lastModificationDate": 1670970613887,
+      "lastModificationDate": 1671215886484,
       "contentHash": "1df82178ad2d4556c856d0ca4b8f614d",
       "sourceName": "lib/forge-std/src/StdJson.sol",
       "solcConfig": {
@@ -2510,7 +2513,7 @@
       }
     },
     "lib/forge-std/src/StdMath.sol": {
-      "lastModificationDate": 1670970613887,
+      "lastModificationDate": 1671215886484,
       "contentHash": "9da8f453eba6bb98f3d75bc6822bfb29",
       "sourceName": "lib/forge-std/src/StdMath.sol",
       "solcConfig": {
@@ -2550,7 +2553,7 @@
       }
     },
     "lib/forge-std/src/StdStorage.sol": {
-      "lastModificationDate": 1670970613888,
+      "lastModificationDate": 1671215886484,
       "contentHash": "3f1bd6d72997330e2f556ececa8114a7",
       "sourceName": "lib/forge-std/src/StdStorage.sol",
       "solcConfig": {
@@ -2595,7 +2598,7 @@
       }
     },
     "lib/forge-std/src/StdUtils.sol": {
-      "lastModificationDate": 1670970613888,
+      "lastModificationDate": 1671215886484,
       "contentHash": "1d1d6bf7b4609a675d06cc41f8dcd5ad",
       "sourceName": "lib/forge-std/src/StdUtils.sol",
       "solcConfig": {
@@ -2637,7 +2640,7 @@
       }
     },
     "lib/forge-std/src/Test.sol": {
-      "lastModificationDate": 1670970613888,
+      "lastModificationDate": 1671215886484,
       "contentHash": "23c73ad6c59f5d629042303f8ffc1359",
       "sourceName": "lib/forge-std/src/Test.sol",
       "solcConfig": {
@@ -2694,7 +2697,7 @@
       }
     },
     "lib/forge-std/src/Vm.sol": {
-      "lastModificationDate": 1670970613889,
+      "lastModificationDate": 1671215886485,
       "contentHash": "af4e1189b1763fe0d73a21d17cc2ea9c",
       "sourceName": "lib/forge-std/src/Vm.sol",
       "solcConfig": {
@@ -2737,7 +2740,7 @@
       }
     },
     "lib/forge-std/src/console.sol": {
-      "lastModificationDate": 1670970613890,
+      "lastModificationDate": 1671215886485,
       "contentHash": "100b8a33b917da1147740d7ab8b0ded3",
       "sourceName": "lib/forge-std/src/console.sol",
       "solcConfig": {
@@ -2777,7 +2780,7 @@
       }
     },
     "lib/forge-std/src/console2.sol": {
-      "lastModificationDate": 1670970613890,
+      "lastModificationDate": 1671215886486,
       "contentHash": "493035087920d89b7c215d662e53ace3",
       "sourceName": "lib/forge-std/src/console2.sol",
       "solcConfig": {
@@ -3101,7 +3104,7 @@
       "versionRequirement": "^0.8.0",
       "artifacts": {
         "IERC165": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "interfaces/IERC165.sol/IERC165.json"
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "IERC165.sol/IERC165.json"
         }
       }
     },
@@ -3143,7 +3146,7 @@
       "versionRequirement": "^0.8.0",
       "artifacts": {
         "IERC20": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "interfaces/IERC20.sol/IERC20.json"
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "IERC20.sol/IERC20.json"
         }
       }
     },
@@ -4701,7 +4704,7 @@
       }
     },
     "node_modules/hardhat/console.sol": {
-      "lastModificationDate": 1669752559694,
+      "lastModificationDate": 1671218235078,
       "contentHash": "4ff3cd2f6272c9a6516e9ee4f2b967d3",
       "sourceName": "node_modules/hardhat/console.sol",
       "solcConfig": {
@@ -4741,7 +4744,7 @@
       }
     },
     "script/PairHashCode.s.sol": {
-      "lastModificationDate": 1670971252855,
+      "lastModificationDate": 1671215886489,
       "contentHash": "1a2eec41566043a754664deba971f488",
       "sourceName": "script/PairHashCode.s.sol",
       "solcConfig": {
@@ -4809,8 +4812,8 @@
       }
     },
     "test/foundry/DuoswapV2.t.sol": {
-      "lastModificationDate": 1671214321341,
-      "contentHash": "234de354392ecbd9de5b59912e52efea",
+      "lastModificationDate": 1671224837234,
+      "contentHash": "aee542d2ec6a533c1a7a45c3be00d25b",
       "sourceName": "test/foundry/DuoswapV2.t.sol",
       "solcConfig": {
         "settings": {

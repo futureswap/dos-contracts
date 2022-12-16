@@ -3,7 +3,10 @@ pragma solidity ^0.8.7;
 
 //solhint-disable not-rely-on-time
 //solhint-disable var-name-mixedcase
+//solhint-disable func-name-mixedcase
+//solhint-disable func-param-name-mixedcase
 //solhint-disable reason-string
+//solhint-disable ordering
 
 import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
@@ -304,44 +307,5 @@ contract DuoswapV2Router is IDuoswapV2Router {
         address[] memory path
     ) public view virtual override returns (uint256[] memory amounts) {
         return DuoswapV2Library.getAmountsIn(factory, amountOut, path);
-    }
-
-    function onApprovalReceived(
-        address sender,
-        uint256 amount,
-        bytes calldata data
-    ) external returns (bytes4) {
-        if (data.length == 0) {
-            revert("UniswapV2: INVALID_DATA");
-        }
-        emit TokensApproved(sender, amount, data);
-
-        // use data to call pair functions
-        (bool success, ) = address(this).delegatecall(data);
-        if (!success) {
-            revert("UniswapV2: DELEGATECALL_FAILED");
-        }
-
-        return this.onApprovalReceived.selector;
-    }
-
-    function onTransferReceived(
-        address spender,
-        address sender,
-        uint256 amount,
-        bytes calldata data
-    ) external returns (bytes4) {
-        if (data.length == 0) {
-            revert("UniswapV2: INVALID_DATA");
-        }
-        emit TokensReceived(spender, sender, amount, data);
-
-        // use data to call pair functions
-        (bool success, ) = address(this).delegatecall(data);
-        if (!success) {
-            revert("UniswapV2: DELEGATECALL_FAILED");
-        }
-
-        return this.onTransferReceived.selector;
     }
 }

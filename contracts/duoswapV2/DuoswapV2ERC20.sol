@@ -35,29 +35,6 @@ contract DuoswapV2ERC20 is IUniswapV2ERC20 {
         );
     }
 
-    function _mint(address to, uint256 value) internal {
-        totalSupply += value;
-        balanceOf[to] += value;
-        emit Transfer(address(0), to, value);
-    }
-
-    function _burn(address from, uint256 value) internal {
-        balanceOf[from] -= value;
-        totalSupply -= value;
-        emit Transfer(from, address(0), value);
-    }
-
-    function _approve(address owner, address spender, uint256 value) internal {
-        allowance[owner][spender] = value;
-        emit Approval(owner, spender, value);
-    }
-
-    function _transfer(address from, address to, uint256 value) private {
-        balanceOf[from] -= value;
-        balanceOf[to] += value;
-        emit Transfer(from, to, value);
-    }
-
     function approve(address spender, uint256 value) external override returns (bool) {
         _approve(msg.sender, spender, value);
         return true;
@@ -106,5 +83,28 @@ contract DuoswapV2ERC20 is IUniswapV2ERC20 {
             "UniswapV2: INVALID_SIGNATURE"
         );
         _approve(owner, spender, value);
+    }
+
+    function _mint(address to, uint256 value) internal {
+        totalSupply += value;
+        balanceOf[to] += value;
+        emit Transfer(address(0), to, value);
+    }
+
+    function _burn(address from, uint256 value) internal {
+        balanceOf[from] -= value;
+        totalSupply -= value;
+        emit Transfer(from, address(0), value);
+    }
+
+    function _approve(address owner, address spender, uint256 value) internal {
+        allowance[owner][spender] = value;
+        emit Approval(owner, spender, value);
+    }
+
+    function _transfer(address from, address to, uint256 value) private {
+        balanceOf[from] -= value;
+        balanceOf[to] += value;
+        emit Transfer(from, to, value);
     }
 }

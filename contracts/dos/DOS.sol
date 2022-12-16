@@ -271,7 +271,6 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
     }
 
     constructor(address _dosConfig, address _versionManager) {
-        console.log("versionManager:", _versionManager);
         state.versionManager = IVersionManager(_versionManager);
         dosConfig = _dosConfig;
     }
@@ -428,7 +427,7 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         address from,
         address to,
         uint256 amount
-    ) external onlyDSafe dSafeExists(from) dSafeExists(to) returns (bool) {
+    ) external dSafeExists(from) dSafeExists(to) returns (bool) {
         address spender = msg.sender;
         _spendAllowance(IERC20(erc20), from, spender, amount);
         transferERC20(IERC20(erc20), from, to, FsMath.safeCastToSigned(amount));
@@ -548,6 +547,60 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
+    /// @notice Transfer an array of tokens from `msg.sender` to another address and then call `onTransferReceived` on receiver
+    /// @param erc20s An array of ERC20 tokens
+    /// @param to The address which you want to transfer to
+    /// @param amounts An array of amounts of tokens to be transferred
+    /// @param data Additional data with no specified format, sent in call to `to`
+    /// @return true unless throwing
+    function transferBatchAndCall(
+        IERC20[] calldata erc20s,
+        address to,
+        uint256[] calldata amounts,
+        address target,
+        bytes calldata data
+    ) external onlyDSafe returns (bool) {
+        require(erc20s.length == amounts.length, "Lengths do not match");
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            transferERC20(erc20s[i], msg.sender, to, FsMath.safeCastToSigned(amounts[i]));
+        }
+        if (!_checkOnTransferReceived(msg.sender, to, 0, target, data)) {
+            revert WrongDataReturned();
+        }
+        return true;
+    }
+
+    function executeBatch(Call[] memory calls) external override onlyDSafe {
+        DSafeProxy(payable(msg.sender)).executeBatch(calls);
+        require(isSolvent(msg.sender), "Result of operation is not sufficient liquid");
+    }
+
+    function onERC721Received(
+        address /* operator */,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external override returns (bytes4) {
+        NFTId nftId = getNFTId(msg.sender, tokenId);
+        if (data.length != 0) {
+            from = abi.decode(data, (address));
+        }
+        require(state.dSafes[from].owner != address(0), "DSafe does not exist");
+        state.tokenDataByNFTId[nftId].tokenId = uint240(tokenId);
+        state.dSafes[from].insertNFT(nftId, state.tokenDataByNFTId);
+        // TODO(call dSafe?)
+        return this.onERC721Received.selector;
+    }
+
+    function getImplementation(address dSafe) external view override returns (address) {
+        // not using msg.sender since this is an external view function
+        return state.dSafeLogic[dSafe];
+    }
+
+    function getDSafeOwner(address dSafe) external view override returns (address) {
+        return state.dSafes[dSafe].owner;
+    }
+
     /**
      * @notice Approve the passed address to spend the specified amount of tokens on behalf of msg.sender
      * and then call `onApprovalReceived` on spender.
@@ -619,60 +672,6 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
             revert WrongDataReturned();
         }
         return true;
-    }
-
-    /// @notice Transfer an array of tokens from `msg.sender` to another address and then call `onTransferReceived` on receiver
-    /// @param erc20s An array of ERC20 tokens
-    /// @param to The address which you want to transfer to
-    /// @param amounts An array of amounts of tokens to be transferred
-    /// @param data Additional data with no specified format, sent in call to `to`
-    /// @return true unless throwing
-    function transferBatchAndCall(
-        IERC20[] calldata erc20s,
-        address to,
-        uint256[] calldata amounts,
-        address target,
-        bytes calldata data
-    ) external onlyDSafe returns (bool) {
-        require(erc20s.length == amounts.length, "Lengths do not match");
-        for (uint256 i = 0; i < erc20s.length; i++) {
-            transferERC20(erc20s[i], msg.sender, to, FsMath.safeCastToSigned(amounts[i]));
-        }
-        if (!_checkOnTransferReceived(msg.sender, to, 0, target, data)) {
-            revert WrongDataReturned();
-        }
-        return true;
-    }
-
-    function executeBatch(Call[] memory calls) external override onlyDSafe {
-        DSafeProxy(payable(msg.sender)).executeBatch(calls);
-        require(isSolvent(msg.sender), "Result of operation is not sufficient liquid");
-    }
-
-    function onERC721Received(
-        address /* operator */,
-        address from,
-        uint256 tokenId,
-        bytes calldata data
-    ) external override returns (bytes4) {
-        NFTId nftId = getNFTId(msg.sender, tokenId);
-        if (data.length != 0) {
-            from = abi.decode(data, (address));
-        }
-        require(state.dSafes[from].owner != address(0), "DSafe does not exist");
-        state.tokenDataByNFTId[nftId].tokenId = uint240(tokenId);
-        state.dSafes[from].insertNFT(nftId, state.tokenDataByNFTId);
-        // TODO(call dSafe?)
-        return this.onERC721Received.selector;
-    }
-
-    function getImplementation(address dSafe) external view override returns (address) {
-        // not using msg.sender since this is an external view function
-        return state.dSafeLogic[dSafe];
-    }
-
-    function getDSafeOwner(address dSafe) external view override returns (address) {
-        return state.dSafes[dSafe].owner;
     }
 
     function computePosition(
@@ -779,10 +778,6 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         uint256 amount
     ) internal {
         uint256 currentAllowance = allowance(erc20, _owner, spender);
-        console.log("currentAllowance");
-        console.log(currentAllowance);
-        console.log("_owner", _owner);
-        console.log("spender", spender);
         if (currentAllowance != type(uint256).max) {
             if (currentAllowance < amount) {
                 revert InsufficientAllowance();
@@ -826,14 +821,10 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
             revert ReceiverNotContract();
         }
 
+        Call memory call = Call({to: target, callData: data, value: msg.value});
+
         try
-            IERC1363ReceiverExtended(recipient).onTransferReceived(
-                msg.sender,
-                sender,
-                amount,
-                target,
-                data
-            )
+            IERC1363ReceiverExtended(recipient).onTransferReceived(msg.sender, sender, amount, call)
         returns (bytes4 retval) {
             return retval == IERC1363Receiver.onTransferReceived.selector;
         } catch (bytes memory reason) {
@@ -866,9 +857,11 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
             revert ReceiverNotContract();
         }
 
-        try
-            IERC1363SpenderExtended(spender).onApprovalReceived(msg.sender, amount, target, data)
-        returns (bytes4 retval) {
+        Call memory call = Call({to: target, callData: data, value: msg.value});
+
+        try IERC1363SpenderExtended(spender).onApprovalReceived(msg.sender, amount, call) returns (
+            bytes4 retval
+        ) {
             return retval == IERC1363SpenderExtended.onApprovalReceived.selector;
         } catch (bytes memory reason) {
             if (reason.length == 0) {
