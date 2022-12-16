@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "../lib/FsUtils.sol";
 import "../lib/FsMath.sol";
 import "../interfaces/IDOS.sol";
@@ -16,6 +17,7 @@ import {DSafeProxy} from "./DSafeProxy.sol";
 import "../dosERC20/DOSERC20.sol";
 import {IVersionManager} from "../interfaces/IVersionManager.sol";
 import "../lib/Call.sol";
+import {IERC1363SpenderExtended, IERC1363ReceiverExtended} from "../interfaces/IERC1363-extended.sol";
 
 /// @notice Sender is not approved to spend dSafe erc20
 error NotApprovedOrOwner();
@@ -23,6 +25,9 @@ error NotApprovedOrOwner();
 error InsufficientAllowance();
 /// @notice Cannot approve self as spender
 error SelfApproval();
+error ReceiverNotContract();
+error ReceiverNoImplementation();
+error WrongDataReturned();
 
 // ERC20 standard token
 // ERC721 single non-fungible token support
@@ -30,6 +35,7 @@ error SelfApproval();
 // ERC165 interface support (solidity IDOS.interfaceId)
 // ERC777 token send
 // ERC1155 multi-token support
+// ERC1363 payable token (approveAndCall/transferAndCall)
 // ERC1820 interface registry support
 // EIP2612 permit support (uniswap permit2)
 /*
@@ -234,6 +240,7 @@ library DOSLib {
 using DSafeLib for DSafe;
 using DSafeLib for ERC20Pool;
 using SafeERC20 for IERC20;
+using Address for address;
 
 contract DOS is IDOSCore, IERC721Receiver, Proxy {
     DOSLib.DOSState public state;
@@ -257,8 +264,8 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
     }
 
     modifier onlyNFTOwner(address nftContract, uint256 tokenId) {
-        address owner = ERC721(nftContract).ownerOf(tokenId);
-        bool isOwner = owner == msg.sender || owner == state.dSafes[msg.sender].owner;
+        address _owner = ERC721(nftContract).ownerOf(tokenId);
+        bool isOwner = _owner == msg.sender || _owner == state.dSafes[msg.sender].owner;
         require(isOwner, "NFT must be owned the the user or user's dSafe");
         _;
     }
@@ -266,6 +273,18 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
     constructor(address _dosConfig, address _versionManager) {
         state.versionManager = IVersionManager(_versionManager);
         dosConfig = _dosConfig;
+    }
+
+    function depositERC20ForSafe(
+        address erc20,
+        address to,
+        uint256 amount
+    ) external dSafeExists(to) {
+        (, uint16 erc20Idx) = DOSLib.getERC20Info(IERC20(erc20));
+        if (amount > 0) {
+            IERC20(erc20).safeTransferFrom(msg.sender, address(this), uint256(amount));
+            dAccountERC20ChangeBy(to, erc20Idx, FsMath.safeCastToSigned(amount));
+        }
     }
 
     function depositERC20(IERC20 erc20, int256 amount) external override onlyDSafe {
@@ -309,8 +328,13 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         onlyNFTOwner(nftContract, tokenId)
     {
         // NOTE: owner conflicts with the state variable. Should rename to nftOwner, owner_, or similar.
-        address owner = ERC721(nftContract).ownerOf(tokenId);
-        ERC721(nftContract).safeTransferFrom(owner, address(this), tokenId, abi.encode(msg.sender));
+        address _owner = ERC721(nftContract).ownerOf(tokenId);
+        ERC721(nftContract).safeTransferFrom(
+            _owner,
+            address(this),
+            tokenId,
+            abi.encode(msg.sender)
+        );
     }
 
     /*function depositDosERC20(uint16 erc20Idx, int256 amount) external onlyDSafe {
@@ -399,14 +423,14 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
     /// @param to The address of the dSafe to transfer to
     /// @param amount The amount of tokens to transfer
     function transferFromERC20(
-        IERC20 erc20,
+        address erc20,
         address from,
         address to,
         uint256 amount
-    ) external onlyDSafe dSafeExists(from) dSafeExists(to) returns (bool) {
+    ) external dSafeExists(from) dSafeExists(to) returns (bool) {
         address spender = msg.sender;
-        _spendAllowance(erc20, from, spender, amount);
-        transferERC20(erc20, from, to, FsMath.safeCastToSigned(amount));
+        _spendAllowance(IERC20(erc20), from, spender, amount);
+        transferERC20(IERC20(erc20), from, to, FsMath.safeCastToSigned(amount));
         return true;
     }
 
@@ -450,6 +474,18 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         }
         state._tokenApprovals[collection][tokenId] = address(0);
         transferNFT(nftId, from, to);
+    }
+
+    // TODO: update approval to only cover this call
+    /**
+     * @notice Approve the passed address to spend the specified amount of tokens on behalf of msg.sender
+     * and then call `onApprovalReceived` on spender.
+     * @param erc20 The erc20 token to approve
+     * @param spender address The address which will spend the funds
+     * @param amount uint256 The amount of tokens to be spent
+     */
+    function approveAndCall(IERC20 erc20, address spender, uint256 amount) external returns (bool) {
+        return approveAndCall(erc20, spender, amount, "");
     }
 
     function liquidate(address dSafe) external override onlyDSafe dSafeExists(dSafe) {
@@ -511,6 +547,57 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
 
     function getDSafeOwner(address dSafe) external view override returns (address) {
         return state.dSafes[dSafe].owner;
+    }
+
+    /**
+     * @notice Approve the passed address to spend the specified amount of tokens on behalf of msg.sender
+     * and then call `onApprovalReceived` on spender.
+     * @param erc20 address The address of the ERC20 token
+     * @param spender address The address which will spend the funds
+     * @param amount uint256 The amount of tokens to be spent
+     * @param data bytes Additional data with no specified format, sent in call to `spender`
+     * @return true unless throwing
+     */
+    function approveAndCall(
+        IERC20 erc20,
+        address spender,
+        uint256 amount,
+        bytes memory data
+    ) public onlyDSafe returns (bool) {
+        uint256 prevAllowance = allowance(erc20, msg.sender, spender);
+        _approveERC20(msg.sender, erc20, spender, amount);
+        if (!_checkOnApprovalReceived(msg.sender, amount, spender, data)) {
+            revert WrongDataReturned();
+        }
+        _approveERC20(msg.sender, erc20, spender, prevAllowance); // reset allowance
+        return true;
+    }
+
+    /// @notice Approve an array of tokens and then call `onApprovalReceived` on spender.
+    /// @param erc20s An array of erc20 tokens
+    /// @param spender The address of the spender
+    /// @param amounts An array of the amounts of tokens to be spent
+    /// @param data Additional data with no specified format, sent in call to `spender`
+    /// @return true unless throwing
+    function approveBatchAndCall(
+        IERC20[] calldata erc20s,
+        address spender,
+        uint256[] calldata amounts,
+        bytes calldata data
+    ) public onlyDSafe returns (bool) {
+        require(erc20s.length == amounts.length, "Lengths do not match");
+        uint256[] memory prevAllowances = new uint256[](erc20s.length);
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            prevAllowances[i] = allowance(erc20s[i], msg.sender, spender);
+            _approveERC20(msg.sender, erc20s[i], spender, amounts[i]);
+        }
+        if (!_checkOnApprovalReceived(msg.sender, 0, spender, data)) {
+            revert WrongDataReturned();
+        }
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            _approveERC20(msg.sender, erc20s[i], spender, prevAllowances[i]); // reset allowance
+        }
+        return true;
     }
 
     function computePosition(
@@ -640,6 +727,76 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         emit ApprovalForAll(collection, _owner, operator, approved);
     }
 
+    /**
+     * @dev Internal function to invoke {IERC1363Receiver-onTransferReceived} on a target address
+     *  The call is not executed if the recipient address is not a contract
+     * @param recipient address Target address that will receive the tokens
+     * @param amount uint256 The amount mount of tokens to be transferred
+     * @param data bytes Optional data to send along with the call
+     * @return whether the call correctly returned the expected magic value
+     */
+    function _checkOnTransferReceived(
+        address recipient,
+        address token,
+        uint256 amount,
+        bytes memory data
+    ) internal virtual returns (bool) {
+        if (!recipient.isContract()) {
+            revert ReceiverNotContract();
+        }
+
+        try
+            IERC1363ReceiverExtended(recipient).onTransferReceived(msg.sender, token, amount, data)
+        returns (bytes4 retval) {
+            return retval == IERC1363Receiver.onTransferReceived.selector;
+        } catch (bytes memory reason) {
+            if (reason.length == 0) {
+                revert ReceiverNoImplementation();
+            } else {
+                /// @solidity memory-safe-assembly
+                assembly {
+                    revert(add(32, reason), mload(reason))
+                }
+            }
+        }
+    }
+
+    /**
+     * @dev Internal function to invoke {IERC1363Receiver-onApprovalReceived} on a target address
+     *  The call is not executed if the target address is not a contract
+     * @param spender address The address which will spend the funds
+     * @param amount uint256 The amount of tokens to be spent
+     * @param data bytes Optional data to send along with the call
+     * @return whether the call correctly returned the expected magic value
+     */
+    function _checkOnApprovalReceived(
+        address spender, // safe
+        uint256 amount,
+        address target, // router
+        bytes memory data
+    ) internal virtual returns (bool) {
+        if (!spender.isContract()) {
+            revert ReceiverNotContract();
+        }
+
+        Call memory call = Call({to: target, callData: data, value: msg.value});
+
+        try IERC1363SpenderExtended(spender).onApprovalReceived(msg.sender, amount, call) returns (
+            bytes4 retval
+        ) {
+            return retval == IERC1363SpenderExtended.onApprovalReceived.selector;
+        } catch (bytes memory reason) {
+            if (reason.length == 0) {
+                revert ReceiverNoImplementation();
+            } else {
+                /// @solidity memory-safe-assembly
+                assembly {
+                    revert(add(32, reason), mload(reason))
+                }
+            }
+        }
+    }
+
     function transferERC20(IERC20 erc20, address from, address to, int256 amount) internal {
         (, uint16 erc20Idx) = DOSLib.getERC20Info(erc20);
         dAccountERC20ChangeBy(from, erc20Idx, -amount);
@@ -744,7 +901,7 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
 contract DOSConfig is ImmutableOwnable, IDOSConfig {
     DOSLib.DOSState state;
 
-    constructor(address owner) ImmutableOwnable(owner) {}
+    constructor(address _owner) ImmutableOwnable(_owner) {}
 
     function upgradeImplementation(address dSafe, uint256 version) external {
         address dSafeOwner = state.dSafes[dSafe].owner;
