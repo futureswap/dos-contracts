@@ -58,10 +58,10 @@ import {
   DOSConfig__factory,
 } from "../typechain-types";
 import addressesJSON from "../deployment/addresses.json";
-import {getEventParams, getEventsTx} from "./events";
+import {getEventsTx} from "./events";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
-import {createDSafe, depositIntoDos, leverageLP, makeCall, proposeAndExecute} from "./calls";
+import {createDSafe, depositIntoDos, leverageLP2, makeCall, proposeAndExecute} from "./calls";
 import {checkDefined} from "./preconditions";
 
 export async function deployUniswapPool(
@@ -137,48 +137,6 @@ export async function deployUniswapFactory(
     signer,
   );
   return {uniswapV3Factory, nonFungiblePositionManager, swapRouter};
-}
-
-export async function provideLiquidity(
-  owner: {address: string},
-  nonFungiblePositionManager: ethers.Contract,
-  uniswapPool: ethers.Contract,
-  amount0Desired: bigint,
-  amount1Desired: bigint,
-): Promise<{
-  tokenId: bigint;
-  liquidity: bigint;
-  amount0: bigint;
-  amount1: bigint;
-}> {
-  const token0 = await uniswapPool.token0();
-  const token1 = await uniswapPool.token1();
-  const fee = await uniswapPool.fee();
-
-  const mintParams = {
-    token0,
-    token1,
-    fee,
-    tickLower: 40000,
-    tickUpper: 51000,
-    amount0Desired,
-    amount1Desired,
-    amount0Min: 0,
-    amount1Min: 0,
-    recipient: owner.address,
-    deadline: ethers.constants.MaxUint256,
-  };
-  const {tokenId, liquidity, amount0, amount1} = await getEventParams(
-    await nonFungiblePositionManager.mint(mintParams),
-    nonFungiblePositionManager,
-    "IncreaseLiquidity",
-  );
-  return {
-    tokenId: tokenId.toBigInt(),
-    liquidity: liquidity.toBigInt(),
-    amount0: amount0.toBigInt(),
-    amount1: amount1.toBigInt(),
-  };
 }
 
 export async function deployGovernance(governanceProxy: GovernanceProxy): Promise<{
@@ -636,56 +594,43 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
     {weth: weth.address, amount: toWei(100000)},
   );
   await deployUniswapPool(uniswapV3Factory, weth.address, uni.address, 500, 1);
-  await deployUniswapPool(
-    uniswapV3Factory,
-    weth.address,
-    usdc.address,
-    500,
-    (1000 * 10 ** 6) / 10 ** 18,
-  );
+  const normalize = (amount: number) => (amount * 10 ** 6) / 10 ** 18;
+  await deployUniswapPool(uniswapV3Factory, weth.address, usdc.address, 500, normalize(1000));
 
-  await dsafe.executeBatch(
-    leverageLP(
-      dos,
-      weth,
-      usdc,
+  console.log(
+    await getEventsTx(
+      dsafe.executeBatch(
+        await leverageLP2(
+          dos,
+          nonFungiblePositionManager,
+          {token0: weth, token1: usdc, fee: 500},
+          normalize(900),
+          normalize(1100),
+          toWei(10),
+          toWei(10000, 6),
+          dsafe.address,
+          1,
+        ),
+      ),
       nonFungiblePositionManager,
-      {
-        token0: weth.address,
-        token1: usdc.address,
-        fee: 500,
-        tickLower: -210000,
-        tickUpper: -190000,
-        amount0Desired: toWei(10),
-        amount1Desired: toWei(10000, 6),
-        amount0Min: 0,
-        amount1Min: 0,
-        recipient: dsafe.address,
-        deadline: ethers.constants.MaxUint256,
-      },
-      1,
     ),
   );
-  await dsafe.executeBatch(
-    leverageLP(
-      dos,
-      weth,
-      uni,
+  console.log(
+    await getEventsTx(
+      dsafe.executeBatch(
+        await leverageLP2(
+          dos,
+          nonFungiblePositionManager,
+          {token0: weth, token1: uni, fee: 500},
+          0.9,
+          1.1,
+          toWei(10),
+          toWei(10),
+          dsafe.address,
+          2,
+        ),
+      ),
       nonFungiblePositionManager,
-      {
-        token0: weth.address,
-        token1: uni.address,
-        fee: 500,
-        tickLower: -10000,
-        tickUpper: 10000,
-        amount0Desired: toWei(10),
-        amount1Desired: toWei(10),
-        amount0Min: 0,
-        amount1Min: 0,
-        recipient: dsafe.address,
-        deadline: ethers.constants.MaxUint256,
-      },
-      2,
     ),
   );
 

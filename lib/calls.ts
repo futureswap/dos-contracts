@@ -12,8 +12,12 @@ import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 
 import {BigNumber, ethers} from "ethers";
 
-import {DSafeLogic__factory} from "../typechain-types";
-import {getEventParams} from "./events";
+import {
+  IUniswapV3Pool__factory,
+  DSafeLogic__factory,
+  IUniswapV3Factory__factory,
+} from "../typechain-types";
+import {getEventParams, getEventsTx} from "./events";
 import {signOnTransferReceived2Call} from "./signers";
 
 function cleanValue(v: unknown): unknown {
@@ -244,7 +248,7 @@ export const depositIntoSafeAndCall = async (
   }
 };
 
-type UniswapNFTManager = {
+type NonFungiblePositionManagerTypes = {
   // taken from node_modules/@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol:MintParams
   mintParams: {
     token0: string;
@@ -265,21 +269,77 @@ export const leverageLP = (
   dos: IDOS,
   token0: IERC20,
   token1: IERC20,
-  uniswapNFTManager: ethers.Contract,
-  mintParams: UniswapNFTManager["mintParams"],
+  nonFungiblePositionManager: ethers.Contract,
+  mintParams: NonFungiblePositionManagerTypes["mintParams"],
   tokenId: number,
 ): Call[] => {
   if (BigInt(token0.address) >= BigInt(token1.address))
     throw new Error("Token0 must be smaller than token1");
 
   return [
-    makeCall(token0).approve(uniswapNFTManager.address, ethers.constants.MaxUint256),
-    makeCall(token1).approve(uniswapNFTManager.address, ethers.constants.MaxUint256),
-    makeCall(uniswapNFTManager).setApprovalForAll(dos.address, true),
+    makeCall(token0).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
+    makeCall(token1).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
+    makeCall(nonFungiblePositionManager).setApprovalForAll(dos.address, true),
     makeCall(dos).depositERC20(token0.address, -mintParams.amount0Desired),
     makeCall(dos).depositERC20(token1.address, -mintParams.amount1Desired),
-    makeCall(uniswapNFTManager).mint(mintParams),
-    makeCall(dos).depositNFT(uniswapNFTManager.address, tokenId),
+    makeCall(nonFungiblePositionManager).mint(mintParams),
+    makeCall(dos).depositNFT(nonFungiblePositionManager.address, tokenId),
+    makeCall(dos).depositFull([token0.address, token1.address]),
+  ];
+};
+
+export const leverageLP2 = async (
+  dos: IDOS,
+  nonFungiblePositionManager: ethers.Contract,
+  {token0, token1, fee}: {token0: IERC20; token1: IERC20; fee: number},
+  lowerPrice: number,
+  upperPrice: number,
+  amount0Desired: bigint,
+  amount1Desired: bigint,
+  recipient: string,
+  tokenId: number,
+): Promise<Call[]> => {
+  if (BigInt(token0.address) >= BigInt(token1.address))
+    throw new Error("Token0 must be smaller than token1");
+
+  const pool = {
+    token0: token0.address,
+    token1: token1.address,
+    fee,
+  };
+  /* eslint-disable @typescript-eslint/no-unsafe-call */
+  const factoryAddress = (await nonFungiblePositionManager.factory()) as string;
+  /* eslint-enable @typescript-eslint/no-unsafe-call */
+
+  const uniswapV3Factory = IUniswapV3Factory__factory.connect(
+    factoryAddress,
+    nonFungiblePositionManager.signer,
+  );
+  const poolAddress = await uniswapV3Factory.getPool(pool.token0, pool.token1, pool.fee);
+  const uniswapV3Pool = IUniswapV3Pool__factory.connect(
+    poolAddress,
+    nonFungiblePositionManager.signer,
+  );
+  const tickSpacing = await uniswapV3Pool.tickSpacing();
+
+  const mintParams = computeMintParams(
+    lowerPrice,
+    upperPrice,
+    pool,
+    amount0Desired,
+    amount1Desired,
+    recipient,
+    tickSpacing,
+  );
+
+  return [
+    makeCall(token0).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
+    makeCall(token1).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
+    makeCall(nonFungiblePositionManager).setApprovalForAll(dos.address, true),
+    makeCall(dos).depositERC20(token0.address, -mintParams.amount0Desired),
+    makeCall(dos).depositERC20(token1.address, -mintParams.amount1Desired),
+    makeCall(nonFungiblePositionManager).mint(mintParams),
+    makeCall(dos).depositNFT(nonFungiblePositionManager.address, tokenId),
     makeCall(dos).depositFull([token0.address, token1.address]),
   ];
 };
@@ -310,4 +370,74 @@ export const leveragePos = (
     makeCall(swapRouter).exactInputSingle(exactInputSingleParams),
     makeCall(dos).depositFull([tokenIn.address, tokenOut.address]),
   ];
+};
+
+export const computeMintParams = (
+  lowerPrice: number,
+  upperPrice: number,
+  pool: {token0: string; token1: string; fee: number},
+  amount0Desired: bigint,
+  amount1Desired: bigint,
+  recipient: string,
+  tickSpacing: number,
+): NonFungiblePositionManagerTypes["mintParams"] => {
+  const tickLower = Math.floor(Math.log(lowerPrice) / Math.log(1.0001) / tickSpacing) * tickSpacing;
+  const tickUpper = Math.floor(Math.log(upperPrice) / Math.log(1.0001) / tickSpacing) * tickSpacing;
+  return {
+    ...pool,
+    tickLower,
+    tickUpper,
+    amount0Desired,
+    amount1Desired,
+    amount0Min: 0,
+    amount1Min: 0,
+    recipient,
+    deadline: ethers.constants.MaxUint256,
+  };
+};
+
+export const provideLiquidity = async (
+  nonFungiblePositionManager: ethers.Contract,
+  lowerPrice: number,
+  upperPrice: number,
+  pool: {token0: string; token1: string; fee: number},
+  amount0Desired: bigint,
+  amount1Desired: bigint,
+  recipient: string,
+): Promise<{
+  tokenId: bigint;
+  liquidity: bigint;
+  amount0: bigint;
+  amount1: bigint;
+}> => {
+  /* eslint-disable @typescript-eslint/no-unsafe-call */
+  const factoryAddress = (await nonFungiblePositionManager.factory()) as string;
+  /* eslint-enable @typescript-eslint/no-unsafe-call */
+  const uniswapV3Factory = IUniswapV3Factory__factory.connect(
+    factoryAddress,
+    nonFungiblePositionManager.signer,
+  );
+  const poolAddress = await uniswapV3Factory.getPool(pool.token0, pool.token1, pool.fee);
+  const uniswapV3Pool = IUniswapV3Pool__factory.connect(
+    poolAddress,
+    nonFungiblePositionManager.signer,
+  );
+  const tickSpacing = await uniswapV3Pool.tickSpacing();
+  /* eslint-disable */
+  const {IncreaseLiquidity} = await getEventsTx(
+    await nonFungiblePositionManager.mint(
+      computeMintParams(
+        lowerPrice,
+        upperPrice,
+        pool,
+        amount0Desired,
+        amount1Desired,
+        recipient,
+        tickSpacing,
+      ),
+    ),
+    nonFungiblePositionManager,
+  );
+  return IncreaseLiquidity as any;
+  /* eslint-enable */
 };

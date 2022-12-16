@@ -74,7 +74,6 @@ contract DSafeLogic is ImmutableVersion, IERC721Receiver, IERC1271, ITransferRec
 
     bytes32 constant EXECUTEBATCH_TYPEHASH =
         keccak256(abi.encodePacked(EXECUTEBATCH_TYPESTRING, CallLib.CALL_TYPESTRING));
-
     bytes32 constant TRANSFER_TYPEHASH = keccak256(TRANSFER_TYPESTRING);
     bytes32 constant ONTRANSFERRECEIVED2CALL_TYPEHASH =
         keccak256(
