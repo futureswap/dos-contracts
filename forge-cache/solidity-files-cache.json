@@ -13,8 +13,8 @@
   },
   "files": {
     "contracts/dos/DOS.sol": {
-      "lastModificationDate": 1671231590943,
-      "contentHash": "fe94e885678b49b754c2c05427a93c70",
+      "lastModificationDate": 1671234713749,
+      "contentHash": "c25352abac0fcfdf3bad69524efc84f0",
       "sourceName": "contracts/dos/DOS.sol",
       "solcConfig": {
         "settings": {
@@ -107,8 +107,8 @@
       }
     },
     "contracts/dos/DSafeProxy.sol": {
-      "lastModificationDate": 1671226490304,
-      "contentHash": "8dd8c7320d8b3a0129470e60fae30587",
+      "lastModificationDate": 1671232329965,
+      "contentHash": "abdca18fd71c53a8c5ba2794679e14f3",
       "sourceName": "contracts/dos/DSafeProxy.sol",
       "solcConfig": {
         "settings": {
@@ -1026,8 +1026,8 @@
       }
     },
     "contracts/interfaces/IERC1363-extended.sol": {
-      "lastModificationDate": 1671225351818,
-      "contentHash": "15a4b1725936d61b50413d195648f4fe",
+      "lastModificationDate": 1671232307553,
+      "contentHash": "3ffa6fe6f4cf4ecc192fd5ad7f3f520c",
       "sourceName": "contracts/interfaces/IERC1363-extended.sol",
       "solcConfig": {
         "settings": {

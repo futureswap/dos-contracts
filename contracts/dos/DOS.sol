@@ -488,30 +488,6 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         return approveAndCall(erc20, spender, amount, "");
     }
 
-    /**
-     * @notice Transfer tokens from `msg.sender` to another address and then call `onTransferReceived` on receiver
-     * @param erc20 The erc20 token to transfer
-     * @param to address The address which you want to transfer to
-     * @param amount uint256 The amount of tokens to be transferred
-     * @return true unless throwing
-     */
-    function transferAndCall(IERC20 erc20, address to, uint256 amount) external returns (bool) {
-        return transferAndCall(erc20, to, amount, "");
-    }
-
-    // /**
-    //  * @notice Transfer tokens from one address to another and then call `onTransferReceived` on receiver
-    //  * @param from address The address which you want to send tokens from
-    //  * @param to address The address which you want to transfer to
-    //  * @param amount uint256 The amount of tokens to be transferred
-    //  * @return true unless throwing
-    //  */
-    // function transferFromAndCall(
-    //     address from,
-    //     address to,
-    //     uint256 amount
-    // ) external returns (bool) {}
-
     function liquidate(address dSafe) external override onlyDSafe dSafeExists(dSafe) {
         (int256 totalValue, int256 collateral, int256 debt) = computePosition(dSafe);
         require(collateral < debt, "DSafe is not liquidatable");
@@ -620,27 +596,6 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         }
         for (uint256 i = 0; i < erc20s.length; i++) {
             _approveERC20(msg.sender, erc20s[i], spender, prevAllowances[i]); // reset allowance
-        }
-        return true;
-    }
-
-    /**
-     * @notice Transfer tokens from `msg.sender` to another address and then call `onTransferReceived` on receiver
-     * @param erc20 address The address of the ERC20 token
-     * @param to address The address which you want to transfer to
-     * @param amount uint256 The amount of tokens to be transferred
-     * @param data bytes Additional data with no specified format, sent in call to `to`
-     * @return true unless throwing
-     */
-    function transferAndCall(
-        IERC20 erc20,
-        address to,
-        uint256 amount,
-        bytes memory data
-    ) public onlyDSafe returns (bool) {
-        transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
-        if (!_checkOnTransferReceived(to, address(erc20), amount, data)) {
-            revert WrongDataReturned();
         }
         return true;
     }
