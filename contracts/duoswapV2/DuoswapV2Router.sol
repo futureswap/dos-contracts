@@ -87,7 +87,7 @@ contract DuoswapV2Router is IDuoswapV2Router {
         ensure(deadline)
         returns (uint256 amountA, uint256 amountB, uint256 liquidity)
     {
-        require(msg.sender == address(dos));
+        // require(msg.sender == address(dos));
         (amountA, amountB) = _addLiquidity(
             tokenA,
             tokenB,
@@ -99,8 +99,8 @@ contract DuoswapV2Router is IDuoswapV2Router {
         address pair = DuoswapV2Library.pairFor(factory, tokenA, tokenB);
         address pairSafe = IDuoswapV2Pair(pair).dSafe();
 
-        IDOS(dos).transferFromERC20(tokenA, to, pairSafe, amountA);
-        IDOS(dos).transferFromERC20(tokenB, to, pairSafe, amountB);
+        IDOS(dos).transferFromERC20(tokenA, msg.sender, pairSafe, amountA);
+        IDOS(dos).transferFromERC20(tokenB, msg.sender, pairSafe, amountB);
         liquidity = IDuoswapV2Pair(pair).mint(to);
     }
 

@@ -511,21 +511,12 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
     /**
      * @notice Approve the passed address to spend the specified amount of tokens on behalf of msg.sender
      * and then call `onApprovalReceived` on spender.
-     * Beware that changing an allowance with this method brings the risk that someone may use both the old
-     * and the new allowance by unfortunate transaction ordering. One possible solution to mitigate this
-     * race condition is to first reduce the spender's allowance to 0 and set the desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
      * @param erc20 The erc20 token to approve
      * @param spender address The address which will spend the funds
      * @param amount uint256 The amount of tokens to be spent
      */
-    function approveAndCall(
-        IERC20 erc20,
-        address spender,
-        uint256 amount,
-        address target
-    ) external returns (bool) {
-        return approveAndCall(erc20, spender, amount, target, "");
+    function approveAndCall(IERC20 erc20, address spender, uint256 amount) external returns (bool) {
+        return approveAndCall(erc20, spender, amount, "");
     }
 
     /**
@@ -726,14 +717,13 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
      */
     function approveAndCall(
         IERC20 erc20,
-        address spender, // portfolio
+        address spender,
         uint256 amount,
-        address target, // router
         bytes memory data
     ) public onlyPortfolio returns (bool) {
         uint256 prevAllowance = allowance(erc20, msg.sender, spender);
         _approveERC20(msg.sender, erc20, spender, amount);
-        if (!_checkOnApprovalReceived(spender, amount, target, data)) {
+        if (!_checkOnApprovalReceived(msg.sender, amount, spender, data)) {
             revert WrongDataReturned();
         }
         _approveERC20(msg.sender, erc20, spender, prevAllowance); // reset allowance
@@ -750,7 +740,6 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         IERC20[] calldata erc20s,
         address spender,
         uint256[] calldata amounts,
-        address target,
         bytes calldata data
     ) public onlyPortfolio returns (bool) {
         require(erc20s.length == amounts.length, "Lengths do not match");
@@ -759,7 +748,7 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
             prevAllowances[i] = allowance(erc20s[i], msg.sender, spender);
             _approveERC20(msg.sender, erc20s[i], spender, amounts[i]);
         }
-        if (!_checkOnApprovalReceived(spender, 0, target, data)) {
+        if (!_checkOnApprovalReceived(msg.sender, 0, spender, data)) {
             revert WrongDataReturned();
         }
         for (uint256 i = 0; i < erc20s.length; i++) {
@@ -948,6 +937,10 @@ contract DOS is IDOS, ImmutableOwnable, IERC721Receiver {
         uint256 amount
     ) internal {
         uint256 currentAllowance = allowance(erc20, _owner, spender);
+        console.log("currentAllowance");
+        console.log(currentAllowance);
+        console.log("_owner", _owner);
+        console.log("spender", spender);
         if (currentAllowance != type(uint256).max) {
             if (currentAllowance < amount) {
                 revert InsufficientAllowance();

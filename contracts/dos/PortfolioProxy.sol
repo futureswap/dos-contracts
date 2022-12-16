@@ -304,12 +304,6 @@ contract PortfolioLogic is IERC721Receiver, IERC1271, ITransferReceiver2, ISafe 
 
         IDOS(dos).executeBatch(calls);
 
-        // // use data to call pair functions
-        // (bool success, ) = address(target).delegatecall(data);
-        // if (!success) {
-        //     revert("PL: DELEGATECALL_FAILED");
-        // }
-
         return this.onApprovalReceived.selector;
     }
 

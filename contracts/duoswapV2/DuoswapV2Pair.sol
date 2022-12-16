@@ -59,9 +59,9 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
     }
 
     function _safeTransfer(address token, address to, uint256 amount) private {
-        ISafe.Call[] memory call = new ISafe.Call[](1);
+        IDOS.Call[] memory call = new IDOS.Call[](1);
         call[0] = (
-            ISafe.Call({
+            IDOS.Call({
                 to: address(dos),
                 callData: abi.encodeWithSignature(
                     "transfer(address,address,uint256)",
