@@ -12,7 +12,7 @@ import {IDuoswapV2Pair} from "./interfaces/IDuoswapV2Pair.sol";
 import {DuoswapV2ERC20} from "./DuoswapV2ERC20.sol";
 
 import {IDOS} from "../interfaces/IDOS.sol";
-import {ISafe} from "./interfaces/ISafe.sol";
+import {ISafe} from "../interfaces/ISafe.sol";
 
 //solhint-disable func-name-mixedcase
 //solhint-disable avoid-low-level-calls
