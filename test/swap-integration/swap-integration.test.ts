@@ -220,65 +220,125 @@ describe("DOS swap integration", () => {
       expect(nfts.length).to.equal(0); // regular leveraged position, no NFTs
     });
 
-    it("Liquify liquidatable position", async () => {
-      const {
-        user,
-        user2,
-        user3,
-        dos,
-        usdc,
-        weth,
-        nonFungiblePositionManager,
-        swapRouter,
-        ethChainlink,
-        getBalances,
-      } = await loadFixture(deployDOSFixture);
+    describe("#liquify", () => {
+      it("should liquify dSafe when dSafe liquidation generates no debt", async () => {
+        const {
+          user,
+          user2,
+          user3,
+          dos,
+          usdc,
+          weth,
+          nonFungiblePositionManager,
+          swapRouter,
+          ethChainlink,
+          getBalances,
+        } = await loadFixture(deployDOSFixture);
 
-      const dSafe = await createDSafe(dos, user);
-      await usdc.mint(dSafe.address, toWei(16000, USDC_DECIMALS));
+        const dSafe = await createDSafe(dos, user);
+        await usdc.mint(dSafe.address, toWei(16000, USDC_DECIMALS));
 
-      const mintParams = {
-        token0: weth.address,
-        token1: usdc.address,
-        fee: 500,
-        tickLower: -210000,
-        tickUpper: -190000,
-        amount0Desired: toWei(10),
-        amount1Desired: toWei(20000, USDC_DECIMALS),
-        amount0Min: 0,
-        amount1Min: 0,
-        recipient: dSafe.address,
-        deadline: ethers.constants.MaxUint256,
-      };
-      await dSafe.executeBatch(
-        leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
-      );
+        const mintParams = {
+          token0: weth.address,
+          token1: usdc.address,
+          fee: 500,
+          tickLower: -210000,
+          tickUpper: -190000,
+          amount0Desired: toWei(10),
+          amount1Desired: toWei(20000, USDC_DECIMALS),
+          amount0Min: 0,
+          amount1Min: 0,
+          recipient: dSafe.address,
+          deadline: ethers.constants.MaxUint256,
+        };
+        await dSafe.executeBatch(
+          leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+        );
 
-      const dSafe2 = await createDSafe(dos, user2);
-      await usdc.mint(dSafe2.address, toWei(1000, USDC_DECIMALS));
-      await dSafe2.executeBatch(
-        leveragePos(dSafe2, dos, usdc, weth, 500, swapRouter, toWei(2000, USDC_DECIMALS)),
-      );
+        const dSafe2 = await createDSafe(dos, user2);
+        await usdc.mint(dSafe2.address, toWei(1000, USDC_DECIMALS));
+        await dSafe2.executeBatch(
+          leveragePos(dSafe2, dos, usdc, weth, 500, swapRouter, toWei(2000, USDC_DECIMALS)),
+        );
 
-      // make dSafe2 liquidatable
-      await ethChainlink.setPrice(ETH_PRICE / 2);
+        // make dSafe2 liquidatable
+        await ethChainlink.setPrice(ETH_PRICE / 2);
 
-      const dSafe3 = await createDSafe(dos, user3);
-      await usdc.mint(dSafe3.address, toWei(1000, USDC_DECIMALS));
-      await dSafe3.executeBatch([
-        makeCall(usdc).approve(swapRouter.address, ethers.constants.MaxUint256),
-        makeCall(weth).approve(swapRouter.address, ethers.constants.MaxUint256),
-        makeCall(dos).depositFull([usdc.address]),
-      ]);
+        const dSafe3 = await createDSafe(dos, user3);
+        await usdc.mint(dSafe3.address, toWei(1000, USDC_DECIMALS));
+        await dSafe3.executeBatch([
+          makeCall(usdc).approve(swapRouter.address, ethers.constants.MaxUint256),
+          makeCall(weth).approve(swapRouter.address, ethers.constants.MaxUint256),
+          makeCall(dos).depositFull([usdc.address]),
+        ]);
 
-      // await dSafe3.liquify(dSafe2.address, swapRouter.address, usdc.address, [wethIdx], [weth.address]);
-      await dSafe3.liquify(dSafe2.address, swapRouter.address, usdc.address, [weth.address]);
+        await dSafe3.liquify(dSafe2.address, swapRouter.address, usdc.address, [weth.address]);
 
-      const {usdcBalance, wethBalance} = await getBalances(dSafe3);
-      expect(await usdc.balanceOf(dSafe3.address)).to.be.equal(0);
-      expect(await weth.balanceOf(dSafe3.address)).to.be.equal(0);
-      expect(wethBalance).to.equal(0);
-      expect(usdcBalance).to.greaterThan(toWei(1000, USDC_DECIMALS));
+        const {usdcBalance, wethBalance} = await getBalances(dSafe3);
+        expect(await usdc.balanceOf(dSafe3.address)).to.be.equal(0);
+        expect(await weth.balanceOf(dSafe3.address)).to.be.equal(0);
+        expect(wethBalance).to.equal(0);
+        expect(usdcBalance).to.greaterThan(toWei(1000, USDC_DECIMALS));
+      });
+
+      it("should liquify dSafe when dSafe liquidation generates debt", async () => {
+        const {
+          user,
+          user2,
+          user3,
+          dos,
+          usdc,
+          weth,
+          nonFungiblePositionManager,
+          swapRouter,
+          ethChainlink,
+          getBalances,
+        } = await loadFixture(deployDOSFixture);
+
+        const dSafe = await createDSafe(dos, user);
+        await weth.mint(dSafe.address, toWei(10));
+        await usdc.mint(dSafe.address, toWei(20_000, USDC_DECIMALS));
+
+        const mintParams = {
+          token0: weth.address,
+          token1: usdc.address,
+          fee: 500,
+          tickLower: -210000,
+          tickUpper: -190000,
+          amount0Desired: toWei(5),
+          amount1Desired: toWei(10_000, USDC_DECIMALS),
+          amount0Min: 0,
+          amount1Min: 0,
+          recipient: dSafe.address,
+          deadline: ethers.constants.MaxUint256,
+        };
+        await dSafe.executeBatch(
+          leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+        );
+
+        const dSafe2 = await createDSafe(dos, user2);
+        await weth.mint(dSafe2.address, toWei(1));
+        await dSafe2.executeBatch(leveragePos(dSafe2, dos, weth, usdc, 500, swapRouter, toWei(2)));
+
+        // make dSafe2 liquidatable
+        await ethChainlink.setPrice(ETH_PRICE * 2);
+
+        const dSafe3 = await createDSafe(dos, user3);
+        await usdc.mint(dSafe3.address, toWei(10_000, USDC_DECIMALS));
+        await dSafe3.executeBatch([
+          makeCall(usdc).approve(swapRouter.address, ethers.constants.MaxUint256),
+          makeCall(weth).approve(swapRouter.address, ethers.constants.MaxUint256),
+          makeCall(dos).depositFull([usdc.address]),
+        ]);
+
+        await dSafe3.liquify(dSafe2.address, swapRouter.address, usdc.address, [weth.address]);
+
+        const {usdcBalance, wethBalance} = await getBalances(dSafe3);
+        expect(await usdc.balanceOf(dSafe3.address)).to.be.equal(0);
+        expect(await weth.balanceOf(dSafe3.address)).to.be.equal(0);
+        expect(wethBalance).to.equal(0);
+        expect(usdcBalance).to.greaterThan(toWei(1000, USDC_DECIMALS));
+      });
     });
   });
 });
