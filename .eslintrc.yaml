@@ -134,7 +134,7 @@ rules:
     ignoreArrayIndexes: true,
     ignoreDefaultValues: true,
     ignoreClassFieldInitialValues: true,
-    ignore: [0, 0n, 1, 2, -1, 10n, 1000],
+    ignore: [0, 0n, 1, 2, -1, -2, 10n, 1000],
     ignoreReadonlyClassProperties: true,
   }]
   "@typescript-eslint/no-redeclare": error
