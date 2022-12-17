@@ -15,6 +15,7 @@ import "../interfaces/IDOS.sol";
 import "../interfaces/IVersionManager.sol";
 import "../interfaces/ITransferReceiver2.sol";
 import "../external/interfaces/IPermit2.sol";
+import {ISafe} from "../interfaces/ISafe.sol";
 
 // Inspired by TransparentUpdatableProxy
 contract DSafeProxy is Proxy {
@@ -68,7 +69,14 @@ contract DSafeProxy is Proxy {
 
 // Calls to the contract not coming from DOS itself are routed to this logic
 // contract. This allows for flexible extra addition to your dSafe.
-contract DSafeLogic is ImmutableVersion, IERC721Receiver, IERC1271, ITransferReceiver2, EIP712 {
+contract DSafeLogic is
+    ImmutableVersion,
+    IERC721Receiver,
+    IERC1271,
+    ITransferReceiver2,
+    EIP712,
+    ISafe
+{
     bytes private constant EXECUTEBATCH_TYPESTRING =
         "ExecuteBatch(Call[] calls,uint256 nonce,uint256 deadline)";
     bytes private constant TRANSFER_TYPESTRING = "Transfer(address token,uint256 amount)";
@@ -354,5 +362,23 @@ contract DSafeLogic is ImmutableVersion, IERC721Receiver, IERC1271, ITransferRec
             revert("Invalid data - allowed are '', '0x00...', '0x01' and '0x02...'");
         }
         return ITransferReceiver2.onTransferReceived2.selector;
+    }
+
+    function onApprovalReceived(
+        address sender,
+        uint256 amount,
+        Call memory call
+    ) external returns (bytes4) {
+        if (call.callData.length == 0) {
+            revert("PL: INVALID_DATA");
+        }
+        emit TokensApproved(sender, amount, call.callData);
+
+        Call[] memory calls = new Call[](1);
+        calls[0] = call;
+
+        IDOS(dos).executeBatch(calls);
+
+        return this.onApprovalReceived.selector;
     }
 }
