@@ -31,7 +31,10 @@ describe("DOS", () => {
 
     const {transferAndCall2} = await deployFixedAddressForTests(owner);
 
-    const mockReceiver = await waffle.deployMockContract(owner, ITransferReceiver2__factory.abi);
+    const mockReceiver = await waffle.deployMockContract(
+      owner,
+      JSON.parse(JSON.stringify(ITransferReceiver2__factory.abi)),
+    );
     const magicValue = mockReceiver.interface.getSighash("onTransferReceived2");
 
     await usdc.approve(transferAndCall2.address, ethers.constants.MaxUint256);

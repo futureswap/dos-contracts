@@ -174,7 +174,7 @@ export class Chainlink {
   ): Promise<Chainlink> {
     const mockChainLink = await waffle.deployMockContract(
       signer,
-      AggregatorV3Interface__factory.abi,
+      JSON.parse(JSON.stringify(AggregatorV3Interface__factory.abi)), // todo strange readonly -> mutable type error on github
     );
     await mockChainLink.mock.decimals.returns(chainLinkDecimals);
     const erc20Oracle = await new ERC20ChainlinkValueOracle__factory(signer).deploy(
@@ -455,10 +455,15 @@ export const setupDos = async (
     [usdcOracle, ethOracle, uniOracle].map(oracle => oracle.deployTransaction.wait()),
   );
 
+  const USDC_DECIMALS = 6;
+  const ETHEREUM_DECIMALS = 18;
+  const ETH_PRICE = 1200;
+  const UNI_PRICE = 840;
+
   await governanceProxy.execute([
-    makeCall(usdcOracle).setPrice(toWei(1), 6, 6),
-    makeCall(ethOracle).setPrice(toWei(1200), 6, 18),
-    makeCall(uniOracle).setPrice(toWei(840), 6, 18),
+    makeCall(usdcOracle).setPrice(toWei(1), USDC_DECIMALS, USDC_DECIMALS),
+    makeCall(ethOracle).setPrice(toWei(ETH_PRICE), USDC_DECIMALS, ETHEREUM_DECIMALS),
+    makeCall(uniOracle).setPrice(toWei(UNI_PRICE), USDC_DECIMALS, ETHEREUM_DECIMALS),
     makeCall(dos).setConfig({
       liqFraction: toWei(0.8),
       fractionalReserveLeverage: 9,

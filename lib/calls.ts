@@ -381,8 +381,11 @@ export const computeMintParams = (
   recipient: string,
   tickSpacing: number,
 ): NonFungiblePositionManagerTypes["mintParams"] => {
-  const tickLower = Math.floor(Math.log(lowerPrice) / Math.log(1.0001) / tickSpacing) * tickSpacing;
-  const tickUpper = Math.floor(Math.log(upperPrice) / Math.log(1.0001) / tickSpacing) * tickSpacing;
+  const tickBase = 1.0001;
+  const tickLower =
+    Math.floor(Math.log(lowerPrice) / Math.log(tickBase) / tickSpacing) * tickSpacing;
+  const tickUpper =
+    Math.floor(Math.log(upperPrice) / Math.log(tickBase) / tickSpacing) * tickSpacing;
   return {
     ...pool,
     tickLower,

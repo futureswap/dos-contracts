@@ -6,6 +6,7 @@ import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-waffle";
 import "@nomiclabs/hardhat-ethers";
 import {config as dotEnvConfig} from "dotenv";
+import "@graphprotocol/hardhat-graph";
 
 import {preprocessCode} from "./lib/hardhat/preprocess";
 
@@ -187,5 +188,14 @@ export default {
           throw new Error("Unknown network");
       }
     }),
+  },
+  subgraph: {
+    name: "MySubgraph", // defaults to the name of the root folder of the hardhat project
+    product: "subgraph-studio", // defaults to 'subgraph-studio'
+    indexEvents: false, // defaults to false
+    allowSimpleName: true, // defaults to `false` if product is `hosted-service` and `true` if product is `subgraph-studio`
+  },
+  paths: {
+    subgraph: "./subgraph", // defaults to './subgraph'
   },
 };

@@ -8,6 +8,11 @@ typechain-types
 cache
 artifacts
 
+# Subgraph
+data
+subgraph
+yarn-error.log
+
 # Compiler files
 cache/
 out/
@@ -19,4 +24,5 @@ out/
 
 # Dotenv file
 .env
-
+# Matchstick
+./path/to/subgraph/tests/.*
