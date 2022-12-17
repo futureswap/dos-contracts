@@ -9,3 +9,8 @@ typechain-types
 cache
 artifacts
 
+# Subgraph
+./path/to/subgraph/generated
+./path/to/subgraph/build
+# Matchstick
+./path/to/subgraph/tests/.*

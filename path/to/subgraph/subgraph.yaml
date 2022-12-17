@@ -1,0 +1,29 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: DOS
+    network: localhost
+    source:
+      address: "0x0C2A364D44Af6249EBa1892b1182b7854090ea4d"
+      abi: DOS
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - ApprovalForAll
+        - ERC20Approval
+        - ERC721Approval
+      abis:
+        - name: DOS
+          file: ./abis/DOS.json
+      eventHandlers:
+        - event: ApprovalForAll(indexed address,indexed address,indexed address,bool)
+          handler: handleApprovalForAll
+        - event: ERC20Approval(indexed address,indexed address,indexed address,uint256)
+          handler: handleERC20Approval
+        - event: ERC721Approval(indexed address,indexed address,indexed address,uint256)
+          handler: handleERC721Approval
+      file: ./src/dos.ts
