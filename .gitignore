@@ -14,7 +14,7 @@ subgraph
 yarn-error.log
 
 # Compiler files
-cache/
+forge-cache
 out/
 
 # Ignores development broadcast logs

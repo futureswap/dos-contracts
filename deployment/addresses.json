@@ -47,6 +47,7 @@
     "uniV3Oracle": "0x4ed7c70F96B99c776995fB64377f0d4aB3B0e1C1",
     "uniswapNFTManager": "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
     "swapRouter": "0x68B1D87F95878fE05B998F19b66F4baba5De1aed",
-    "nonFungiblePositionManager": "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE"
+    "nonFungiblePositionManager": "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+    "uniswapV3Factory": "0x9A676e781A523b5d0C0e43731313A708CB607508"
   }
 }
