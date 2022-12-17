@@ -9,11 +9,7 @@ cache
 artifacts
 
 # Subgraph
-./path/to/subgraph/generated
-./path/to/subgraph/build
-# Matchstick
-./path/to/subgraph/tests/.*
-
+path
 data
 path
 yarn-error.log
