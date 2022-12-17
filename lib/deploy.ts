@@ -174,7 +174,7 @@ export class Chainlink {
   ): Promise<Chainlink> {
     const mockChainLink = await waffle.deployMockContract(
       signer,
-      AggregatorV3Interface__factory.abi,
+      JSON.parse(JSON.stringify(AggregatorV3Interface__factory.abi)), // todo strange readonly -> mutable type error on github
     );
     await mockChainLink.mock.decimals.returns(chainLinkDecimals);
     const erc20Oracle = await new ERC20ChainlinkValueOracle__factory(signer).deploy(
