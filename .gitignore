@@ -14,3 +14,7 @@ artifacts
 ./path/to/subgraph/build
 # Matchstick
 ./path/to/subgraph/tests/.*
+
+data
+path
+yarn-error.log

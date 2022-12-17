@@ -3,5 +3,13 @@
     "DOS": {
       "address": "0x0C2A364D44Af6249EBa1892b1182b7854090ea4d"
     }
+  },
+  "localhost": {
+    "DOS": {
+      "address": "0x0C2A364D44Af6249EBa1892b1182b7854090ea4d"
+    },
+    "IDOS": {
+      "address": "0x0C2A364D44Af6249EBa1892b1182b7854090ea4d"
+    }
   }
 }

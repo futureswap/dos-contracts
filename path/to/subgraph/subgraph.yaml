@@ -27,3 +27,25 @@ dataSources:
         - event: ERC721Approval(indexed address,indexed address,indexed address,uint256)
           handler: handleERC721Approval
       file: ./src/dos.ts
+  - kind: ethereum
+    name: IDOS
+    network: localhost
+    source:
+      address: "0x0C2A364D44Af6249EBa1892b1182b7854090ea4d"
+      abi: IDOS
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - DSafeCreated
+        - ERC20Added
+      abis:
+        - name: IDOS
+          file: ./abis/IDOS.json
+      eventHandlers:
+        - event: DSafeCreated(address,address)
+          handler: handleDSafeCreated
+        - event: ERC20Added(uint16,address,address,string,string,uint8,address,int256,int256,int256)
+          handler: handleERC20Added
+      file: ./src/idos.ts

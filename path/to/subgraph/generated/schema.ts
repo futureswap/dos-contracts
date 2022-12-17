@@ -71,3 +71,233 @@ export class ExampleEntity extends Entity {
     this.set("owner", Value.fromBytes(value));
   }
 }
+
+export class DSafeCreated extends Entity {
+  constructor(id: Bytes) {
+    super();
+    this.set("id", Value.fromBytes(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(id != null, "Cannot save DSafeCreated entity without an ID");
+    if (id) {
+      assert(
+        id.kind == ValueKind.BYTES,
+        `Entities of type DSafeCreated must have an ID of type Bytes but the id '${id.displayData()}' is of type ${id.displayKind()}`
+      );
+      store.set("DSafeCreated", id.toBytes().toHexString(), this);
+    }
+  }
+
+  static load(id: Bytes): DSafeCreated | null {
+    return changetype<DSafeCreated | null>(
+      store.get("DSafeCreated", id.toHexString())
+    );
+  }
+
+  get id(): Bytes {
+    let value = this.get("id");
+    return value!.toBytes();
+  }
+
+  set id(value: Bytes) {
+    this.set("id", Value.fromBytes(value));
+  }
+
+  get dSafe(): Bytes {
+    let value = this.get("dSafe");
+    return value!.toBytes();
+  }
+
+  set dSafe(value: Bytes) {
+    this.set("dSafe", Value.fromBytes(value));
+  }
+
+  get owner(): Bytes {
+    let value = this.get("owner");
+    return value!.toBytes();
+  }
+
+  set owner(value: Bytes) {
+    this.set("owner", Value.fromBytes(value));
+  }
+
+  get blockNumber(): BigInt {
+    let value = this.get("blockNumber");
+    return value!.toBigInt();
+  }
+
+  set blockNumber(value: BigInt) {
+    this.set("blockNumber", Value.fromBigInt(value));
+  }
+
+  get blockTimestamp(): BigInt {
+    let value = this.get("blockTimestamp");
+    return value!.toBigInt();
+  }
+
+  set blockTimestamp(value: BigInt) {
+    this.set("blockTimestamp", Value.fromBigInt(value));
+  }
+
+  get transactionHash(): Bytes {
+    let value = this.get("transactionHash");
+    return value!.toBytes();
+  }
+
+  set transactionHash(value: Bytes) {
+    this.set("transactionHash", Value.fromBytes(value));
+  }
+}
+
+export class ERC20Added extends Entity {
+  constructor(id: Bytes) {
+    super();
+    this.set("id", Value.fromBytes(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(id != null, "Cannot save ERC20Added entity without an ID");
+    if (id) {
+      assert(
+        id.kind == ValueKind.BYTES,
+        `Entities of type ERC20Added must have an ID of type Bytes but the id '${id.displayData()}' is of type ${id.displayKind()}`
+      );
+      store.set("ERC20Added", id.toBytes().toHexString(), this);
+    }
+  }
+
+  static load(id: Bytes): ERC20Added | null {
+    return changetype<ERC20Added | null>(
+      store.get("ERC20Added", id.toHexString())
+    );
+  }
+
+  get id(): Bytes {
+    let value = this.get("id");
+    return value!.toBytes();
+  }
+
+  set id(value: Bytes) {
+    this.set("id", Value.fromBytes(value));
+  }
+
+  get erc20Idx(): i32 {
+    let value = this.get("erc20Idx");
+    return value!.toI32();
+  }
+
+  set erc20Idx(value: i32) {
+    this.set("erc20Idx", Value.fromI32(value));
+  }
+
+  get erc20(): Bytes {
+    let value = this.get("erc20");
+    return value!.toBytes();
+  }
+
+  set erc20(value: Bytes) {
+    this.set("erc20", Value.fromBytes(value));
+  }
+
+  get dosTokem(): Bytes {
+    let value = this.get("dosTokem");
+    return value!.toBytes();
+  }
+
+  set dosTokem(value: Bytes) {
+    this.set("dosTokem", Value.fromBytes(value));
+  }
+
+  get name(): string {
+    let value = this.get("name");
+    return value!.toString();
+  }
+
+  set name(value: string) {
+    this.set("name", Value.fromString(value));
+  }
+
+  get symbol(): string {
+    let value = this.get("symbol");
+    return value!.toString();
+  }
+
+  set symbol(value: string) {
+    this.set("symbol", Value.fromString(value));
+  }
+
+  get decimals(): i32 {
+    let value = this.get("decimals");
+    return value!.toI32();
+  }
+
+  set decimals(value: i32) {
+    this.set("decimals", Value.fromI32(value));
+  }
+
+  get valueOracle(): Bytes {
+    let value = this.get("valueOracle");
+    return value!.toBytes();
+  }
+
+  set valueOracle(value: Bytes) {
+    this.set("valueOracle", Value.fromBytes(value));
+  }
+
+  get colFactor(): BigInt {
+    let value = this.get("colFactor");
+    return value!.toBigInt();
+  }
+
+  set colFactor(value: BigInt) {
+    this.set("colFactor", Value.fromBigInt(value));
+  }
+
+  get borrowFactor(): BigInt {
+    let value = this.get("borrowFactor");
+    return value!.toBigInt();
+  }
+
+  set borrowFactor(value: BigInt) {
+    this.set("borrowFactor", Value.fromBigInt(value));
+  }
+
+  get interest(): BigInt {
+    let value = this.get("interest");
+    return value!.toBigInt();
+  }
+
+  set interest(value: BigInt) {
+    this.set("interest", Value.fromBigInt(value));
+  }
+
+  get blockNumber(): BigInt {
+    let value = this.get("blockNumber");
+    return value!.toBigInt();
+  }
+
+  set blockNumber(value: BigInt) {
+    this.set("blockNumber", Value.fromBigInt(value));
+  }
+
+  get blockTimestamp(): BigInt {
+    let value = this.get("blockTimestamp");
+    return value!.toBigInt();
+  }
+
+  set blockTimestamp(value: BigInt) {
+    this.set("blockTimestamp", Value.fromBigInt(value));
+  }
+
+  get transactionHash(): Bytes {
+    let value = this.get("transactionHash");
+    return value!.toBytes();
+  }
+
+  set transactionHash(value: Bytes) {
+    this.set("transactionHash", Value.fromBytes(value));
+  }
+}
