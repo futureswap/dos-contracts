@@ -9,9 +9,8 @@ cache
 artifacts
 
 # Subgraph
-path
 data
-path
+subgraph
 yarn-error.log
 
 # Compiler files
