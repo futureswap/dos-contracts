@@ -109,6 +109,8 @@ interface IDOSCore {
 
     function depositERC20(IERC20 erc20, int256 amount) external;
 
+    function depositERC20ForSafe(address erc20, address to, uint256 amount) external;
+
     function depositFull(IERC20[] calldata erc20s) external;
 
     function withdrawFull(IERC20[] calldata erc20s) external;
@@ -142,7 +144,7 @@ interface IDOSCore {
     /// @param to The address of the dSafe to transfer to
     /// @param amount The amount of tokens to transfer
     function transferFromERC20(
-        IERC20 erc20,
+        address erc20,
         address from,
         address to,
         uint256 amount

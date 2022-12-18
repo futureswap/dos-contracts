@@ -1,5 +1,4 @@
 node_modules
-.env
 coverage
 coverage.json
 typechain
@@ -10,11 +9,20 @@ cache
 artifacts
 
 # Subgraph
-./path/to/subgraph/generated
-./path/to/subgraph/build
+data
+subgraph
+yarn-error.log
+
+# Compiler files
+forge-cache
+out/
+
+# Ignores development broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
+
+# Dotenv file
+.env
 # Matchstick
 ./path/to/subgraph/tests/.*
-
-data
-path
-yarn-error.log
