@@ -1,0 +1,58 @@
+type ApprovalForAll @entity(immutable: true) {
+  id: Bytes!
+  collection: Bytes! # address
+  owner: Bytes! # address
+  operator: Bytes! # address
+  approved: Boolean! # bool
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type DSafeCreated @entity(immutable: true) {
+  id: Bytes!
+  dSafe: Bytes! # address
+  owner: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type ERC20Added @entity(immutable: true) {
+  id: Bytes!
+  erc20Idx: Int! # uint16
+  erc20: Bytes! # address
+  dosTokem: Bytes! # address
+  name: String! # string
+  symbol: String! # string
+  decimals: Int! # uint8
+  valueOracle: Bytes! # address
+  colFactor: BigInt! # int256
+  borrowFactor: BigInt! # int256
+  interest: BigInt! # int256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type ERC20Approval @entity(immutable: true) {
+  id: Bytes!
+  erc20: Bytes! # address
+  owner: Bytes! # address
+  spender: Bytes! # address
+  value: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type ERC721Approval @entity(immutable: true) {
+  id: Bytes!
+  collection: Bytes! # address
+  owner: Bytes! # address
+  approved: Bytes! # address
+  tokenId: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
