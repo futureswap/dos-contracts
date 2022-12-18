@@ -9,3 +9,12 @@ typechain-types
 cache
 artifacts
 
+# Subgraph
+./subgraph/generated
+.//subgraph/build
+# Matchstick
+./path/to/subgraph/tests/.*
+
+data
+path
+yarn-error.log
