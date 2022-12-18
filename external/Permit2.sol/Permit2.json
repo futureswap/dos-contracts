@@ -2130,15 +2130,9 @@
     "absolutePath": "src/Permit2.sol",
     "id": 26509,
     "exportedSymbols": {
-      "AllowanceTransfer": [
-        26400
-      ],
-      "Permit2": [
-        26508
-      ],
-      "SignatureTransfer": [
-        26956
-      ]
+      "AllowanceTransfer": [26400],
+      "Permit2": [26508],
+      "SignatureTransfer": [26956]
     },
     "nodeType": "SourceUnit",
     "src": "32:506:25",
@@ -2148,11 +2142,7 @@
         "nodeType": "PragmaDirective",
         "src": "32:23:25",
         "nodes": [],
-        "literals": [
-          "solidity",
-          "0.8",
-          ".17"
-        ]
+        "literals": ["solidity", "0.8", ".17"]
       },
       {
         "id": 26500,
@@ -2217,9 +2207,7 @@
             "baseName": {
               "id": 26504,
               "name": "SignatureTransfer",
-              "nameLocations": [
-                "405:17:25"
-              ],
+              "nameLocations": ["405:17:25"],
               "nodeType": "IdentifierPath",
               "referencedDeclaration": 26956,
               "src": "405:17:25"
@@ -2232,9 +2220,7 @@
             "baseName": {
               "id": 26506,
               "name": "AllowanceTransfer",
-              "nameLocations": [
-                "424:17:25"
-              ],
+              "nameLocations": ["424:17:25"],
               "nodeType": "IdentifierPath",
               "referencedDeclaration": 26400,
               "src": "424:17:25"
@@ -2254,30 +2240,11 @@
           "text": "@notice Permit2 handles signature-based transfers in SignatureTransfer and allowance-based transfers in AllowanceTransfer.\n @dev Users must approve Permit2 before calling any of the transfer functions."
         },
         "fullyImplemented": true,
-        "linearizedBaseContracts": [
-          26508,
-          26400,
-          26956,
-          26496,
-          27158,
-          27326
-        ],
+        "linearizedBaseContracts": [26508, 26400, 26956, 26496, 27158, 27326],
         "name": "Permit2",
         "nameLocation": "394:7:25",
         "scope": 26509,
-        "usedErrors": [
-          26515,
-          26518,
-          26964,
-          26969,
-          26972,
-          27202,
-          27205,
-          28093,
-          28096,
-          28099,
-          28102
-        ]
+        "usedErrors": [26515, 26518, 26964, 26969, 26972, 27202, 27205, 28093, 28096, 28099, 28102]
       }
     ],
     "license": "MIT"
