@@ -20,16 +20,14 @@
     "prettier:check": "prettier --check \"contracts/**/*.sol\" \"lib/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"./*.ts\" \"./*.json\"",
     "format": "prettier --write \"contracts/**/*.sol\" \"lib/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"./*.ts\" \"./*.json\"",
     "check_dot_only": "yarn run dot-only-hunter test",
-    "graph-codegen": "cd ./path/to/subgraph && graph codegen",
-    "graph-build": "cd ./path/to/subgraph && graph build",
+    "graph-codegen": "cd ./subgraph && graph codegen",
+    "graph-build": "cd ./subgraph && graph build",
     "graph-test": "graph test",
     "graph-local": "docker-compose up",
     "graph-local-clean": "docker-compose down -v && docker-compose rm -v && rm -rf data/ipfs data/postgres",
-    "create-local": "graph create --node http://127.0.0.1:8020 MySubgraph",
-    "deploy-local": "cd ./path/to/subgraph && graph deploy --ipfs http://127.0.0.1:5001 --node http://127.0.0.1:8020 MySubgraph",
+    "create-local": "graph create --node http://127.0.0.1:8020 DOS",
+    "deploy-local": "cd ./subgraph && graph deploy --ipfs http://127.0.0.1:5001 --node http://127.0.0.1:8020 DOS",
     "hardhat-local": "hardhat node --hostname 0.0.0.0"
-  
-   
   },
   "dependencies": {
     "@chainlink/contracts": "^0.5.1",

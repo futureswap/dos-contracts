@@ -2,9 +2,11 @@ import { newMockEvent } from "matchstick-as"
 import { ethereum, Address, BigInt } from "@graphprotocol/graph-ts"
 import {
   ApprovalForAll,
+  DSafeCreated,
+  ERC20Added,
   ERC20Approval,
   ERC721Approval
-} from "../generated/DOS/DOS"
+} from "../generated/IDOS/IDOS"
 
 export function createApprovalForAllEvent(
   collection: Address,
@@ -33,6 +35,92 @@ export function createApprovalForAllEvent(
   )
 
   return approvalForAllEvent
+}
+
+export function createDSafeCreatedEvent(
+  dSafe: Address,
+  owner: Address
+): DSafeCreated {
+  let dSafeCreatedEvent = changetype<DSafeCreated>(newMockEvent())
+
+  dSafeCreatedEvent.parameters = new Array()
+
+  dSafeCreatedEvent.parameters.push(
+    new ethereum.EventParam("dSafe", ethereum.Value.fromAddress(dSafe))
+  )
+  dSafeCreatedEvent.parameters.push(
+    new ethereum.EventParam("owner", ethereum.Value.fromAddress(owner))
+  )
+
+  return dSafeCreatedEvent
+}
+
+export function createERC20AddedEvent(
+  erc20Idx: i32,
+  erc20: Address,
+  dosTokem: Address,
+  name: string,
+  symbol: string,
+  decimals: i32,
+  valueOracle: Address,
+  colFactor: BigInt,
+  borrowFactor: BigInt,
+  interest: BigInt
+): ERC20Added {
+  let erc20AddedEvent = changetype<ERC20Added>(newMockEvent())
+
+  erc20AddedEvent.parameters = new Array()
+
+  erc20AddedEvent.parameters.push(
+    new ethereum.EventParam(
+      "erc20Idx",
+      ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(erc20Idx))
+    )
+  )
+  erc20AddedEvent.parameters.push(
+    new ethereum.EventParam("erc20", ethereum.Value.fromAddress(erc20))
+  )
+  erc20AddedEvent.parameters.push(
+    new ethereum.EventParam("dosTokem", ethereum.Value.fromAddress(dosTokem))
+  )
+  erc20AddedEvent.parameters.push(
+    new ethereum.EventParam("name", ethereum.Value.fromString(name))
+  )
+  erc20AddedEvent.parameters.push(
+    new ethereum.EventParam("symbol", ethereum.Value.fromString(symbol))
+  )
+  erc20AddedEvent.parameters.push(
+    new ethereum.EventParam(
+      "decimals",
+      ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(decimals))
+    )
+  )
+  erc20AddedEvent.parameters.push(
+    new ethereum.EventParam(
+      "valueOracle",
+      ethereum.Value.fromAddress(valueOracle)
+    )
+  )
+  erc20AddedEvent.parameters.push(
+    new ethereum.EventParam(
+      "colFactor",
+      ethereum.Value.fromSignedBigInt(colFactor)
+    )
+  )
+  erc20AddedEvent.parameters.push(
+    new ethereum.EventParam(
+      "borrowFactor",
+      ethereum.Value.fromSignedBigInt(borrowFactor)
+    )
+  )
+  erc20AddedEvent.parameters.push(
+    new ethereum.EventParam(
+      "interest",
+      ethereum.Value.fromSignedBigInt(interest)
+    )
+  )
+
+  return erc20AddedEvent
 }
 
 export function createERC20ApprovalEvent(

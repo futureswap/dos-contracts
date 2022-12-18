@@ -7,7 +7,7 @@ import {
   Entity,
   Bytes,
   Address,
-  BigInt
+  BigInt,
 } from "@graphprotocol/graph-ts";
 
 export class ApprovalForAll extends ethereum.Event {
@@ -37,6 +37,82 @@ export class ApprovalForAll__Params {
 
   get approved(): boolean {
     return this._event.parameters[3].value.toBoolean();
+  }
+}
+
+export class DSafeCreated extends ethereum.Event {
+  get params(): DSafeCreated__Params {
+    return new DSafeCreated__Params(this);
+  }
+}
+
+export class DSafeCreated__Params {
+  _event: DSafeCreated;
+
+  constructor(event: DSafeCreated) {
+    this._event = event;
+  }
+
+  get dSafe(): Address {
+    return this._event.parameters[0].value.toAddress();
+  }
+
+  get owner(): Address {
+    return this._event.parameters[1].value.toAddress();
+  }
+}
+
+export class ERC20Added extends ethereum.Event {
+  get params(): ERC20Added__Params {
+    return new ERC20Added__Params(this);
+  }
+}
+
+export class ERC20Added__Params {
+  _event: ERC20Added;
+
+  constructor(event: ERC20Added) {
+    this._event = event;
+  }
+
+  get erc20Idx(): i32 {
+    return this._event.parameters[0].value.toI32();
+  }
+
+  get erc20(): Address {
+    return this._event.parameters[1].value.toAddress();
+  }
+
+  get dosTokem(): Address {
+    return this._event.parameters[2].value.toAddress();
+  }
+
+  get name(): string {
+    return this._event.parameters[3].value.toString();
+  }
+
+  get symbol(): string {
+    return this._event.parameters[4].value.toString();
+  }
+
+  get decimals(): i32 {
+    return this._event.parameters[5].value.toI32();
+  }
+
+  get valueOracle(): Address {
+    return this._event.parameters[6].value.toAddress();
+  }
+
+  get colFactor(): BigInt {
+    return this._event.parameters[7].value.toBigInt();
+  }
+
+  get borrowFactor(): BigInt {
+    return this._event.parameters[8].value.toBigInt();
+  }
+
+  get interest(): BigInt {
+    return this._event.parameters[9].value.toBigInt();
   }
 }
 
@@ -100,7 +176,7 @@ export class ERC721Approval__Params {
   }
 }
 
-export class DOS__computePositionResult {
+export class IDOS__computePositionResult {
   value0: BigInt;
   value1: BigInt;
   value2: BigInt;
@@ -132,74 +208,96 @@ export class DOS__computePositionResult {
   }
 }
 
-export class DOS__stateResultConfigStruct extends ethereum.Tuple {
-  get liqFraction(): BigInt {
-    return this[0].toBigInt();
+export class IDOS__viewNFTsResultValue0Struct extends ethereum.Tuple {
+  get erc721(): Address {
+    return this[0].toAddress();
   }
 
-  get fractionalReserveLeverage(): BigInt {
+  get tokenId(): BigInt {
     return this[1].toBigInt();
   }
 }
 
-export class DOS__stateResult {
-  value0: Address;
-  value1: DOS__stateResultConfigStruct;
-
-  constructor(value0: Address, value1: DOS__stateResultConfigStruct) {
-    this.value0 = value0;
-    this.value1 = value1;
+export class IDOS extends ethereum.SmartContract {
+  static bind(address: Address): IDOS {
+    return new IDOS("IDOS", address);
   }
 
-  toMap(): TypedMap<string, ethereum.Value> {
-    let map = new TypedMap<string, ethereum.Value>();
-    map.set("value0", ethereum.Value.fromAddress(this.value0));
-    map.set("value1", ethereum.Value.fromTuple(this.value1));
-    return map;
+  addERC20Info(
+    erc20Contract: Address,
+    name: string,
+    symbol: string,
+    decimals: i32,
+    valueOracle: Address,
+    colFactor: BigInt,
+    borrowFactor: BigInt,
+    interest: BigInt,
+  ): i32 {
+    let result = super.call(
+      "addERC20Info",
+      "addERC20Info(address,string,string,uint8,address,int256,int256,int256):(uint16)",
+      [
+        ethereum.Value.fromAddress(erc20Contract),
+        ethereum.Value.fromString(name),
+        ethereum.Value.fromString(symbol),
+        ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(decimals)),
+        ethereum.Value.fromAddress(valueOracle),
+        ethereum.Value.fromSignedBigInt(colFactor),
+        ethereum.Value.fromSignedBigInt(borrowFactor),
+        ethereum.Value.fromSignedBigInt(interest),
+      ],
+    );
+
+    return result[0].toI32();
   }
 
-  getVersionManager(): Address {
-    return this.value0;
-  }
-
-  getConfig(): DOS__stateResultConfigStruct {
-    return this.value1;
-  }
-}
-
-export class DOS extends ethereum.SmartContract {
-  static bind(address: Address): DOS {
-    return new DOS("DOS", address);
+  try_addERC20Info(
+    erc20Contract: Address,
+    name: string,
+    symbol: string,
+    decimals: i32,
+    valueOracle: Address,
+    colFactor: BigInt,
+    borrowFactor: BigInt,
+    interest: BigInt,
+  ): ethereum.CallResult<i32> {
+    let result = super.tryCall(
+      "addERC20Info",
+      "addERC20Info(address,string,string,uint8,address,int256,int256,int256):(uint16)",
+      [
+        ethereum.Value.fromAddress(erc20Contract),
+        ethereum.Value.fromString(name),
+        ethereum.Value.fromString(symbol),
+        ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(decimals)),
+        ethereum.Value.fromAddress(valueOracle),
+        ethereum.Value.fromSignedBigInt(colFactor),
+        ethereum.Value.fromSignedBigInt(borrowFactor),
+        ethereum.Value.fromSignedBigInt(interest),
+      ],
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toI32());
   }
 
   allowance(erc20: Address, _owner: Address, spender: Address): BigInt {
-    let result = super.call(
-      "allowance",
-      "allowance(address,address,address):(uint256)",
-      [
-        ethereum.Value.fromAddress(erc20),
-        ethereum.Value.fromAddress(_owner),
-        ethereum.Value.fromAddress(spender)
-      ]
-    );
+    let result = super.call("allowance", "allowance(address,address,address):(uint256)", [
+      ethereum.Value.fromAddress(erc20),
+      ethereum.Value.fromAddress(_owner),
+      ethereum.Value.fromAddress(spender),
+    ]);
 
     return result[0].toBigInt();
   }
 
-  try_allowance(
-    erc20: Address,
-    _owner: Address,
-    spender: Address
-  ): ethereum.CallResult<BigInt> {
-    let result = super.tryCall(
-      "allowance",
-      "allowance(address,address,address):(uint256)",
-      [
-        ethereum.Value.fromAddress(erc20),
-        ethereum.Value.fromAddress(_owner),
-        ethereum.Value.fromAddress(spender)
-      ]
-    );
+  try_allowance(erc20: Address, _owner: Address, spender: Address): ethereum.CallResult<BigInt> {
+    let result = super.tryCall("allowance", "allowance(address,address,address):(uint256)", [
+      ethereum.Value.fromAddress(erc20),
+      ethereum.Value.fromAddress(_owner),
+      ethereum.Value.fromAddress(spender),
+    ]);
     if (result.reverted) {
       return new ethereum.CallResult();
     }
@@ -208,33 +306,21 @@ export class DOS extends ethereum.SmartContract {
   }
 
   approveERC20(erc20: Address, spender: Address, amount: BigInt): boolean {
-    let result = super.call(
-      "approveERC20",
-      "approveERC20(address,address,uint256):(bool)",
-      [
-        ethereum.Value.fromAddress(erc20),
-        ethereum.Value.fromAddress(spender),
-        ethereum.Value.fromUnsignedBigInt(amount)
-      ]
-    );
+    let result = super.call("approveERC20", "approveERC20(address,address,uint256):(bool)", [
+      ethereum.Value.fromAddress(erc20),
+      ethereum.Value.fromAddress(spender),
+      ethereum.Value.fromUnsignedBigInt(amount),
+    ]);
 
     return result[0].toBoolean();
   }
 
-  try_approveERC20(
-    erc20: Address,
-    spender: Address,
-    amount: BigInt
-  ): ethereum.CallResult<boolean> {
-    let result = super.tryCall(
-      "approveERC20",
-      "approveERC20(address,address,uint256):(bool)",
-      [
-        ethereum.Value.fromAddress(erc20),
-        ethereum.Value.fromAddress(spender),
-        ethereum.Value.fromUnsignedBigInt(amount)
-      ]
-    );
+  try_approveERC20(erc20: Address, spender: Address, amount: BigInt): ethereum.CallResult<boolean> {
+    let result = super.tryCall("approveERC20", "approveERC20(address,address,uint256):(bool)", [
+      ethereum.Value.fromAddress(erc20),
+      ethereum.Value.fromAddress(spender),
+      ethereum.Value.fromUnsignedBigInt(amount),
+    ]);
     if (result.reverted) {
       return new ethereum.CallResult();
     }
@@ -242,66 +328,45 @@ export class DOS extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBoolean());
   }
 
-  computePosition(dSafeAddress: Address): DOS__computePositionResult {
-    let result = super.call(
-      "computePosition",
-      "computePosition(address):(int256,int256,int256)",
-      [ethereum.Value.fromAddress(dSafeAddress)]
-    );
+  computePosition(dSafeAddress: Address): IDOS__computePositionResult {
+    let result = super.call("computePosition", "computePosition(address):(int256,int256,int256)", [
+      ethereum.Value.fromAddress(dSafeAddress),
+    ]);
 
-    return new DOS__computePositionResult(
+    return new IDOS__computePositionResult(
       result[0].toBigInt(),
       result[1].toBigInt(),
-      result[2].toBigInt()
+      result[2].toBigInt(),
     );
   }
 
-  try_computePosition(
-    dSafeAddress: Address
-  ): ethereum.CallResult<DOS__computePositionResult> {
+  try_computePosition(dSafeAddress: Address): ethereum.CallResult<IDOS__computePositionResult> {
     let result = super.tryCall(
       "computePosition",
       "computePosition(address):(int256,int256,int256)",
-      [ethereum.Value.fromAddress(dSafeAddress)]
+      [ethereum.Value.fromAddress(dSafeAddress)],
     );
     if (result.reverted) {
       return new ethereum.CallResult();
     }
     let value = result.value;
     return ethereum.CallResult.fromValue(
-      new DOS__computePositionResult(
+      new IDOS__computePositionResult(
         value[0].toBigInt(),
         value[1].toBigInt(),
-        value[2].toBigInt()
-      )
+        value[2].toBigInt(),
+      ),
     );
   }
 
-  getApproved(collection: Address, tokenId: BigInt): Address {
-    let result = super.call(
-      "getApproved",
-      "getApproved(address,uint256):(address)",
-      [
-        ethereum.Value.fromAddress(collection),
-        ethereum.Value.fromUnsignedBigInt(tokenId)
-      ]
-    );
+  createDSafe(): Address {
+    let result = super.call("createDSafe", "createDSafe():(address)", []);
 
     return result[0].toAddress();
   }
 
-  try_getApproved(
-    collection: Address,
-    tokenId: BigInt
-  ): ethereum.CallResult<Address> {
-    let result = super.tryCall(
-      "getApproved",
-      "getApproved(address,uint256):(address)",
-      [
-        ethereum.Value.fromAddress(collection),
-        ethereum.Value.fromUnsignedBigInt(tokenId)
-      ]
-    );
+  try_createDSafe(): ethereum.CallResult<Address> {
+    let result = super.tryCall("createDSafe", "createDSafe():(address)", []);
     if (result.reverted) {
       return new ethereum.CallResult();
     }
@@ -309,22 +374,60 @@ export class DOS extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toAddress());
   }
 
+  getApproved(collection: Address, tokenId: BigInt): Address {
+    let result = super.call("getApproved", "getApproved(address,uint256):(address)", [
+      ethereum.Value.fromAddress(collection),
+      ethereum.Value.fromUnsignedBigInt(tokenId),
+    ]);
+
+    return result[0].toAddress();
+  }
+
+  try_getApproved(collection: Address, tokenId: BigInt): ethereum.CallResult<Address> {
+    let result = super.tryCall("getApproved", "getApproved(address,uint256):(address)", [
+      ethereum.Value.fromAddress(collection),
+      ethereum.Value.fromUnsignedBigInt(tokenId),
+    ]);
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toAddress());
+  }
+
+  getDAccountERC20(dSafe: Address, erc20: Address): BigInt {
+    let result = super.call("getDAccountERC20", "getDAccountERC20(address,address):(int256)", [
+      ethereum.Value.fromAddress(dSafe),
+      ethereum.Value.fromAddress(erc20),
+    ]);
+
+    return result[0].toBigInt();
+  }
+
+  try_getDAccountERC20(dSafe: Address, erc20: Address): ethereum.CallResult<BigInt> {
+    let result = super.tryCall("getDAccountERC20", "getDAccountERC20(address,address):(int256)", [
+      ethereum.Value.fromAddress(dSafe),
+      ethereum.Value.fromAddress(erc20),
+    ]);
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
+  }
+
   getDSafeOwner(dSafe: Address): Address {
-    let result = super.call(
-      "getDSafeOwner",
-      "getDSafeOwner(address):(address)",
-      [ethereum.Value.fromAddress(dSafe)]
-    );
+    let result = super.call("getDSafeOwner", "getDSafeOwner(address):(address)", [
+      ethereum.Value.fromAddress(dSafe),
+    ]);
 
     return result[0].toAddress();
   }
 
   try_getDSafeOwner(dSafe: Address): ethereum.CallResult<Address> {
-    let result = super.tryCall(
-      "getDSafeOwner",
-      "getDSafeOwner(address):(address)",
-      [ethereum.Value.fromAddress(dSafe)]
-    );
+    let result = super.tryCall("getDSafeOwner", "getDSafeOwner(address):(address)", [
+      ethereum.Value.fromAddress(dSafe),
+    ]);
     if (result.reverted) {
       return new ethereum.CallResult();
     }
@@ -333,21 +436,17 @@ export class DOS extends ethereum.SmartContract {
   }
 
   getImplementation(dSafe: Address): Address {
-    let result = super.call(
-      "getImplementation",
-      "getImplementation(address):(address)",
-      [ethereum.Value.fromAddress(dSafe)]
-    );
+    let result = super.call("getImplementation", "getImplementation(address):(address)", [
+      ethereum.Value.fromAddress(dSafe),
+    ]);
 
     return result[0].toAddress();
   }
 
   try_getImplementation(dSafe: Address): ethereum.CallResult<Address> {
-    let result = super.tryCall(
-      "getImplementation",
-      "getImplementation(address):(address)",
-      [ethereum.Value.fromAddress(dSafe)]
-    );
+    let result = super.tryCall("getImplementation", "getImplementation(address):(address)", [
+      ethereum.Value.fromAddress(dSafe),
+    ]);
     if (result.reverted) {
       return new ethereum.CallResult();
     }
@@ -355,19 +454,38 @@ export class DOS extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toAddress());
   }
 
-  isApprovedForAll(
-    collection: Address,
-    _owner: Address,
-    spender: Address
-  ): boolean {
+  getMaximumWithdrawableOfERC20(erc20: Address): BigInt {
+    let result = super.call(
+      "getMaximumWithdrawableOfERC20",
+      "getMaximumWithdrawableOfERC20(address):(int256)",
+      [ethereum.Value.fromAddress(erc20)],
+    );
+
+    return result[0].toBigInt();
+  }
+
+  try_getMaximumWithdrawableOfERC20(erc20: Address): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      "getMaximumWithdrawableOfERC20",
+      "getMaximumWithdrawableOfERC20(address):(int256)",
+      [ethereum.Value.fromAddress(erc20)],
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
+  }
+
+  isApprovedForAll(collection: Address, _owner: Address, spender: Address): boolean {
     let result = super.call(
       "isApprovedForAll",
       "isApprovedForAll(address,address,address):(bool)",
       [
         ethereum.Value.fromAddress(collection),
         ethereum.Value.fromAddress(_owner),
-        ethereum.Value.fromAddress(spender)
-      ]
+        ethereum.Value.fromAddress(spender),
+      ],
     );
 
     return result[0].toBoolean();
@@ -376,7 +494,7 @@ export class DOS extends ethereum.SmartContract {
   try_isApprovedForAll(
     collection: Address,
     _owner: Address,
-    spender: Address
+    spender: Address,
   ): ethereum.CallResult<boolean> {
     let result = super.tryCall(
       "isApprovedForAll",
@@ -384,8 +502,8 @@ export class DOS extends ethereum.SmartContract {
       [
         ethereum.Value.fromAddress(collection),
         ethereum.Value.fromAddress(_owner),
-        ethereum.Value.fromAddress(spender)
-      ]
+        ethereum.Value.fromAddress(spender),
+      ],
     );
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -394,101 +512,7 @@ export class DOS extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBoolean());
   }
 
-  isSolvent(dSafe: Address): boolean {
-    let result = super.call("isSolvent", "isSolvent(address):(bool)", [
-      ethereum.Value.fromAddress(dSafe)
-    ]);
-
-    return result[0].toBoolean();
-  }
-
-  try_isSolvent(dSafe: Address): ethereum.CallResult<boolean> {
-    let result = super.tryCall("isSolvent", "isSolvent(address):(bool)", [
-      ethereum.Value.fromAddress(dSafe)
-    ]);
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBoolean());
-  }
-
-  onERC721Received(
-    param0: Address,
-    from: Address,
-    tokenId: BigInt,
-    data: Bytes
-  ): Bytes {
-    let result = super.call(
-      "onERC721Received",
-      "onERC721Received(address,address,uint256,bytes):(bytes4)",
-      [
-        ethereum.Value.fromAddress(param0),
-        ethereum.Value.fromAddress(from),
-        ethereum.Value.fromUnsignedBigInt(tokenId),
-        ethereum.Value.fromBytes(data)
-      ]
-    );
-
-    return result[0].toBytes();
-  }
-
-  try_onERC721Received(
-    param0: Address,
-    from: Address,
-    tokenId: BigInt,
-    data: Bytes
-  ): ethereum.CallResult<Bytes> {
-    let result = super.tryCall(
-      "onERC721Received",
-      "onERC721Received(address,address,uint256,bytes):(bytes4)",
-      [
-        ethereum.Value.fromAddress(param0),
-        ethereum.Value.fromAddress(from),
-        ethereum.Value.fromUnsignedBigInt(tokenId),
-        ethereum.Value.fromBytes(data)
-      ]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBytes());
-  }
-
-  state(): DOS__stateResult {
-    let result = super.call("state", "state():(address,(int256,int256))", []);
-
-    return new DOS__stateResult(
-      result[0].toAddress(),
-      changetype<DOS__stateResultConfigStruct>(result[1].toTuple())
-    );
-  }
-
-  try_state(): ethereum.CallResult<DOS__stateResult> {
-    let result = super.tryCall(
-      "state",
-      "state():(address,(int256,int256))",
-      []
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(
-      new DOS__stateResult(
-        value[0].toAddress(),
-        changetype<DOS__stateResultConfigStruct>(value[1].toTuple())
-      )
-    );
-  }
-
-  transferFromERC20(
-    erc20: Address,
-    from: Address,
-    to: Address,
-    amount: BigInt
-  ): boolean {
+  transferFromERC20(erc20: Address, from: Address, to: Address, amount: BigInt): boolean {
     let result = super.call(
       "transferFromERC20",
       "transferFromERC20(address,address,address,uint256):(bool)",
@@ -496,8 +520,8 @@ export class DOS extends ethereum.SmartContract {
         ethereum.Value.fromAddress(erc20),
         ethereum.Value.fromAddress(from),
         ethereum.Value.fromAddress(to),
-        ethereum.Value.fromUnsignedBigInt(amount)
-      ]
+        ethereum.Value.fromUnsignedBigInt(amount),
+      ],
     );
 
     return result[0].toBoolean();
@@ -507,7 +531,7 @@ export class DOS extends ethereum.SmartContract {
     erc20: Address,
     from: Address,
     to: Address,
-    amount: BigInt
+    amount: BigInt,
   ): ethereum.CallResult<boolean> {
     let result = super.tryCall(
       "transferFromERC20",
@@ -516,8 +540,8 @@ export class DOS extends ethereum.SmartContract {
         ethereum.Value.fromAddress(erc20),
         ethereum.Value.fromAddress(from),
         ethereum.Value.fromAddress(to),
-        ethereum.Value.fromUnsignedBigInt(amount)
-      ]
+        ethereum.Value.fromUnsignedBigInt(amount),
+      ],
     );
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -525,64 +549,123 @@ export class DOS extends ethereum.SmartContract {
     let value = result.value;
     return ethereum.CallResult.fromValue(value[0].toBoolean());
   }
-}
 
-export class ConstructorCall extends ethereum.Call {
-  get inputs(): ConstructorCall__Inputs {
-    return new ConstructorCall__Inputs(this);
+  viewNFTs(dSafe: Address): Array<IDOS__viewNFTsResultValue0Struct> {
+    let result = super.call("viewNFTs", "viewNFTs(address):((address,uint256)[])", [
+      ethereum.Value.fromAddress(dSafe),
+    ]);
+
+    return result[0].toTupleArray<IDOS__viewNFTsResultValue0Struct>();
   }
 
-  get outputs(): ConstructorCall__Outputs {
-    return new ConstructorCall__Outputs(this);
+  try_viewNFTs(dSafe: Address): ethereum.CallResult<Array<IDOS__viewNFTsResultValue0Struct>> {
+    let result = super.tryCall("viewNFTs", "viewNFTs(address):((address,uint256)[])", [
+      ethereum.Value.fromAddress(dSafe),
+    ]);
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toTupleArray<IDOS__viewNFTsResultValue0Struct>());
   }
 }
 
-export class ConstructorCall__Inputs {
-  _call: ConstructorCall;
+export class AddERC20InfoCall extends ethereum.Call {
+  get inputs(): AddERC20InfoCall__Inputs {
+    return new AddERC20InfoCall__Inputs(this);
+  }
 
-  constructor(call: ConstructorCall) {
+  get outputs(): AddERC20InfoCall__Outputs {
+    return new AddERC20InfoCall__Outputs(this);
+  }
+}
+
+export class AddERC20InfoCall__Inputs {
+  _call: AddERC20InfoCall;
+
+  constructor(call: AddERC20InfoCall) {
     this._call = call;
   }
 
-  get _dosConfig(): Address {
+  get erc20Contract(): Address {
     return this._call.inputValues[0].value.toAddress();
   }
 
-  get _versionManager(): Address {
+  get name(): string {
+    return this._call.inputValues[1].value.toString();
+  }
+
+  get symbol(): string {
+    return this._call.inputValues[2].value.toString();
+  }
+
+  get decimals(): i32 {
+    return this._call.inputValues[3].value.toI32();
+  }
+
+  get valueOracle(): Address {
+    return this._call.inputValues[4].value.toAddress();
+  }
+
+  get colFactor(): BigInt {
+    return this._call.inputValues[5].value.toBigInt();
+  }
+
+  get borrowFactor(): BigInt {
+    return this._call.inputValues[6].value.toBigInt();
+  }
+
+  get interest(): BigInt {
+    return this._call.inputValues[7].value.toBigInt();
+  }
+}
+
+export class AddERC20InfoCall__Outputs {
+  _call: AddERC20InfoCall;
+
+  constructor(call: AddERC20InfoCall) {
+    this._call = call;
+  }
+
+  get value0(): i32 {
+    return this._call.outputValues[0].value.toI32();
+  }
+}
+
+export class AddNFTInfoCall extends ethereum.Call {
+  get inputs(): AddNFTInfoCall__Inputs {
+    return new AddNFTInfoCall__Inputs(this);
+  }
+
+  get outputs(): AddNFTInfoCall__Outputs {
+    return new AddNFTInfoCall__Outputs(this);
+  }
+}
+
+export class AddNFTInfoCall__Inputs {
+  _call: AddNFTInfoCall;
+
+  constructor(call: AddNFTInfoCall) {
+    this._call = call;
+  }
+
+  get nftContract(): Address {
+    return this._call.inputValues[0].value.toAddress();
+  }
+
+  get valueOracleAddress(): Address {
     return this._call.inputValues[1].value.toAddress();
   }
-}
 
-export class ConstructorCall__Outputs {
-  _call: ConstructorCall;
-
-  constructor(call: ConstructorCall) {
-    this._call = call;
+  get collateralFactor(): BigInt {
+    return this._call.inputValues[2].value.toBigInt();
   }
 }
 
-export class DefaultCall extends ethereum.Call {
-  get inputs(): DefaultCall__Inputs {
-    return new DefaultCall__Inputs(this);
-  }
+export class AddNFTInfoCall__Outputs {
+  _call: AddNFTInfoCall;
 
-  get outputs(): DefaultCall__Outputs {
-    return new DefaultCall__Outputs(this);
-  }
-}
-
-export class DefaultCall__Inputs {
-  _call: DefaultCall;
-
-  constructor(call: DefaultCall) {
-    this._call = call;
-  }
-}
-
-export class DefaultCall__Outputs {
-  _call: DefaultCall;
-
-  constructor(call: DefaultCall) {
+  constructor(call: AddNFTInfoCall) {
     this._call = call;
   }
 }
@@ -698,6 +781,36 @@ export class ClaimNFTCall__Outputs {
 
   constructor(call: ClaimNFTCall) {
     this._call = call;
+  }
+}
+
+export class CreateDSafeCall extends ethereum.Call {
+  get inputs(): CreateDSafeCall__Inputs {
+    return new CreateDSafeCall__Inputs(this);
+  }
+
+  get outputs(): CreateDSafeCall__Outputs {
+    return new CreateDSafeCall__Outputs(this);
+  }
+}
+
+export class CreateDSafeCall__Inputs {
+  _call: CreateDSafeCall;
+
+  constructor(call: CreateDSafeCall) {
+    this._call = call;
+  }
+}
+
+export class CreateDSafeCall__Outputs {
+  _call: CreateDSafeCall;
+
+  constructor(call: CreateDSafeCall) {
+    this._call = call;
+  }
+
+  get dSafe(): Address {
+    return this._call.outputValues[0].value.toAddress();
   }
 }
 
@@ -817,9 +930,7 @@ export class ExecuteBatchCall__Inputs {
   }
 
   get calls(): Array<ExecuteBatchCallCallsStruct> {
-    return this._call.inputValues[0].value.toTupleArray<
-      ExecuteBatchCallCallsStruct
-    >();
+    return this._call.inputValues[0].value.toTupleArray<ExecuteBatchCallCallsStruct>();
   }
 }
 
@@ -875,52 +986,6 @@ export class LiquidateCall__Outputs {
   }
 }
 
-export class OnERC721ReceivedCall extends ethereum.Call {
-  get inputs(): OnERC721ReceivedCall__Inputs {
-    return new OnERC721ReceivedCall__Inputs(this);
-  }
-
-  get outputs(): OnERC721ReceivedCall__Outputs {
-    return new OnERC721ReceivedCall__Outputs(this);
-  }
-}
-
-export class OnERC721ReceivedCall__Inputs {
-  _call: OnERC721ReceivedCall;
-
-  constructor(call: OnERC721ReceivedCall) {
-    this._call = call;
-  }
-
-  get value0(): Address {
-    return this._call.inputValues[0].value.toAddress();
-  }
-
-  get from(): Address {
-    return this._call.inputValues[1].value.toAddress();
-  }
-
-  get tokenId(): BigInt {
-    return this._call.inputValues[2].value.toBigInt();
-  }
-
-  get data(): Bytes {
-    return this._call.inputValues[3].value.toBytes();
-  }
-}
-
-export class OnERC721ReceivedCall__Outputs {
-  _call: OnERC721ReceivedCall;
-
-  constructor(call: OnERC721ReceivedCall) {
-    this._call = call;
-  }
-
-  get value0(): Bytes {
-    return this._call.outputValues[0].value.toBytes();
-  }
-}
-
 export class SendNFTCall extends ethereum.Call {
   get inputs(): SendNFTCall__Inputs {
     return new SendNFTCall__Inputs(this);
@@ -959,41 +1024,43 @@ export class SendNFTCall__Outputs {
   }
 }
 
-export class SetApprovalForAllCall extends ethereum.Call {
-  get inputs(): SetApprovalForAllCall__Inputs {
-    return new SetApprovalForAllCall__Inputs(this);
+export class SetConfigCall extends ethereum.Call {
+  get inputs(): SetConfigCall__Inputs {
+    return new SetConfigCall__Inputs(this);
   }
 
-  get outputs(): SetApprovalForAllCall__Outputs {
-    return new SetApprovalForAllCall__Outputs(this);
-  }
-}
-
-export class SetApprovalForAllCall__Inputs {
-  _call: SetApprovalForAllCall;
-
-  constructor(call: SetApprovalForAllCall) {
-    this._call = call;
-  }
-
-  get collection(): Address {
-    return this._call.inputValues[0].value.toAddress();
-  }
-
-  get operator(): Address {
-    return this._call.inputValues[1].value.toAddress();
-  }
-
-  get approved(): boolean {
-    return this._call.inputValues[2].value.toBoolean();
+  get outputs(): SetConfigCall__Outputs {
+    return new SetConfigCall__Outputs(this);
   }
 }
 
-export class SetApprovalForAllCall__Outputs {
-  _call: SetApprovalForAllCall;
+export class SetConfigCall__Inputs {
+  _call: SetConfigCall;
 
-  constructor(call: SetApprovalForAllCall) {
+  constructor(call: SetConfigCall) {
     this._call = call;
+  }
+
+  get _config(): SetConfigCall_configStruct {
+    return changetype<SetConfigCall_configStruct>(this._call.inputValues[0].value.toTuple());
+  }
+}
+
+export class SetConfigCall__Outputs {
+  _call: SetConfigCall;
+
+  constructor(call: SetConfigCall) {
+    this._call = call;
+  }
+}
+
+export class SetConfigCall_configStruct extends ethereum.Tuple {
+  get liqFraction(): BigInt {
+    return this[0].toBigInt();
+  }
+
+  get fractionalReserveLeverage(): BigInt {
+    return this[1].toBigInt();
   }
 }
 
@@ -1119,6 +1186,40 @@ export class TransferFromERC721Call__Outputs {
   _call: TransferFromERC721Call;
 
   constructor(call: TransferFromERC721Call) {
+    this._call = call;
+  }
+}
+
+export class UpgradeImplementationCall extends ethereum.Call {
+  get inputs(): UpgradeImplementationCall__Inputs {
+    return new UpgradeImplementationCall__Inputs(this);
+  }
+
+  get outputs(): UpgradeImplementationCall__Outputs {
+    return new UpgradeImplementationCall__Outputs(this);
+  }
+}
+
+export class UpgradeImplementationCall__Inputs {
+  _call: UpgradeImplementationCall;
+
+  constructor(call: UpgradeImplementationCall) {
+    this._call = call;
+  }
+
+  get dSafe(): Address {
+    return this._call.inputValues[0].value.toAddress();
+  }
+
+  get version(): BigInt {
+    return this._call.inputValues[1].value.toBigInt();
+  }
+}
+
+export class UpgradeImplementationCall__Outputs {
+  _call: UpgradeImplementationCall;
+
+  constructor(call: UpgradeImplementationCall) {
     this._call = call;
   }
 }

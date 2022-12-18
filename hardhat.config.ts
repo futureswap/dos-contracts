@@ -190,12 +190,12 @@ export default {
     }),
   },
   subgraph: {
-    name: "MySubgraph", // Defaults to the name of the root folder of the hardhat project
+    name: "DOS", // Defaults to the name of the root folder of the hardhat project
     product: "subgraph-studio", // Defaults to 'subgraph-studio'
     indexEvents: false, // Defaults to false
     allowSimpleName: true, // Defaults to `false` if product is `hosted-service` and `true` if product is `subgraph-studio`
   },
   paths: {
-    subgraph: "./path/to/subgraph", // Defaults to './subgraph'
+    subgraph: "./subgraph", // Defaults to './subgraph'
   },
 };

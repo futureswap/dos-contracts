@@ -1,20 +1,5 @@
 [
   {
-    "inputs": [
-      { "internalType": "address", "name": "_dosConfig", "type": "address" },
-      {
-        "internalType": "address",
-        "name": "_versionManager",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  { "inputs": [], "name": "InsufficientAllowance", "type": "error" },
-  { "inputs": [], "name": "NotApprovedOrOwner", "type": "error" },
-  { "inputs": [], "name": "SelfApproval", "type": "error" },
-  {
     "anonymous": false,
     "inputs": [
       {
@@ -43,6 +28,92 @@
       }
     ],
     "name": "ApprovalForAll",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "dSafe",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "DSafeCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "erc20Idx",
+        "type": "uint16"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "erc20",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "dosTokem",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "symbol",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "decimals",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "valueOracle",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "int256",
+        "name": "colFactor",
+        "type": "int256"
+      },
+      {
+        "indexed": false,
+        "internalType": "int256",
+        "name": "borrowFactor",
+        "type": "int256"
+      },
+      {
+        "indexed": false,
+        "internalType": "int256",
+        "name": "interest",
+        "type": "int256"
+      }
+    ],
+    "name": "ERC20Added",
     "type": "event"
   },
   {
@@ -107,7 +178,37 @@
     "name": "ERC721Approval",
     "type": "event"
   },
-  { "stateMutability": "payable", "type": "fallback" },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "erc20Contract", "type": "address" },
+      { "internalType": "string", "name": "name", "type": "string" },
+      { "internalType": "string", "name": "symbol", "type": "string" },
+      { "internalType": "uint8", "name": "decimals", "type": "uint8" },
+      { "internalType": "address", "name": "valueOracle", "type": "address" },
+      { "internalType": "int256", "name": "colFactor", "type": "int256" },
+      { "internalType": "int256", "name": "borrowFactor", "type": "int256" },
+      { "internalType": "int256", "name": "interest", "type": "int256" }
+    ],
+    "name": "addERC20Info",
+    "outputs": [{ "internalType": "uint16", "name": "", "type": "uint16" }],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "nftContract", "type": "address" },
+      {
+        "internalType": "address",
+        "name": "valueOracleAddress",
+        "type": "address"
+      },
+      { "internalType": "int256", "name": "collateralFactor", "type": "int256" }
+    ],
+    "name": "addNFTInfo",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
   {
     "inputs": [
       { "internalType": "contract IERC20", "name": "erc20", "type": "address" },
@@ -162,6 +263,15 @@
       { "internalType": "int256", "name": "debt", "type": "int256" }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "createDSafe",
+    "outputs": [
+      { "internalType": "address", "name": "dSafe", "type": "address" }
+    ],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -227,6 +337,16 @@
   },
   {
     "inputs": [
+      { "internalType": "address", "name": "dSafe", "type": "address" },
+      { "internalType": "contract IERC20", "name": "erc20", "type": "address" }
+    ],
+    "name": "getDAccountERC20",
+    "outputs": [{ "internalType": "int256", "name": "", "type": "int256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
       { "internalType": "address", "name": "dSafe", "type": "address" }
     ],
     "name": "getDSafeOwner",
@@ -245,6 +365,15 @@
   },
   {
     "inputs": [
+      { "internalType": "contract IERC20", "name": "erc20", "type": "address" }
+    ],
+    "name": "getMaximumWithdrawableOfERC20",
+    "outputs": [{ "internalType": "int256", "name": "", "type": "int256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
       { "internalType": "address", "name": "collection", "type": "address" },
       { "internalType": "address", "name": "_owner", "type": "address" },
       { "internalType": "address", "name": "spender", "type": "address" }
@@ -258,29 +387,8 @@
     "inputs": [
       { "internalType": "address", "name": "dSafe", "type": "address" }
     ],
-    "name": "isSolvent",
-    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      { "internalType": "address", "name": "dSafe", "type": "address" }
-    ],
     "name": "liquidate",
     "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      { "internalType": "address", "name": "", "type": "address" },
-      { "internalType": "address", "name": "from", "type": "address" },
-      { "internalType": "uint256", "name": "tokenId", "type": "uint256" },
-      { "internalType": "bytes", "name": "data", "type": "bytes" }
-    ],
-    "name": "onERC721Received",
-    "outputs": [{ "internalType": "bytes4", "name": "", "type": "bytes4" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -297,24 +405,6 @@
   },
   {
     "inputs": [
-      { "internalType": "address", "name": "collection", "type": "address" },
-      { "internalType": "address", "name": "operator", "type": "address" },
-      { "internalType": "bool", "name": "approved", "type": "bool" }
-    ],
-    "name": "setApprovalForAll",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "state",
-    "outputs": [
-      {
-        "internalType": "contract IVersionManager",
-        "name": "versionManager",
-        "type": "address"
-      },
       {
         "components": [
           { "internalType": "int256", "name": "liqFraction", "type": "int256" },
@@ -325,11 +415,13 @@
           }
         ],
         "internalType": "struct IDOSConfig.Config",
-        "name": "config",
+        "name": "_config",
         "type": "tuple"
       }
     ],
-    "stateMutability": "view",
+    "name": "setConfig",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -369,6 +461,35 @@
   },
   {
     "inputs": [
+      { "internalType": "address", "name": "dSafe", "type": "address" },
+      { "internalType": "uint256", "name": "version", "type": "uint256" }
+    ],
+    "name": "upgradeImplementation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "dSafe", "type": "address" }
+    ],
+    "name": "viewNFTs",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "address", "name": "erc721", "type": "address" },
+          { "internalType": "uint256", "name": "tokenId", "type": "uint256" }
+        ],
+        "internalType": "struct IDOSConfig.NFTData[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
       {
         "internalType": "contract IERC20[]",
         "name": "erc20s",
@@ -379,6 +500,5 @@
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
-  },
-  { "stateMutability": "payable", "type": "receive" }
+  }
 ]
