@@ -7,7 +7,7 @@ import {
   Entity,
   Bytes,
   Address,
-  BigInt,
+  BigInt
 } from "@graphprotocol/graph-ts";
 
 export class ApprovalForAll extends ethereum.Event {
@@ -231,7 +231,7 @@ export class IDOS extends ethereum.SmartContract {
     valueOracle: Address,
     colFactor: BigInt,
     borrowFactor: BigInt,
-    interest: BigInt,
+    interest: BigInt
   ): i32 {
     let result = super.call(
       "addERC20Info",
@@ -244,8 +244,8 @@ export class IDOS extends ethereum.SmartContract {
         ethereum.Value.fromAddress(valueOracle),
         ethereum.Value.fromSignedBigInt(colFactor),
         ethereum.Value.fromSignedBigInt(borrowFactor),
-        ethereum.Value.fromSignedBigInt(interest),
-      ],
+        ethereum.Value.fromSignedBigInt(interest)
+      ]
     );
 
     return result[0].toI32();
@@ -259,7 +259,7 @@ export class IDOS extends ethereum.SmartContract {
     valueOracle: Address,
     colFactor: BigInt,
     borrowFactor: BigInt,
-    interest: BigInt,
+    interest: BigInt
   ): ethereum.CallResult<i32> {
     let result = super.tryCall(
       "addERC20Info",
@@ -272,8 +272,8 @@ export class IDOS extends ethereum.SmartContract {
         ethereum.Value.fromAddress(valueOracle),
         ethereum.Value.fromSignedBigInt(colFactor),
         ethereum.Value.fromSignedBigInt(borrowFactor),
-        ethereum.Value.fromSignedBigInt(interest),
-      ],
+        ethereum.Value.fromSignedBigInt(interest)
+      ]
     );
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -283,21 +283,33 @@ export class IDOS extends ethereum.SmartContract {
   }
 
   allowance(erc20: Address, _owner: Address, spender: Address): BigInt {
-    let result = super.call("allowance", "allowance(address,address,address):(uint256)", [
-      ethereum.Value.fromAddress(erc20),
-      ethereum.Value.fromAddress(_owner),
-      ethereum.Value.fromAddress(spender),
-    ]);
+    let result = super.call(
+      "allowance",
+      "allowance(address,address,address):(uint256)",
+      [
+        ethereum.Value.fromAddress(erc20),
+        ethereum.Value.fromAddress(_owner),
+        ethereum.Value.fromAddress(spender)
+      ]
+    );
 
     return result[0].toBigInt();
   }
 
-  try_allowance(erc20: Address, _owner: Address, spender: Address): ethereum.CallResult<BigInt> {
-    let result = super.tryCall("allowance", "allowance(address,address,address):(uint256)", [
-      ethereum.Value.fromAddress(erc20),
-      ethereum.Value.fromAddress(_owner),
-      ethereum.Value.fromAddress(spender),
-    ]);
+  try_allowance(
+    erc20: Address,
+    _owner: Address,
+    spender: Address
+  ): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      "allowance",
+      "allowance(address,address,address):(uint256)",
+      [
+        ethereum.Value.fromAddress(erc20),
+        ethereum.Value.fromAddress(_owner),
+        ethereum.Value.fromAddress(spender)
+      ]
+    );
     if (result.reverted) {
       return new ethereum.CallResult();
     }
@@ -306,21 +318,33 @@ export class IDOS extends ethereum.SmartContract {
   }
 
   approveERC20(erc20: Address, spender: Address, amount: BigInt): boolean {
-    let result = super.call("approveERC20", "approveERC20(address,address,uint256):(bool)", [
-      ethereum.Value.fromAddress(erc20),
-      ethereum.Value.fromAddress(spender),
-      ethereum.Value.fromUnsignedBigInt(amount),
-    ]);
+    let result = super.call(
+      "approveERC20",
+      "approveERC20(address,address,uint256):(bool)",
+      [
+        ethereum.Value.fromAddress(erc20),
+        ethereum.Value.fromAddress(spender),
+        ethereum.Value.fromUnsignedBigInt(amount)
+      ]
+    );
 
     return result[0].toBoolean();
   }
 
-  try_approveERC20(erc20: Address, spender: Address, amount: BigInt): ethereum.CallResult<boolean> {
-    let result = super.tryCall("approveERC20", "approveERC20(address,address,uint256):(bool)", [
-      ethereum.Value.fromAddress(erc20),
-      ethereum.Value.fromAddress(spender),
-      ethereum.Value.fromUnsignedBigInt(amount),
-    ]);
+  try_approveERC20(
+    erc20: Address,
+    spender: Address,
+    amount: BigInt
+  ): ethereum.CallResult<boolean> {
+    let result = super.tryCall(
+      "approveERC20",
+      "approveERC20(address,address,uint256):(bool)",
+      [
+        ethereum.Value.fromAddress(erc20),
+        ethereum.Value.fromAddress(spender),
+        ethereum.Value.fromUnsignedBigInt(amount)
+      ]
+    );
     if (result.reverted) {
       return new ethereum.CallResult();
     }
@@ -329,22 +353,26 @@ export class IDOS extends ethereum.SmartContract {
   }
 
   computePosition(dSafeAddress: Address): IDOS__computePositionResult {
-    let result = super.call("computePosition", "computePosition(address):(int256,int256,int256)", [
-      ethereum.Value.fromAddress(dSafeAddress),
-    ]);
+    let result = super.call(
+      "computePosition",
+      "computePosition(address):(int256,int256,int256)",
+      [ethereum.Value.fromAddress(dSafeAddress)]
+    );
 
     return new IDOS__computePositionResult(
       result[0].toBigInt(),
       result[1].toBigInt(),
-      result[2].toBigInt(),
+      result[2].toBigInt()
     );
   }
 
-  try_computePosition(dSafeAddress: Address): ethereum.CallResult<IDOS__computePositionResult> {
+  try_computePosition(
+    dSafeAddress: Address
+  ): ethereum.CallResult<IDOS__computePositionResult> {
     let result = super.tryCall(
       "computePosition",
       "computePosition(address):(int256,int256,int256)",
-      [ethereum.Value.fromAddress(dSafeAddress)],
+      [ethereum.Value.fromAddress(dSafeAddress)]
     );
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -354,8 +382,8 @@ export class IDOS extends ethereum.SmartContract {
       new IDOS__computePositionResult(
         value[0].toBigInt(),
         value[1].toBigInt(),
-        value[2].toBigInt(),
-      ),
+        value[2].toBigInt()
+      )
     );
   }
 
@@ -375,19 +403,30 @@ export class IDOS extends ethereum.SmartContract {
   }
 
   getApproved(collection: Address, tokenId: BigInt): Address {
-    let result = super.call("getApproved", "getApproved(address,uint256):(address)", [
-      ethereum.Value.fromAddress(collection),
-      ethereum.Value.fromUnsignedBigInt(tokenId),
-    ]);
+    let result = super.call(
+      "getApproved",
+      "getApproved(address,uint256):(address)",
+      [
+        ethereum.Value.fromAddress(collection),
+        ethereum.Value.fromUnsignedBigInt(tokenId)
+      ]
+    );
 
     return result[0].toAddress();
   }
 
-  try_getApproved(collection: Address, tokenId: BigInt): ethereum.CallResult<Address> {
-    let result = super.tryCall("getApproved", "getApproved(address,uint256):(address)", [
-      ethereum.Value.fromAddress(collection),
-      ethereum.Value.fromUnsignedBigInt(tokenId),
-    ]);
+  try_getApproved(
+    collection: Address,
+    tokenId: BigInt
+  ): ethereum.CallResult<Address> {
+    let result = super.tryCall(
+      "getApproved",
+      "getApproved(address,uint256):(address)",
+      [
+        ethereum.Value.fromAddress(collection),
+        ethereum.Value.fromUnsignedBigInt(tokenId)
+      ]
+    );
     if (result.reverted) {
       return new ethereum.CallResult();
     }
@@ -396,19 +435,24 @@ export class IDOS extends ethereum.SmartContract {
   }
 
   getDAccountERC20(dSafe: Address, erc20: Address): BigInt {
-    let result = super.call("getDAccountERC20", "getDAccountERC20(address,address):(int256)", [
-      ethereum.Value.fromAddress(dSafe),
-      ethereum.Value.fromAddress(erc20),
-    ]);
+    let result = super.call(
+      "getDAccountERC20",
+      "getDAccountERC20(address,address):(int256)",
+      [ethereum.Value.fromAddress(dSafe), ethereum.Value.fromAddress(erc20)]
+    );
 
     return result[0].toBigInt();
   }
 
-  try_getDAccountERC20(dSafe: Address, erc20: Address): ethereum.CallResult<BigInt> {
-    let result = super.tryCall("getDAccountERC20", "getDAccountERC20(address,address):(int256)", [
-      ethereum.Value.fromAddress(dSafe),
-      ethereum.Value.fromAddress(erc20),
-    ]);
+  try_getDAccountERC20(
+    dSafe: Address,
+    erc20: Address
+  ): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      "getDAccountERC20",
+      "getDAccountERC20(address,address):(int256)",
+      [ethereum.Value.fromAddress(dSafe), ethereum.Value.fromAddress(erc20)]
+    );
     if (result.reverted) {
       return new ethereum.CallResult();
     }
@@ -417,17 +461,21 @@ export class IDOS extends ethereum.SmartContract {
   }
 
   getDSafeOwner(dSafe: Address): Address {
-    let result = super.call("getDSafeOwner", "getDSafeOwner(address):(address)", [
-      ethereum.Value.fromAddress(dSafe),
-    ]);
+    let result = super.call(
+      "getDSafeOwner",
+      "getDSafeOwner(address):(address)",
+      [ethereum.Value.fromAddress(dSafe)]
+    );
 
     return result[0].toAddress();
   }
 
   try_getDSafeOwner(dSafe: Address): ethereum.CallResult<Address> {
-    let result = super.tryCall("getDSafeOwner", "getDSafeOwner(address):(address)", [
-      ethereum.Value.fromAddress(dSafe),
-    ]);
+    let result = super.tryCall(
+      "getDSafeOwner",
+      "getDSafeOwner(address):(address)",
+      [ethereum.Value.fromAddress(dSafe)]
+    );
     if (result.reverted) {
       return new ethereum.CallResult();
     }
@@ -436,17 +484,21 @@ export class IDOS extends ethereum.SmartContract {
   }
 
   getImplementation(dSafe: Address): Address {
-    let result = super.call("getImplementation", "getImplementation(address):(address)", [
-      ethereum.Value.fromAddress(dSafe),
-    ]);
+    let result = super.call(
+      "getImplementation",
+      "getImplementation(address):(address)",
+      [ethereum.Value.fromAddress(dSafe)]
+    );
 
     return result[0].toAddress();
   }
 
   try_getImplementation(dSafe: Address): ethereum.CallResult<Address> {
-    let result = super.tryCall("getImplementation", "getImplementation(address):(address)", [
-      ethereum.Value.fromAddress(dSafe),
-    ]);
+    let result = super.tryCall(
+      "getImplementation",
+      "getImplementation(address):(address)",
+      [ethereum.Value.fromAddress(dSafe)]
+    );
     if (result.reverted) {
       return new ethereum.CallResult();
     }
@@ -458,17 +510,19 @@ export class IDOS extends ethereum.SmartContract {
     let result = super.call(
       "getMaximumWithdrawableOfERC20",
       "getMaximumWithdrawableOfERC20(address):(int256)",
-      [ethereum.Value.fromAddress(erc20)],
+      [ethereum.Value.fromAddress(erc20)]
     );
 
     return result[0].toBigInt();
   }
 
-  try_getMaximumWithdrawableOfERC20(erc20: Address): ethereum.CallResult<BigInt> {
+  try_getMaximumWithdrawableOfERC20(
+    erc20: Address
+  ): ethereum.CallResult<BigInt> {
     let result = super.tryCall(
       "getMaximumWithdrawableOfERC20",
       "getMaximumWithdrawableOfERC20(address):(int256)",
-      [ethereum.Value.fromAddress(erc20)],
+      [ethereum.Value.fromAddress(erc20)]
     );
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -477,15 +531,19 @@ export class IDOS extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBigInt());
   }
 
-  isApprovedForAll(collection: Address, _owner: Address, spender: Address): boolean {
+  isApprovedForAll(
+    collection: Address,
+    _owner: Address,
+    spender: Address
+  ): boolean {
     let result = super.call(
       "isApprovedForAll",
       "isApprovedForAll(address,address,address):(bool)",
       [
         ethereum.Value.fromAddress(collection),
         ethereum.Value.fromAddress(_owner),
-        ethereum.Value.fromAddress(spender),
-      ],
+        ethereum.Value.fromAddress(spender)
+      ]
     );
 
     return result[0].toBoolean();
@@ -494,7 +552,7 @@ export class IDOS extends ethereum.SmartContract {
   try_isApprovedForAll(
     collection: Address,
     _owner: Address,
-    spender: Address,
+    spender: Address
   ): ethereum.CallResult<boolean> {
     let result = super.tryCall(
       "isApprovedForAll",
@@ -502,8 +560,8 @@ export class IDOS extends ethereum.SmartContract {
       [
         ethereum.Value.fromAddress(collection),
         ethereum.Value.fromAddress(_owner),
-        ethereum.Value.fromAddress(spender),
-      ],
+        ethereum.Value.fromAddress(spender)
+      ]
     );
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -512,7 +570,12 @@ export class IDOS extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBoolean());
   }
 
-  transferFromERC20(erc20: Address, from: Address, to: Address, amount: BigInt): boolean {
+  transferFromERC20(
+    erc20: Address,
+    from: Address,
+    to: Address,
+    amount: BigInt
+  ): boolean {
     let result = super.call(
       "transferFromERC20",
       "transferFromERC20(address,address,address,uint256):(bool)",
@@ -520,8 +583,8 @@ export class IDOS extends ethereum.SmartContract {
         ethereum.Value.fromAddress(erc20),
         ethereum.Value.fromAddress(from),
         ethereum.Value.fromAddress(to),
-        ethereum.Value.fromUnsignedBigInt(amount),
-      ],
+        ethereum.Value.fromUnsignedBigInt(amount)
+      ]
     );
 
     return result[0].toBoolean();
@@ -531,7 +594,7 @@ export class IDOS extends ethereum.SmartContract {
     erc20: Address,
     from: Address,
     to: Address,
-    amount: BigInt,
+    amount: BigInt
   ): ethereum.CallResult<boolean> {
     let result = super.tryCall(
       "transferFromERC20",
@@ -540,8 +603,8 @@ export class IDOS extends ethereum.SmartContract {
         ethereum.Value.fromAddress(erc20),
         ethereum.Value.fromAddress(from),
         ethereum.Value.fromAddress(to),
-        ethereum.Value.fromUnsignedBigInt(amount),
-      ],
+        ethereum.Value.fromUnsignedBigInt(amount)
+      ]
     );
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -551,22 +614,30 @@ export class IDOS extends ethereum.SmartContract {
   }
 
   viewNFTs(dSafe: Address): Array<IDOS__viewNFTsResultValue0Struct> {
-    let result = super.call("viewNFTs", "viewNFTs(address):((address,uint256)[])", [
-      ethereum.Value.fromAddress(dSafe),
-    ]);
+    let result = super.call(
+      "viewNFTs",
+      "viewNFTs(address):((address,uint256)[])",
+      [ethereum.Value.fromAddress(dSafe)]
+    );
 
     return result[0].toTupleArray<IDOS__viewNFTsResultValue0Struct>();
   }
 
-  try_viewNFTs(dSafe: Address): ethereum.CallResult<Array<IDOS__viewNFTsResultValue0Struct>> {
-    let result = super.tryCall("viewNFTs", "viewNFTs(address):((address,uint256)[])", [
-      ethereum.Value.fromAddress(dSafe),
-    ]);
+  try_viewNFTs(
+    dSafe: Address
+  ): ethereum.CallResult<Array<IDOS__viewNFTsResultValue0Struct>> {
+    let result = super.tryCall(
+      "viewNFTs",
+      "viewNFTs(address):((address,uint256)[])",
+      [ethereum.Value.fromAddress(dSafe)]
+    );
     if (result.reverted) {
       return new ethereum.CallResult();
     }
     let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toTupleArray<IDOS__viewNFTsResultValue0Struct>());
+    return ethereum.CallResult.fromValue(
+      value[0].toTupleArray<IDOS__viewNFTsResultValue0Struct>()
+    );
   }
 }
 
@@ -930,7 +1001,9 @@ export class ExecuteBatchCall__Inputs {
   }
 
   get calls(): Array<ExecuteBatchCallCallsStruct> {
-    return this._call.inputValues[0].value.toTupleArray<ExecuteBatchCallCallsStruct>();
+    return this._call.inputValues[0].value.toTupleArray<
+      ExecuteBatchCallCallsStruct
+    >();
   }
 }
 
@@ -1042,7 +1115,9 @@ export class SetConfigCall__Inputs {
   }
 
   get _config(): SetConfigCall_configStruct {
-    return changetype<SetConfigCall_configStruct>(this._call.inputValues[0].value.toTuple());
+    return changetype<SetConfigCall_configStruct>(
+      this._call.inputValues[0].value.toTuple()
+    );
   }
 }
 

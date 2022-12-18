@@ -9,7 +9,7 @@
     "typechain": "yarn hardhat typechain",
     "test": "yarn hardhat test",
     "test:withTypesCheck": "yarn tsc --noEmit && yarn hardhat test",
-    "start": "yarn run pm2 start 'npx hardhat node' --name localhostNode",
+    "start": "yarn run pm2 start 'npx hardhat node --hostname 0.0.0.0' --name localhostNode",
     "setupLocalhost": "yarn run hardhat run scripts/setupLocalhost.ts --network localhost",
     "stop": "yarn run pm2 delete all",
     "coverage": "yarn hardhat coverage",
