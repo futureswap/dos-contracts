@@ -22,7 +22,8 @@ import type {
   IERC20WithMetadata,
   IUniswapV3Pool,
   IWETH9,
-  TestERC20} from "../typechain-types";
+  TestERC20,
+} from "../typechain-types";
 import type {TransactionRequest} from "@ethersproject/abstract-provider";
 
 import uniV3FactJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json";
@@ -518,7 +519,7 @@ type LocalhostEnvironment = {
   uniswapV3Factory: IUniswapV3Factory;
   nonFungiblePositionManager: ethers.Contract;
   swapRouter: ISwapRouter;
-}
+};
 
 export const deployLocahostEnvironment = async (
   signer: ethers.Signer,
