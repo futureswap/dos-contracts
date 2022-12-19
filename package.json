@@ -9,7 +9,7 @@
     "typechain": "yarn hardhat typechain",
     "test": "yarn hardhat test",
     "test:withTypesCheck": "yarn tsc --noEmit && yarn hardhat test",
-    "start": "yarn run pm2 start 'npx hardhat node --hostname 0.0.0.0' --name localhostNode",
+    "start": "yarn run pm2 start 'npx hardhat node' --name localhostNode",
     "setupLocalhost": "yarn run hardhat run scripts/setupLocalhost.ts --network localhost",
     "stop": "yarn run pm2 delete all",
     "coverage": "yarn hardhat coverage",
@@ -26,8 +26,7 @@
     "graph-local": "docker-compose up",
     "graph-local-clean": "docker-compose down -v && docker-compose rm -v && rm -rf data/ipfs data/postgres",
     "create-local": "graph create --node http://127.0.0.1:8020 DOS",
-    "deploy-local": "cd ./subgraph && graph deploy --ipfs http://127.0.0.1:5001 --node http://127.0.0.1:8020 DOS",
-    "hardhat-local": "hardhat node --hostname 0.0.0.0"
+    "deploy-local": "cd ./subgraph && graph deploy --ipfs http://127.0.0.1:5001 --node http://127.0.0.1:8020 DOS"
   },
   "dependencies": {
     "@chainlink/contracts": "^0.5.1",
