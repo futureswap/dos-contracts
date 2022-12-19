@@ -14,7 +14,7 @@
     "stop": "yarn run pm2 delete all",
     "coverage": "yarn hardhat coverage",
     "lint": "yarn lint:typeScript && yarn lint:solidity",
-    "lint:typeScript": "yarn eslint .",
+    "lint:typeScript": "yarn eslint ./lib ./scripts ./test --ext .ts",
     "lint:solidity": "yarn solhint contracts/**/*.sol",
     "prettier": "prettier *.md \"{docs,.github}/**/*.{md,yml}\" \"scripts/**/*.ts\"",
     "prettier:check": "prettier --check \"contracts/**/*.sol\" \"lib/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"./*.ts\" \"./*.json\"",

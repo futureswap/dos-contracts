@@ -21,6 +21,8 @@ import type {
   FutureSwapProxy,
   IERC20WithMetadata,
   IUniswapV3Pool,
+  IWETH9,
+  TestERC20,
 } from "../typechain-types";
 import type {TransactionRequest} from "@ethersproject/abstract-provider";
 
@@ -34,9 +36,9 @@ import {setCode} from "@nomicfoundation/hardhat-network-helpers";
 import {waffle} from "hardhat";
 
 import {
+  IWETH9__factory,
   DSafeLogic__factory,
   IUniswapV3Pool__factory,
-  IERC20Metadata__factory,
   WETH9__factory,
   TestERC20__factory,
   MockERC20Oracle__factory,
@@ -510,8 +512,32 @@ export const setupDos = async (
   return {usdcOracle, ethOracle, uniOracle, uniV3Oracle};
 };
 
+type LocalhostEnvironment = {
+  weth: IWETH9;
+  usdc: TestERC20;
+  uni: TestERC20;
+  uniswapV3Factory: IUniswapV3Factory;
+  nonFungiblePositionManager: ethers.Contract;
+  swapRouter: ISwapRouter;
+};
+
+export const deployLocahostEnvironment = async (
+  signer: ethers.Signer,
+): Promise<LocalhostEnvironment> => {
+  const wethDeploy = await new WETH9__factory(signer).deploy();
+  const weth = IWETH9__factory.connect(wethDeploy.address, signer);
+  const usdc = await new TestERC20__factory(signer).deploy("USDC", "USDC", 6);
+  const uni = await new TestERC20__factory(signer).deploy("UNI", "UNI", 18);
+
+  const {uniswapV3Factory, nonFungiblePositionManager, swapRouter} = await deployUniswapFactory(
+    weth.address,
+    signer,
+  );
+  return {weth, usdc, uni, uniswapV3Factory, nonFungiblePositionManager, swapRouter};
+};
+
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-export const setupLocalhost = async (signer: ethers.Signer) => {
+export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnvironment) => {
   const {permit2, anyswapCreate2Deployer, transferAndCall2, governanceProxy} =
     await deployFixedAddressForTests(signer);
 
@@ -533,71 +559,49 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
     makeCall(versionManager).markRecommendedVersion("1.0.0"),
   ]);
 
-  const wethDeploy = await deployAtFixedAddress(
-    new WETH9__factory(signer),
-    anyswapCreate2Deployer,
-    fsSalt,
-  );
-  const weth = IERC20Metadata__factory.connect(wethDeploy.address, signer);
-  const usdc = await deployAtFixedAddress(
-    new TestERC20__factory(signer),
-    anyswapCreate2Deployer,
-    fsSalt,
-    "USDC",
-    "USDC",
-    6,
-  );
-  const uni = await deployAtFixedAddress(
-    new TestERC20__factory(signer),
-    anyswapCreate2Deployer,
-    fsSalt,
-    "UNI",
-    "UNI",
-    18,
-  );
-
-  const {uniswapV3Factory, nonFungiblePositionManager, swapRouter} = await deployUniswapFactory(
-    weth.address,
-    signer,
-  );
-
   const uniAddresses = {
-    uniswapV3Factory: uniswapV3Factory.address,
-    nonFungiblePositionManager: nonFungiblePositionManager.address,
+    uniswapV3Factory: env.uniswapV3Factory.address,
+    nonFungiblePositionManager: env.nonFungiblePositionManager.address,
   };
 
   const {usdcOracle, ethOracle, uniOracle, uniV3Oracle} = await setupDos(
     governanceProxy,
     dos,
-    usdc,
-    weth,
-    uni,
+    env.usdc,
+    env.weth,
+    env.uni,
     uniAddresses,
     signer,
   );
 
   // setup some initial liquidity
 
-  await usdc.mint(await signer.getAddress(), toWei(1000000, 6));
-  await uni.mint(await signer.getAddress(), toWei(1000000));
-  for (const erc20 of [usdc, uni, weth]) {
+  await env.usdc.mint(await signer.getAddress(), toWei(1000000, 6));
+  await env.uni.mint(await signer.getAddress(), toWei(1000000));
+  for (const erc20 of [env.usdc, env.uni, env.weth]) {
     await erc20.approve(transferAndCall2.address, ethers.constants.MaxUint256);
-    await erc20.approve(swapRouter.address, ethers.constants.MaxUint256);
-    await erc20.approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256);
+    await erc20.approve(env.swapRouter.address, ethers.constants.MaxUint256);
+    await erc20.approve(env.nonFungiblePositionManager.address, ethers.constants.MaxUint256);
   }
   const dsafe = await createDSafe(dos, signer);
   await depositIntoDos(
     transferAndCall2,
     dsafe,
     [
-      {token: usdc.address, amount: toWei(100000, 6)},
-      {token: uni.address, amount: toWei(100000)},
+      {token: env.usdc.address, amount: toWei(100000, 6)},
+      {token: env.uni.address, amount: toWei(100000)},
     ],
-    {weth: weth.address, amount: toWei(100000)},
+    {weth: env.weth.address, amount: toWei(100000)},
   );
-  await deployUniswapPool(uniswapV3Factory, weth.address, uni.address, 500, 1);
+  await deployUniswapPool(env.uniswapV3Factory, env.weth.address, env.uni.address, 500, 1);
   const normalize = (amount: number) => (amount * 10 ** 6) / 10 ** 18;
-  await deployUniswapPool(uniswapV3Factory, weth.address, usdc.address, 500, normalize(1000));
+  await deployUniswapPool(
+    env.uniswapV3Factory,
+    env.weth.address,
+    env.usdc.address,
+    500,
+    normalize(1000),
+  );
 
   console.log(
     await getEventsTx(
@@ -605,8 +609,8 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
         await leverageLP2(
           dsafe,
           dos,
-          nonFungiblePositionManager,
-          {token0: weth, token1: usdc, fee: 500},
+          env.nonFungiblePositionManager,
+          {token0: env.weth, token1: env.usdc, fee: 500},
           normalize(900),
           normalize(1100),
           toWei(10),
@@ -614,7 +618,7 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
           dsafe.address,
         ),
       ),
-      nonFungiblePositionManager,
+      env.nonFungiblePositionManager,
     ),
   );
   console.log(
@@ -623,8 +627,8 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
         await leverageLP2(
           dsafe,
           dos,
-          nonFungiblePositionManager,
-          {token0: weth, token1: uni, fee: 500},
+          env.nonFungiblePositionManager,
+          {token0: env.weth, token1: env.uni, fee: 500},
           0.9,
           1.1,
           toWei(10),
@@ -632,7 +636,7 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
           dsafe.address,
         ),
       ),
-      nonFungiblePositionManager,
+      env.nonFungiblePositionManager,
     ),
   );
 
@@ -645,15 +649,15 @@ export const setupLocalhost = async (signer: ethers.Signer) => {
     governanceProxy,
     dos,
     versionManager,
-    weth,
-    usdc,
-    uni,
+    weth: env.weth,
+    usdc: env.usdc,
+    uni: env.uni,
     usdcOracle,
     ethOracle,
     uniOracle,
     uniV3Oracle,
-    uniswapV3Factory,
-    nonFungiblePositionManager,
-    swapRouter,
+    uniswapV3Factory: env.uniswapV3Factory,
+    nonFungiblePositionManager: env.nonFungiblePositionManager,
+    swapRouter: env.swapRouter,
   };
 };
