@@ -1,11 +1,12 @@
 import {ethers} from "hardhat";
 
-import {setupLocalhost} from "../lib/deploy";
+import {deployLocahostEnvironment, setupLocalhost} from "../lib/deploy";
 import {saveAddressesForNetwork} from "../lib/deployment";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
-  const contracts = await setupLocalhost(deployer);
+  const env = await deployLocahostEnvironment(deployer);
+  const contracts = await setupLocalhost(deployer, env);
   await saveAddressesForNetwork(contracts);
 }
 
