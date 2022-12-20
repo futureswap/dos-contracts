@@ -379,19 +379,6 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
         transferNFT(nftId, msg.sender, to);
     }
 
-    /// @notice Approve a spender to transfer tokens on your behalf
-    /// @param erc20 The index of the ERC20 token in erc20Infos array
-    /// @param spender The address of the spender
-    /// @param amount The amount of tokens to approve
-    function approveERC20(
-        IERC20 erc20,
-        address spender,
-        uint256 amount
-    ) external onlyDSafe dSafeExists(spender) returns (bool) {
-        _approveERC20(msg.sender, erc20, spender, amount);
-        return true;
-    }
-
     /// @notice Approve a spender to transfer ERC721 tokens on your behalf
     /// @param collection The address of the ERC721 token
     /// @param to The address of the spender
