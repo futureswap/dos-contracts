@@ -569,7 +569,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return _tokenApprovals[collection][tokenId];
     }
 
-    /// @notice Returns if the `operator` is allowed to manage all of the erc20s of `owner` on the `collection` contract
+    /// @notice Returns if the `operator` is allowed to manage all of the erc721s of `owner` on the `collection` contract
     /// @param collection The address of the collection contract
     /// @param _owner The address of the owner
     /// @param spender The address of the spender
@@ -733,6 +733,13 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     }
 
     function updateInterest(uint16 erc20Idx) internal {
+        ERC20Info storage erc20Info = state.erc20Infos[erc20Idx]; // retrieve ERC20Info and store in memory
+        if (erc20Info.timestamp == block.timestamp) return; // already updated this block
+        int256 delta = FsMath.safeCastToSigned(block.timestamp - erc20Info.timestamp); // time passed since last update
+        erc20Info.timestamp = block.timestamp; // update timestamp to current timestamp
+        int256 debt = -erc20Info.debt.tokens; // get the debt
+        // TODO: uint256 utilization =
+        // int256 interestRate = DosInterestRates.computeInterestRate(erc20Info.erc20Contract, utilization);
         ERC20Info storage erc20Info = erc20Infos[erc20Idx];
         if (erc20Info.timestamp == block.timestamp) return;
         int256 delta = FsMath.safeCastToSigned(block.timestamp - erc20Info.timestamp);
@@ -740,9 +747,9 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         int256 debt = -erc20Info.debt.tokens;
         int256 interest = (debt *
             (FsMath.exp(erc20Info.interest * delta) - FsMath.FIXED_POINT_SCALE)) /
-            FsMath.FIXED_POINT_SCALE;
-        erc20Info.debt.tokens -= interest;
-        erc20Info.collateral.tokens += interest;
+            FsMath.FIXED_POINT_SCALE; // fixed rate interest
+        erc20Info.debt.tokens -= interest; // subtract interest from debt
+        erc20Info.collateral.tokens += interest; // add interest to collateral
         // TODO(gerben) add to treasury
     }
 
