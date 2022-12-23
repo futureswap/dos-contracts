@@ -6,6 +6,7 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/utils/Address.sol";
 import {FsUtils} from "../lib/FsUtils.sol";
 import {ImmutableOwnable} from "../lib/ImmutableOwnable.sol";
+import {ImmutableVersion} from "../lib/ImmutableVersion.sol";
 import "../interfaces/IVersionManager.sol";
 
 contract VersionManager is IVersionManager, ImmutableOwnable {
@@ -39,12 +40,7 @@ contract VersionManager is IVersionManager, ImmutableOwnable {
 
         string memory versionName;
         try ImmutableVersion(implementation).immutableVersion() returns (bytes32 immutableVersion) {
-            uint256 len = uint8(immutableVersion[0]);
-            bytes memory res = new bytes(len);
-            for (uint256 i = 0; i < len; i++) {
-                res[i] = immutableVersion[i + 1];
-            }
-            versionName = string(res);
+            versionName = string(FsUtils.fromBytes32(immutableVersion));
         } catch {
             revert InvalidImplementation();
         }

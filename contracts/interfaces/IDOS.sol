@@ -125,18 +125,6 @@ interface IDOSCore {
 
     function sendNFT(address erc721, uint256 tokenId, address to) external;
 
-    /// @notice Approve a spender to transfer tokens on your behalf
-    /// @param erc20 The index of the ERC20 token in erc20Infos array
-    /// @param spender The address of the spender
-    /// @param amount The amount of tokens to approve
-    function approveERC20(IERC20 erc20, address spender, uint256 amount) external returns (bool);
-
-    /// @notice Approve a spender to transfer ERC721 tokens on your behalf
-    /// @param collection The address of the ERC721 token
-    /// @param to The address of the spender
-    /// @param tokenId The id of the token to approve
-    function approveERC721(address collection, address to, uint256 tokenId) external;
-
     /// @notice Transfer ERC20 tokens from dSafe to another dSafe
     /// @dev Note: Allowance must be set with approveERC20
     /// @param erc20 The index of the ERC20 token in erc20Infos array
@@ -189,7 +177,7 @@ interface IDOSCore {
      * This value changes when {approve} or {transferFrom} are called.
      */
     function allowance(
-        IERC20 erc20,
+        address erc20,
         address _owner,
         address spender
     ) external view returns (uint256);

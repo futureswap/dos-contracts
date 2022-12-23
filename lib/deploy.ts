@@ -18,7 +18,7 @@ import type {
   IDOS,
   IUniswapV3Factory,
   ISwapRouter,
-  FutureSwapProxy,
+  OffchainEntityProxy,
   IERC20WithMetadata,
   IUniswapV3Pool,
   IWETH9,
@@ -43,7 +43,7 @@ import {
   TestERC20__factory,
   MockERC20Oracle__factory,
   UniV3Oracle__factory,
-  FutureSwapProxy__factory,
+  OffchainEntityProxy__factory,
   IUniswapV3Factory__factory,
   ISwapRouter__factory,
   VersionManager__factory,
@@ -152,7 +152,9 @@ export async function deployGovernance(governanceProxy: GovernanceProxy): Promis
     voteNFT.address,
     await signer.getAddress(),
   );
-  await governanceProxy.execute([makeCall(governanceProxy).proposeGovernance(governance.address)]);
+  await governanceProxy.executeBatch([
+    makeCall(governanceProxy).proposeGovernance(governance.address),
+  ]);
   // empty execute such that governance accepts the governance role of the
   // governance proxy.
   await proposeAndExecute(governance, voteNFT, []);
@@ -244,31 +246,32 @@ export async function deployAnyswapCreate2Deployer(
 
 export const governatorAddress = "0x6eEf89f0383dD76c06A8a6Ead63cf95795B5bA3F";
 
-export const governatorHardhatSignature =
-  "0xd96936163b3ca51694dce7ac7a832a7edb323195ea30f0ac5365b2a4fa9c15eb7cc0b70b152798696be0612f82e3bd6c0205ff3f09b52982e116f9af3ad58f4f1c";
+export const testGovernatorAddress = "0xc9B6088732E83ef013873e2f04d032F1a7a2E42D";
 
-export const deployFutureSwapProxy = async (
+export const testGovernatorHardhatSignature =
+  "0x765e448f2a48fea5d139657a1101f253fa0429290418986be14597b438f82930758678dc120a1fe7acfec1ada7f0095626235355970bc15c8bc5d452a47b2a821b";
+
+export const deployOffchainEntityProxy = async (
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
   salt: string,
   governatorAddress: string,
-): Promise<FutureSwapProxy> => {
-  const futureSwapProxy = deployAtFixedAddress(
-    new FutureSwapProxy__factory(anyswapCreate2Deployer.signer),
+): Promise<OffchainEntityProxy> => {
+  const offchainEntityProxy = deployAtFixedAddress(
+    new OffchainEntityProxy__factory(anyswapCreate2Deployer.signer),
     anyswapCreate2Deployer,
     salt,
     governatorAddress,
+    "FutureSwapProxy",
   );
-  return await futureSwapProxy;
+  return await offchainEntityProxy;
 };
 
 export const fsSalt = "0x1234567890123456789012345678901234567890123456789012345678901234";
 
 const permit2Address = addressesJSON.localhost.permit2;
-const futureSwapProxyAddress = addressesJSON.localhost.futureSwapProxy;
-const governanceProxyAddress = addressesJSON.localhost.governanceProxy;
 const transferAndCall2Address = addressesJSON.localhost.transferAndCall2;
 
-let futureSwapProxy: FutureSwapProxy;
+let futureSwapProxy: OffchainEntityProxy;
 let governanceProxy: GovernanceProxy | undefined;
 
 // initialize the fixed address deployments
@@ -277,7 +280,7 @@ export const deployFixedAddressForTests = async (
 ): Promise<{
   permit2: IPermit2;
   anyswapCreate2Deployer: IAnyswapCreate2Deployer;
-  futureSwapProxy: FutureSwapProxy;
+  futureSwapProxy: OffchainEntityProxy;
   transferAndCall2: TransferAndCall2;
   governanceProxy: GovernanceProxy;
 }> => {
@@ -303,10 +306,10 @@ export const deployFixedAddressForTests = async (
         await checkDefined(signer.provider).getCode(deployedTransferAndCall2.address),
       );
     }
-    futureSwapProxy = await deployFutureSwapProxy(
+    futureSwapProxy = await deployOffchainEntityProxy(
       anyswapCreate2Deployer,
       fsSalt,
-      governatorAddress,
+      testGovernatorAddress,
     );
     // eslint-disable-next-line require-atomic-updates
     governanceProxy = await deployGovernanceProxy(
@@ -317,14 +320,10 @@ export const deployFixedAddressForTests = async (
     );
 
     if (!isCoverage) {
-      checkState(deployedTransferAndCall2.address === transferAndCall2.address);
-      checkState(futureSwapProxyAddress === futureSwapProxy.address);
-      checkState(governanceProxyAddress === governanceProxy.address);
+      await futureSwapProxy.takeOwnership(testGovernatorHardhatSignature);
 
-      await futureSwapProxy.takeOwnership(governatorHardhatSignature);
-
-      await futureSwapProxy.execute([
-        makeCall(governanceProxy).execute([
+      await futureSwapProxy.executeBatch([
+        makeCall(governanceProxy).executeBatch([
           makeCall(governanceProxy).proposeGovernance(await signer.getAddress()),
         ]),
       ]);
@@ -462,7 +461,7 @@ export const setupDos = async (
   const ETH_PRICE = 1200;
   const UNI_PRICE = 840;
 
-  await governanceProxy.execute([
+  await governanceProxy.executeBatch([
     makeCall(usdcOracle).setPrice(toWei(1), USDC_DECIMALS, USDC_DECIMALS),
     makeCall(ethOracle).setPrice(toWei(ETH_PRICE), USDC_DECIMALS, ETHEREUM_DECIMALS),
     makeCall(uniOracle).setPrice(toWei(UNI_PRICE), USDC_DECIMALS, ETHEREUM_DECIMALS),
@@ -554,7 +553,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
     fsSalt,
     dos.address,
   );
-  await governanceProxy.execute([
+  await governanceProxy.executeBatch([
     makeCall(versionManager).addVersion(2, dSafeLogic.address),
     makeCall(versionManager).markRecommendedVersion("1.0.0"),
   ]);
@@ -645,6 +644,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
   return {
     permit2,
     anyswapCreate2Deployer,
+    futureSwapProxy,
     transferAndCall2,
     governanceProxy,
     dos,

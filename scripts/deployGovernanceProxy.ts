@@ -1,4 +1,4 @@
-import type {FutureSwapProxy, IAnyswapCreate2Deployer} from "../typechain-types";
+import type {OffchainEntityProxy, IAnyswapCreate2Deployer} from "../typechain-types";
 
 import {ethers} from "hardhat";
 
@@ -12,7 +12,7 @@ async function main() {
   const networkAddresses = await getAddressesForNetwork();
   const networkContracts = getContracts(networkAddresses, owner);
   const anyswapCreate2Deployer = networkContracts.anyswapCreate2Deployer as IAnyswapCreate2Deployer;
-  const futureSwapProxy = networkContracts.futureSwapProxy as FutureSwapProxy;
+  const futureSwapProxy = networkContracts.futureSwapProxy as OffchainEntityProxy;
 
   const governanceProxy = await deployAtFixedAddress(
     new GovernanceProxy__factory(owner),
@@ -23,8 +23,10 @@ async function main() {
 
   await saveAddressesForNetwork({governanceProxy});
 
-  await futureSwapProxy.execute([
-    makeCall(governanceProxy).execute([makeCall(governanceProxy).proposeGovernance(owner.address)]),
+  await futureSwapProxy.executeBatch([
+    makeCall(governanceProxy).executeBatch([
+      makeCall(governanceProxy).proposeGovernance(owner.address),
+    ]),
   ]);
 }
 
