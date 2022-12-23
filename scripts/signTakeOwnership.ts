@@ -5,7 +5,7 @@ import type {
   EthereumSignTypedDataTypes,
 } from "@trezor/connect";
 import type {TypedDataSigner} from "@ethersproject/abstract-signer";
-import type {FutureSwapProxy} from "../typechain-types";
+import type {OffchainEntityProxy} from "../typechain-types";
 
 import TrezorConnect from "@trezor/connect";
 import {ethers} from "ethers";
@@ -225,7 +225,7 @@ async function main() {
   const networkAddresses = await getAddressesForNetwork();
   const networkContracts = getContracts(networkAddresses, owner);
 
-  const fsProxy = networkContracts.futureSwapProxy as FutureSwapProxy;
+  const fsProxy = networkContracts.futureSwapProxy as OffchainEntityProxy;
 
   const governator = new TrezorSigner(governatorAddress, hardhatEthers.provider);
 

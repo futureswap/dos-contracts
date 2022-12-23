@@ -1,4 +1,4 @@
-import type {IPermit2, DSafeLogic, FutureSwapProxy} from "../typechain-types";
+import type {IPermit2, DSafeLogic, OffchainEntityProxy} from "../typechain-types";
 import type {Call} from "./calls";
 import type {TypedDataSigner} from "@ethersproject/abstract-signer";
 
@@ -209,14 +209,14 @@ export const signPermit2TransferFrom = async (
 };
 
 export const signTakeFutureSwapProxyOwnership = async (
-  futureSwapProxy: FutureSwapProxy,
+  futureSwapProxy: OffchainEntityProxy,
   newOwner: string,
   nonce: number,
   signer: TypedDataSigner,
 ): Promise<string> => {
   // corresponds with the EIP712 constructor call
   const domain = {
-    name: "FutureSwapProxy",
+    name: "OffchainEntityProxy",
     version: "1",
     chainId: (await futureSwapProxy.provider.getNetwork()).chainId,
     verifyingContract: futureSwapProxy.address,

@@ -18,7 +18,7 @@ import type {
   IDOS,
   IUniswapV3Factory,
   ISwapRouter,
-  FutureSwapProxy,
+  OffchainEntityProxy,
   IERC20WithMetadata,
   IUniswapV3Pool,
   IWETH9,
@@ -43,7 +43,7 @@ import {
   TestERC20__factory,
   MockERC20Oracle__factory,
   UniV3Oracle__factory,
-  FutureSwapProxy__factory,
+  OffchainEntityProxy__factory,
   IUniswapV3Factory__factory,
   ISwapRouter__factory,
   VersionManager__factory,
@@ -247,18 +247,18 @@ export const governatorAddress = "0x6eEf89f0383dD76c06A8a6Ead63cf95795B5bA3F";
 export const governatorHardhatSignature =
   "0xd96936163b3ca51694dce7ac7a832a7edb323195ea30f0ac5365b2a4fa9c15eb7cc0b70b152798696be0612f82e3bd6c0205ff3f09b52982e116f9af3ad58f4f1c";
 
-export const deployFutureSwapProxy = async (
+export const deployOffchainEntityProxy = async (
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
   salt: string,
   governatorAddress: string,
-): Promise<FutureSwapProxy> => {
-  const futureSwapProxy = deployAtFixedAddress(
-    new FutureSwapProxy__factory(anyswapCreate2Deployer.signer),
+): Promise<OffchainEntityProxy> => {
+  const offchainEntityProxy = deployAtFixedAddress(
+    new OffchainEntityProxy__factory(anyswapCreate2Deployer.signer),
     anyswapCreate2Deployer,
     salt,
     governatorAddress,
   );
-  return await futureSwapProxy;
+  return await offchainEntityProxy;
 };
 
 export const fsSalt = "0x1234567890123456789012345678901234567890123456789012345678901234";
@@ -268,7 +268,7 @@ const futureSwapProxyAddress = addressesJSON.localhost.futureSwapProxy;
 const governanceProxyAddress = addressesJSON.localhost.governanceProxy;
 const transferAndCall2Address = addressesJSON.localhost.transferAndCall2;
 
-let futureSwapProxy: FutureSwapProxy;
+let futureSwapProxy: OffchainEntityProxy;
 let governanceProxy: GovernanceProxy | undefined;
 
 // initialize the fixed address deployments
@@ -277,7 +277,7 @@ export const deployFixedAddressForTests = async (
 ): Promise<{
   permit2: IPermit2;
   anyswapCreate2Deployer: IAnyswapCreate2Deployer;
-  futureSwapProxy: FutureSwapProxy;
+  futureSwapProxy: OffchainEntityProxy;
   transferAndCall2: TransferAndCall2;
   governanceProxy: GovernanceProxy;
 }> => {
@@ -303,7 +303,7 @@ export const deployFixedAddressForTests = async (
         await checkDefined(signer.provider).getCode(deployedTransferAndCall2.address),
       );
     }
-    futureSwapProxy = await deployFutureSwapProxy(
+    futureSwapProxy = await deployOffchainEntityProxy(
       anyswapCreate2Deployer,
       fsSalt,
       governatorAddress,

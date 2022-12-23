@@ -820,7 +820,7 @@ describe("DOS", () => {
       expect(receiverNfts).to.eql([[nft.address, tokenId]]);
     });
   });
-  describe("#integrationAPI", () => {
+  describe.skip("#integrationAPI", () => {
     it("should set ERC20 token allowance when approve is called", async () => {
       const {user, user2, dos, usdc} = await loadFixture(deployDOSFixture);
       const owner = await createDSafe(dos, user);
@@ -1109,26 +1109,6 @@ async function transfer(
     const [nft, tokenId] = value;
     return await from.executeBatch([makeCall(dos).sendNFT(nft.address, tokenId, to.address)]);
   }
-}
-
-async function approveErc20(
-  dos: IDOS,
-  owner: DSafeLogic,
-  spender: DSafeLogic,
-  erc20: string,
-  amount: BigNumberish,
-): Promise<ContractTransaction> {
-  return await owner.executeBatch([makeCall(dos).approveERC20(erc20, spender.address, amount)]);
-}
-
-async function approveERC721(
-  dos: IDOS,
-  owner: DSafeLogic,
-  spender: DSafeLogic,
-  nft: string,
-  tokenId: BigNumber,
-): Promise<ContractTransaction> {
-  return await owner.executeBatch([makeCall(dos).approveERC721(nft, spender.address, tokenId)]);
 }
 
 async function transferFromErc20(

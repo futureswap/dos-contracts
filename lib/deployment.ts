@@ -13,7 +13,7 @@ import {
   HashNFT__factory,
   VersionManager__factory,
   IAnyswapCreate2Deployer__factory,
-  FutureSwapProxy__factory,
+  OffchainEntityProxy__factory,
   IDOS__factory,
   UniV3Oracle__factory,
   ISwapRouter__factory,
@@ -81,7 +81,7 @@ export const getContractFactory = (
     case "governance":
       return Governance__factory.connect(address, signer);
     case "futureSwapProxy":
-      return FutureSwapProxy__factory.connect(address, signer);
+      return OffchainEntityProxy__factory.connect(address, signer);
     case "voteNFT":
       return HashNFT__factory.connect(address, signer);
     case "weth":
