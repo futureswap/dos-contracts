@@ -65,7 +65,6 @@ import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
 import {createDSafe, depositIntoDos, leverageLP2, makeCall, proposeAndExecute} from "./calls";
 import {checkDefined, checkState} from "./preconditions";
-import {signTakeFutureSwapProxyOwnership} from "./signers";
 
 export async function deployUniswapPool(
   uniswapV3Factory: IUniswapV3Factory,
@@ -248,6 +247,7 @@ export async function deployAnyswapCreate2Deployer(
 export const governatorAddress = "0x6eEf89f0383dD76c06A8a6Ead63cf95795B5bA3F";
 
 export const testGovernatorAddress = "0xc9B6088732E83ef013873e2f04d032F1a7a2E42D";
+
 export const testGovernatorHardhatSignature =
   "0x765e448f2a48fea5d139657a1101f253fa0429290418986be14597b438f82930758678dc120a1fe7acfec1ada7f0095626235355970bc15c8bc5d452a47b2a821b";
 

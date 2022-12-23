@@ -31,7 +31,7 @@ describe("FutureSwapProxy test", () => {
   });
 
   it("FutureSwapProxy has correct name", async () => {
-    const {owner, futureSwapProxy} = await loadFixture(deployGovernanceProxyFixture);
+    const {futureSwapProxy} = await loadFixture(deployGovernanceProxyFixture);
     expect(await futureSwapProxy.name()).to.equal("FutureSwapProxy");
   });
 });

@@ -4,7 +4,6 @@ import {
   deployAnyswapCreate2Deployer,
   deployAtFixedAddress,
   fsSalt,
-  governatorAddress,
   testGovernatorAddress,
 } from "../lib/deploy";
 import {OffchainEntityProxy__factory} from "../typechain-types";

@@ -1111,7 +1111,7 @@ async function transfer(
     return await from.executeBatch([makeCall(dos).sendNFT(nft.address, tokenId, to.address)]);
   }
 }
-
+/*
 async function transferFromErc20(
   dos: IDOS,
   spender: DSafeLogic,
@@ -1137,3 +1137,4 @@ async function transferFromERC721(
     makeCall(dos).transferFromERC721(nft, owner.address, to.address, tokenId),
   ]);
 }
+*/
