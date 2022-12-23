@@ -25,7 +25,7 @@ async function main() {
     fsSalt,
     dos.address,
   );
-  await governanceProxy.execute([
+  await governanceProxy.executeBatch([
     makeCall(versionManager).addVersion(2, dSafeLogic.address),
     makeCall(versionManager).markRecommendedVersion("1.0.0"),
   ]);

@@ -36,7 +36,7 @@ contract GovernanceProxy {
 
     /// @notice Execute a batch of contract calls.
     /// @param calls an array of calls.
-    function execute(CallWithoutValue[] calldata calls) external {
+    function executeBatch(CallWithoutValue[] calldata calls) external {
         if (msg.sender != governance) {
             // If the caller is not governance we only accept if the previous
             // governance has proposed it as the new governance account.
@@ -72,14 +72,14 @@ contract Governance is ImmutableOwnable, IERC721Receiver {
         voting = FsUtils.nonNull(_voting);
     }
 
-    function execute(uint256 nonce, CallWithoutValue[] memory calls) external {
+    function executeBatch(uint256 nonce, CallWithoutValue[] memory calls) external {
         uint256 tokenId = voteNFT.toTokenId(
             voting,
             nonce,
             CallLib.hashCallWithoutValueArray(calls)
         );
         voteNFT.burn(tokenId); // reverts if tokenId isn't owned.
-        GovernanceProxy(immutableOwner).execute(calls);
+        GovernanceProxy(immutableOwner).executeBatch(calls);
     }
 
     function transferVoting(address newVoting) external onlyOwner {

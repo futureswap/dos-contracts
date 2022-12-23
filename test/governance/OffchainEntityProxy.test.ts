@@ -29,4 +29,9 @@ describe("FutureSwapProxy test", () => {
     const {owner, futureSwapProxy} = await loadFixture(deployGovernanceProxyFixture);
     expect(await futureSwapProxy.owner()).to.equal(owner.address);
   });
+
+  it("FutureSwapProxy has correct name", async () => {
+    const {owner, futureSwapProxy} = await loadFixture(deployGovernanceProxyFixture);
+    expect(await futureSwapProxy.name()).to.equal("FutureSwapProxy");
+  });
 });

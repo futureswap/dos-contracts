@@ -821,6 +821,7 @@ describe("DOS", () => {
     });
   });
   describe.skip("#integrationAPI", () => {
+    /*
     it("should set ERC20 token allowance when approve is called", async () => {
       const {user, user2, dos, usdc} = await loadFixture(deployDOSFixture);
       const owner = await createDSafe(dos, user);
@@ -1004,7 +1005,7 @@ describe("DOS", () => {
           makeCall(dos).transferFromERC721(nft.address, owner.address, user3.address, tokenId),
         ]),
       ).to.be.revertedWith("Recipient dSafe doesn't exist");
-    });
+    });*/
 
     it("Can transfer via Permit2", async () => {
       const {user, user2, usdc, dos, permit2} = await loadFixture(deployDOSFixture);

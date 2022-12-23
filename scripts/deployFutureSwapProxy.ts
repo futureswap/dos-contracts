@@ -5,6 +5,7 @@ import {
   deployAtFixedAddress,
   fsSalt,
   governatorAddress,
+  testGovernatorAddress,
 } from "../lib/deploy";
 import {OffchainEntityProxy__factory} from "../typechain-types";
 
@@ -15,7 +16,8 @@ async function main() {
     new OffchainEntityProxy__factory(workDeployer),
     anyswapCreate2Deployer,
     fsSalt,
-    governatorAddress, // this should become FutureSwap team address.
+    testGovernatorAddress, // this should become FutureSwap team address.
+    "FutureSwapProxy",
   );
   console.log("FutureSwapProxy deployed at", futureSwapProxy.address);
 }

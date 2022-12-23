@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "../lib/Call.sol";
+import "../lib/FsUtils.sol";
 
 // Signers (EOAs) are the only things that cross EVM chains as they have the same address on all chains.
 // To represent an entity cross chains therefore requires a dedicated signer. However this is cumbersome
@@ -20,12 +21,18 @@ contract OffchainEntityProxy is Ownable, EIP712 {
     bytes32 constant TAKEOWNERSHIP_TYPEHASH =
         keccak256("TakeOwnership(address newOwner,uint256 nonce)");
 
+    bytes32 private immutable entityName;
+
     uint256 public nonce;
 
     // Due to offchain signer address being part of the deployment bytecode, the address at which
     // this contract is deployed identifies the offchain signer.
-    constructor(address offchainSigner) EIP712("OffchainEntityProxy", "1") {
+    constructor(
+        address offchainSigner,
+        string memory _entityName
+    ) EIP712("OffchainEntityProxy", "1") {
         _transferOwnership(offchainSigner);
+        entityName = FsUtils.toBytes32(bytes(_entityName));
     }
 
     // By using signature based ownership transfer, we can ensure that the signer can be
@@ -45,5 +52,9 @@ contract OffchainEntityProxy is Ownable, EIP712 {
     // contract.
     function executeBatch(Call[] memory calls) external payable onlyOwner {
         CallLib.executeBatch(calls);
+    }
+
+    function name() external view returns (string memory) {
+        return string(FsUtils.fromBytes32(entityName));
     }
 }

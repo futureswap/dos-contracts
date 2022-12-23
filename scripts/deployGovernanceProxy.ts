@@ -23,8 +23,10 @@ async function main() {
 
   await saveAddressesForNetwork({governanceProxy});
 
-  await futureSwapProxy.execute([
-    makeCall(governanceProxy).execute([makeCall(governanceProxy).proposeGovernance(owner.address)]),
+  await futureSwapProxy.executeBatch([
+    makeCall(governanceProxy).executeBatch([
+      makeCall(governanceProxy).proposeGovernance(owner.address),
+    ]),
   ]);
 }
 

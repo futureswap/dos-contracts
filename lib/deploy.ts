@@ -65,6 +65,7 @@ import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
 import {createDSafe, depositIntoDos, leverageLP2, makeCall, proposeAndExecute} from "./calls";
 import {checkDefined, checkState} from "./preconditions";
+import {signTakeFutureSwapProxyOwnership} from "./signers";
 
 export async function deployUniswapPool(
   uniswapV3Factory: IUniswapV3Factory,
@@ -152,7 +153,9 @@ export async function deployGovernance(governanceProxy: GovernanceProxy): Promis
     voteNFT.address,
     await signer.getAddress(),
   );
-  await governanceProxy.execute([makeCall(governanceProxy).proposeGovernance(governance.address)]);
+  await governanceProxy.executeBatch([
+    makeCall(governanceProxy).proposeGovernance(governance.address),
+  ]);
   // empty execute such that governance accepts the governance role of the
   // governance proxy.
   await proposeAndExecute(governance, voteNFT, []);
@@ -244,8 +247,9 @@ export async function deployAnyswapCreate2Deployer(
 
 export const governatorAddress = "0x6eEf89f0383dD76c06A8a6Ead63cf95795B5bA3F";
 
-export const governatorHardhatSignature =
-  "0xd96936163b3ca51694dce7ac7a832a7edb323195ea30f0ac5365b2a4fa9c15eb7cc0b70b152798696be0612f82e3bd6c0205ff3f09b52982e116f9af3ad58f4f1c";
+export const testGovernatorAddress = "0xc9B6088732E83ef013873e2f04d032F1a7a2E42D";
+export const testGovernatorHardhatSignature =
+  "0x765e448f2a48fea5d139657a1101f253fa0429290418986be14597b438f82930758678dc120a1fe7acfec1ada7f0095626235355970bc15c8bc5d452a47b2a821b";
 
 export const deployOffchainEntityProxy = async (
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
@@ -257,6 +261,7 @@ export const deployOffchainEntityProxy = async (
     anyswapCreate2Deployer,
     salt,
     governatorAddress,
+    "FutureSwapProxy",
   );
   return await offchainEntityProxy;
 };
@@ -264,8 +269,6 @@ export const deployOffchainEntityProxy = async (
 export const fsSalt = "0x1234567890123456789012345678901234567890123456789012345678901234";
 
 const permit2Address = addressesJSON.localhost.permit2;
-const futureSwapProxyAddress = addressesJSON.localhost.futureSwapProxy;
-const governanceProxyAddress = addressesJSON.localhost.governanceProxy;
 const transferAndCall2Address = addressesJSON.localhost.transferAndCall2;
 
 let futureSwapProxy: OffchainEntityProxy;
@@ -306,7 +309,7 @@ export const deployFixedAddressForTests = async (
     futureSwapProxy = await deployOffchainEntityProxy(
       anyswapCreate2Deployer,
       fsSalt,
-      governatorAddress,
+      testGovernatorAddress,
     );
     // eslint-disable-next-line require-atomic-updates
     governanceProxy = await deployGovernanceProxy(
@@ -317,14 +320,10 @@ export const deployFixedAddressForTests = async (
     );
 
     if (!isCoverage) {
-      checkState(deployedTransferAndCall2.address === transferAndCall2.address);
-      checkState(futureSwapProxyAddress === futureSwapProxy.address);
-      checkState(governanceProxyAddress === governanceProxy.address);
+      await futureSwapProxy.takeOwnership(testGovernatorHardhatSignature);
 
-      await futureSwapProxy.takeOwnership(governatorHardhatSignature);
-
-      await futureSwapProxy.execute([
-        makeCall(governanceProxy).execute([
+      await futureSwapProxy.executeBatch([
+        makeCall(governanceProxy).executeBatch([
           makeCall(governanceProxy).proposeGovernance(await signer.getAddress()),
         ]),
       ]);
@@ -462,7 +461,7 @@ export const setupDos = async (
   const ETH_PRICE = 1200;
   const UNI_PRICE = 840;
 
-  await governanceProxy.execute([
+  await governanceProxy.executeBatch([
     makeCall(usdcOracle).setPrice(toWei(1), USDC_DECIMALS, USDC_DECIMALS),
     makeCall(ethOracle).setPrice(toWei(ETH_PRICE), USDC_DECIMALS, ETHEREUM_DECIMALS),
     makeCall(uniOracle).setPrice(toWei(UNI_PRICE), USDC_DECIMALS, ETHEREUM_DECIMALS),
@@ -554,7 +553,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
     fsSalt,
     dos.address,
   );
-  await governanceProxy.execute([
+  await governanceProxy.executeBatch([
     makeCall(versionManager).addVersion(2, dSafeLogic.address),
     makeCall(versionManager).markRecommendedVersion("1.0.0"),
   ]);
@@ -645,6 +644,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
   return {
     permit2,
     anyswapCreate2Deployer,
+    futureSwapProxy,
     transferAndCall2,
     governanceProxy,
     dos,
