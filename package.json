@@ -26,7 +26,8 @@
     "graph-local": "docker-compose up",
     "graph-local-clean": "docker-compose down -v && docker-compose rm -v && rm -rf data/ipfs data/postgres",
     "create-local": "graph create --node http://127.0.0.1:8020 DOS",
-    "deploy-local": "cd ./subgraph && graph deploy --ipfs http://127.0.0.1:5001 --node http://127.0.0.1:8020 DOS"
+    "deploy-local": "cd ./subgraph && graph deploy --ipfs http://127.0.0.1:5001 --node http://127.0.0.1:8020 DOS",
+    "clean-workspace": "yarn run hardhat run scripts/resetEtheralWorkspace.ts --network localhost"
   },
   "dependencies": {
     "@chainlink/contracts": "^0.5.1",
@@ -38,6 +39,7 @@
     "@uniswap/v3-core": "^1.0.1",
     "@uniswap/v3-periphery": "^1.4.3",
     "ethers": "^5.7.2",
+    "hardhat-ethernal": "^3.0.2",
     "solhint": "^3.3.7"
   },
   "devDependencies": {

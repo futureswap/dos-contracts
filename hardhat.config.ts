@@ -1,6 +1,7 @@
 import type {HardhatUserConfig} from "hardhat/config";
 import type {HardhatRuntimeEnvironment} from "hardhat/types";
 
+import "hardhat-ethernal";
 import "hardhat-preprocessor";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-waffle";
@@ -190,12 +191,16 @@ export default {
     }),
   },
   subgraph: {
-    name: "DOS", // Defaults to the name of the root folder of the hardhat project
-    product: "subgraph-studio", // Defaults to 'subgraph-studio'
-    indexEvents: false, // Defaults to false
-    allowSimpleName: true, // Defaults to `false` if product is `hosted-service` and `true` if product is `subgraph-studio`
+    name: "DOS", // defaults to the name of the root folder of the hardhat project
+    product: "subgraph-studio", // defaults to 'subgraph-studio'
+    indexEvents: false, // defaults to false
+    allowSimpleName: true, // defaults to `false` if product is `hosted-service` and `true` if product is `subgraph-studio`
   },
   paths: {
-    subgraph: "./subgraph", // Defaults to './subgraph'
+    subgraph: "./subgraph", // defaults to './subgraph'
+  },
+  ethernal: {
+    email: process.env.ETHERNAL_EMAIL,
+    password: process.env.ETHERNAL_PASSWORD,
   },
 };
