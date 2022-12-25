@@ -3,13 +3,13 @@ pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {ImmutableOwnable} from "../lib/ImmutableOwnable.sol";
+import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 import {IERC20ValueOracle} from "../interfaces/IERC20ValueOracle.sol";
 import {FsMath} from "../lib/FsMath.sol";
 import {IDOS} from "../interfaces/IDOS.sol";
 import {IDuoswapV2Pair} from "../duoswapV2/interfaces/IDuoswapV2Pair.sol";
 
-contract UniV2Oracle is ImmutableOwnable, IERC20ValueOracle {
+contract UniV2Oracle is ImmutableGovernance, IERC20ValueOracle {
     IDOS public immutable dos;
     IDuoswapV2Pair public immutable pair;
     // address public immutable dSafe;
@@ -18,7 +18,7 @@ contract UniV2Oracle is ImmutableOwnable, IERC20ValueOracle {
 
     mapping(address => IERC20ValueOracle) public erc20ValueOracle;
 
-    constructor(address _dos, address _pair, address _owner) ImmutableOwnable(_owner) {
+    constructor(address _dos, address _pair, address _owner) ImmutableGovernance(_owner) {
         if (_dos == address(0) || _pair == address(0) || _owner == address(0)) {
             revert("Zero address");
         }
@@ -33,7 +33,7 @@ contract UniV2Oracle is ImmutableOwnable, IERC20ValueOracle {
     /// @notice Set the oracle for an underlying token
     /// @param erc20 The underlying token
     /// @param oracle The oracle for the underlying token
-    function setERC20ValueOracle(address erc20, address oracle) external onlyOwner {
+    function setERC20ValueOracle(address erc20, address oracle) external onlyGovernance {
         erc20ValueOracle[erc20] = IERC20ValueOracle(oracle);
     }
 

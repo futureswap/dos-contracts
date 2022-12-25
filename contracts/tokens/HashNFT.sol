@@ -18,12 +18,7 @@ contract HashNFT is ERC1155Burnable {
     bytes constant HASHNFT_TYPESTRING = "HashNFT(address minter,bytes32 digest)";
     bytes32 constant HASHNFT_TYPEHASH = keccak256(HASHNFT_TYPESTRING);
 
-    event Minted(
-        uint256 indexed tokenId,
-        address indexed minter,
-        address indexed to,
-        bytes32 digest
-    );
+    event Minted(uint256 indexed tokenId, address indexed minter, bytes32 indexed digest);
 
     constructor(string memory uri) ERC1155(uri) {}
 
@@ -34,7 +29,7 @@ contract HashNFT is ERC1155Burnable {
     ) external returns (uint256 tokenId) {
         tokenId = toTokenId(msg.sender, digest);
         _mint(to, tokenId, 1, data);
-        emit Minted(tokenId, msg.sender, to, digest);
+        emit Minted(tokenId, msg.sender, digest);
     }
 
     // The minter can revoke tokens it minted.

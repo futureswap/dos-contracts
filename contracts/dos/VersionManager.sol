@@ -5,11 +5,11 @@ pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/utils/Address.sol";
 import {FsUtils} from "../lib/FsUtils.sol";
-import {ImmutableOwnable} from "../lib/ImmutableOwnable.sol";
+import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 import {ImmutableVersion} from "../lib/ImmutableVersion.sol";
 import "../interfaces/IVersionManager.sol";
 
-contract VersionManager is IVersionManager, ImmutableOwnable {
+contract VersionManager is IVersionManager, ImmutableGovernance {
     /// @notice Array of all version names
     string[] internal _versionString;
 
@@ -26,12 +26,12 @@ contract VersionManager is IVersionManager, ImmutableOwnable {
         _;
     }
 
-    constructor(address _owner) ImmutableOwnable(_owner) {}
+    constructor(address _owner) ImmutableGovernance(_owner) {}
 
     /// @notice Registers a new version of the store contract
     /// @param status Status of the version to be added
     /// @param _implementation The address of the implementation of the version
-    function addVersion(Status status, address _implementation) external onlyOwner {
+    function addVersion(Status status, address _implementation) external onlyGovernance {
         address implementation = FsUtils.nonNull(_implementation);
         // implementation must be a contract
         if (!Address.isContract(implementation)) {
@@ -75,7 +75,7 @@ contract VersionManager is IVersionManager, ImmutableOwnable {
         string calldata versionName,
         Status status,
         BugLevel bugLevel
-    ) external onlyOwner versionExists(versionName) {
+    ) external onlyGovernance versionExists(versionName) {
         _versions[versionName].status = status;
         _versions[versionName].bugLevel = bugLevel;
 
@@ -86,7 +86,7 @@ contract VersionManager is IVersionManager, ImmutableOwnable {
     /// @param versionName Version of the contract
     function markRecommendedVersion(
         string calldata versionName
-    ) external onlyOwner versionExists(versionName) {
+    ) external onlyGovernance versionExists(versionName) {
         // set the version name as the recommended version
         _recommendedVersion = versionName;
 
@@ -94,7 +94,7 @@ contract VersionManager is IVersionManager, ImmutableOwnable {
     }
 
     /// @notice Remove the recommended version
-    function removeRecommendedVersion() external onlyOwner {
+    function removeRecommendedVersion() external onlyGovernance {
         // delete the recommended version name
         delete _recommendedVersion;
 

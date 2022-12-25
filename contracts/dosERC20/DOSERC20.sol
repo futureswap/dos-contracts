@@ -10,16 +10,16 @@ import "@openzeppelin/contracts/interfaces/IERC1363Receiver.sol";
 import "@openzeppelin/contracts/interfaces/IERC1363Spender.sol";
 import "../interfaces/IDOS.sol";
 import "../lib/FsUtils.sol";
-import "../lib/ImmutableOwnable.sol";
+import "../lib/ImmutableGovernance.sol";
 
-contract DOSERC20 is IDOSERC20, ERC20Permit, IERC1363, ImmutableOwnable {
+contract DOSERC20 is IDOSERC20, ERC20Permit, IERC1363, ImmutableGovernance {
     uint8 private immutable erc20Decimals;
 
     constructor(
         string memory _name,
         string memory _symbol,
         uint8 _decimals
-    ) ImmutableOwnable(msg.sender) ERC20(_name, _symbol) ERC20Permit(_symbol) {
+    ) ImmutableGovernance(msg.sender) ERC20(_name, _symbol) ERC20Permit(_symbol) {
         erc20Decimals = _decimals;
     }
 
@@ -29,12 +29,12 @@ contract DOSERC20 is IDOSERC20, ERC20Permit, IERC1363, ImmutableOwnable {
     }
 
     /// @notice burn amount tokens from account
-    function burn(address account, uint256 amount) external override onlyOwner {
+    function burn(address account, uint256 amount) external override onlyGovernance {
         _burn(account, amount);
     }
 
     /// @notice mint amount tokens to account
-    function mint(address account, uint256 amount) external override onlyOwner {
+    function mint(address account, uint256 amount) external override onlyGovernance {
         _mint(account, amount);
     }
 
