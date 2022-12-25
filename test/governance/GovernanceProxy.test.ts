@@ -6,6 +6,7 @@ import {
   GovernanceProxy__factory,
   Governance__factory,
   HashNFT__factory,
+  TestERC20__factory,
 } from "../../typechain-types";
 import {proposeAndExecute, makeCall} from "../../lib/calls";
 
@@ -26,10 +27,10 @@ describe("Governance test", () => {
     const [owner, voting, user] = await ethers.getSigners();
 
     const governanceProxy = await new GovernanceProxy__factory(owner).deploy(owner.address);
-    const voteNFT = await new HashNFT__factory(voting).deploy("HashERC1155");
+    const hashNFT = await new HashNFT__factory(voting).deploy("HashERC1155");
     const governance = await new Governance__factory(owner).deploy(
       governanceProxy.address,
-      voteNFT.address,
+      hashNFT.address,
       voting.address,
     );
     await governanceProxy.executeBatch([
@@ -41,7 +42,7 @@ describe("Governance test", () => {
       voting,
       user,
       governanceProxy,
-      voteNFT,
+      hashNFT,
       governance,
     };
   }
@@ -50,7 +51,7 @@ describe("Governance test", () => {
     it("Non-governance cannot execute", async () => {
       const {user, governanceProxy} = await loadFixture(deployGovernanceProxyFixture);
       await expect(governanceProxy.connect(user).executeBatch([])).to.be.revertedWith(
-        "Only governance",
+        "OnlyGovernance()",
       );
     });
 
@@ -76,11 +77,11 @@ describe("Governance test", () => {
       const {user, governanceProxy} = await loadFixture(deployGovernanceProxyFixture);
 
       await expect(governanceProxy.proposeGovernance(user.address)).to.be.revertedWith(
-        "Only governance",
+        "OnlyGovernance()",
       );
       await expect(
         governanceProxy.connect(user).proposeGovernance(user.address),
-      ).to.be.revertedWith("Only governance");
+      ).to.be.revertedWith("OnlyGovernance()");
     });
 
     it("Proposed governance can execute and execute properly forwards function", async () => {
@@ -112,9 +113,9 @@ describe("Governance test", () => {
   });
 
   it("NFT vote and execute", async () => {
-    const {voteNFT, governance} = await loadFixture(deployGovernance);
+    const {hashNFT, governance} = await loadFixture(deployGovernance);
 
-    await expect(proposeAndExecute(governance, voteNFT, [])).to.not.be.reverted;
+    await expect(proposeAndExecute(governance, hashNFT, [])).to.not.be.reverted;
   });
 
   it("Cannot execute unless owning NFT", async () => {
@@ -126,27 +127,212 @@ describe("Governance test", () => {
   });
 
   it("Only voting can propose correct NFT", async () => {
-    const {user, voteNFT, governance} = await loadFixture(deployGovernance);
+    const {user, hashNFT, governance} = await loadFixture(deployGovernance);
 
-    await expect(proposeAndExecute(governance, voteNFT.connect(user), [])).to.be.revertedWith(
-      "ERC1155: burn amount exceeds balance",
-    );
-  });
-
-  it("Only voting can propose NFT", async () => {
-    const {user, voteNFT, governance} = await loadFixture(deployGovernance);
-
-    await expect(proposeAndExecute(governance, voteNFT.connect(user), [])).to.be.revertedWith(
+    await expect(proposeAndExecute(governance, hashNFT.connect(user), [])).to.be.revertedWith(
       "ERC1155: burn amount exceeds balance",
     );
   });
 
   it("Governance can change voting", async () => {
-    const {user, voteNFT, governance} = await loadFixture(deployGovernance);
+    const {user, hashNFT, governance} = await loadFixture(deployGovernance);
 
-    await proposeAndExecute(governance, voteNFT, [
+    await proposeAndExecute(governance, hashNFT, [
       makeCall(governance).transferVoting(user.address),
     ]);
     expect(await governance.voting()).to.equal(user.address);
+  });
+
+  it("Governance can set access level", async () => {
+    const {hashNFT, governance} = await loadFixture(deployGovernance);
+
+    const func = hashNFT.interface.getFunction("mint");
+
+    await proposeAndExecute(governance, hashNFT, [
+      makeCall(governance).setAccessLevel(
+        hashNFT.address,
+        hashNFT.interface.getSighash(func),
+        1,
+        true,
+      ),
+    ]);
+    expect(
+      await governance.bitmaskByAddressBySelector(
+        hashNFT.address,
+        hashNFT.interface.getSighash(func),
+      ),
+    ).to.equal(1 << 1);
+  });
+
+  it("Governance can mint access", async () => {
+    const {user, hashNFT, governance} = await loadFixture(deployGovernance);
+
+    await proposeAndExecute(governance, hashNFT, [
+      makeCall(governance).mintAccess(user.address, 1, "0x"),
+    ]);
+    expect(await governance.hasAccess(user.address, 1)).to.equal(true);
+  });
+
+  it("User with proper access level can execute call to function with access level set", async () => {
+    const {user, hashNFT, governance, governanceProxy} = await loadFixture(deployGovernance);
+
+    const test = await new TestERC20__factory(user).deploy("Test", "TST", 18);
+    await test.mint(governanceProxy.address, 1);
+
+    const testMethod = test.interface.getFunction("transfer");
+
+    await proposeAndExecute(governance, hashNFT, [
+      makeCall(governance).setAccessLevel(
+        test.address,
+        test.interface.getSighash(testMethod),
+        1,
+        true,
+      ),
+    ]);
+    await proposeAndExecute(governance, hashNFT, [
+      makeCall(governance).mintAccess(user.address, 1, "0x"),
+    ]);
+
+    // user has clearance to execute test.transfer
+    await governance
+      .connect(user)
+      .executeBatchWithClearance([makeCall(test).transfer(user.address, 1)], 1);
+    expect(await test.balanceOf(user.address)).to.equal(1);
+    // user has no clearance to execute test.approve
+    await expect(
+      governance
+        .connect(user)
+        .executeBatchWithClearance([makeCall(test).approve(user.address, 1)], 1),
+    ).to.be.revertedWith("CallDenied");
+  });
+
+  it("User with proper access level cannot execute call to function without access level set", async () => {
+    const {user, hashNFT, governance} = await loadFixture(deployGovernance);
+
+    const test = await new TestERC20__factory(user).deploy("Test", "TST", 18);
+
+    await proposeAndExecute(governance, hashNFT, [
+      makeCall(governance).mintAccess(user.address, 1, "0x"),
+    ]);
+
+    // user has clearance to execute test.transfer
+    await expect(
+      governance
+        .connect(user)
+        .executeBatchWithClearance([makeCall(test).transfer(user.address, 1)], 1),
+    ).to.be.revertedWith("CallDenied");
+  });
+
+  it("Cannot execute functions at wrong access level", async () => {
+    const {user, hashNFT, governance, governanceProxy} = await loadFixture(deployGovernance);
+
+    const test = await new TestERC20__factory(user).deploy("Test", "TST", 18);
+    await test.mint(governanceProxy.address, 1);
+
+    const testMethod = test.interface.getFunction("transfer");
+
+    await proposeAndExecute(governance, hashNFT, [
+      makeCall(governance).setAccessLevel(
+        test.address,
+        test.interface.getSighash(testMethod),
+        2,
+        true,
+      ),
+    ]);
+    await proposeAndExecute(governance, hashNFT, [
+      makeCall(governance).mintAccess(user.address, 1, "0x"),
+    ]);
+    expect(await governance.hasAccess(user.address, 1)).to.equal(true);
+
+    await expect(
+      governance
+        .connect(user)
+        .executeBatchWithClearance([makeCall(test).transfer(user.address, 1)], 1),
+    ).to.be.revertedWith("CallDenied");
+  });
+
+  it("Cannot set access level of setAccessLevel", async () => {
+    const {hashNFT, governance} = await loadFixture(deployGovernance);
+
+    const method = governance.interface.getFunction("setAccessLevel");
+
+    await expect(
+      proposeAndExecute(governance, hashNFT, [
+        makeCall(governance).setAccessLevel(
+          governance.address,
+          governance.interface.getSighash(method),
+          1,
+          true,
+        ),
+      ]),
+    ).to.be.revertedWith("PrivilagedMethod");
+  });
+
+  it("Cannot set access level of transferVoting", async () => {
+    const {hashNFT, governance} = await loadFixture(deployGovernance);
+
+    const method = governance.interface.getFunction("transferVoting");
+
+    await expect(
+      proposeAndExecute(governance, hashNFT, [
+        makeCall(governance).setAccessLevel(
+          governance.address,
+          governance.interface.getSighash(method),
+          1,
+          true,
+        ),
+      ]),
+    ).to.be.revertedWith("PrivilagedMethod");
+  });
+
+  it("Cannot set access level of mintAccess", async () => {
+    const {hashNFT, governance} = await loadFixture(deployGovernance);
+
+    const method = governance.interface.getFunction("mintAccess");
+
+    await expect(
+      proposeAndExecute(governance, hashNFT, [
+        makeCall(governance).setAccessLevel(
+          governance.address,
+          governance.interface.getSighash(method),
+          1,
+          true,
+        ),
+      ]),
+    ).to.be.revertedWith("PrivilagedMethod");
+  });
+
+  it("Can set access level of revokeAccess", async () => {
+    const {hashNFT, governance} = await loadFixture(deployGovernance);
+
+    const method = governance.interface.getFunction("revokeAccess");
+
+    await expect(
+      proposeAndExecute(governance, hashNFT, [
+        makeCall(governance).setAccessLevel(
+          governance.address,
+          governance.interface.getSighash(method),
+          1,
+          true,
+        ),
+      ]),
+    ).to.not.be.reverted;
+  });
+
+  it("Cannot set access level of proposeGovernance", async () => {
+    const {hashNFT, governance, governanceProxy} = await loadFixture(deployGovernance);
+
+    const method = governanceProxy.interface.getFunction("proposeGovernance");
+
+    await expect(
+      proposeAndExecute(governance, hashNFT, [
+        makeCall(governance).setAccessLevel(
+          governanceProxy.address,
+          governance.interface.getSighash(method),
+          1,
+          true,
+        ),
+      ]),
+    ).to.be.reverted;
   });
 });

@@ -820,7 +820,7 @@ describe("DOS", () => {
       expect(receiverNfts).to.eql([[nft.address, tokenId]]);
     });
   });
-  describe.skip("#integrationAPI", () => {
+  describe("#integrationAPI", () => {
     /*
     it("should set ERC20 token allowance when approve is called", async () => {
       const {user, user2, dos, usdc} = await loadFixture(deployDOSFixture);
