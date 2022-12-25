@@ -2,8 +2,10 @@
 pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 import "../lib/FsUtils.sol";
 import "../lib/ImmutableOwnable.sol";
+import "../lib/AccessControl.sol";
 import "../tokens/HashNFT.sol";
 import "../lib/Call.sol";
 
@@ -59,26 +61,36 @@ contract GovernanceProxy {
     }
 }
 
-contract Governance is ImmutableOwnable, IERC721Receiver {
-    HashNFT immutable voteNFT;
+contract Governance is AccessControl, ERC1155Receiver {
     address public voting;
+    mapping(address => mapping(bytes4 => uint256)) public accessLevelByAddressBySelector;
 
     constructor(
         address _governanceProxy,
-        address _voteNFT,
+        address _hashNFT,
         address _voting
-    ) ImmutableOwnable(_governanceProxy) {
-        voteNFT = HashNFT(FsUtils.nonNull(_voteNFT));
+    ) AccessControl(_governanceProxy, _hashNFT) {
         voting = FsUtils.nonNull(_voting);
     }
 
-    function executeBatch(uint256 nonce, CallWithoutValue[] memory calls) external {
-        uint256 tokenId = voteNFT.toTokenId(
-            voting,
-            nonce,
-            CallLib.hashCallWithoutValueArray(calls)
-        );
-        voteNFT.burn(tokenId); // reverts if tokenId isn't owned.
+    function executeBatch(CallWithoutValue[] memory calls) external {
+        uint256 tokenId = hashNFT.toTokenId(voting, CallLib.hashCallWithoutValueArray(calls));
+        hashNFT.burn(address(this), tokenId, 1); // reverts if tokenId isn't owned.
+        GovernanceProxy(immutableOwner).executeBatch(calls);
+    }
+
+    function executeBatchWithClearance(
+        CallWithoutValue[] memory calls,
+        uint256 accessLevel
+    ) external onlyAccess(accessLevel) {
+        for (uint256 i = 0; i < calls.length; i++) {
+            require(calls[i].callData.length >= 4, "Invalid call data");
+            bytes4 selector = bytes4(calls[i].callData);
+            require(
+                accessLevelByAddressBySelector[calls[i].to][selector] == accessLevel,
+                "Call not allowed"
+            );
+        }
         GovernanceProxy(immutableOwner).executeBatch(calls);
     }
 
@@ -86,13 +98,34 @@ contract Governance is ImmutableOwnable, IERC721Receiver {
         voting = newVoting;
     }
 
-    function onERC721Received(
+    function setAccessLevel(address addr, bytes4 selector, uint256 accessLevel) external onlyOwner {
+        // We cannot allow setting access level for this contract, since that would enable a designated
+        // caller to escalate their access level to include all privilaged functions in the system.
+        // By disallowing access levels for this contract we ensure that only the voting system can
+        // set access levels for other contracts.
+        require(addr != address(this), "Cannot set access level for this contract");
+        accessLevelByAddressBySelector[addr][selector] = accessLevel;
+    }
+
+    function onERC1155Received(
         address /* operator */,
         address /* from */,
-        uint256 /* tokenId */,
+        uint256 /* id */,
+        uint256 /* value */,
         bytes calldata /* data */
-    ) external view override returns (bytes4) {
-        require(msg.sender == address(voteNFT), "only vote NFTs");
-        return this.onERC721Received.selector;
+    ) external view returns (bytes4) {
+        require(msg.sender == address(hashNFT), "Only hashNFT");
+        return this.onERC1155Received.selector;
+    }
+
+    function onERC1155BatchReceived(
+        address /* operator */,
+        address /* from */,
+        uint256[] calldata /* ids */,
+        uint256[] calldata /* values */,
+        bytes calldata /* data */
+    ) external view returns (bytes4) {
+        require(msg.sender == address(hashNFT), "Only hashNFT");
+        return this.onERC1155BatchReceived.selector;
     }
 }

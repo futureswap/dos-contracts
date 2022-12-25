@@ -31,40 +31,30 @@ const basicTypes = [
   "bytes32",
 ];
 
+const getStructName = (name: string, type: ethers.TypedDataField[]) => {
+  return `${name}(${type.map(({name, type}) => `${type} ${name}`).join(",")})`;
+};
+
 // helper function to generate error prone typed data strings
 export const generateTypedDataString = (
   types: Record<string, ethers.TypedDataField[]>,
 ): Record<string, string> => {
-  const typesList = Object.entries(types);
-  const structTypes = Object.fromEntries(
-    typesList.map(([name, fields]) => [
-      name,
-      `${name}(${fields.map(({name, type}) => `${type} ${name}`).join(",")})`,
-    ]),
-  );
   const visit = (typeName: string, visited: Set<string>) => {
     while (typeName.endsWith("[]")) typeName = typeName.slice(0, -2);
-    if (visited.has(typeName)) {
-      return;
-    }
-    if (basicTypes.includes(typeName)) {
-      return;
-    }
+    if (visited.has(typeName)) return;
+    if (basicTypes.includes(typeName)) return;
     visited.add(typeName);
     const fields = checkDefined(types[typeName], `type ${typeName} not found`);
     fields.forEach(({type}) => visit(type, visited));
   };
-  const l = typesList.map(([typeName]) => {
+  const l = Object.entries(types).map(([typeName]) => {
     const visited = new Set<string>();
     visit(typeName, visited);
     visited.delete(typeName);
+    const deps = Array.from(visited.values()).sort();
     return [
       typeName,
-      structTypes[typeName].concat(
-        ...Array.from(visited.values())
-          .sort()
-          .map(typeName => structTypes[typeName]),
-      ),
+      [typeName, ...deps].map(type => getStructName(type, types[type])).join(""),
     ] as [string, string];
   });
   return Object.fromEntries(l);
