@@ -4,14 +4,14 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 import "../lib/FsUtils.sol";
-import "../lib/ImmutableOwnable.sol";
+import "../lib/ImmutableGovernance.sol";
 import "../lib/AccessControl.sol";
 import "../tokens/HashNFT.sol";
 import "../lib/Call.sol";
 
 // This is a proxy contract representing governance. This allows a fixed
 // ethereum address to be the indefinite owner of the system. This works
-// nicely with ImmutableOwnable allowing owner to be stored in contract
+// nicely with ImmutableGovernance allowing owner to be stored in contract
 // code instead of storage. Note that a governance account only has to
 // interact with the "execute" method. Proposing new governance or accepting
 // governance is done through calls to "execute", simplifying voting
@@ -107,7 +107,7 @@ contract Governance is AccessControl, ERC1155Receiver {
         governanceProxy().executeBatch(calls);
     }
 
-    function transferVoting(address newVoting) external onlyOwner {
+    function transferVoting(address newVoting) external onlyGovernance {
         voting = newVoting;
     }
 
@@ -116,7 +116,7 @@ contract Governance is AccessControl, ERC1155Receiver {
         bytes4 selector,
         uint8 accessLevel,
         bool allowed
-    ) external onlyOwner {
+    ) external onlyGovernance {
         // We cannot allow setting access level for this contract, since that would enable a designated
         // caller to escalate their access level to include all privilaged functions in the system.
         // By disallowing access levels for this contract we ensure that only the voting system can
@@ -124,7 +124,7 @@ contract Governance is AccessControl, ERC1155Receiver {
         // proxy.
         if (
             (addr == address(this) && selector != this.revokeAccess.selector) ||
-            addr == immutableOwner
+            addr == immutableGovernance
         ) {
             revert PrivilagedMethod(addr, selector);
         }
@@ -158,6 +158,6 @@ contract Governance is AccessControl, ERC1155Receiver {
     }
 
     function governanceProxy() internal view returns (GovernanceProxy) {
-        return GovernanceProxy(immutableOwner);
+        return GovernanceProxy(immutableGovernance);
     }
 }

@@ -3,13 +3,13 @@ pragma solidity ^0.8.17;
 
 import "../tokens/HashNFT.sol";
 import "../lib/FsUtils.sol";
-import "./ImmutableOwnable.sol";
+import "./ImmutableGovernance.sol";
 
 /// @title AccessControl
 /// @notice Access control based on HashNFT ownership.
 /// @dev The owner can grant access rights to an address by minting a HashNFT token
 /// to the address with the given access level.
-contract AccessControl is ImmutableOwnable {
+contract AccessControl is ImmutableGovernance {
     enum AccessLevel {
         SECURITY, // Can operate immediately on pausing exchange
         FINANCIAL_RISK // Can set fees, risk factors and interest rates
@@ -17,15 +17,19 @@ contract AccessControl is ImmutableOwnable {
 
     HashNFT internal immutable hashNFT;
 
-    constructor(address owner, address hashNFT_) ImmutableOwnable(owner) {
+    constructor(address owner, address hashNFT_) ImmutableGovernance(owner) {
         hashNFT = HashNFT(FsUtils.nonNull(hashNFT_));
     }
 
-    function mintAccess(address to, uint256 accessLevel, bytes calldata data) external onlyOwner {
+    function mintAccess(
+        address to,
+        uint256 accessLevel,
+        bytes calldata data
+    ) external onlyGovernance {
         hashNFT.mint(to, bytes32(accessLevel), data);
     }
 
-    function revokeAccess(address from, uint256 accessLevel) external onlyOwner {
+    function revokeAccess(address from, uint256 accessLevel) external onlyGovernance {
         hashNFT.revoke(from, bytes32(accessLevel));
     }
 

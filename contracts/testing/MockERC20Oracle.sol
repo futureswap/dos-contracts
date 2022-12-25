@@ -2,14 +2,18 @@
 pragma solidity ^0.8.17;
 
 import "../interfaces/IERC20ValueOracle.sol";
-import "../lib/ImmutableOwnable.sol";
+import "../lib/ImmutableGovernance.sol";
 
-contract MockERC20Oracle is IERC20ValueOracle, ImmutableOwnable {
+contract MockERC20Oracle is IERC20ValueOracle, ImmutableGovernance {
     int256 public price;
 
-    constructor(address owner) ImmutableOwnable(owner) {}
+    constructor(address owner) ImmutableGovernance(owner) {}
 
-    function setPrice(int256 _price, uint256 baseDecimals, uint256 decimals) external onlyOwner {
+    function setPrice(
+        int256 _price,
+        uint256 baseDecimals,
+        uint256 decimals
+    ) external onlyGovernance {
         price = (_price * (int256(10) ** (18 + baseDecimals - decimals))) / 1 ether;
     }
 

@@ -781,10 +781,10 @@ contract DOS is IDOSCore, IERC721Receiver, Proxy {
     }
 }
 
-contract DOSConfig is ImmutableOwnable, IDOSConfig {
+contract DOSConfig is ImmutableGovernance, IDOSConfig {
     DOSLib.DOSState state;
 
-    constructor(address _owner) ImmutableOwnable(_owner) {}
+    constructor(address _owner) ImmutableGovernance(_owner) {}
 
     function upgradeImplementation(address dSafe, uint256 version) external {
         address dSafeOwner = state.dSafes[dSafe].owner;
@@ -801,7 +801,7 @@ contract DOSConfig is ImmutableOwnable, IDOSConfig {
         int256 colFactor,
         int256 borrowFactor,
         int256 interest
-    ) external onlyOwner returns (uint16) {
+    ) external onlyGovernance returns (uint16) {
         uint16 erc20Idx = uint16(state.erc20Infos.length);
         DOSERC20 dosToken = new DOSERC20(name, symbol, decimals);
         state.erc20Infos.push(
@@ -837,14 +837,14 @@ contract DOSConfig is ImmutableOwnable, IDOSConfig {
         address nftContract,
         address valueOracleAddress,
         int256 collateralFactor
-    ) external onlyOwner {
+    ) external onlyGovernance {
         INFTValueOracle valueOracle = INFTValueOracle(valueOracleAddress);
         uint256 erc721Idx = state.erc721Infos.length;
         state.erc721Infos.push(ERC721Info(nftContract, valueOracle, collateralFactor));
         state.infoIdx[nftContract] = ContractData(uint16(erc721Idx), ContractKind.ERC721);
     }
 
-    function setConfig(Config calldata _config) external onlyOwner {
+    function setConfig(Config calldata _config) external onlyGovernance {
         state.config = _config;
     }
 

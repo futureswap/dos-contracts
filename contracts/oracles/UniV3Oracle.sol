@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "../lib/ImmutableOwnable.sol";
+import "../lib/ImmutableGovernance.sol";
 import "../interfaces/IERC20ValueOracle.sol";
 import "../interfaces/INFTValueOracle.sol";
 import "../lib/FsMath.sol";
@@ -88,7 +88,7 @@ interface INPM {
         );
 }
 
-contract UniV3Oracle is ImmutableOwnable, INFTValueOracle {
+contract UniV3Oracle is ImmutableGovernance, INFTValueOracle {
     INPM public immutable manager;
     IUniswapV3Factory public immutable factory;
 
@@ -96,12 +96,12 @@ contract UniV3Oracle is ImmutableOwnable, INFTValueOracle {
 
     int256 constant Q96 = int256(FixedPoint96.Q96);
 
-    constructor(address _factory, address _manager, address _owner) ImmutableOwnable(_owner) {
+    constructor(address _factory, address _manager, address _owner) ImmutableGovernance(_owner) {
         manager = INPM(_manager);
         factory = IUniswapV3Factory(_factory);
     }
 
-    function setERC20ValueOracle(address token, address oracle) external onlyOwner {
+    function setERC20ValueOracle(address token, address oracle) external onlyGovernance {
         erc20ValueOracle[token] = IERC20ValueOracle(oracle);
     }
 
