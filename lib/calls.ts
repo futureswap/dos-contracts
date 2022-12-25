@@ -128,9 +128,8 @@ export async function proposeAndExecute(
   calls: Call[],
 ): Promise<ContractTransaction> {
   if (calls.some(({value}) => value != 0n)) throw new Error("Value cannot be positive");
-  const nonce = await voteNFT.mintingNonce();
-  await voteNFT.mint(governance.address, hashCallWithoutValueArray(calls));
-  return await governance.executeBatch(nonce, calls);
+  await voteNFT.mint(governance.address, hashCallWithoutValueArray(calls), "0x");
+  return await governance.executeBatch(calls);
 }
 
 export const createDSafe = async (dos: IDOS, signer: ethers.Signer): Promise<DSafeLogic> => {

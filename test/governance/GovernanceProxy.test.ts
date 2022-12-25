@@ -26,7 +26,7 @@ describe("Governance test", () => {
     const [owner, voting, user] = await ethers.getSigners();
 
     const governanceProxy = await new GovernanceProxy__factory(owner).deploy(owner.address);
-    const voteNFT = await new HashNFT__factory(voting).deploy("Voting token", "VTOK");
+    const voteNFT = await new HashNFT__factory(voting).deploy("HashERC1155");
     const governance = await new Governance__factory(owner).deploy(
       governanceProxy.address,
       voteNFT.address,
@@ -120,14 +120,16 @@ describe("Governance test", () => {
   it("Cannot execute unless owning NFT", async () => {
     const {governance} = await loadFixture(deployGovernance);
 
-    await expect(governance.executeBatch(0, [])).to.be.revertedWith("ERC721: invalid token ID");
+    await expect(governance.executeBatch([])).to.be.revertedWith(
+      "ERC1155: burn amount exceeds balance",
+    );
   });
 
   it("Only voting can propose correct NFT", async () => {
     const {user, voteNFT, governance} = await loadFixture(deployGovernance);
 
     await expect(proposeAndExecute(governance, voteNFT.connect(user), [])).to.be.revertedWith(
-      "ERC721: invalid token ID",
+      "ERC1155: burn amount exceeds balance",
     );
   });
 
@@ -135,7 +137,7 @@ describe("Governance test", () => {
     const {user, voteNFT, governance} = await loadFixture(deployGovernance);
 
     await expect(proposeAndExecute(governance, voteNFT.connect(user), [])).to.be.revertedWith(
-      "ERC721: invalid token ID",
+      "ERC1155: burn amount exceeds balance",
     );
   });
 

@@ -10,6 +10,7 @@ async function main() {
   const contracts = await setupLocalhost(deployer, env);
   await saveAddressesForNetwork(contracts);
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
   await hre.ethernal.startListening();
   for (const [key, value] of Object.entries(contracts)) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, no-await-in-loop, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
