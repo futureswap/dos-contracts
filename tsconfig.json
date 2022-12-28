@@ -14,5 +14,6 @@
     "compilerOptions": {
       "module": "CommonJS"
     }
-  }
+  },
+  "include": ["lib/**/*", "scripts/**/*", "test/**/*", "hardhat.config.ts"]
 }
