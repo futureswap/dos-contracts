@@ -38,7 +38,7 @@ interface IDOSConfig {
 
     event DSafeCreated(address dSafe, address owner);
 
-    function upgradeImplementation(address dSafe, uint256 version) external;
+    function upgradeDSafeImplementation(address dSafe, uint256 version) external;
 
     function addERC20Info(
         address erc20Contract,
@@ -60,6 +60,10 @@ interface IDOSConfig {
     function setConfig(Config calldata _config) external;
 
     function createDSafe() external returns (address dSafe);
+
+    function pause() external;
+
+    function unpause() external;
 
     function getDAccountERC20(address dSafe, IERC20 erc20) external view returns (int256);
 

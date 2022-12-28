@@ -32,28 +32,7 @@ async function main() {
   const networkContracts = getContracts(networkAddresses, deployer);
 
   const dos = networkContracts.dos as IDOS;
-  const transferAndCall2 = networkContracts.transferAndCall2 as TransferAndCall2;
-  const usdc = networkContracts.usdc as IERC20WithMetadata;
-  const weth = networkContracts.weth as IWETH9;
-  // const uni = networkContracts.uni as IERC20WithMetadata;
-  // const nonFungiblePositionManager = networkContracts.nonFungiblePositionManager;
-  const swapRouter = networkContracts.swapRouter as ISwapRouter;
-
-  // const dSafeInitialLiq = attachDSafe(dSafeInitialLiqAddress, deployer);
-  const dSafeLeverage = attachDSafe(dSafeLeverageAddress, deployer);
-
-  const nonce = 0;
-
-  const amount = toWei(1000, 6);
-  await doAwait(
-    await depositIntoSafeAndCall(
-      transferAndCall2,
-      dSafeLeverage,
-      [{token: usdc.address, amount}],
-      leveragePos(dSafeLeverage, dos, usdc, weth, 3000, swapRouter, amount * 2n),
-      nonce,
-    ),
-  );
+  console.log(dos.interface.encodeFunctionData("depositERC20", [Promise.resolve(networkAddresses.weth), toWei(1000)]));
 }
 
 // we recommend this pattern to be able to use async/await everywhere

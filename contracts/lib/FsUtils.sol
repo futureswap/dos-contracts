@@ -89,3 +89,57 @@ library FsUtils {
         // END STRIP
     }
 }
+
+library TrieLib {
+    function verify(
+        bytes32 key,
+        bytes memory value,
+        bytes32 root,
+        bytes[] memory proof
+    ) internal pure {
+        bytes memory nibbles = new bytes(64);
+        bytes32 keyBytes = bytes32(uint256(uint160(key)));
+        for (uint256 i = 0; i < 32; i++) {
+            nibbles[i * 2] = keyBytes[12 + i] >> 4;
+            nibbles[i * 2 + 1] = keyBytes[12 + i] & bytes1(uint8(0xf));
+        }
+        uint256 p = 0;
+        for (uint256 i = 0; i < proof.length; i++) {
+            require(keccak256(proof[i]) == root, "Invalid proof");
+            rlpDecode(proof[i]);
+        }
+    }
+}
+/*
+library RLP {
+    struct RLPItem {
+        uint256 len;
+        uint256 memPtr;
+    }
+
+    function rlpDecode(bytes memory buffer) internal pure returns (RLPItem[] memory) {
+        if (buffer.length == 0) {
+            return new RLPItem[](0);
+        }
+        uint memPtr = buffer.memPtr();
+
+        // for (uint i = 0; i <)
+    }
+}
+
+library VerifyStorage {
+    function verifyStorage(bytes32[] memory proof, bytes32 root, bytes32 key) internal pure {
+        bytes32 value = 0;
+        bytes32 computedHash = keccak256(abi.encodePacked(key, value));
+        for (uint256 i = 0; i < proof.length; i++) {
+            bytes32 proofElement = proof[i];
+            if (computedHash < proofElement) {
+                computedHash = keccak256(abi.encodePacked(computedHash, proofElement));
+            } else {
+                computedHash = keccak256(abi.encodePacked(proofElement, computedHash));
+            }
+        }
+        require(computedHash == root, "Invalid storage proof");
+    }
+}
+*/

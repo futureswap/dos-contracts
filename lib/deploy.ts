@@ -23,6 +23,8 @@ import type {
   IUniswapV3Pool,
   IWETH9,
   TestERC20,
+  DOS,
+  UniV3Oracle,
 } from "../typechain-types";
 import type {TransactionRequest} from "@ethersproject/abstract-provider";
 
@@ -63,8 +65,9 @@ import addressesJSON from "../deployment/addresses.json";
 import {getEventsTx} from "./events";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
-import {createDSafe, depositIntoDos, leverageLP2, makeCall, proposeAndExecute} from "./calls";
+import {createDSafe, depositIntoDos, getSelector, leverageLP2, makeCall, proposeAndExecute} from "./calls";
 import {checkDefined, checkState} from "./preconditions";
+import { TimeLockedCall__factory } from "../typechain-types/factories/contracts/governance/TimeLockedCall__factory";
 
 export async function deployUniswapPool(
   uniswapV3Factory: IUniswapV3Factory,
@@ -142,14 +145,14 @@ export async function deployUniswapFactory(
 }
 
 export async function deployGovernance(governanceProxy: GovernanceProxy): Promise<{
-  voteNFT: HashNFT;
+  hashNFT: HashNFT;
   governance: Governance;
 }> {
   const signer = governanceProxy.signer;
-  const voteNFT = await new HashNFT__factory(signer).deploy("HashERC1155");
+  const hashNFT = await new HashNFT__factory(signer).deploy("HashERC1155");
   const governance = await new Governance__factory(signer).deploy(
     governanceProxy.address,
-    voteNFT.address,
+    hashNFT.address,
     await signer.getAddress(),
   );
   await governanceProxy.executeBatch([
@@ -157,9 +160,9 @@ export async function deployGovernance(governanceProxy: GovernanceProxy): Promis
   ]);
   // empty execute such that governance accepts the governance role of the
   // governance proxy.
-  await proposeAndExecute(governance, voteNFT, []);
+  await proposeAndExecute(governance, hashNFT, []);
 
-  return {voteNFT, governance};
+  return {hashNFT, governance};
 }
 
 export class Chainlink {
@@ -661,3 +664,25 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
     swapRouter: env.swapRouter,
   };
 };
+
+export enum AccessLevel {
+  Admin = 0,
+  Timelock = 1,
+  Security = 2,
+}
+
+export const setupGovernance = async (governance: Governance, hashNFT: HashNFT, dos: IDOS, uniV3Oracle: UniV3Oracle) => {
+  const oneDayInSec = 60 * 60 * 24;
+  const timeLockedCall = await new TimeLockedCall__factory(governance.signer).deploy(governance.immutableGovernance(), AccessLevel.Timelock, oneDayInSec);
+  await proposeAndExecute(governance, hashNFT, [
+    makeCall(governance).setAccessLevel(...getSelector(dos).addERC20Info, AccessLevel.Timelock, true),
+    makeCall(governance).setAccessLevel(...getSelector(dos).addNFTInfo, AccessLevel.Timelock, true),
+    makeCall(governance).setAccessLevel(...getSelector(dos).setConfig, AccessLevel.Timelock, true),
+    makeCall(governance).setAccessLevel(...getSelector(uniV3Oracle).setERC20ValueOracle, AccessLevel.Timelock, true),
+    makeCall(governance).setAccessLevel(...getSelector(dos).pause, AccessLevel.Security, true),
+    makeCall(governance).mintAccess(timeLockedCall.address, AccessLevel.Timelock, "0x"),
+    makeCall(governance).mintAccess(await governance.signer.getAddress(), AccessLevel.Security, "0x"),
+    makeCall(governance).transferVoting(await governance.signer.getAddress(), AccessLevel.Admin, "0x"),
+  ]);
+  return {timeLockedCall};
+}

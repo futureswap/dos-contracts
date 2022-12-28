@@ -117,7 +117,7 @@ describe("DOS swap integration", () => {
     await usdc.mint(ownerDSafe.address, usdcAmount);
     await ownerDSafe.executeBatch(
       [
-        makeCall(weth).withValue(toWei(1000)).deposit(),
+        makeCall(weth, toWei(1000)).deposit(),
         makeCall(dos).depositERC20(usdc.address, usdcAmount),
         makeCall(dos).depositERC20(weth.address, wethAmount),
       ],
