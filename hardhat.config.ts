@@ -52,7 +52,7 @@ const config: HardhatUserConfig = {
             },
           },
 
-          viaIR: false,
+          viaIR: true,
         },
       },
       {
@@ -70,7 +70,7 @@ const config: HardhatUserConfig = {
               yul: true,
             },
           },
-          viaIR: false,
+          viaIR: true,
         },
       },
     ],

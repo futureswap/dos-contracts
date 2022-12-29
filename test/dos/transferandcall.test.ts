@@ -18,7 +18,7 @@ const WETH_DECIMALS = 18;
 const tenThousandUsdc = toWei(10_000, USDC_DECIMALS);
 const oneEth = toWei(1);
 
-describe("DOS", () => {
+describe("TransferAndCall2", () => {
   // we define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
