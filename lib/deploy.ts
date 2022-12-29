@@ -248,7 +248,7 @@ export const governatorAddress = "0x6eEf89f0383dD76c06A8a6Ead63cf95795B5bA3F";
 export const testGovernatorAddress = "0xc9B6088732E83ef013873e2f04d032F1a7a2E42D";
 
 export const testGovernatorHardhatSignature =
-  "0x765e448f2a48fea5d139657a1101f253fa0429290418986be14597b438f82930758678dc120a1fe7acfec1ada7f0095626235355970bc15c8bc5d452a47b2a821b";
+  "0xdac1d5f854314694698344193a85e61e0d84273ab34097dd2c184ff5a203754b7c0a4d788fda789ebfb8fcaa7dd2bf6a69bb143e520bec233a1511c27bd2b8dc1c";
 
 export const deployOffchainEntityProxy = async (
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
@@ -311,6 +311,7 @@ export const deployFixedAddressForTests = async (
       fsSalt,
       testGovernatorAddress,
     );
+    console.log("futureSwapProxy", futureSwapProxy.address);
     // eslint-disable-next-line require-atomic-updates
     governanceProxy = await deployGovernanceProxy(
       isCoverage ? await signer.getAddress() : futureSwapProxy.address,
