@@ -17,17 +17,8 @@ import "../interfaces/IVersionManager.sol";
 import "../interfaces/ITransferReceiver2.sol";
 import "../external/interfaces/IPermit2.sol";
 import {ISafe} from "../interfaces/ISafe.sol";
-
-contract DSafeState {
-    IDOS internal immutable dos;
-
-    bool internal forwardNFT; // TODO: find better way to dedup between proxy / logic
-
-    constructor(address _dos) {
-        // slither-disable-next-line missing-zero-check
-        dos = IDOS(FsUtils.nonNull(_dos));
-    }
-}
+import "./DSafeState.sol";
+import "./Liquifier.sol";
 
 // Inspired by TransparentUpdatableProxy
 contract DSafeProxy is DSafeState, Proxy {
@@ -81,7 +72,8 @@ contract DSafeLogic is
     IERC1271,
     ITransferReceiver2,
     EIP712,
-    ISafe
+    ISafe,
+    Liquifier
 {
     struct Nonce {
         uint256 bitfield;
@@ -159,108 +151,6 @@ contract DSafeLogic is
         forwardNFT = _forwardNFT;
     }
 
-    function liquify(
-        address dSafe,
-        address swapRouter,
-        address numeraire,
-        IERC20[] calldata erc20s
-    ) external {
-        if (msg.sender != address(this)) {
-            require(msg.sender == dos.getDSafeOwner(address(this)), "only owner");
-
-            Call[] memory calls = new Call[](1);
-            calls[0] = Call({
-                to: address(this),
-                callData: abi.encodeWithSelector(
-                    this.liquify.selector,
-                    dSafe,
-                    swapRouter,
-                    numeraire,
-                    erc20s
-                ),
-                value: 0
-            });
-            dos.executeBatch(calls);
-            return;
-        }
-        // Liquidate the dSafe
-        dos.liquidate(dSafe);
-
-        // Withdraw all non-numeraire collateral
-        int256[] memory balances = new int256[](erc20s.length);
-        uint256 ncollaterals = 0;
-        uint256 ndebts = 0;
-        {
-            for (uint256 i = 0; i < erc20s.length; i++) {
-                int256 balance = dos.getDAccountERC20(address(this), erc20s[i]);
-                balances[i] = balance;
-                if (balance > 0) {
-                    ncollaterals++;
-                } else if (balance < 0) {
-                    ndebts++;
-                }
-            }
-        }
-        IERC20[] memory collaterals = new IERC20[](ncollaterals + 1);
-        collaterals[0] = IERC20(numeraire);
-        IERC20[] memory debts = new IERC20[](ndebts + 1);
-        debts[0] = IERC20(numeraire);
-        {
-            uint256 colI = 1;
-            uint256 debI = 1;
-            for (uint256 i = 0; i < erc20s.length; i++) {
-                if (balances[i] > 0) {
-                    collaterals[colI++] = erc20s[i];
-                } else if (balances[i] < 0) {
-                    debts[debI++] = erc20s[i];
-                }
-            }
-        }
-        dos.withdrawFull(collaterals);
-
-        // Swap all non-numeraire collateral to numeraire
-        for (uint256 i = 0; i < erc20s.length; i++) {
-            int256 balance = balances[i];
-            if (balance > 0) {
-                ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
-                    .ExactInputSingleParams({
-                        tokenIn: address(erc20s[i]),
-                        tokenOut: numeraire,
-                        fee: 500,
-                        recipient: address(this),
-                        deadline: uint256(int256(-1)),
-                        amountIn: uint256(balance),
-                        amountOutMinimum: 0,
-                        sqrtPriceLimitX96: 0
-                    });
-                ISwapRouter(swapRouter).exactInputSingle(params);
-            }
-        }
-
-        // Repay all debt by swapping numeraire
-        for (uint256 i = 0; i < erc20s.length; i++) {
-            int256 balance = balances[i];
-            if (balance < 0) {
-                ISwapRouter.ExactOutputSingleParams memory params = ISwapRouter
-                    .ExactOutputSingleParams({
-                        tokenIn: numeraire,
-                        tokenOut: address(erc20s[i]),
-                        fee: 500,
-                        recipient: address(this),
-                        deadline: uint256(int256(-1)),
-                        amountOut: uint256(-balance),
-                        amountInMaximum: uint256(int256(-1)),
-                        sqrtPriceLimitX96: 0
-                    });
-                ISwapRouter(swapRouter).exactOutputSingle(params);
-            }
-        }
-
-        // Deposit numeraire
-        dos.depositFull(debts);
-    }
-
-    /// @inheritdoc IERC721Receiver
     function onERC721Received(
         address /* operator */,
         address /* from */,

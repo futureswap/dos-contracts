@@ -10,8 +10,8 @@ import {
   WETH9__factory,
   UniV3Oracle__factory,
 } from "../../typechain-types";
-import {toWei} from "../../lib/numbers";
-import {createDSafe, leverageLP, leveragePos, makeCall} from "../../lib/calls";
+import {toWei, toWeiUsdc} from "../../lib/numbers";
+import {createDSafe, depositErc20, leverageLP, leveragePos, makeCall} from "../../lib/calls";
 import {
   Chainlink,
   deployDos,
@@ -111,7 +111,7 @@ describe("DOS swap integration", () => {
     await dos.addNFTInfo(nonFungiblePositionManager.address, uniswapNftOracle.address, toWei(0.9));
 
     const ownerDSafe = await createDSafe(dos, owner);
-    const usdcAmount = toWei(2000000, USDC_DECIMALS);
+    const usdcAmount = toWeiUsdc(2_000_000);
     const wethAmount = toWei(1000);
 
     await usdc.mint(ownerDSafe.address, usdcAmount);
@@ -133,6 +133,13 @@ describe("DOS swap integration", () => {
       return {nfts, usdcBalance: usdcBalance.toBigInt(), wethBalance: wethBalance.toBigInt()};
     };
 
+    const addAllowances = async (dSafe: DSafeLogic) => {
+      await dSafe.executeBatch([
+        makeCall(usdc).approve(swapRouter.address, ethers.constants.MaxUint256),
+        makeCall(weth).approve(swapRouter.address, ethers.constants.MaxUint256),
+      ]);
+    };
+
     return {
       owner,
       user,
@@ -146,6 +153,7 @@ describe("DOS swap integration", () => {
       nonFungiblePositionManager,
       swapRouter,
       getBalances,
+      addAllowances,
     };
   }
 
@@ -156,7 +164,7 @@ describe("DOS swap integration", () => {
       );
 
       const dSafe = await createDSafe(dos, user);
-      await usdc.mint(dSafe.address, toWei(1600, USDC_DECIMALS));
+      await usdc.mint(dSafe.address, toWeiUsdc(1_600));
 
       const mintParams = {
         token0: weth.address,
@@ -165,7 +173,7 @@ describe("DOS swap integration", () => {
         tickLower: -210000,
         tickUpper: -190000,
         amount0Desired: toWei(1),
-        amount1Desired: toWei(2000, USDC_DECIMALS),
+        amount1Desired: toWeiUsdc(2_000),
         amount0Min: 0,
         amount1Min: 0,
         recipient: dSafe.address,
@@ -186,7 +194,7 @@ describe("DOS swap integration", () => {
         await loadFixture(deployDOSFixture);
 
       const dSafe = await createDSafe(dos, user);
-      await usdc.mint(dSafe.address, toWei(16000, USDC_DECIMALS));
+      await usdc.mint(dSafe.address, toWeiUsdc(16_000));
 
       const mintParams = {
         token0: weth.address,
@@ -195,7 +203,7 @@ describe("DOS swap integration", () => {
         tickLower: -210000,
         tickUpper: -190000,
         amount0Desired: toWei(10),
-        amount1Desired: toWei(20000, USDC_DECIMALS),
+        amount1Desired: toWeiUsdc(20_000),
         amount0Min: 0,
         amount1Min: 0,
         recipient: dSafe.address,
@@ -206,10 +214,10 @@ describe("DOS swap integration", () => {
       );
 
       const dSafe2 = await createDSafe(dos, user2);
-      await usdc.mint(dSafe2.address, toWei(1000, USDC_DECIMALS));
+      await usdc.mint(dSafe2.address, toWeiUsdc(1_000));
       await expect(
         dSafe2.executeBatch(
-          leveragePos(dSafe2, dos, usdc, weth, 500, swapRouter, toWei(2000, USDC_DECIMALS)),
+          leveragePos(dSafe2, dos, usdc, weth, 500, swapRouter, toWeiUsdc(2_000)),
         ),
       ).to.not.be.reverted;
 
@@ -220,124 +228,269 @@ describe("DOS swap integration", () => {
       expect(nfts.length).to.equal(0); // regular leveraged position, no NFTs
     });
 
-    describe("#liquify", () => {
-      it("should liquify dSafe when dSafe liquidation generates no debt", async () => {
-        const {
-          user,
-          user2,
-          user3,
-          dos,
-          usdc,
-          weth,
-          nonFungiblePositionManager,
-          swapRouter,
-          ethChainlink,
-          getBalances,
-        } = await loadFixture(deployDOSFixture);
+    // considering that #liquify uses #liquidate, all "negative" tests for non-liquidatable
+    // positions are done in tests for #liquidate in dos.tests.ts
+    describe("#liquify successfully", () => {
+      describe("when liquidatable dSafe has only erc20s", () => {
+        it("when liquidation creates no intermediate debt on liquidator", async () => {
+          // prettier-ignore
+          const {
+            dos,
+            user, user2, user3,
+            usdc, weth,
+            swapRouter, nonFungiblePositionManager, ethChainlink,
+            getBalances, addAllowances
+          } = await loadFixture(deployDOSFixture);
 
-        const dSafe = await createDSafe(dos, user);
-        await usdc.mint(dSafe.address, toWei(16000, USDC_DECIMALS));
+          // provides assets both to DOS and to Uniswap pool
+          const initialAssetsProvider = await createDSafe(dos, user);
+          await usdc.mint(initialAssetsProvider.address, toWeiUsdc(16_000));
+          const mintParams = {
+            token0: weth.address,
+            token1: usdc.address,
+            fee: 500,
+            tickLower: -210000,
+            tickUpper: -190000,
+            amount0Desired: toWei(10),
+            amount1Desired: toWeiUsdc(20_000),
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: initialAssetsProvider.address,
+            deadline: ethers.constants.MaxUint256,
+          };
+          await initialAssetsProvider.executeBatch(
+            leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+          );
 
-        const mintParams = {
-          token0: weth.address,
-          token1: usdc.address,
-          fee: 500,
-          tickLower: -210000,
-          tickUpper: -190000,
-          amount0Desired: toWei(10),
-          amount1Desired: toWei(20000, USDC_DECIMALS),
-          amount0Min: 0,
-          amount1Min: 0,
-          recipient: dSafe.address,
-          deadline: ethers.constants.MaxUint256,
-        };
-        await dSafe.executeBatch(
-          leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
-        );
+          const liquidatable = await createDSafe(dos, user2);
+          await usdc.mint(liquidatable.address, toWeiUsdc(1_000));
+          await liquidatable.executeBatch(
+            leveragePos(liquidatable, dos, usdc, weth, 500, swapRouter, toWeiUsdc(2_000)),
+          );
 
-        const dSafe2 = await createDSafe(dos, user2);
-        await usdc.mint(dSafe2.address, toWei(1000, USDC_DECIMALS));
-        await dSafe2.executeBatch(
-          leveragePos(dSafe2, dos, usdc, weth, 500, swapRouter, toWei(2000, USDC_DECIMALS)),
-        );
+          // make `liquidatable` liquidatable
+          await ethChainlink.setPrice(ETH_PRICE / 2);
 
-        // make dSafe2 liquidatable
-        await ethChainlink.setPrice(ETH_PRICE / 2);
+          const liquidator = await createDSafe(dos, user3);
+          await usdc.mint(liquidator.address, toWeiUsdc(1_000));
+          await addAllowances(liquidator);
 
-        const dSafe3 = await createDSafe(dos, user3);
-        await usdc.mint(dSafe3.address, toWei(1000, USDC_DECIMALS));
-        await dSafe3.executeBatch([
-          makeCall(usdc).approve(swapRouter.address, ethers.constants.MaxUint256),
-          makeCall(weth).approve(swapRouter.address, ethers.constants.MaxUint256),
-          makeCall(dos).depositFull([usdc.address]),
-        ]);
+          await liquidator.liquify(
+            liquidatable.address,
+            swapRouter.address,
+            nonFungiblePositionManager.address,
+            usdc.address,
+            [weth.address],
+          );
 
-        await dSafe3.liquify(dSafe2.address, swapRouter.address, usdc.address, [weth.address]);
+          const {usdcBalance, wethBalance} = await getBalances(liquidator);
+          expect(await usdc.balanceOf(liquidator.address)).to.be.equal(0);
+          expect(await weth.balanceOf(liquidator.address)).to.be.equal(0);
+          expect(wethBalance).to.equal(0);
+          // if there was no debt in USDC to pay then there is no need to transfer USDC from dSafe
+          // to dAccount to pay it back. So all USDC remains on dSafe
+          expect(usdcBalance).to.greaterThan(toWeiUsdc(1_000));
+        });
 
-        const {usdcBalance, wethBalance} = await getBalances(dSafe3);
-        expect(await usdc.balanceOf(dSafe3.address)).to.be.equal(0);
-        expect(await weth.balanceOf(dSafe3.address)).to.be.equal(0);
-        expect(wethBalance).to.equal(0);
-        expect(usdcBalance).to.greaterThan(toWei(1000, USDC_DECIMALS));
+        it("when liquidation creates an intermediate debt on liquidator", async () => {
+          // prettier-ignore
+          const {
+            dos,
+            user, user2, user3,
+            usdc, weth,
+            swapRouter, nonFungiblePositionManager, ethChainlink,
+            getBalances, addAllowances
+          } = await loadFixture(deployDOSFixture);
+
+          // provides assets both to DOS and to Uniswap pool
+          const initialAssetsProvider = await createDSafe(dos, user);
+          await weth.mint(initialAssetsProvider.address, toWei(10));
+          await usdc.mint(initialAssetsProvider.address, toWeiUsdc(20_000));
+          const mintParams = {
+            token0: weth.address,
+            token1: usdc.address,
+            fee: 500,
+            tickLower: -210000,
+            tickUpper: -190000,
+            amount0Desired: toWei(5),
+            amount1Desired: toWeiUsdc(10_000),
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: initialAssetsProvider.address,
+            deadline: ethers.constants.MaxUint256,
+          };
+          await initialAssetsProvider.executeBatch(
+            leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+          );
+
+          const liquidatable = await createDSafe(dos, user2);
+          await weth.mint(liquidatable.address, toWei(1));
+          await liquidatable.executeBatch(
+            leveragePos(liquidatable, dos, weth, usdc, 500, swapRouter, toWei(2)),
+          );
+
+          // make `liquidatable` liquidatable
+          await ethChainlink.setPrice(ETH_PRICE * 2);
+
+          const liquidator = await createDSafe(dos, user3);
+          await usdc.mint(liquidator.address, toWeiUsdc(1_000));
+          await addAllowances(liquidator);
+
+          await liquidator.liquify(
+            liquidatable.address,
+            swapRouter.address,
+            nonFungiblePositionManager.address,
+            usdc.address,
+            [weth.address],
+          );
+
+          const {usdcBalance, wethBalance} = await getBalances(liquidator);
+          // because there was a debt in USDC, the USDC from dSafe has been transferred from dSafe
+          // to dAccount to pay it back
+          expect(await usdc.balanceOf(liquidator.address)).to.greaterThan(toWeiUsdc(1_000));
+          expect(await weth.balanceOf(liquidator.address)).to.be.equal(0);
+          expect(wethBalance).to.equal(0);
+          expect(usdcBalance).to.be.equal(0);
+        });
       });
 
-      it("should liquify dSafe when dSafe liquidation generates debt", async () => {
+      it("when liquidatable dSafe has erc721", async () => {
+        // prettier-ignore
         const {
-          user,
-          user2,
-          user3,
           dos,
-          usdc,
-          weth,
-          nonFungiblePositionManager,
-          swapRouter,
-          ethChainlink,
-          getBalances,
+          user, user2, user3,
+          usdc, weth,
+          nonFungiblePositionManager, swapRouter, ethChainlink,
+          getBalances, addAllowances,
         } = await loadFixture(deployDOSFixture);
 
-        const dSafe = await createDSafe(dos, user);
-        await weth.mint(dSafe.address, toWei(10));
-        await usdc.mint(dSafe.address, toWei(20_000, USDC_DECIMALS));
+        const initialAssetsProvider = await createDSafe(dos, user);
+        await usdc.mint(initialAssetsProvider.address, toWeiUsdc(160_000));
+        const initMintParams = {
+          token0: weth.address,
+          token1: usdc.address,
+          fee: 500,
+          tickLower: -210_000,
+          tickUpper: -190_000,
+          amount0Desired: toWei(5),
+          amount1Desired: toWeiUsdc(10_000),
+          amount0Min: 0,
+          amount1Min: 0,
+          recipient: initialAssetsProvider.address,
+          deadline: ethers.constants.MaxUint256,
+        };
+        await initialAssetsProvider.executeBatch(
+          leverageLP(dos, weth, usdc, nonFungiblePositionManager, initMintParams, 1),
+        );
 
+        const liquidatable = await createDSafe(dos, user2);
+        await usdc.mint(liquidatable.address, toWeiUsdc(5_000));
         const mintParams = {
           token0: weth.address,
           token1: usdc.address,
           fee: 500,
-          tickLower: -210000,
-          tickUpper: -190000,
+          tickLower: -210_000,
+          tickUpper: -190_000,
           amount0Desired: toWei(5),
-          amount1Desired: toWei(10_000, USDC_DECIMALS),
+          amount1Desired: toWeiUsdc(10_000),
           amount0Min: 0,
           amount1Min: 0,
-          recipient: dSafe.address,
+          recipient: liquidatable.address,
           deadline: ethers.constants.MaxUint256,
         };
-        await dSafe.executeBatch(
-          leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+        await liquidatable.executeBatch(
+          leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 2),
         );
 
-        const dSafe2 = await createDSafe(dos, user2);
-        await weth.mint(dSafe2.address, toWei(1));
-        await dSafe2.executeBatch(leveragePos(dSafe2, dos, weth, usdc, 500, swapRouter, toWei(2)));
+        const liquidator = await createDSafe(dos, user3);
+        await depositErc20(dos, liquidator, usdc, toWeiUsdc(100_000));
+        await addAllowances(liquidator);
 
-        // make dSafe2 liquidatable
-        await ethChainlink.setPrice(ETH_PRICE * 2);
+        await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
+        await liquidator.liquify(
+          liquidatable.address,
+          swapRouter.address,
+          nonFungiblePositionManager.address,
+          usdc.address,
+          [weth.address],
+        );
 
-        const dSafe3 = await createDSafe(dos, user3);
-        await usdc.mint(dSafe3.address, toWei(10_000, USDC_DECIMALS));
-        await dSafe3.executeBatch([
-          makeCall(usdc).approve(swapRouter.address, ethers.constants.MaxUint256),
-          makeCall(weth).approve(swapRouter.address, ethers.constants.MaxUint256),
-          makeCall(dos).depositFull([usdc.address]),
-        ]);
-
-        await dSafe3.liquify(dSafe2.address, swapRouter.address, usdc.address, [weth.address]);
-
-        const {usdcBalance, wethBalance} = await getBalances(dSafe3);
-        expect(await usdc.balanceOf(dSafe3.address)).to.be.equal(0);
-        expect(await weth.balanceOf(dSafe3.address)).to.be.equal(0);
+        const {usdcBalance, wethBalance} = await getBalances(liquidator);
+        expect(await usdc.balanceOf(liquidator.address)).to.greaterThan(toWeiUsdc(100_000));
+        expect(await weth.balanceOf(liquidator.address)).to.be.equal(0);
         expect(wethBalance).to.equal(0);
-        expect(usdcBalance).to.greaterThan(toWei(1000, USDC_DECIMALS));
+        expect(usdcBalance).to.be.equal(0);
+      });
+
+      it("when liquidatable dSafe has erc20 and erc721", async () => {
+        // prettier-ignore
+        const {
+          dos,
+          user, user2, user3,
+          usdc, weth,
+          nonFungiblePositionManager, swapRouter, ethChainlink,
+          getBalances, addAllowances,
+        } = await loadFixture(deployDOSFixture);
+
+        const initialAssetsProvider = await createDSafe(dos, user);
+        await usdc.mint(initialAssetsProvider.address, toWeiUsdc(160_000));
+        const initMintParams = {
+          token0: weth.address,
+          token1: usdc.address,
+          fee: 500,
+          tickLower: -210_000,
+          tickUpper: -190_000,
+          amount0Desired: toWei(5),
+          amount1Desired: toWeiUsdc(10_000),
+          amount0Min: 0,
+          amount1Min: 0,
+          recipient: initialAssetsProvider.address,
+          deadline: ethers.constants.MaxUint256,
+        };
+        await initialAssetsProvider.executeBatch(
+          leverageLP(dos, weth, usdc, nonFungiblePositionManager, initMintParams, 1),
+        );
+
+        const liquidatable = await createDSafe(dos, user2);
+        await usdc.mint(liquidatable.address, toWeiUsdc(5_000));
+        await liquidatable.executeBatch(
+          leveragePos(liquidatable, dos, weth, usdc, 500, swapRouter, toWei(2.5)),
+        );
+        const mintParams = {
+          token0: weth.address,
+          token1: usdc.address,
+          fee: 500,
+          tickLower: -210_000,
+          tickUpper: -190_000,
+          amount0Desired: toWei(2.5),
+          amount1Desired: toWeiUsdc(5_000),
+          amount0Min: 0,
+          amount1Min: 0,
+          recipient: liquidatable.address,
+          deadline: ethers.constants.MaxUint256,
+        };
+        await liquidatable.executeBatch(
+          leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 2),
+        );
+
+        const liquidator = await createDSafe(dos, user3);
+        await depositErc20(dos, liquidator, usdc, toWeiUsdc(100_000));
+        await addAllowances(liquidator);
+
+        await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
+        await liquidator.liquify(
+          liquidatable.address,
+          swapRouter.address,
+          nonFungiblePositionManager.address,
+          usdc.address,
+          [weth.address],
+        );
+
+        const {usdcBalance, wethBalance} = await getBalances(liquidator);
+        expect(await usdc.balanceOf(liquidator.address)).to.greaterThan(toWeiUsdc(100_000));
+        expect(await weth.balanceOf(liquidator.address)).to.be.equal(0);
+        expect(wethBalance).to.equal(0);
+        expect(usdcBalance).to.be.equal(0);
       });
     });
   });
