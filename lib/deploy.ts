@@ -310,7 +310,7 @@ export const deployFixedAddressForTests = async (
     if (isCoverage) {
       checkState(deployedTransferAndCall2.address !== transferAndCall2.address);
       // to get coverage working we need to set the code at the expected address to
-      // to be the code just deployed.
+      // be the code just deployed.
       await setCode(
         transferAndCall2.address,
         await checkDefined(signer.provider).getCode(deployedTransferAndCall2.address),

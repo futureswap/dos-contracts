@@ -217,9 +217,14 @@ contract DOSState is Pausable {
     mapping(address => ContractData) infoIdx;
     IDOSConfig.Config config;
 
-    function getBalance(ERC20Share shares, ERC20Info storage p) internal view returns (int256) {
-        ERC20Pool storage s = ERC20Share.unwrap(shares) > 0 ? p.collateral : p.debt;
-        return s.computeERC20(shares);
+    function getBalance(
+        ERC20Share shares,
+        ERC20Info storage erc20Info
+    ) internal view returns (int256) {
+        ERC20Pool storage pool = ERC20Share.unwrap(shares) > 0
+            ? erc20Info.collateral
+            : erc20Info.debt;
+        return pool.computeERC20(shares);
     }
 
     function getNFTData(NFTId nftId) internal view returns (uint16 erc721Idx, uint256 tokenId) {
@@ -858,12 +863,12 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         emit IDOSConfig.DSafeCreated(dSafe, msg.sender);
     }
 
-    function getDAccountERC20(address dSafe, IERC20 erc20) external view returns (int256) {
+    function getDAccountERC20(address dSafeAddr, IERC20 erc20) external view returns (int256) {
         // TODO(gerben) interest computation
-        DSafe storage p = dSafes[dSafe];
-        (ERC20Info storage info, uint16 erc20Idx) = getERC20Info(erc20);
-        ERC20Share erc20Share = p.erc20Share[erc20Idx];
-        return getBalance(erc20Share, info);
+        DSafe storage dSafe = dSafes[dSafeAddr];
+        (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20);
+        ERC20Share erc20Share = dSafe.erc20Share[erc20Idx];
+        return getBalance(erc20Share, erc20Info);
     }
 
     function viewNFTs(address dSafe) external view returns (NFTData[] memory) {
