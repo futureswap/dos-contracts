@@ -28,7 +28,7 @@ export const FUTURESWAP_DEPLOYER_MNEMONIC = getEnvVariable("FUTURESWAP_DEPLOYER_
 
 // mnemonic for futureswap work accounts these are individual for each
 // employee. These accounts carry real ETH for executing TX's but should
-// never carry to much and should have no special role in the system.
+// never carry too much and should have no special role in the system.
 // Employees should keep these accounts secure, but a compromise is not an issue.
 const PROD_MNEMONIC = getEnvVariable("PROD_MNEMONIC");
 // mnemonic for futureswap work accounts on testnets. This one is just shared
@@ -36,12 +36,12 @@ const PROD_MNEMONIC = getEnvVariable("PROD_MNEMONIC");
 // important if compromised.
 const DEV_MNEMONIC = getEnvVariable("DEV_MNEMONIC");
 
-const ethernalAddOn = {}; /*getEnvVariable("network").toUpperCase() !== "LOCALHOST" ? {} : {
+const ethernalAddOn = {}; /* getEnvVariable("network").toUpperCase() !== "LOCALHOST" ? {} : {
   ethernal: {
     email: process.env.ETHERNAL_EMAIL,
     password: process.env.ETHERNAL_PASSWORD,
   },
-};*/
+}; */
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -61,7 +61,6 @@ const config: HardhatUserConfig = {
               yul: true,
             },
           },
-
           viaIR: true,
         },
       },
