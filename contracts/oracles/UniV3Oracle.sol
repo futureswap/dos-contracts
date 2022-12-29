@@ -6,6 +6,7 @@ import "../interfaces/IERC20ValueOracle.sol";
 import "../interfaces/INFTValueOracle.sol";
 import "../lib/FsMath.sol";
 import "../lib/FsUtils.sol";
+import "../external/interfaces/INonfungiblePositionManager.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
@@ -63,33 +64,8 @@ library TickMath {
     }
 }
 
-// Incompatible with our version of OZ
-// import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
-// solhint-disable-next-line ordering
-interface INPM {
-    function positions(
-        uint256 tokenId
-    )
-        external
-        view
-        returns (
-            uint96 nonce,
-            address operator,
-            address token0,
-            address token1,
-            uint24 fee,
-            int24 tickLower,
-            int24 tickUpper,
-            uint128 liquidity,
-            uint256 feeGrowthInside0LastX128,
-            uint256 feeGrowthInside1LastX128,
-            uint128 tokensOwed0,
-            uint128 tokensOwed1
-        );
-}
-
 contract UniV3Oracle is ImmutableGovernance, INFTValueOracle {
-    INPM public immutable manager;
+    INonfungiblePositionManager public immutable manager;
     IUniswapV3Factory public immutable factory;
 
     mapping(address => IERC20ValueOracle) public erc20ValueOracle;
@@ -97,7 +73,7 @@ contract UniV3Oracle is ImmutableGovernance, INFTValueOracle {
     int256 constant Q96 = int256(FixedPoint96.Q96);
 
     constructor(address _factory, address _manager, address _owner) ImmutableGovernance(_owner) {
-        manager = INPM(_manager);
+        manager = INonfungiblePositionManager(_manager);
         factory = IUniswapV3Factory(_factory);
     }
 
