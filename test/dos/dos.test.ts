@@ -1,12 +1,5 @@
-import type {BigNumber, BigNumberish, ContractTransaction} from "ethers";
-import type {
-  DSafeLogic,
-  TestNFT,
-  MockNFTOracle,
-  TestERC20,
-  WETH9,
-  IDOS,
-} from "../../typechain-types";
+import type {BigNumber} from "ethers";
+import type {DSafeLogic} from "../../typechain-types";
 
 import {ethers} from "hardhat";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
@@ -23,7 +16,14 @@ import {toWei, toWeiUsdc} from "../../lib/numbers";
 import {getEventParams} from "../../lib/events";
 import {getFixedGasSigners} from "../../lib/hardhat/fixedGasSigners";
 import {signPermit2TransferFrom} from "../../lib/signers";
-import {makeCall, createDSafe} from "../../lib/calls";
+import {
+  makeCall,
+  createDSafe,
+  depositErc20,
+  transfer,
+  depositNft,
+  depositUserNft,
+} from "../../lib/calls";
 import {Chainlink, deployDos, deployFixedAddressForTests} from "../../lib/deploy";
 
 const USDC_PRICE = 1;
@@ -1041,100 +1041,3 @@ describe("DOS", () => {
     });
   });
 });
-
-async function depositErc20(
-  dos: IDOS,
-  dSafe: DSafeLogic,
-  erc20: TestERC20 | WETH9,
-  amount: number | bigint,
-) {
-  await erc20.mint(dSafe.address, amount);
-
-  const depositTx = await dSafe.executeBatch([makeCall(dos).depositERC20(erc20.address, amount)]);
-  await depositTx.wait();
-}
-
-async function depositNft(
-  dos: IDOS,
-  dSafe: DSafeLogic,
-  nft: TestNFT,
-  priceOracle: MockNFTOracle,
-  price: number,
-): Promise<BigNumber> {
-  const mintTx = await nft.mint(dSafe.address);
-  const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
-  const tokenId = mintEventArgs[0] as BigNumber;
-  await priceOracle.setPrice(tokenId, toWeiUsdc(price));
-  const depositNftTx = await dSafe.executeBatch([
-    makeCall(nft).approve(dos.address, tokenId),
-    makeCall(dos).depositNFT(nft.address, tokenId),
-  ]);
-  await depositNftTx.wait();
-  return tokenId;
-}
-
-// special case of depositNft function above.
-// Used only in one test to show that this scenario is supported.
-// In depositNft the NFT is minted to the dSafe and transferred from the dSafe to DOS.
-// In depositUserNft, nft is minted to the user and transferred from the user to DOS
-async function depositUserNft(
-  dos: IDOS,
-  dSafe: DSafeLogic,
-  nft: TestNFT,
-  priceOracle: MockNFTOracle,
-  price: number,
-): Promise<BigNumber> {
-  const user = dSafe.signer;
-  const mintTx = await nft.mint(await user.getAddress());
-  const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
-  const tokenId = mintEventArgs[0] as BigNumber;
-  await priceOracle.setPrice(tokenId, toWeiUsdc(price));
-  await (await nft.connect(user).approve(dos.address, tokenId)).wait();
-  const depositNftTx = await dSafe.executeBatch([makeCall(dos).depositNFT(nft.address, tokenId)]);
-  await depositNftTx.wait();
-  return tokenId;
-}
-
-async function transfer(
-  dos: IDOS,
-  from: DSafeLogic,
-  to: DSafeLogic,
-  ...value: [erc20: string, amount: BigNumberish] | [nft: TestNFT, tokenId: BigNumberish]
-): Promise<ContractTransaction> {
-  if (typeof value[0] == "string") {
-    // transfer erc20
-    const [erc20, amount] = value;
-    return await from.executeBatch([makeCall(dos).transfer(erc20, to.address, amount)]);
-  } else {
-    // transfer NFT
-    const [nft, tokenId] = value;
-    return await from.executeBatch([makeCall(dos).sendNFT(nft.address, tokenId, to.address)]);
-  }
-}
-/*
-async function transferFromErc20(
-  dos: IDOS,
-  spender: DSafeLogic,
-  owner: DSafeLogic,
-  to: DSafeLogic,
-  erc20: string,
-  amount: BigNumberish,
-): Promise<ContractTransaction> {
-  return await spender.executeBatch([
-    makeCall(dos).transferFromERC20(erc20, owner.address, to.address, amount),
-  ]);
-}
-
-async function transferFromERC721(
-  dos: IDOS,
-  spender: DSafeLogic,
-  owner: DSafeLogic,
-  to: DSafeLogic,
-  nft: string,
-  tokenId: BigNumber,
-): Promise<ContractTransaction> {
-  return await spender.executeBatch([
-    makeCall(dos).transferFromERC721(nft, owner.address, to.address, tokenId),
-  ]);
-}
-*/
