@@ -9,6 +9,8 @@ import "../lib/Call.sol";
 import "../lib/FsUtils.sol";
 
 contract Voting is EIP712 {
+    using BytesViewLib for BytesView;
+
     struct Proposal {
         bytes32 digest;
         uint256 deadline;
@@ -27,7 +29,7 @@ contract Voting is EIP712 {
     uint256 public immutable mappingSlot;
 
     bytes constant VOTE_TYPESTRING = "Vote(uint256 index,bool vote)";
-    bytes32 constant VOTE_TYPEHASH = abi.keccak256(VOTE_TYPESTRING);
+    bytes32 constant VOTE_TYPEHASH = keccak256(VOTE_TYPESTRING);
 
     Proposal[] public proposals;
 
@@ -47,7 +49,7 @@ contract Voting is EIP712 {
         address governance_
     ) EIP712("Voting", "1") {
         hashNFT = HashNFT(FsUtils.nonNull(hashNFT_));
-        governanceToken = FsUtils.nonNull(governanceToken_);
+        governanceToken = IERC20(FsUtils.nonNull(governanceToken_));
         governance = FsUtils.nonNull(governance_);
     }
 
@@ -56,16 +58,25 @@ contract Voting is EIP712 {
         string calldata description,
         CallWithoutValue[] calldata calls,
         uint256 blockNumber,
-        bytes calldata governanceTokenAccount,
         bytes calldata blockHeader,
         bytes calldata proof
     ) external {
+        bytes32 storageRoot;
         {
             bytes32 blockHash = blockhash(blockNumber);
             require(keccak256(blockHeader) == blockHash, "invalid block header");
             // RLP of block header 1 list tag + 2 length bytes + 33 bytes of parent hash + 33 bytes of ommers + 21 bytes of coinbase + 1 byte tag
             bytes32 stateRoot = bytes32(blockHeader[91:]);
-            TrieLib.verify(governanceToken, governanceTokenAccount, stateRoot, proof);
+            bytes memory governanceTokenAccount = TrieLib.verify(governanceToken, stateRoot, proof);
+            RLPItem memory it = RLP.toListIterator(
+                RLP.toRLPItem(BytesViewLib.toBytesView(governanceTokenAccount))
+            );
+            require(it.hasNext(), "invalid account");
+            it.next(); // skip nonce
+            require(it.hasNext(), "invalid account");
+            it.next(); // skip balance
+            require(it.hasNext(), "invalid account");
+            storageRoot = (it.next().requireBytes()).loadBytes32();
         }
 
         // proof storageRoot is correct for blockhash(blockNumber) governanceTokenAddress
