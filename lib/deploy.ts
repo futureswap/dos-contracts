@@ -59,7 +59,6 @@ import {
   DOS__factory,
   DOSConfig__factory,
 } from "../typechain-types";
-import addressesJSON from "../deployment/addresses.json";
 import {getEventsTx} from "./events";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
