@@ -50,9 +50,7 @@ describe("Governance test", () => {
   describe("GovernanceProxy tests", () => {
     it("Non-governance cannot execute", async () => {
       const {user, governanceProxy} = await loadFixture(deployGovernanceProxyFixture);
-      await expect(governanceProxy.connect(user).executeBatch([])).to.be.revertedWith(
-        "OnlyGovernance()",
-      );
+      await expect(governanceProxy.connect(user).executeBatch([])).to.be.reverted;
     });
 
     it("Governance can execute", async () => {
@@ -76,12 +74,8 @@ describe("Governance test", () => {
     it("No address except proxy itself can call proposeGovernance", async () => {
       const {user, governanceProxy} = await loadFixture(deployGovernanceProxyFixture);
 
-      await expect(governanceProxy.proposeGovernance(user.address)).to.be.revertedWith(
-        "OnlyGovernance()",
-      );
-      await expect(
-        governanceProxy.connect(user).proposeGovernance(user.address),
-      ).to.be.revertedWith("OnlyGovernance()");
+      await expect(governanceProxy.proposeGovernance(user.address)).to.be.reverted;
+      await expect(governanceProxy.connect(user).proposeGovernance(user.address)).to.be.reverted;
     });
 
     it("Proposed governance can execute and execute properly forwards function", async () => {
@@ -203,7 +197,7 @@ describe("Governance test", () => {
       governance
         .connect(user)
         .executeBatchWithClearance([makeCall(test).approve(user.address, 1)], 1),
-    ).to.be.revertedWith("CallDenied");
+    ).to.be.reverted;
   });
 
   it("User with proper access level cannot execute call to function without access level set", async () => {
@@ -220,7 +214,7 @@ describe("Governance test", () => {
       governance
         .connect(user)
         .executeBatchWithClearance([makeCall(test).transfer(user.address, 1)], 1),
-    ).to.be.revertedWith("CallDenied");
+    ).to.be.reverted;
   });
 
   it("Cannot execute functions at wrong access level", async () => {
@@ -248,7 +242,7 @@ describe("Governance test", () => {
       governance
         .connect(user)
         .executeBatchWithClearance([makeCall(test).transfer(user.address, 1)], 1),
-    ).to.be.revertedWith("CallDenied");
+    ).to.be.reverted;
   });
 
   it("Cannot set access level of setAccessLevel", async () => {
@@ -265,7 +259,7 @@ describe("Governance test", () => {
           true,
         ),
       ]),
-    ).to.be.revertedWith("PrivilagedMethod");
+    ).to.be.reverted;
   });
 
   it("Cannot set access level of transferVoting", async () => {
@@ -282,7 +276,7 @@ describe("Governance test", () => {
           true,
         ),
       ]),
-    ).to.be.revertedWith("PrivilagedMethod");
+    ).to.be.reverted;
   });
 
   it("Cannot set access level of mintAccess", async () => {
@@ -299,7 +293,7 @@ describe("Governance test", () => {
           true,
         ),
       ]),
-    ).to.be.revertedWith("PrivilagedMethod");
+    ).to.be.reverted;
   });
 
   it("Can set access level of revokeAccess", async () => {
