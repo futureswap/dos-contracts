@@ -268,8 +268,8 @@ export const deployOffchainEntityProxy = async (
 
 export const fsSalt = "0x1234567890123456789012345678901234567890123456789012345678901234";
 
-const permit2Address = addressesJSON.localhost.permit2;
-const transferAndCall2Address = addressesJSON.localhost.transferAndCall2;
+const permit2Address = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
+const transferAndCall2Address = "0xD96B40a214970035721c9AA9905b0e39dD90d548";
 
 let futureSwapProxy: OffchainEntityProxy;
 let governanceProxy: GovernanceProxy | undefined;
@@ -296,6 +296,7 @@ export const deployFixedAddressForTests = async (
       anyswapCreate2Deployer,
       fsSalt,
     );
+    console.log("deployedTransferAndCall2", deployedTransferAndCall2.address);
     const isCoverage = process.argv.includes("coverage");
     if (isCoverage) {
       checkState(deployedTransferAndCall2.address !== transferAndCall2.address);
