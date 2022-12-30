@@ -23,8 +23,8 @@ import type {
   IUniswapV3Pool,
   IWETH9,
   TestERC20,
-  DOS,
   UniV3Oracle,
+  TimeLockedCall,
 } from "../typechain-types";
 import type {TransactionRequest} from "@ethersproject/abstract-provider";
 
@@ -64,9 +64,16 @@ import {
 import {getEventsTx} from "./events";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
-import {createDSafe, depositIntoDos, getSelector, leverageLP2, makeCall, proposeAndExecute} from "./calls";
+import {
+  createDSafe,
+  depositIntoDos,
+  getSelector,
+  leverageLP2,
+  makeCall,
+  proposeAndExecute,
+} from "./calls";
 import {checkDefined, checkState} from "./preconditions";
-import { TimeLockedCall__factory } from "../typechain-types/factories/contracts/governance/TimeLockedCall__factory";
+import {TimeLockedCall__factory} from "../typechain-types/factories/contracts/governance/TimeLockedCall__factory";
 
 export async function deployUniswapPool(
   uniswapV3Factory: IUniswapV3Factory,
@@ -672,18 +679,39 @@ export enum AccessLevel {
   Security = 2,
 }
 
-export const setupGovernance = async (governance: Governance, hashNFT: HashNFT, dos: IDOS, uniV3Oracle: UniV3Oracle) => {
+export const setupGovernance = async (
+  governance: Governance,
+  hashNFT: HashNFT,
+  dos: IDOS,
+  uniV3Oracle: UniV3Oracle,
+): Promise<{timeLockedCall: TimeLockedCall}> => {
   const oneDayInSec = 60 * 60 * 24;
-  const timeLockedCall = await new TimeLockedCall__factory(governance.signer).deploy(governance.immutableGovernance(), AccessLevel.Timelock, oneDayInSec);
+  const timeLockedCall = await new TimeLockedCall__factory(governance.signer).deploy(
+    governance.immutableGovernance(),
+    AccessLevel.Timelock,
+    oneDayInSec,
+  );
   await proposeAndExecute(governance, hashNFT, [
-    makeCall(governance).setAccessLevel(...getSelector(dos).addERC20Info, AccessLevel.Timelock, true),
+    makeCall(governance).setAccessLevel(
+      ...getSelector(dos).addERC20Info,
+      AccessLevel.Timelock,
+      true,
+    ),
     makeCall(governance).setAccessLevel(...getSelector(dos).addNFTInfo, AccessLevel.Timelock, true),
     makeCall(governance).setAccessLevel(...getSelector(dos).setConfig, AccessLevel.Timelock, true),
-    makeCall(governance).setAccessLevel(...getSelector(uniV3Oracle).setERC20ValueOracle, AccessLevel.Timelock, true),
+    makeCall(governance).setAccessLevel(
+      ...getSelector(uniV3Oracle).setERC20ValueOracle,
+      AccessLevel.Timelock,
+      true,
+    ),
     makeCall(governance).setAccessLevel(...getSelector(dos).pause, AccessLevel.Security, true),
     makeCall(governance).mintAccess(timeLockedCall.address, AccessLevel.Timelock, "0x"),
-    makeCall(governance).mintAccess(await governance.signer.getAddress(), AccessLevel.Security, "0x"),
-    makeCall(governance).transferVoting(await governance.signer.getAddress(), AccessLevel.Admin, "0x"),
+    makeCall(governance).mintAccess(
+      await governance.signer.getAddress(),
+      AccessLevel.Security,
+      "0x",
+    ),
+    makeCall(governance).transferVoting(await governance.signer.getAddress()),
   ]);
   return {timeLockedCall};
-}
+};

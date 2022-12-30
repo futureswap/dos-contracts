@@ -91,7 +91,9 @@ type WrappedContract2<Contract extends ethers.Contract> = {
   [key in OnlyFunctions<Contract["functions"]>]: [string, string];
 };
 
-export function getSelector<Contract extends ethers.Contract>(to: Contract): WrappedContract2<Contract> {
+export function getSelector<Contract extends ethers.Contract>(
+  to: Contract,
+): WrappedContract2<Contract> {
   const funcKeys = Object.entries(to.functions).map(([key]) => key);
 
   /* eslint-disable -- embedded types for fromEntries are not expressive enough to express this */

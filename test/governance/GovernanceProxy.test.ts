@@ -141,17 +141,11 @@ describe("Governance test", () => {
     const {hashNFT, governance} = await loadFixture(deployGovernance);
 
     await proposeAndExecute(governance, hashNFT, [
-      makeCall(governance).setAccessLevel(
-        ...getSelector(hashNFT).mint,
-        1,
-        true,
-      ),
+      makeCall(governance).setAccessLevel(...getSelector(hashNFT).mint, 1, true),
     ]);
-    expect(
-      await governance.bitmaskByAddressBySelector(
-        ...getSelector(hashNFT).mint,
-      ),
-    ).to.equal(1 << 1);
+    expect(await governance.bitmaskByAddressBySelector(...getSelector(hashNFT).mint)).to.equal(
+      1 << 1,
+    );
   });
 
   it("Governance can mint access", async () => {
@@ -170,11 +164,7 @@ describe("Governance test", () => {
     await test.mint(governanceProxy.address, 1);
 
     await proposeAndExecute(governance, hashNFT, [
-      makeCall(governance).setAccessLevel(
-        ...getSelector(test).transfer,
-        1,
-        true,
-      ),
+      makeCall(governance).setAccessLevel(...getSelector(test).transfer, 1, true),
     ]);
     await proposeAndExecute(governance, hashNFT, [
       makeCall(governance).mintAccess(user.address, 1, "0x"),
@@ -217,11 +207,7 @@ describe("Governance test", () => {
     await test.mint(governanceProxy.address, 1);
 
     await proposeAndExecute(governance, hashNFT, [
-      makeCall(governance).setAccessLevel(
-        ...getSelector(test).transfer,
-        2,
-        true,
-      ),
+      makeCall(governance).setAccessLevel(...getSelector(test).transfer, 2, true),
     ]);
     await proposeAndExecute(governance, hashNFT, [
       makeCall(governance).mintAccess(user.address, 1, "0x"),
@@ -240,11 +226,7 @@ describe("Governance test", () => {
 
     await expect(
       proposeAndExecute(governance, hashNFT, [
-        makeCall(governance).setAccessLevel(
-          ...getSelector(governance).setAccessLevel,
-          1,
-          true,
-        ),
+        makeCall(governance).setAccessLevel(...getSelector(governance).setAccessLevel, 1, true),
       ]),
     ).to.be.reverted;
   });
@@ -254,11 +236,7 @@ describe("Governance test", () => {
 
     await expect(
       proposeAndExecute(governance, hashNFT, [
-        makeCall(governance).setAccessLevel(
-          ...getSelector(governance).transferVoting,
-          1,
-          true,
-        ),
+        makeCall(governance).setAccessLevel(...getSelector(governance).transferVoting, 1, true),
       ]),
     ).to.be.reverted;
   });
@@ -268,11 +246,7 @@ describe("Governance test", () => {
 
     await expect(
       proposeAndExecute(governance, hashNFT, [
-        makeCall(governance).setAccessLevel(
-          ...getSelector(governance).mintAccess,
-          1,
-          true,
-        ),
+        makeCall(governance).setAccessLevel(...getSelector(governance).mintAccess, 1, true),
       ]),
     ).to.be.reverted;
   });
@@ -282,11 +256,7 @@ describe("Governance test", () => {
 
     await expect(
       proposeAndExecute(governance, hashNFT, [
-        makeCall(governance).setAccessLevel(
-          ...getSelector(governance).revokeAccess,
-          1,
-          true,
-        ),
+        makeCall(governance).setAccessLevel(...getSelector(governance).revokeAccess, 1, true),
       ]),
     ).to.not.be.reverted;
   });

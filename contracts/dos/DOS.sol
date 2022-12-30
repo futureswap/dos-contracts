@@ -235,10 +235,7 @@ contract DOSState is Pausable {
     }
 
     function getERC721Info(IERC721 erc721) internal view returns (ERC721Info storage, uint16) {
-        require(
-            infoIdx[address(erc721)].kind == ContractKind.ERC721,
-            "ERC721 not registered"
-        );
+        require(infoIdx[address(erc721)].kind == ContractKind.ERC721, "ERC721 not registered");
         uint16 idx = infoIdx[address(erc721)].idx;
         return (erc721Infos[idx], idx);
     }
@@ -435,11 +432,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             transferAllERC20(erc20Idx, dSafe, msg.sender);
         }
         while (dSafes[dSafe].nfts.length > 0) {
-            transferNFT(
-                dSafes[dSafe].nfts[dSafes[dSafe].nfts.length - 1],
-                dSafe,
-                msg.sender
-            );
+            transferNFT(dSafes[dSafe].nfts[dSafes[dSafe].nfts.length - 1], dSafe, msg.sender);
         }
         // TODO(gerben) make formula dependent on risk
         if (totalValue > 0) {
@@ -556,8 +549,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             int256 totalDebt = erc20Infos[i].debt.tokens;
             int256 reserve = erc20Infos[i].collateral.tokens + totalDebt;
             FsUtils.Assert(
-                IERC20(erc20Infos[i].erc20Contract).balanceOf(address(this)) >=
-                    uint256(reserve)
+                IERC20(erc20Infos[i].erc20Contract).balanceOf(address(this)) >= uint256(reserve)
             );
             require(reserve >= -totalDebt / leverage, "Not enough reserve for debt");
         }
@@ -787,7 +779,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         _pause();
     }
 
-    function unpause() external onlyGovernance{
+    function unpause() external onlyGovernance {
         _unpause();
     }
 
