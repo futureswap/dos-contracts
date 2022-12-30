@@ -39,11 +39,7 @@ contract DSafeProxy is DSafeState, Proxy {
         }
     }
 
-    constructor(
-        address _dos,
-        address[] memory erc20s,
-        address[] memory erc721s
-    ) DSafeState(_dos) {
+    constructor(address _dos, address[] memory erc20s, address[] memory erc721s) DSafeState(_dos) {
         // Approve DOS and PERMIT2 to spend all ERC20s
         for (uint256 i = 0; i < erc20s.length; i++) {
             // slither-disable-next-line missing-zero-check
@@ -262,8 +258,8 @@ contract DSafeLogic is
 
     /// @inheritdoc IERC721Receiver
     function onERC721Received(
-        address, /* operator */
-        address, /* from */
+        address /* operator */,
+        address /* from */,
         uint256 tokenId,
         bytes memory data
     ) public virtual override returns (bytes4) {
@@ -373,12 +369,10 @@ contract DSafeLogic is
     }
 
     /// @inheritdoc IERC1271
-    function isValidSignature(bytes32 hash, bytes memory signature)
-        public
-        view
-        override
-        returns (bytes4 magicValue)
-    {
+    function isValidSignature(
+        bytes32 hash,
+        bytes memory signature
+    ) public view override returns (bytes4 magicValue) {
         magicValue = SignatureChecker.isValidSignatureNow(
             dos.getDSafeOwner(address(this)),
             hash,
