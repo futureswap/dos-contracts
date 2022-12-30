@@ -18,24 +18,28 @@ import "../interfaces/ITransferReceiver2.sol";
 import "../external/interfaces/IPermit2.sol";
 import {ISafe} from "../interfaces/ISafe.sol";
 
+contract DSafeState {
+    IDOS internal immutable dos;
+
+    bool internal forwardNFT; // TODO: find better way to dedup between proxy / logic
+
+    constructor(address _dos) {
+        // slither-disable-next-line missing-zero-check
+        dos = IDOS(FsUtils.nonNull(_dos));
+    }
+}
+
 // Inspired by TransparentUpdatableProxy
-contract DSafeProxy is Proxy {
-    address public immutable dos;
-
-    bool private forwardNFT; // TODO: find better way to dedup between proxy / logic
-
+contract DSafeProxy is DSafeState, Proxy {
     modifier ifDos() {
-        if (msg.sender == dos) {
+        if (msg.sender == address(dos)) {
             _;
         } else {
             _fallback();
         }
     }
 
-    constructor(address _dos, address[] memory erc20s, address[] memory erc721s) {
-        // slither-disable-next-line missing-zero-check
-        dos = FsUtils.nonNull(_dos);
-
+    constructor(address _dos, address[] memory erc20s, address[] memory erc721s) DSafeState(_dos) {
         // Approve DOS and PERMIT2 to spend all ERC20s
         for (uint256 i = 0; i < erc20s.length; i++) {
             // slither-disable-next-line missing-zero-check
@@ -64,13 +68,14 @@ contract DSafeProxy is Proxy {
 
     // The implementation of the delegate is controlled by DOS
     function _implementation() internal view override returns (address) {
-        return IDOS(dos).getImplementation(address(this));
+        return dos.getImplementation(address(this));
     }
 }
 
 // Calls to the contract not coming from DOS itself are routed to this logic
 // contract. This allows for flexible extra addition to your dSafe.
 contract DSafeLogic is
+    DSafeState,
     ImmutableVersion,
     IERC721Receiver,
     IERC1271,
@@ -78,6 +83,10 @@ contract DSafeLogic is
     EIP712,
     ISafe
 {
+    struct Nonce {
+        uint256 bitfield;
+    }
+
     bytes private constant EXECUTEBATCH_TYPESTRING =
         "ExecuteBatch(Call[] calls,uint256 nonce,uint256 deadline)";
     bytes private constant TRANSFER_TYPESTRING = "Transfer(address token,uint256 amount)";
@@ -96,10 +105,9 @@ contract DSafeLogic is
             )
         );
 
-    IDOS public immutable dos;
+    string constant VERSION = "1.0.0";
 
-    mapping(uint248 => uint256) public nonces;
-    bool private forwardNFT;
+    mapping(uint248 => Nonce) public nonces;
 
     error InvalidData();
     error InvalidSignature();
@@ -107,20 +115,19 @@ contract DSafeLogic is
     error DeadlineExpired();
 
     modifier onlyOwner() {
-        require(IDOS(dos).getDSafeOwner(address(this)) == msg.sender, "");
+        require(dos.getDSafeOwner(address(this)) == msg.sender, "");
         _;
     }
 
     // Note EIP712 is implemented with immutable variables and is not using
-    // storage and thus can be used in a proxy contract.
+    // storage and thus can be used in a proxy contract constructor.
     // Version number should be in sync with VersionManager version.
-    constructor(address _dos) EIP712("DOS dSafe", "1") ImmutableVersion("1.0.0") {
-        // slither-disable-next-line missing-zero-check
-        dos = IDOS(FsUtils.nonNull(_dos));
-    }
+    constructor(
+        address _dos
+    ) EIP712("DOS dSafe", VERSION) ImmutableVersion(VERSION) DSafeState(_dos) {}
 
     function executeBatch(Call[] memory calls) external payable onlyOwner {
-        IDOS(dos).executeBatch(calls);
+        dos.executeBatch(calls);
     }
 
     function executeSignedBatch(
@@ -138,13 +145,13 @@ contract DSafeLogic is
         );
         if (
             !SignatureChecker.isValidSignatureNow(
-                IDOS(dos).getDSafeOwner(address(this)),
+                dos.getDSafeOwner(address(this)),
                 digest,
                 signature
             )
         ) revert InvalidSignature();
 
-        IDOS(dos).executeBatch(calls);
+        dos.executeBatch(calls);
     }
 
     function forwardNFTs(bool _forwardNFT) external {
@@ -159,7 +166,7 @@ contract DSafeLogic is
         IERC20[] calldata erc20s
     ) external {
         if (msg.sender != address(this)) {
-            require(msg.sender == IDOS(dos).getDSafeOwner(address(this)), "only owner");
+            require(msg.sender == dos.getDSafeOwner(address(this)), "only owner");
 
             Call[] memory calls = new Call[](1);
             calls[0] = Call({
@@ -185,7 +192,7 @@ contract DSafeLogic is
         uint256 ndebts = 0;
         {
             for (uint256 i = 0; i < erc20s.length; i++) {
-                int256 balance = IDOS(dos).getDAccountERC20(address(this), erc20s[i]);
+                int256 balance = dos.getDAccountERC20(address(this), erc20s[i]);
                 balances[i] = balance;
                 if (balance > 0) {
                     ncollaterals++;
@@ -253,10 +260,7 @@ contract DSafeLogic is
         dos.depositFull(debts);
     }
 
-    function owner() external view returns (address) {
-        return IDOS(dos).getDSafeOwner(address(this));
-    }
-
+    /// @inheritdoc IERC721Receiver
     function onERC721Received(
         address /* operator */,
         address /* from */,
@@ -269,40 +273,12 @@ contract DSafeLogic is
         return this.onERC721Received.selector;
     }
 
-    /// @inheritdoc IERC1271
-    function isValidSignature(
-        bytes32 hash,
-        bytes memory signature
-    ) public view override returns (bytes4 magicValue) {
-        magicValue = SignatureChecker.isValidSignatureNow(
-            IDOS(dos).getDSafeOwner(address(this)),
-            hash,
-            signature
-        )
-            ? this.isValidSignature.selector
-            : bytes4(0);
-    }
-
-    function validateAndUseNonce(uint256 nonce) internal {
-        uint248 msp = uint248(nonce >> 8);
-        uint256 bit = 1 << (nonce & 0xff);
-        uint256 mask = nonces[msp];
-        if ((mask & bit) != 0) revert NonceAlreadyUsed();
-        nonces[msp] = mask | bit;
-    }
-
     function setNonce(uint256 nonce) external onlyOwner {
-        uint248 msp = uint248(nonce >> 8);
-        uint256 bit = 1 << (nonce & 0xff);
-        nonces[msp] |= bit;
+        (Nonce storage slot, uint256 bitmask) = splitNonce(nonce);
+        slot.bitfield |= bitmask;
     }
 
-    function valueNonce(uint256 nonce) external view returns (bool) {
-        uint248 msp = uint248(nonce >> 8);
-        uint256 bit = 1 << (nonce & 0xff);
-        return (nonces[msp] & bit) != 0;
-    }
-
+    /// @inheritdoc ITransferReceiver2
     function onTransferReceived2(
         address operator,
         address from,
@@ -318,7 +294,7 @@ contract DSafeLogic is
             /* just deposit in the proxy, nothing to do */
         } else if (data[0] == 0x00) {
             // execute batch
-            require(msg.sender == IDOS(dos).getDSafeOwner(address(this)), "Not owner");
+            require(msg.sender == dos.getDSafeOwner(address(this)), "Not owner");
             Call[] memory calls = abi.decode(data[1:], (Call[]));
             dos.executeBatch(calls);
         } else if (data[0] == 0x01) {
@@ -361,7 +337,7 @@ contract DSafeLogic is
             );
             if (
                 !SignatureChecker.isValidSignatureNow(
-                    IDOS(dos).getDSafeOwner(address(this)),
+                    dos.getDSafeOwner(address(this)),
                     digest,
                     signature
                 )
@@ -387,8 +363,43 @@ contract DSafeLogic is
         Call[] memory calls = new Call[](1);
         calls[0] = call;
 
-        IDOS(dos).executeBatch(calls);
+        dos.executeBatch(calls);
 
         return this.onApprovalReceived.selector;
+    }
+
+    function owner() external view returns (address) {
+        return dos.getDSafeOwner(address(this));
+    }
+
+    /// @inheritdoc IERC1271
+    function isValidSignature(
+        bytes32 hash,
+        bytes memory signature
+    ) public view override returns (bytes4 magicValue) {
+        magicValue = SignatureChecker.isValidSignatureNow(
+            dos.getDSafeOwner(address(this)),
+            hash,
+            signature
+        )
+            ? this.isValidSignature.selector
+            : bytes4(0);
+    }
+
+    function valueNonce(uint256 nonce) external view returns (bool) {
+        (Nonce storage slot, uint256 bitmask) = splitNonce(nonce);
+        return (slot.bitfield & bitmask) != 0;
+    }
+
+    function validateAndUseNonce(uint256 nonce) internal {
+        (Nonce storage slot, uint256 bitmask) = splitNonce(nonce);
+        uint256 bitfield = slot.bitfield;
+        if ((bitfield & bitmask) != 0) revert NonceAlreadyUsed();
+        slot.bitfield = slot.bitfield | bitmask;
+    }
+
+    function splitNonce(uint256 nonce) internal view returns (Nonce storage slot, uint256 bitmask) {
+        slot = nonces[uint248(nonce >> 8)];
+        bitmask = 1 << (nonce & 0xff);
     }
 }

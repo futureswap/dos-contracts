@@ -471,6 +471,15 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return this.onERC721Received.selector;
     }
 
+    function getImplementation(address dSafe) external view override returns (address) {
+        // not using msg.sender since this is an external view function
+        return dSafeLogic[dSafe];
+    }
+
+    function getDSafeOwner(address dSafe) external view override returns (address) {
+        return dSafes[dSafe].owner;
+    }
+
     /// @notice Approve an array of tokens and then call `onApprovalReceived` on spender.
     /// @param approvals An array of erc20 tokens
     /// @param spender The address of the spender
@@ -496,15 +505,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         for (uint256 i = 0; i < approvals.length; i++) {
             _approve(msg.sender, spender, approvals[i].ercContract, prev[i], address(0)); // reset allowance
         }
-    }
-
-    function getImplementation(address dSafe) external view override returns (address) {
-        // not using msg.sender since this is an external view function
-        return dSafeLogic[dSafe];
-    }
-
-    function getDSafeOwner(address dSafe) external view override returns (address) {
-        return dSafes[dSafe].owner;
     }
 
     function computePosition(
