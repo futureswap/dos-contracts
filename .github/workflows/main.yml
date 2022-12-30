@@ -30,9 +30,8 @@ jobs:
       - name: "Compile the contracts and generate the TypeChain bindings"
         run: "yarn typechain"
 
-# thegraph is full of errors
-#      - name: "Check types"
-#        run: "yarn tsc --noEmit"
+      - name: "Check types"
+        run: "yarn tsc --noEmit"
 
       - name: "Lint code"
         run: "yarn lint"
