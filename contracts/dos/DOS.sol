@@ -848,7 +848,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         int256 interestRate,
         int256 borrowFactor,
         int256 collateralFactor
-    ) external onlyGovernance {
+    ) external override onlyGovernance {
         uint16 erc20Idx = infoIdx[erc20].idx;
         require(infoIdx[erc20].kind == ContractKind.ERC20, "Not an ERC20");
         erc20Infos[erc20Idx].interest = interestRate;

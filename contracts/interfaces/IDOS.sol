@@ -57,6 +57,13 @@ interface IDOSConfig {
         int256 collateralFactor
     ) external;
 
+    function setERC20Data(
+        address erc20,
+        int256 interestRate,
+        int256 borrowFactor,
+        int256 collateralFactor
+    ) external;
+
     function setConfig(Config calldata _config) external;
 
     function createDSafe() external returns (address dSafe);
