@@ -1,7 +1,7 @@
 import type {HardhatUserConfig} from "hardhat/config";
 import type {HardhatRuntimeEnvironment} from "hardhat/types";
 
-// import "hardhat-ethernal";
+import "hardhat-ethernal";
 import "hardhat-preprocessor";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-waffle";

@@ -25,6 +25,7 @@
     "graph-test": "graph test",
     "graph-local": "docker-compose up",
     "graph-local-clean": "docker-compose down -v && docker-compose rm -v && rm -rf data/ipfs data/postgres",
+    "graph-local-clean-stop": "docker-compose down -v && docker-compose rm -v && rm -rf data/ipfs data/postgres  yarn run stop yarn run clean-workspace",
     "create-local": "graph create --node http://127.0.0.1:8020 DOS",
     "deploy-local": "cd ./subgraph && graph deploy --ipfs http://127.0.0.1:5001 --node http://127.0.0.1:8020 DOS",
     "clean-workspace": "yarn run hardhat run scripts/resetEtheralWorkspace.ts --network localhost"

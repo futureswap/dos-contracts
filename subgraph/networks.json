@@ -1,12 +1,12 @@
 {
   "hardhat": {
     "IDOS": {
-      "address": "0x3a0f5453833b1532819DeF834113cB625Bbe6Ce1"
+      "address": "0xb6857843474D14E49A075D625A6a7E8ece681902"
     }
   },
   "localhost": {
     "IDOS": {
-      "address": "0x3a0f5453833b1532819DeF834113cB625Bbe6Ce1"
+      "address": "0xb6857843474D14E49A075D625A6a7E8ece681902"
     }
   }
 }
