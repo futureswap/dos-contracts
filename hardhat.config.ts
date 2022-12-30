@@ -1,7 +1,6 @@
 import type {HardhatUserConfig} from "hardhat/config";
 import type {HardhatRuntimeEnvironment} from "hardhat/types";
 
-import "hardhat-ethernal";
 import "hardhat-preprocessor";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-waffle";
@@ -19,6 +18,10 @@ const getEnvVariable = (varName: string) => {
   return process.env[varName] ?? "";
 };
 
+if ((process.env.HARDHAT_NETWORK ?? "").toUpperCase() === "LOCALHOST") {
+  require("hardhat-ethernal");
+}
+
 const TEST_MNEMONIC = "test test test test test test test test test test test junk";
 
 export const FUTURESWAP_DEPLOYER_MNEMONIC = getEnvVariable("FUTURESWAP_DEPLOYER_MNEMONIC");
@@ -32,6 +35,13 @@ const PROD_MNEMONIC = getEnvVariable("PROD_MNEMONIC");
 // among employees. This should be kept secret as well but obvious is not
 // important if compromised.
 const DEV_MNEMONIC = getEnvVariable("DEV_MNEMONIC");
+
+const ethernalAddOn = {}; /*getEnvVariable("network").toUpperCase() !== "LOCALHOST" ? {} : {
+  ethernal: {
+    email: process.env.ETHERNAL_EMAIL,
+    password: process.env.ETHERNAL_PASSWORD,
+  },
+};*/
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -199,8 +209,5 @@ export default {
   paths: {
     subgraph: "./subgraph", // defaults to './subgraph'
   },
-  ethernal: {
-    email: process.env.ETHERNAL_EMAIL,
-    password: process.env.ETHERNAL_PASSWORD,
-  },
+  ...ethernalAddOn,
 };
