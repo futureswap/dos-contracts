@@ -63,7 +63,7 @@ export const generateTypedDataString = (
 const dSafeDomain = async (dSafe: DSafeLogic) => {
   return {
     name: "DOS dSafe",
-    version: "1",
+    version: "1.0.0",
     chainId: (await dSafe.provider.getNetwork()).chainId,
     verifyingContract: dSafe.address,
   };
