@@ -64,25 +64,14 @@ type SetReturnType<Func extends (...args: unknown[]) => unknown, NewReturn> = (
 // So instead of calling a method of the Contract it would return call parameters that can be sent
 // to DOS.executeBatch([...]) or GovernanceProxy.execute(...)
 type WrappedContract<Contract extends ethers.Contract> = {
-  [key in OnlyFunctions<Contract>]: SetReturnType<Contract[key], Call>;
+  [key in OnlyFunctions<Contract["functions"]>]: SetReturnType<Contract[key], Call>;
 };
 
-export function makeCall<Contract extends ethers.Contract & {withValue?: never}>(
+export function makeCall<Contract extends ethers.Contract>(
   to: Contract,
-): WrappedContract<Contract> & {withValue: (value: BigNumberish) => WrappedContract<Contract>} {
-  return {
-    ...makeCallWithValue(to, 0n),
-    withValue: (value: BigNumberish) => makeCallWithValue(to, value),
-  };
-}
-
-function makeCallWithValue<Contract extends ethers.Contract>(
-  to: Contract,
-  value: BigNumberish,
+  value?: BigNumberish,
 ): WrappedContract<Contract> {
-  const funcKeys = Object.entries(to).flatMap<OnlyFunctions<Contract>>(([key, value]) =>
-    typeof value == "function" ? [key] : [],
-  );
+  const funcKeys = Object.entries(to.functions).map(([key]) => key);
 
   /* eslint-disable -- embedded types for fromEntries are not expressive enough to express this */
   return Object.fromEntries(
@@ -91,8 +80,27 @@ function makeCallWithValue<Contract extends ethers.Contract>(
       (...args: unknown[]): Call => ({
         to: to.address,
         callData: to.interface.encodeFunctionData(funcKey, args),
-        value: BigNumber.from(value).toBigInt(),
+        value: BigNumber.from(value ?? 0).toBigInt(),
       }),
+    ]),
+  ) as any;
+  /* eslint-enable */
+}
+
+type WrappedContract2<Contract extends ethers.Contract> = {
+  [key in OnlyFunctions<Contract["functions"]>]: [string, string];
+};
+
+export function getSelector<Contract extends ethers.Contract>(
+  to: Contract,
+): WrappedContract2<Contract> {
+  const funcKeys = Object.entries(to.functions).map(([key]) => key);
+
+  /* eslint-disable -- embedded types for fromEntries are not expressive enough to express this */
+  return Object.fromEntries(
+    funcKeys.map(funcKey => [
+      funcKey,
+      [to.address, to.interface.getSighash(to.interface.getFunction(funcKey))],
     ]),
   ) as any;
   /* eslint-enable */
