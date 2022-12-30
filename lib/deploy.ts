@@ -688,6 +688,7 @@ export const setupGovernance = async (
   const oneDayInSec = 60 * 60 * 24;
   const timeLockedCall = await new TimeLockedCall__factory(governance.signer).deploy(
     governance.immutableGovernance(),
+    hashNFT.address,
     AccessLevel.Timelock,
     oneDayInSec,
   );
