@@ -247,7 +247,7 @@ using SafeERC20 for IERC20;
 using Address for address;
 
 contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
-    address immutable dosConfig;
+    address immutable dosConfigAddress;
 
     modifier onlyDSafe() {
         _requireNotPaused();
@@ -279,7 +279,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
 
     constructor(address _dosConfig, address _versionManager) {
         versionManager = IVersionManager(_versionManager);
-        dosConfig = _dosConfig;
+        dosConfigAddress = _dosConfig;
     }
 
     function depositERC20ForSafe(
@@ -762,7 +762,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
 
     // Config functions are handled by DOSConfig
     function _implementation() internal view override returns (address) {
-        return dosConfig;
+        return dosConfigAddress;
     }
 }
 
@@ -837,6 +837,23 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
 
     function setConfig(Config calldata _config) external onlyGovernance {
         config = _config;
+    }
+
+    function setVersionManager(address _versionManager) external onlyGovernance {
+        versionManager = IVersionManager(_versionManager);
+    }
+
+    function setERC20Data(
+        address erc20,
+        int256 interestRate,
+        int256 borrowFactor,
+        int256 collateralFactor
+    ) external onlyGovernance {
+        uint16 erc20Idx = infoIdx[erc20].idx;
+        require(infoIdx[erc20].kind == ContractKind.ERC20, "Not an ERC20");
+        erc20Infos[erc20Idx].interest = interestRate;
+        erc20Infos[erc20Idx].borrowFactor = borrowFactor;
+        erc20Infos[erc20Idx].collateralFactor = collateralFactor;
     }
 
     function createDSafe() external returns (address dSafe) {
