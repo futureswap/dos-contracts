@@ -683,6 +683,7 @@ export const setupGovernance = async (
   governance: Governance,
   hashNFT: HashNFT,
   dos: IDOS,
+  versionManager: VersionManager,
   uniV3Oracle: UniV3Oracle,
 ): Promise<{timeLockedCall: TimeLockedCall}> => {
   const oneDayInSec = 60 * 60 * 24;
@@ -705,7 +706,27 @@ export const setupGovernance = async (
       AccessLevel.Timelock,
       true,
     ),
+    makeCall(governance).setAccessLevel(
+      ...getSelector(dos).setERC20Data,
+      AccessLevel.Timelock,
+      true,
+    ),
     makeCall(governance).setAccessLevel(...getSelector(dos).pause, AccessLevel.Security, true),
+    makeCall(governance).setAccessLevel(
+      ...getSelector(versionManager).markRecommendedVersion,
+      AccessLevel.Security,
+      true,
+    ),
+    makeCall(governance).setAccessLevel(
+      ...getSelector(versionManager).updateVersion,
+      AccessLevel.Security,
+      true,
+    ),
+    makeCall(governance).setAccessLevel(
+      ...getSelector(versionManager).addVersion,
+      AccessLevel.Security,
+      true,
+    ),
     makeCall(governance).mintAccess(timeLockedCall.address, AccessLevel.Timelock, "0x"),
     makeCall(governance).mintAccess(
       await governance.signer.getAddress(),
