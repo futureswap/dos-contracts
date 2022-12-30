@@ -118,7 +118,7 @@ contract DSafeLogic is
     }
 
     // Note EIP712 is implemented with immutable variables and is not using
-    // storage and thus can be used in a proxy contract.
+    // storage and thus can be used in a proxy contract constructor.
     // Version number should be in sync with VersionManager version.
     constructor(address _dos) EIP712("DOS dSafe", "1") ImmutableVersion("1.0.0") DSafeState(_dos) {}
 
