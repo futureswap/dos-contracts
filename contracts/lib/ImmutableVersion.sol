@@ -12,6 +12,6 @@ contract ImmutableVersion is GitCommitHash {
 
     constructor(string memory _version) {
         require(bytes(_version).length > 0, "Version is empty");
-        immutableVersion = FsUtils.toBytes32(bytes(_version));
+        immutableVersion = FsUtils.encodeToBytes32(bytes(_version));
     }
 }

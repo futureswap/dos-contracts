@@ -25,10 +25,21 @@ library BytesViewLib {
         }
     }
 
+    function mstore(uint256 ptr, bytes32 value) internal pure {
+        assembly {
+            mstore(ptr, value)
+        }
+    }
+
     function memPtr(bytes memory b) internal pure returns (uint256 res) {
         assembly {
             res := add(b, 0x20)
         }
+    }
+
+    function fromBytes32(bytes32 x) internal pure returns (bytes memory res) {
+        res = new bytes(32);
+        mstore(memPtr(res), x);
     }
 
     function mCopy(uint256 src, uint256 dest, uint256 len) internal pure {
@@ -79,7 +90,7 @@ library BytesViewLib {
         uint256 offset,
         uint256 len
     ) internal pure returns (BytesView memory) {
-        FsUtils.Assert(offset + len < b.len);
+        FsUtils.Assert(offset + len <= b.len);
         return BytesView(b.memPtr + offset, len);
     }
 
@@ -109,31 +120,31 @@ library RLP {
     }
 
     function isBytes(RLPItem memory item) internal pure returns (bool) {
-        return !isNull(item) && item.buffer.loadUInt8(1) < 0xc0;
+        return !isNull(item) && item.buffer.loadUInt8(0) < 0xc0;
     }
 
     function rlpLen(BytesView memory b) internal pure returns (uint256) {
         require(b.len > 0, "RLP: Empty buffer");
-        uint256 lenLen;
+        uint256 len = 0;
+        uint256 lenLen = 0;
         uint8 initial = b.loadUInt8(0);
         if (initial < 0x80) {
-            return 1;
+            // nothing
         } else if (initial < 0xb8) {
-            return initial - 0x80 + 1;
+            len = initial - 0x80;
         } else if (initial < 0xc0) {
             lenLen = initial - 0xb7;
             // Continue below
         } else if (initial < 0xf8) {
-            return initial - 0xc0 + 1;
+            len = initial - 0xc0;
         } else {
             lenLen = initial - 0xf7;
             // Continue below
         }
-        uint256 len = 0;
         for (uint256 i = 0; i < lenLen; i++) {
             len = (len << 8) | b.loadUInt8(1 + i);
         }
-        require(len + lenLen + 1 <= b.len, "RLP: Invalid length");
+        require(len + lenLen + 1 <= b.len, "RLP: Invalid length rlpLen");
         return len + lenLen + 1;
     }
 
@@ -178,14 +189,14 @@ library RLP {
         uint256 lenLen = 0;
         uint8 initial = item.buffer.loadUInt8(0);
         if (initial < 0xf8) {
-            len = initial - 0xc0 + 1;
+            len = initial - 0xc0;
         } else {
             lenLen = initial - 0xf7;
             for (uint256 i = 0; i < lenLen; i++) {
                 len = (len << 8) | item.buffer.loadUInt8(1 + i);
             }
         }
-        require(len + lenLen + 1 == item.buffer.len, "RLP: Invalid length");
+        require(len + lenLen + 1 == item.buffer.len, "RLP: Invalid length it");
         BytesView memory b = BytesView(item.buffer.memPtr + 1 + lenLen, len);
         return RLPIterator(b);
     }
@@ -213,7 +224,7 @@ library TrieLib {
         bytes memory key,
         bytes32 root,
         bytes memory proof
-    ) internal pure returns (bytes memory) {
+    ) internal pure returns (BytesView memory) {
         require(key.length <= 32, "Invalid key");
         require(root != bytes32(0), "Invalid proof");
         bytes memory nibbles = new bytes(key.length * 2);
@@ -223,103 +234,72 @@ library TrieLib {
         }
         uint256 p = 0;
         RLPItem memory rlpListItem = RLP.toRLPItem(BytesViewLib.toBytesView(proof));
-        require(rlpListItem.isList(), "Invalid proof");
-        RLPIterator memory listIt = rlpListItem.toRLPItemIterator();
+        RLPIterator memory listIt = rlpListItem.requireRLPItemIterator();
+        RLPItem[] memory children = new RLPItem[](17);
         while (listIt.hasNext()) {
             RLPItem memory rlpItem = listIt.next();
-            require(root == bytes32(0) || rlpItem.buffer.keccak() == root, "Invalid proof");
+            if (rlpItem.buffer.len < 32) {
+                require(root == FsUtils.encodeToBytes32(rlpItem.buffer.toBytes()), "Invalid proof");
+            } else {
+                require(rlpItem.buffer.keccak() == root, "Invalid proof");
+            }
             require(rlpItem.isList(), "Invalid proof");
 
             uint256 count = 0;
-            RLPItem[] memory children = new RLPItem[](17);
             RLPIterator memory childIt = rlpItem.toRLPItemIterator();
             while (childIt.hasNext()) {
                 children[count] = childIt.next();
                 count++;
                 require(count <= 17, "Invalid proof");
             }
+            RLPItem memory nextRoot;
             if (count == 17) {
                 // Branch node
                 if (p == nibbles.length) {
-                    return children[16].toBytesView().toBytes();
+                    return children[16].requireBytesView();
                 }
                 uint8 nibble = uint8(nibbles[p++]);
-                require(p <= nibbles.length, "Invalid proof");
-                require(children[nibble].isBytes(), "Invalid proof");
-                BytesView memory child = children[nibble].toBytesView();
-                if (child.len == 32) {
-                    root = child.loadBytes32(0);
-                } else if (child.len < 32) {
-                    // Tree is encoded directly
-                    revert("Not implemented");
-                } else {
-                    revert("Invalid proof");
-                }
+                nextRoot = children[nibble];
             } else if (count == 2) {
                 // Extension or leaf nodes
-                require(!children[0].isList(), "Invalid proof");
-                BytesView memory partialKey = children[0].toBytesView();
+                BytesView memory partialKey = children[0].requireBytesView();
                 require(partialKey.len > 0, "Invalid proof");
                 uint8 tag = partialKey.loadUInt8(0);
-                bool terminal = (tag & 32) != 0;
                 if ((tag & 16) != 0) {
                     // Odd number of nibbles
+                    require(p < nibbles.length, "Invalid proof");
                     require(bytes1(tag & 0xF) == nibbles[p++], "Invalid proof");
-                    require(p <= nibbles.length, "Invalid proof");
                 }
+                require(p + (partialKey.len - 1) <= nibbles.length, "Invalid proof");
                 for (uint256 i = 1; i < partialKey.len; i++) {
-                    require(bytes1(tag >> 4) == nibbles[p++], "Invalid proof");
-                    require(p <= nibbles.length, "Invalid proof");
-                    require(bytes1(tag & 0xF) == nibbles[p++], "Invalid proof");
-                    require(p <= nibbles.length, "Invalid proof");
+                    uint8 bite = partialKey.loadUInt8(i);
+                    require(bytes1(bite >> 4) == nibbles[p++], "Invalid proof");
+                    require(bytes1(bite & 0xF) == nibbles[p++], "Invalid proof");
                 }
+                bool isLeaf = (tag & 32) != 0;
                 if (p == nibbles.length) {
-                    require(terminal, "Invalid proof");
+                    require(isLeaf, "Invalid proof");
                     require(children[1].isBytes(), "Invalid proof");
-                    return children[1].toBytesView().toBytes();
+                    return children[1].toBytesView();
                 } else {
-                    require(!terminal, "Invalid proof");
+                    require(!isLeaf, "Invalid proof");
                     require(children[1].isBytes(), "Invalid proof");
-
-                    revert("Invalid proof");
+                    nextRoot = children[1];
                 }
             } else {
                 revert("Invalid proof");
             }
-        }
-    }
-}
-
-/*
-library RLP {
-    struct RLPItem {
-        uint256 len;
-        uint256 memPtr;
-    }
-
-    function rlpDecode(bytes memory buffer) internal pure returns (RLPItem[] memory) {
-        if (buffer.length == 0) {
-            return new RLPItem[](0);
-        }
-        uint memPtr = buffer.memPtr();
-
-        // for (uint i = 0; i <)
-    }
-}
-
-library VerifyStorage {
-    function verifyStorage(bytes32[] memory proof, bytes32 root, bytes32 key) internal pure {
-        bytes32 value = 0;
-        bytes32 computedHash = keccak256(abi.encodePacked(key, value));
-        for (uint256 i = 0; i < proof.length; i++) {
-            bytes32 proofElement = proof[i];
-            if (computedHash < proofElement) {
-                computedHash = keccak256(abi.encodePacked(computedHash, proofElement));
+            if (nextRoot.isBytes()) {
+                BytesView memory childBytes = nextRoot.toBytesView();
+                require(childBytes.len == 32, "Invalid proof");
+                root = childBytes.loadBytes32(0);
+            } else if (nextRoot.isList()) {
+                require(nextRoot.buffer.len < 32, "Invalid proof");
+                root = FsUtils.encodeToBytes32(nextRoot.buffer.toBytes());
             } else {
-                computedHash = keccak256(abi.encodePacked(proofElement, computedHash));
+                revert("Invalid proof");
             }
         }
-        require(computedHash == root, "Invalid storage proof");
+        revert("Invalid proof");
     }
 }
-*/

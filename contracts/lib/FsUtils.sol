@@ -34,14 +34,14 @@ library FsUtils {
 
     // END STRIP
 
-    function toBytes32(bytes memory b) internal pure returns (bytes32) {
+    function encodeToBytes32(bytes memory b) internal pure returns (bytes32) {
         require(b.length < 32, "Byte array to long");
         bytes32 out = bytes32(b);
         out = (out & (~(bytes32(type(uint256).max) >> (8 * b.length)))) | bytes32(b.length);
         return out;
     }
 
-    function fromBytes32(bytes32 b) internal pure returns (bytes memory) {
+    function decodeFromBytes32(bytes32 b) internal pure returns (bytes memory) {
         uint256 len = uint256(b) & 0xff;
         bytes memory out = new bytes(len);
         for (uint256 i = 0; i < len; i++) {
