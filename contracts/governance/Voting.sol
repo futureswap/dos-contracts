@@ -82,18 +82,8 @@ contract Voting is EIP712 {
             require(keccak256(blockHeader) == blockHash, "invalid block header");
             // RLP of block header 1 list tag + 2 length bytes + 33 bytes of parent hash + 33 bytes of ommers + 21 bytes of coinbase + 1 byte tag
             bytes32 stateHash = bytes32(blockHeader[91:]);
-            BytesView memory governanceTokenAccount = TrieLib.verify(
-                BytesViewLib.fromBytes32(keccak256(abi.encodePacked(governanceToken))),
-                stateHash,
-                stateProof
-            );
-            RLPIterator memory it = RLP.toRLPItemIterator(RLP.toRLPItem(governanceTokenAccount));
-            require(it.hasNext(), "invalid account");
-            it.next(); // skip nonce
-            require(it.hasNext(), "invalid account");
-            it.next(); // skip balance
-            require(it.hasNext(), "invalid account");
-            storageHash = it.next().requireBytesView().loadBytes32(0);
+
+            (, , storageHash, ) = TrieLib.proofAccount(governanceToken, stateHash, stateProof);
         }
 
         // proof storageHash is correct for blockhash(blockNumber) governanceTokenAddress
@@ -101,7 +91,7 @@ contract Voting is EIP712 {
         proposal.digest = CallLib.hashCallWithoutValueArray(calls);
         proposal.deadline = block.timestamp + 2 days;
         proposal.storageHash = storageHash;
-        proposal.totalSupply = proofStorageAt(
+        proposal.totalSupply = TrieLib.proofStorageAt(
             bytes32(totalSupplySlot),
             storageHash,
             totalSupplyProof
@@ -182,11 +172,12 @@ contract Voting is EIP712 {
         hasVoted[addr][uint248(proposalId >> 8)] |= (1 << (proposalId & 7));
         // Solidity mapping convention
         bytes32 addressMappingSlot = keccak256(abi.encode(addr, mappingSlot));
-        uint256 amount = proofStorageAt(
+        uint256 amount = TrieLib.proofStorageAt(
             addressMappingSlot,
             proposals[proposalId].storageHash,
             proof
         );
+        require(amount > 0, "no balance");
         if (support) {
             proposals[proposalId].yesVotes += amount;
         } else {
@@ -197,24 +188,5 @@ contract Voting is EIP712 {
 
     function getBlockHash(uint256 blockNumber) internal view virtual returns (bytes32 blockHash) {
         return blockhash(blockNumber);
-    }
-
-    function proofStorageAt(
-        bytes32 slot,
-        bytes32 storageHash,
-        bytes memory proof
-    ) internal pure returns (uint256) {
-        BytesView memory storedAmount = TrieLib.verify(
-            BytesViewLib.fromBytes32(keccak256(abi.encodePacked(slot))),
-            storageHash,
-            proof
-        );
-        RLPItem memory item = RLP.toRLPItem(storedAmount);
-        storedAmount = item.requireBytesView();
-        uint256 amount = 0;
-        for (uint256 j = 0; j < storedAmount.len; j++) {
-            amount = (amount << 8) | storedAmount.loadUInt8(j);
-        }
-        return amount;
     }
 }

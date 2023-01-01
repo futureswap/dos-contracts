@@ -4,6 +4,7 @@ import {expect} from "chai";
 import {ethers} from "ethers";
 
 import {VotingTest__factory, HashNFT__factory} from "../../typechain-types";
+import {signVote} from "../../lib/signers";
 
 const fstAddress = "0x0E192d382a36De7011F795Acc4391Cd302003606";
 const fstMappingSlot = 51;
@@ -87,6 +88,16 @@ const proofs = {
       ],
       value: "0x1041f2d50fcba658d1",
     },
+    {
+      key: "0xf6d04bbe1a75429862aa97cc198c639a5559580c07ae94016a2b25986f2e3abd",
+      proof: [
+        "0xf90211a0adcf10b6e3d58d07c9dbd50f71dbe80943c45e49a567de387071a01fcbb74063a03570ecc329fe51f97759ba3c0c7e0b282451f814bbe0effad5d9f149be6cb9e0a00ad6efdf5a424b2df397e5f370a2b142c30f9b6bd2343c00eb40ef85a71b607ba012028a63c6837cc041207c365674049e9761898b4bbbe105bdb5545308fe59d2a079451fb051e961e86aa34688004e862a6ef13e966a24692f9ea755d1d060ecd0a03b91b336d588922ea1b53c3d4d10875bfd947c8731d0de139efe5c2288f8c3a7a09e858577e2fc9b0e78f7dde98dfb74df61c50d79e8dcda0c5c6ce5cf077a0041a079c52783d96f9c4f7eba2ec23e4cbb08892054440ce8960f70675d315c829182a0d6227538795825f5f19fc974968d1315a1c7e446acf133ef69975795de130476a0e7e89fbd9c2f4293979110b9095399a16d4ab84b12c87fd128601e858fcdaf10a060fb9375e4807ae8297e52176fa595cd45cbe4322dc32d1c7f66bf5d2b7861c4a094fa25ba2d4f5108e0bf64361b1d1ff41af4b3ae6cc6ed6ce5abba38c9bde5dea0344c220890226a7f6a22862842ae295583701e672ff106675f91aa190b30c985a08470149a7424d173dc0d006d5052bc27b182d0a294678610a78ef708a465d0c8a021f2807625fac0bd712e40ae1e92261d9f5187a9911dc711218eb0f079929326a0a3518d22ec245232de832326a66720935bafe389da163d0df86e5793ff56b51f80",
+        "0xf90211a0118cc751bf43671c16ecb7860e168560b93f8e5e385e9188f474b1b973e9a522a0a06f117cb4694f752c04f31aacf39ff1f206419909faf3db0b8aa0edbce515aaa0cc25aef8726f8be467e936754948e24ae8b5198d6b176e5e68e151ab58c0593aa0a0d196c490190571e06806e8e963ab35de840a21bdb9c30379387eda0dc10feca08cfff28be6bd10e0e05bce4d3d15470e8d791dee52bf877c2ea38c951001405ca08a4936471490ede1e9e1d97e3e31f5cb788f2eefe3a9b62ccca2ee42197068b0a0ea26c3b36dd67bdc5b78ae72221e8833d5cf6b7eaf819fea38a0c31ff4fe539fa073fbaf67ef91032a189cefb733ac988193e499095b8f73c1bb517aca44f63c85a018eb25e47abda3b080534cd961f1f7d62eef21dced6023a7b6ba31a5016ab0d8a0671d2b0a704b9841e96bd3744123339b5210fe325883908f71c421a2707a0a7ba052998892961afca2f85378b3a308482754073f68f2d6ac5a78e338b2f998abc2a037c4a48d34dfbcaaf7a381f9b87a4c5944c419442a25b90baaa26058475c2104a075b2d194abf520da7d8a18a65028a31c71002ec0927779a7c874194a473c4c50a03d13863527da58729e071f630bc4546306b39d632f4676230308b6976c319595a0f943e627c9d2107d9362b33d8c7bdadf85fe2164f3aa32985c88822a70005781a0b88716a1cdf399f0a16d7b9b5364c3a3a8143b892819412ea4a30a0d7f4c72fb80",
+        "0xf90211a0f9de8fdeb0db2790264c3305b0ef56121eccd34cf6d213e67797d74bd0e3a8e0a020b06248afb312c63efeb37b053ea2d10dc8fc6c04e1f9d2865a37fae38adbdfa0e620bc5ecbe3f5f549ead99001a2d31e67be56c3adf5410af67b7f9a52af554ca01606418c2303a7086d7d6ea05e1c409e3a7bd0be87fc349043a632fd984c5d28a0d66b1cf5c07b68187c4f6944ce305eaa379e3da922f1145a3461ecbe7aec946aa08cef274300167066621cb05b53e7ff155f3fd13257a0059fff1699c196e9bb00a0da9d2674797e86b3cb04f2d1558d45d1c2072e79659012c20e8b645a8b3c49c6a000359366c3adb5b6db50f6b630e1bea36e8f9aaad45a458865d7ffdbc53e5ee3a00541bf124167291aeefc0d1b6ca46ea6419cbe8a18709d13952a9926a6dee203a072e772c1c4ac73d4a1b13c5c4e566053993f84b8520c4666efa4dca622ec80daa0cac77ae55d96240bbd9a0cac4e92e2fcbbe67a6e179dfee72b381b97945d596ea0a2ef4ac4e36a53745d25983a3207044dcb37bfc25bc357ec7ee38f2624e775d4a0f5c78df99ccab47e3151c7e40945313ab9538ce9bd44a8a6663c95c96299b428a07e8b49bb478d03ca0218e34ccb18b66c6763c11f60c8513f860c9123da9ec986a02a39ca620e3c20ed8f0a5835531f96e3372b0131eb1a3c0dcd3e13bcc6613568a0de2bf803cdb40c6f58f79ad985e5c20c8801ce200d6a2b0ab7d404745cef9c0580",
+        "0xf9013180a028f507d0810579e9abcd60f2a7230dae8b6879d4dcb89b9478574d5bf0a85231a05e8f0ce738d069bd0a4d78dc1150ae04e6a71f01641cbc7621546cbd7fffe5e0a06d8c37f75990a83b0bb751436bb5128d9539c2deb5d11e47cb40b146c3b7dd99a03db8c61a3457bf0713ac51218c6de8fedf488696bf4c93807d466c168712650aa0712e8773e32a8cb6a6886417b41e3f60630302727a1d19e84cd710f42e22e3dca04eebf08e1151c04c6031acd4187a7b102477cf028b8939f3bf8e1245807e2faf80808080a05f39e4fc7ed13c41c5c88e4a4dc524582c9f703b25e5285ce8fc6d9b25bf3a1ea05f00f29d79edb442f6ce7cfe40fd52bb9d5b313b1990692af460d39238ff785a80a06598322c3d2d1565e221c21132115261d18594153300599d53642a31edb2caca8080",
+      ],
+      value: "0x0",
+    },
   ],
 };
 
@@ -112,12 +123,12 @@ const fromNumber = (x: ethers.BigNumberish) => {
   return y.toHexString();
 };
 
+// useful to analyze a patricia merkle proof
 /*
-/// useful to analyze a patricia merkle proof
-const logProof = (proof: string) => {
+const logProof = (proof: string): void => {
   console.log(
     Object.fromEntries(
-      ethers.utils.RLP.decode(proof).map(x => [
+      ethers.utils.RLP.decode(proof).map((x: unknown) => [
         ethers.utils.keccak256(ethers.utils.RLP.encode(x)),
         x,
       ]),
@@ -213,5 +224,61 @@ describe("Voting test", () => {
         encodeProof(proofs.storageProof[2].proof),
       ]),
     ).to.emit(voting, "VoteCasted");
+  });
+
+  it("Can't vote twice", async () => {
+    const {voting} = await loadFixture(deployVotingFixture);
+
+    const blockHeader = encodeBlockHeader(block);
+
+    await voting.proposeVote(
+      "Test",
+      "Test vote",
+      [],
+      1,
+      blockHeader,
+      encodeProof(proofs.accountProof),
+      encodeProof(proofs.storageProof[0].proof),
+    );
+
+    await voting.voteBatch(0, true, voters, signatures, [
+      encodeProof(proofs.storageProof[1].proof),
+      encodeProof(proofs.storageProof[2].proof),
+    ]);
+
+    await expect(
+      voting.voteBatch(0, true, voters, signatures, [
+        encodeProof(proofs.storageProof[1].proof),
+        encodeProof(proofs.storageProof[2].proof),
+      ]),
+    ).to.be.reverted;
+  });
+
+  it.only("Can't vote without non-zero balance", async () => {
+    const {user, voting} = await loadFixture(deployVotingFixture);
+
+    const blockHeader = encodeBlockHeader(block);
+
+    await voting.proposeVote(
+      "Test",
+      "Test vote",
+      [],
+      1,
+      blockHeader,
+      encodeProof(proofs.accountProof),
+      encodeProof(proofs.storageProof[0].proof),
+    );
+
+    const signature = await signVote(voting, 0, true, user);
+
+    await expect(
+      voting.voteBatch(
+        0,
+        true,
+        [user.address],
+        [signature],
+        [encodeProof(proofs.storageProof[3].proof)],
+      ),
+    ).to.be.revertedWith("no balance");
   });
 });

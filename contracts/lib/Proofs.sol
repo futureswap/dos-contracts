@@ -37,7 +37,7 @@ library BytesViewLib {
         }
     }
 
-    function fromBytes32(bytes32 x) internal pure returns (bytes memory res) {
+    function bytesFromBytes32(bytes32 x) internal pure returns (bytes memory res) {
         res = new bytes(32);
         mstore(memPtr(res), x);
     }
@@ -47,9 +47,7 @@ library BytesViewLib {
         unchecked {
             // copy as many word sizes as possible
             for (; len > WORD_SIZE; len -= WORD_SIZE) {
-                assembly {
-                    mstore(dest, mload(src))
-                }
+                mstore(dest, mload(src));
 
                 src += WORD_SIZE;
                 dest += WORD_SIZE;
@@ -57,13 +55,15 @@ library BytesViewLib {
 
             // left over bytes. Mask is used to remove unwanted bytes from the word
             FsUtils.Assert(len > 0 && len <= WORD_SIZE);
-            uint256 mask = (1 << ((WORD_SIZE - len) << 3)) - 1;
-            assembly {
-                let srcpart := and(mload(src), not(mask)) // zero out src
-                let destpart := and(mload(dest), mask) // retrieve the bytes
-                mstore(dest, or(destpart, srcpart))
-            }
+            bytes32 mask = bytes32((1 << ((WORD_SIZE - len) << 3)) - 1);
+            bytes32 srcpart = mload(src) & ~mask; // zero out src
+            bytes32 destpart = mload(dest) & mask; // retrieve the bytes
+            mstore(dest, destpart | srcpart);
         }
+    }
+
+    function empty() internal pure returns (BytesView memory) {
+        return BytesView(0, 0);
     }
 
     function toBytesView(bytes memory b) internal pure returns (BytesView memory) {
@@ -83,6 +83,15 @@ library BytesViewLib {
     function loadBytes32(BytesView memory b, uint256 offset) internal pure returns (bytes32) {
         FsUtils.Assert(offset + 32 <= b.len);
         return mload(b.memPtr + offset);
+    }
+
+    // Decode scalar value (non-negative integer) as described in yellow paper
+    function decodeScalar(BytesView memory b) internal pure returns (uint256) {
+        if (b.len == 0) return 0;
+        require(b.len <= 32, "Invalid scalar representation");
+        bytes32 data = mload(b.memPtr);
+        require(data[0] != 0, "Invalid scalar representation");
+        return uint256(data >> ((WORD_SIZE - b.len) << 3));
     }
 
     function slice(
@@ -111,16 +120,12 @@ library BytesViewLib {
 library RLP {
     using BytesViewLib for BytesView;
 
-    function isNull(RLPItem memory item) internal pure returns (bool) {
-        return item.buffer.len == 0;
-    }
-
     function isList(RLPItem memory item) internal pure returns (bool) {
-        return !isNull(item) && item.buffer.loadUInt8(0) >= 0xc0;
+        return item.buffer.loadUInt8(0) >= 0xc0;
     }
 
     function isBytes(RLPItem memory item) internal pure returns (bool) {
-        return !isNull(item) && item.buffer.loadUInt8(0) < 0xc0;
+        return !isList(item);
     }
 
     function rlpLen(BytesView memory b) internal pure returns (uint256) {
@@ -220,13 +225,21 @@ library TrieLib {
     using RLP for RLPItem;
     using RLP for RLPIterator;
 
+    // RLP("") = "0x80"
+    bytes32 private constant EMPTY_TRIE_HASH = keccak256("0x80");
+
+    /// @dev Verify a proof of a key in a Merkle Patricia Trie, revert if the proof is invalid.
+    /// @param key The key to verify.
+    /// @param root The root hash of the trie.
+    /// @param proof The proof of the key.
+    /// @return The value of the key if the key exists or empty if key doesn't exist.
+    /// @notice The stored value is encoded as RLP and thus never empty, so empty means the key doesn't exist.
     function verify(
         bytes memory key,
         bytes32 root,
         bytes memory proof
-    ) internal pure returns (BytesView memory) {
+    ) internal view returns (BytesView memory) {
         require(key.length <= 32, "Invalid key");
-        require(root != bytes32(0), "Invalid proof");
         bytes memory nibbles = new bytes(key.length * 2);
         for (uint256 i = 0; i < key.length; i++) {
             nibbles[i * 2] = key[i] >> 4;
@@ -236,27 +249,29 @@ library TrieLib {
         RLPItem memory rlpListItem = RLP.toRLPItem(BytesViewLib.toBytesView(proof));
         RLPIterator memory listIt = rlpListItem.requireRLPItemIterator();
         RLPItem[] memory children = new RLPItem[](17);
+        BytesView memory res = BytesViewLib.empty();
+        console.logBytes(key);
         while (listIt.hasNext()) {
             RLPItem memory rlpItem = listIt.next();
-            if (rlpItem.buffer.len < 32) {
-                require(root == FsUtils.encodeToBytes32(rlpItem.buffer.toBytes()), "Invalid proof");
-            } else {
-                require(rlpItem.buffer.keccak() == root, "Invalid proof");
-            }
-            require(rlpItem.isList(), "Invalid proof");
+            console.logBytes32(root);
+            console.logBytes32(rlpItem.buffer.keccak());
+            require(rlpItem.buffer.keccak() == root, "Invalid proof");
 
+            RLPIterator memory childIt = rlpItem.requireRLPItemIterator();
             uint256 count = 0;
-            RLPIterator memory childIt = rlpItem.toRLPItemIterator();
             while (childIt.hasNext()) {
                 children[count] = childIt.next();
                 count++;
                 require(count <= 17, "Invalid proof");
             }
+            FsUtils.Assert(p <= nibbles.length);
             RLPItem memory nextRoot;
+            root = EMPTY_TRIE_HASH; // sentinel indicating end of proof
             if (count == 17) {
                 // Branch node
                 if (p == nibbles.length) {
-                    return children[16].requireBytesView();
+                    res = children[16].requireBytesView();
+                    continue;
                 }
                 uint8 nibble = uint8(nibbles[p++]);
                 nextRoot = children[nibble];
@@ -267,39 +282,95 @@ library TrieLib {
                 uint8 tag = partialKey.loadUInt8(0);
                 if ((tag & 16) != 0) {
                     // Odd number of nibbles
-                    require(p < nibbles.length, "Invalid proof");
-                    require(bytes1(tag & 0xF) == nibbles[p++], "Invalid proof");
+                    if (p == nibbles.length || bytes1(tag & 0xF) != nibbles[p++]) {
+                        continue;
+                    }
                 }
-                require(p + (partialKey.len - 1) <= nibbles.length, "Invalid proof");
+                if (p + 2 * (partialKey.len - 1) > nibbles.length) {
+                    continue;
+                }
                 for (uint256 i = 1; i < partialKey.len; i++) {
                     uint8 bite = partialKey.loadUInt8(i);
-                    require(bytes1(bite >> 4) == nibbles[p++], "Invalid proof");
-                    require(bytes1(bite & 0xF) == nibbles[p++], "Invalid proof");
+                    if (bite != uint8((nibbles[p] << 4) | nibbles[p + 1])) {
+                        continue;
+                    }
+                    p += 2;
                 }
-                bool isLeaf = (tag & 32) != 0;
-                if (p == nibbles.length) {
-                    require(isLeaf, "Invalid proof");
-                    require(children[1].isBytes(), "Invalid proof");
-                    return children[1].toBytesView();
-                } else {
-                    require(!isLeaf, "Invalid proof");
-                    require(children[1].isBytes(), "Invalid proof");
-                    nextRoot = children[1];
+                if ((tag & 32) != 0) {
+                    // Leaf node
+                    if (p == nibbles.length) {
+                        res = children[1].requireBytesView();
+                    }
+                    continue;
                 }
+                nextRoot = children[1];
             } else {
                 revert("Invalid proof");
             }
+            // Proof continue with child node
             if (nextRoot.isBytes()) {
                 BytesView memory childBytes = nextRoot.toBytesView();
+                if (childBytes.len == 0) {
+                    continue;
+                }
                 require(childBytes.len == 32, "Invalid proof");
                 root = childBytes.loadBytes32(0);
-            } else if (nextRoot.isList()) {
-                require(nextRoot.buffer.len < 32, "Invalid proof");
-                root = FsUtils.encodeToBytes32(nextRoot.buffer.toBytes());
             } else {
-                revert("Invalid proof");
+                FsUtils.Assert(nextRoot.isList());
+                // The next node is embedded directly in this node
+                // as it's RLP length is less than 32 bytes.
+                require(nextRoot.buffer.len < 32, "Invalid proof");
+                root = nextRoot.buffer.keccak();
             }
         }
-        revert("Invalid proof");
+        require(root == EMPTY_TRIE_HASH, "Invalid proof");
+        return res;
+    }
+
+    function proofAccount(
+        address account,
+        bytes32 stateRoot,
+        bytes memory proof
+    )
+        internal
+        view
+        returns (uint256 nonce, uint256 balance, bytes32 storageHash, bytes32 codeHash)
+    {
+        BytesView memory accountRLP = verify(
+            BytesViewLib.bytesFromBytes32(keccak256(abi.encodePacked(account))),
+            stateRoot,
+            proof
+        );
+        if (accountRLP.len == 0) {
+            return (0, 0, bytes32(0), bytes32(0));
+        }
+        RLPItem memory item = RLP.toRLPItem(accountRLP);
+        RLPIterator memory it = item.requireRLPItemIterator();
+        require(it.hasNext(), "Invalid account");
+        nonce = it.next().requireBytesView().decodeScalar();
+        require(it.hasNext(), "Invalid account");
+        balance = it.next().requireBytesView().decodeScalar();
+        require(it.hasNext(), "invalid account");
+        storageHash = it.next().requireBytesView().loadBytes32(0);
+        require(it.hasNext(), "invalid account");
+        codeHash = it.next().requireBytesView().loadBytes32(0);
+    }
+
+    function proofStorageAt(
+        bytes32 slot,
+        bytes32 storageHash,
+        bytes memory proof
+    ) internal view returns (uint256) {
+        BytesView memory valueRLP = verify(
+            BytesViewLib.bytesFromBytes32(keccak256(abi.encodePacked(slot))),
+            storageHash,
+            proof
+        );
+        if (valueRLP.len == 0) {
+            return 0;
+        }
+        RLPItem memory item = RLP.toRLPItem(valueRLP);
+        BytesView memory storedAmount = item.requireBytesView();
+        return storedAmount.decodeScalar();
     }
 }
