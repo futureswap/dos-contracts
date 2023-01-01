@@ -238,7 +238,7 @@ library TrieLib {
         bytes memory key,
         bytes32 root,
         bytes memory proof
-    ) internal view returns (BytesView memory) {
+    ) internal pure returns (BytesView memory) {
         require(key.length <= 32, "Invalid key");
         bytes memory nibbles = new bytes(key.length * 2);
         for (uint256 i = 0; i < key.length; i++) {
@@ -333,7 +333,7 @@ library TrieLib {
         bytes memory proof
     )
         internal
-        view
+        pure
         returns (uint256 nonce, uint256 balance, bytes32 storageHash, bytes32 codeHash)
     {
         BytesView memory accountRLP = verify(
@@ -360,7 +360,7 @@ library TrieLib {
         bytes32 slot,
         bytes32 storageHash,
         bytes memory proof
-    ) internal view returns (uint256) {
+    ) internal pure returns (uint256) {
         BytesView memory valueRLP = verify(
             BytesViewLib.bytesFromBytes32(keccak256(abi.encodePacked(slot))),
             storageHash,
