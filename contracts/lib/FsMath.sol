@@ -200,6 +200,21 @@ library FsMath {
     }
 
     /**
+     * @notice A helper used by `pow`, that expects that `n` is positive.
+     */
+    function powInternal(int256 x, int256 n) private pure returns (int256) {
+        int256 res = FIXED_POINT_SCALE;
+        while (n > 0) {
+            if ((n & 1) == 1) {
+                res = (res * x) / FIXED_POINT_SCALE;
+            }
+            x = (x * x) / FIXED_POINT_SCALE;
+            n /= 2;
+        }
+        return res;
+    }
+
+    /**
      * @notice Calculates square root of `x`, in fixed point decimal with a scale of
      * `FIXED_POINT_SCALE`.
      *
@@ -208,10 +223,10 @@ library FsMath {
     function sqrt(int256 x) internal pure returns (int256) {
         require(x >= 0, "Square root of negative number");
         int256 prevRes = 0;
-        int256 res = x;
+        int256 res = x / 2;
         while (res != prevRes) {
             prevRes = res;
-            res = (res + (x * FIXED_POINT_SCALE) / res) / 2;
+            res = (res + (x << uint256(FIXED_POINT_SCALE_BITS)) / res) / 2;
         }
         return res;
     }
@@ -247,20 +262,5 @@ library FsMath {
             x = (x * mask) >> (256 - 8);
         }
         return x;
-    }
-
-    /**
-     * @notice A helper used by `pow`, that expects that `n` is positive.
-     */
-    function powInternal(int256 x, int256 n) private pure returns (int256) {
-        int256 res = FIXED_POINT_SCALE;
-        while (n > 0) {
-            if ((n & 1) == 1) {
-                res = (res * x) / FIXED_POINT_SCALE;
-            }
-            x = (x * x) / FIXED_POINT_SCALE;
-            n /= 2;
-        }
-        return res;
     }
 }

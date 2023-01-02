@@ -1,4 +1,4 @@
-import type {IPermit2, DSafeLogic, OffchainEntityProxy} from "../typechain-types";
+import type {IPermit2, DSafeLogic, OffchainEntityProxy, Voting} from "../typechain-types";
 import type {Call} from "./calls";
 import type {TypedDataSigner} from "@ethersproject/abstract-signer";
 
@@ -228,4 +228,29 @@ export const signTakeFutureSwapProxyOwnership = async (
   };
 
   return await signer._signTypedData(domain, types, value);
+};
+
+export const signVote = async (
+  voting: Voting,
+  proposalId: number,
+  support: boolean,
+  signer: TypedDataSigner,
+): Promise<string> => {
+  const domain = {
+    name: "Voting",
+    version: "1",
+    chainId: (await voting.provider.getNetwork()).chainId,
+    verifyingContract: voting.address,
+  };
+
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const types = {
+    Vote: [
+      {name: "proposalId", type: "uint256"},
+      {name: "support", type: "bool"},
+    ],
+  };
+  /* eslint-enable */
+
+  return await signer._signTypedData(domain, types, {proposalId, support});
 };

@@ -32,7 +32,7 @@ contract OffchainEntityProxy is Ownable, EIP712 {
         string memory _entityName
     ) EIP712("OffchainEntityProxy", "1") {
         _transferOwnership(offchainSigner);
-        entityName = FsUtils.toBytes32(bytes(_entityName));
+        entityName = FsUtils.encodeToBytes32(bytes(_entityName));
     }
 
     // By using signature based ownership transfer, we can ensure that the signer can be
@@ -55,6 +55,6 @@ contract OffchainEntityProxy is Ownable, EIP712 {
     }
 
     function name() external view returns (string memory) {
-        return string(FsUtils.fromBytes32(entityName));
+        return string(FsUtils.decodeFromBytes32(entityName));
     }
 }

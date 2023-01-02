@@ -40,7 +40,7 @@ contract VersionManager is IVersionManager, ImmutableGovernance {
 
         string memory versionName;
         try ImmutableVersion(implementation).immutableVersion() returns (bytes32 immutableVersion) {
-            versionName = string(FsUtils.fromBytes32(immutableVersion));
+            versionName = string(FsUtils.decodeFromBytes32(immutableVersion));
         } catch {
             revert InvalidImplementation();
         }

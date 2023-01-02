@@ -72,6 +72,7 @@
     "hardhat-ethernal": "^3.1.0",
     "hardhat-gas-reporter": "^1.0.9",
     "hardhat-preprocessor": "^0.1.5",
+    "merkle-patricia-tree": "^4.2.4",
     "pm2": "^5.2.2",
     "prettier": "^2.8.1",
     "prettier-plugin-solidity": "^1.0.0",
