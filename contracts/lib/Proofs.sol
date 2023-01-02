@@ -226,7 +226,8 @@ library TrieLib {
     using RLP for RLPIterator;
 
     // RLP("") = "0x80"
-    bytes32 private constant EMPTY_TRIE_HASH = keccak256("0x80");
+    bytes32 private constant EMPTY_TRIE_HASH =
+        0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421;
 
     /// @dev Verify a proof of a key in a Merkle Patricia Trie, revert if the proof is invalid.
     /// @param key The key to verify.
@@ -239,7 +240,6 @@ library TrieLib {
         bytes32 root,
         bytes memory proof
     ) internal pure returns (BytesView memory) {
-        require(key.length <= 32, "Invalid key");
         bytes memory nibbles = new bytes(key.length * 2);
         for (uint256 i = 0; i < key.length; i++) {
             nibbles[i * 2] = key[i] >> 4;
@@ -252,14 +252,14 @@ library TrieLib {
         BytesView memory res = BytesViewLib.empty();
         while (listIt.hasNext()) {
             RLPItem memory rlpItem = listIt.next();
-            require(rlpItem.buffer.keccak() == root, "Invalid proof");
+            require(rlpItem.buffer.keccak() == root, "IP: node mismatch");
 
             RLPIterator memory childIt = rlpItem.requireRLPItemIterator();
             uint256 count = 0;
             while (childIt.hasNext()) {
                 children[count] = childIt.next();
                 count++;
-                require(count <= 17, "Invalid proof");
+                require(count <= 17, "IP: invalid node");
             }
             FsUtils.Assert(p <= nibbles.length);
             RLPItem memory nextRoot;
@@ -275,13 +275,18 @@ library TrieLib {
             } else if (count == 2) {
                 // Extension or leaf nodes
                 BytesView memory partialKey = children[0].requireBytesView();
-                require(partialKey.len > 0, "Invalid proof");
+                require(partialKey.len > 0, "IP: empty HP partial key");
                 uint8 tag = partialKey.loadUInt8(0);
+                // Two most significant bits must be zero for a valid hex-prefix string
+                require(tag < 64, "IP: invalid HP tag");
                 if ((tag & 16) != 0) {
-                    // Odd number of nibbles
+                    // Odd number of nibbles, low order nibble of tag is first nibble of key
                     if (p == nibbles.length || bytes1(tag & 0xF) != nibbles[p++]) {
                         continue;
                     }
+                } else {
+                    // Even number of nibbles, low order nibble of tag is zero
+                    require(tag & 0xF == 0, "IP: invalid HP even tag");
                 }
                 if (p + 2 * (partialKey.len - 1) > nibbles.length) {
                     continue;
@@ -302,7 +307,7 @@ library TrieLib {
                 }
                 nextRoot = children[1];
             } else {
-                revert("Invalid proof");
+                revert("IP: invalid node");
             }
             // Proof continue with child node
             if (nextRoot.isBytes()) {
@@ -310,17 +315,17 @@ library TrieLib {
                 if (childBytes.len == 0) {
                     continue;
                 }
-                require(childBytes.len == 32, "Invalid proof");
+                require(childBytes.len == 32, "IP: invalid child hash");
                 root = childBytes.loadBytes32(0);
             } else {
                 FsUtils.Assert(nextRoot.isList());
                 // The next node is embedded directly in this node
                 // as it's RLP length is less than 32 bytes.
-                require(nextRoot.buffer.len < 32, "Invalid proof");
+                require(nextRoot.buffer.len < 32, "IP: child node too long");
                 root = nextRoot.buffer.keccak();
             }
         }
-        require(root == EMPTY_TRIE_HASH, "Invalid proof");
+        require(root == EMPTY_TRIE_HASH, "IP: incomplete proof");
         return res;
     }
 
