@@ -23,6 +23,13 @@ interface IDOSConfig {
         uint256 tokenId;
     }
 
+    struct RateParams {
+        uint256 baseRate; // interest rate at 0% utilization
+        uint256 slope1; // slope before target utilization
+        uint256 slope2; // slope after target utilization
+        uint256 targetUtilization; // the target utilization (uOptimal/kink)
+    }
+
     event ERC20Added(
         uint16 erc20Idx,
         address erc20,
@@ -48,13 +55,15 @@ interface IDOSConfig {
         address valueOracle,
         int256 colFactor,
         int256 borrowFactor,
-        int256 interest
+        int256 interest,
+        RateParams calldata rateParams
     ) external returns (uint16);
 
     function addNFTInfo(
         address nftContract,
         address valueOracleAddress,
-        int256 collateralFactor
+        int256 collateralFactor,
+        RateParams calldata rateParams
     ) external;
 
     function setERC20Data(

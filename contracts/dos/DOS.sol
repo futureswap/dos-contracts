@@ -175,7 +175,7 @@ struct ERC20Info {
     ERC20Pool debt;
     int256 collateralFactor;
     int256 borrowFactor;
-    int256 interest;
+    int256 interest; // TODO: use DosInterestRates to calculate dynamic interest
     uint256 timestamp;
 }
 
@@ -339,7 +339,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         onlyRegisteredNFT(nftContract, tokenId)
         onlyNFTOwner(nftContract, tokenId)
     {
-        // NOTE: owner conflicts with the state variable. Should rename to nftOwner, owner_, or similar.
         address _owner = ERC721(nftContract).ownerOf(tokenId);
         ERC721(nftContract).safeTransferFrom(
             _owner,
@@ -738,7 +737,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         int256 delta = FsMath.safeCastToSigned(block.timestamp - erc20Info.timestamp); // time passed since last update
         erc20Info.timestamp = block.timestamp; // update timestamp to current timestamp
         int256 debt = -erc20Info.debt.tokens; // get the debt
-        // TODO: uint256 utilization =
+        // TODO: uint32 utilization = uint32(erc20Info.collateral.tokens / debt); // compute utilization
         // int256 interestRate = DosInterestRates.computeInterestRate(erc20Info.erc20Contract, utilization);
         ERC20Info storage erc20Info = erc20Infos[erc20Idx];
         if (erc20Info.timestamp == block.timestamp) return;
@@ -917,5 +916,13 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         int256 remainingERC20ToBorrow = borrowable + totalDebt;
 
         return remainingERC20ToBorrow;
+    }
+
+    function _addRateParams(address underlying, RateParams calldata params) internal {
+        state.rateParamsByUnderlying[underlying].baseRate = params.baseRate;
+        state.rateParamsByUnderlying[underlying].slope1 = params.slope1;
+        state.rateParamsByUnderlying[underlying].slope2 = params.slope2;
+        state.rateParamsByUnderlying[underlying].targetUtilization = params.targetUtilization;
+        emit RateParamsAdded(underlying, params);
     }
 }
