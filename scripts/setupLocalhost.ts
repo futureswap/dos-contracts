@@ -1,3 +1,7 @@
+import "hardhat-ethernal/dist/type-extensions"; // types only
+
+import type {Api} from "hardhat-ethernal/dist/api";
+
 import {FormatTypes} from "@ethersproject/abi";
 import hre, {ethers} from "hardhat";
 
@@ -10,16 +14,21 @@ async function main() {
   const contracts = await setupLocalhost(deployer, env);
   await saveAddressesForNetwork(contracts);
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
-  await (hre as any).ethernal.startListening();
-  for (const [key, value] of Object.entries(contracts)) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, no-await-in-loop, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
-    await (hre as any).ethernal.api.syncContractData(
-      key,
-      value.address,
-      value.interface.format(FormatTypes.json),
-    );
-  }
+  await hre.ethernal.startListening();
+  await Promise.all(
+    Object.entries(contracts).map(([key, value]) =>
+      // `api` is a private key of hre.ethernal, so it's not present on the type
+      (hre.ethernal as typeof hre.ethernal & {api: Api}).api.syncContractData(
+        key,
+        value.address,
+        // @ts-expect-error -- the expected type is `any[]`, but `.format(FormatTypes.json)`
+        // returns string of JSON with array. Considering that this argument will be sent over the
+        // network, these values are equivalent
+        value.interface.format(FormatTypes.json),
+        undefined,
+      ),
+    ),
+  );
 }
 
 // we recommend this pattern to be able to use async/await everywhere

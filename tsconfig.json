@@ -15,5 +15,5 @@
       "module": "CommonJS"
     }
   },
-  "include": ["lib/**/*", "scripts/**/*", "test/**/*", "hardhat.config.ts"]
+  "include": ["lib", "scripts", "test", "hardhat.config.ts"]
 }
