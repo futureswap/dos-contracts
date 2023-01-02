@@ -277,14 +277,15 @@ library TrieLib {
                 BytesView memory partialKey = children[0].requireBytesView();
                 require(partialKey.len > 0, "IP: empty HP partial key");
                 uint8 tag = partialKey.loadUInt8(0);
-                // Two most significant bits must be zero for a hex-prefix string
+                // Two most significant bits must be zero for a valid hex-prefix string
                 require(tag < 64, "IP: invalid HP tag");
                 if ((tag & 16) != 0) {
-                    // Odd number of nibbles
+                    // Odd number of nibbles, low order nibble of tag is first nibble of key
                     if (p == nibbles.length || bytes1(tag & 0xF) != nibbles[p++]) {
                         continue;
                     }
                 } else {
+                    // Even number of nibbles, low order nibble of tag is zero
                     require(tag & 0xF == 0, "IP: invalid HP even tag");
                 }
                 if (p + 2 * (partialKey.len - 1) > nibbles.length) {
