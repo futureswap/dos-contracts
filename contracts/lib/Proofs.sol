@@ -277,7 +277,8 @@ library TrieLib {
                 BytesView memory partialKey = children[0].requireBytesView();
                 require(partialKey.len > 0, "IP: empty HP partial key");
                 uint8 tag = partialKey.loadUInt8(0);
-                require(tag < 1024, "IP: invalid HP tag");
+                // Two most significant bits must be zero for a hex-prefix string
+                require(tag < 64, "IP: invalid HP tag");
                 if ((tag & 16) != 0) {
                     // Odd number of nibbles
                     if (p == nibbles.length || bytes1(tag & 0xF) != nibbles[p++]) {
