@@ -226,7 +226,8 @@ library TrieLib {
     using RLP for RLPIterator;
 
     // RLP("") = "0x80"
-    bytes32 private constant EMPTY_TRIE_HASH = keccak256("0x80");
+    bytes32 private constant EMPTY_TRIE_HASH =
+        0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421;
 
     /// @dev Verify a proof of a key in a Merkle Patricia Trie, revert if the proof is invalid.
     /// @param key The key to verify.
@@ -320,7 +321,7 @@ library TrieLib {
                 root = nextRoot.buffer.keccak();
             }
         }
-        require(root == EMPTY_TRIE_HASH, "Invalid proof");
+        require(root == EMPTY_TRIE_HASH, "Invalid proof3");
         return res;
     }
 
