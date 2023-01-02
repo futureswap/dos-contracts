@@ -161,6 +161,15 @@ const encodeBlockHeader = (block: any) => {
   /* eslint-enable @typescript-eslint/no-unsafe-member-access */
 };
 
+const makeVote = (i: number) => {
+  return {
+    voter: voters[i],
+    support: true,
+    signature: signatures[i],
+    proof: encodeProof(proofs.storageProof[i + 1].proof),
+  };
+};
+
 describe("Voting test", () => {
   async function deployVotingFixture() {
     const [user] = await hEthers.getSigners();
@@ -218,12 +227,7 @@ describe("Voting test", () => {
       encodeProof(proofs.storageProof[0].proof),
     );
 
-    await expect(
-      voting.voteBatch(0, true, voters, signatures, [
-        encodeProof(proofs.storageProof[1].proof),
-        encodeProof(proofs.storageProof[2].proof),
-      ]),
-    ).to.emit(voting, "VoteCasted");
+    await expect(voting.voteBatch(0, [makeVote(0), makeVote(1)])).to.emit(voting, "VoteCasted");
   });
 
   it("Can't vote twice", async () => {
@@ -241,20 +245,12 @@ describe("Voting test", () => {
       encodeProof(proofs.storageProof[0].proof),
     );
 
-    await voting.voteBatch(0, true, voters, signatures, [
-      encodeProof(proofs.storageProof[1].proof),
-      encodeProof(proofs.storageProof[2].proof),
-    ]);
+    await voting.voteBatch(0, [makeVote(0), makeVote(1)]);
 
-    await expect(
-      voting.voteBatch(0, true, voters, signatures, [
-        encodeProof(proofs.storageProof[1].proof),
-        encodeProof(proofs.storageProof[2].proof),
-      ]),
-    ).to.be.reverted;
+    await expect(voting.voteBatch(0, [makeVote(0), makeVote(1)])).to.be.reverted;
   });
 
-  it.only("Can't vote without non-zero balance", async () => {
+  it("Can't vote without non-zero balance", async () => {
     const {user, voting} = await loadFixture(deployVotingFixture);
 
     const blockHeader = encodeBlockHeader(block);
@@ -272,13 +268,14 @@ describe("Voting test", () => {
     const signature = await signVote(voting, 0, true, user);
 
     await expect(
-      voting.voteBatch(
-        0,
-        true,
-        [user.address],
-        [signature],
-        [encodeProof(proofs.storageProof[3].proof)],
-      ),
+      voting.voteBatch(0, [
+        {
+          voter: user.address,
+          support: true,
+          signature,
+          proof: encodeProof(proofs.storageProof[3].proof),
+        },
+      ]),
     ).to.be.revertedWith("no balance");
   });
 });

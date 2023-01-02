@@ -23,6 +23,13 @@ contract Voting is EIP712 {
         uint256 noVotes;
     }
 
+    struct Vote {
+        address voter;
+        bool support;
+        bytes signature;
+        bytes proof;
+    }
+
     uint256 constant FRACTION = 10; // 10% must vote for quorum
 
     HashNFT public immutable hashNFT;
@@ -39,6 +46,7 @@ contract Voting is EIP712 {
     // therefore we pack the lowest 8 bits of the proposal id into a bit
     // field. This allows us to store 256 votes per mapping slot.
     mapping(address => mapping(uint248 => uint256)) public hasVoted;
+    mapping(address => address) public delegates;
 
     event ProposalCreated(
         uint256 proposalId,
@@ -51,6 +59,15 @@ contract Voting is EIP712 {
     );
 
     event VoteCasted(address voter, uint256 proposalId, bool support, uint256 votes);
+
+    modifier requireValidProposal(uint256 proposalId) {
+        require(
+            proposalId < proposals.length && proposals[proposalId].deadline > 0,
+            "proposal not found"
+        );
+        require(proposals[proposalId].deadline > block.timestamp, "voting ended");
+        _;
+    }
 
     constructor(
         address hashNFT_,
@@ -108,42 +125,45 @@ contract Voting is EIP712 {
         );
     }
 
-    function vote(uint256 proposalId, bool support, bytes calldata proof) external {
-        require(
-            proposalId < proposals.length && proposals[proposalId].deadline > 0,
-            "proposal not found"
-        );
-        require(proposals[proposalId].deadline > block.timestamp, "voting ended");
-
-        _vote(msg.sender, proposalId, support, proof);
+    function vote(
+        address voter,
+        uint256 proposalId,
+        bool support,
+        bytes calldata proof
+    ) external requireValidProposal(proposalId) {
+        if (voter == address(0)) {
+            voter = msg.sender;
+        } else {
+            require(voter == msg.sender || msg.sender == delegates[voter], "invalid voter");
+        }
+        _vote(voter, proposalId, support, proof);
     }
 
     // Allow multiple offchain votes to be verified in a single transaction
     function voteBatch(
         uint256 proposalId,
-        bool support,
-        address[] calldata voters,
-        bytes[] calldata signatures,
-        bytes[] calldata proofs
-    ) external {
-        require(
-            proposalId < proposals.length && proposals[proposalId].deadline > 0,
-            "proposal not found"
+        Vote[] calldata votes
+    ) external requireValidProposal(proposalId) {
+        bytes32 yesVoteDigest = _hashTypedDataV4(
+            keccak256(abi.encode(VOTE_TYPEHASH, proposalId, true))
         );
-        require(proposals[proposalId].deadline > block.timestamp, "voting ended");
-
-        require(voters.length == signatures.length, "invalid length");
-        require(signatures.length == proofs.length, "invalid length");
-        for (uint256 i = 0; i < voters.length; i++) {
-            bytes32 voteDigest = _hashTypedDataV4(
-                keccak256(abi.encode(VOTE_TYPEHASH, proposalId, support))
-            );
-            address addr = voters[i];
+        bytes32 noVoteDigest = _hashTypedDataV4(
+            keccak256(abi.encode(VOTE_TYPEHASH, proposalId, false))
+        );
+        for (uint256 i = 0; i < votes.length; i++) {
+            address addr = votes[i].voter;
+            if (delegates[addr] != address(0)) {
+                addr = delegates[addr];
+            }
             require(
-                SignatureChecker.isValidSignatureNow(addr, voteDigest, signatures[i]),
+                SignatureChecker.isValidSignatureNow(
+                    addr,
+                    votes[i].support ? yesVoteDigest : noVoteDigest,
+                    votes[i].signature
+                ),
                 "invalid signature"
             );
-            _vote(addr, proposalId, support, proofs[i]);
+            _vote(votes[i].voter, proposalId, votes[i].support, votes[i].proof);
         }
     }
 
@@ -162,6 +182,10 @@ contract Voting is EIP712 {
         // Vote passed;
         hashNFT.mint(governance, proposal.digest, "");
         delete proposals[proposalId];
+    }
+
+    function setDelegate(address delegate) external {
+        delegates[msg.sender] = delegate;
     }
 
     function _vote(address addr, uint256 proposalId, bool support, bytes calldata proof) internal {
@@ -186,6 +210,7 @@ contract Voting is EIP712 {
         emit VoteCasted(addr, proposalId, support, amount);
     }
 
+    /// @dev Override this function for testing to return handcrafted blockhashes
     function getBlockHash(uint256 blockNumber) internal view virtual returns (bytes32 blockHash) {
         return blockhash(blockNumber);
     }

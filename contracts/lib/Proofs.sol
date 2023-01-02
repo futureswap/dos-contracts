@@ -250,11 +250,8 @@ library TrieLib {
         RLPIterator memory listIt = rlpListItem.requireRLPItemIterator();
         RLPItem[] memory children = new RLPItem[](17);
         BytesView memory res = BytesViewLib.empty();
-        console.logBytes(key);
         while (listIt.hasNext()) {
             RLPItem memory rlpItem = listIt.next();
-            console.logBytes32(root);
-            console.logBytes32(rlpItem.buffer.keccak());
             require(rlpItem.buffer.keccak() == root, "Invalid proof");
 
             RLPIterator memory childIt = rlpItem.requireRLPItemIterator();
