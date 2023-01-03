@@ -768,10 +768,13 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         erc20Info.timestamp = block.timestamp; // update timestamp to current timestamp
         int256 debt = -erc20Info.debt.tokens; // get the debt
         int256 poolAssets = debt + erc20Info.collateral.tokens; // get the total assets in the pool
-        uint32 utilization = uint32(FsMath.safeCastToUnsigned(debt / poolAssets)); // compute utilization
+        uint32 utilization; // utilization of the pool
+        if (poolAssets == 0)
+            utilization = 0; // if there are no assets, utilization is 0
+        else utilization = uint32(FsMath.safeCastToUnsigned(debt / poolAssets));
         int256 interestRate = computeInterestRate(erc20Idx, utilization);
         int256 interest = (debt * (FsMath.exp(interestRate * delta) - FsMath.FIXED_POINT_SCALE)) /
-            FsMath.FIXED_POINT_SCALE; // Get the interest // QUESTION: why exp?
+            FsMath.FIXED_POINT_SCALE; // Get the interest
         erc20Info.debt.tokens -= interest; // subtract interest from debt
         erc20Info.collateral.tokens += interest; // add interest to collateral
         // TODO(gerben) add to treasury
