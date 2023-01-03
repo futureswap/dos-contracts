@@ -235,51 +235,6 @@
         }
       }
     },
-    "contracts/dos/DosInterestRates.sol": {
-      "lastModificationDate": 1672705738986,
-      "contentHash": "9529e8b7a6fcadacd5d3655ea836c474",
-      "sourceName": "contracts/dos/DosInterestRates.sol",
-      "solcConfig": {
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "metadata": {
-            "bytecodeHash": "ipfs",
-            "appendCBOR": true
-          },
-          "outputSelection": {
-            "*": {
-              "": [
-                "ast"
-              ],
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ]
-            }
-          },
-          "evmVersion": "london",
-          "viaIR": true,
-          "libraries": {}
-        }
-      },
-      "imports": [
-        "contracts/lib/FsUtils.sol",
-        "contracts/lib/ImmutableGovernance.sol",
-        "node_modules/hardhat/console.sol"
-      ],
-      "versionRequirement": "^0.8.17",
-      "artifacts": {
-        "DosInterestRates": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "DosInterestRates.sol/DosInterestRates.json"
-        }
-      }
-    },
     "contracts/dos/Liquifier.sol": {
       "lastModificationDate": 1672702618101,
       "contentHash": "7c727869ee28908ca7fb6c14df810143",
