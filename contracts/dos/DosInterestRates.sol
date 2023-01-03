@@ -37,7 +37,7 @@ contract DosInterestRates is ImmutableGovernance {
     /// @param underlying The underlying asset
     /// @param utilization The utilization rate
     /// @return The interest rate of `underlying` at `utilization`
-    function computeInterestRateImpl(
+    function computeInterestRate(
         address underlying,
         uint32 utilization
     ) external view returns (int96) {
