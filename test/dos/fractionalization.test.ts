@@ -72,6 +72,9 @@ describe("Fractionalization", () => {
       toWei(0.9),
       toWei(0.9),
       0,
+      0,
+      0,
+      0,
     );
     await dos.addERC20Info(
       weth.address,
@@ -81,6 +84,9 @@ describe("Fractionalization", () => {
       ethChainlink.oracle.address,
       toWei(0.9),
       toWei(0.9),
+      0,
+      0,
+      0,
       0,
     );
 

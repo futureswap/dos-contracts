@@ -73,6 +73,9 @@ contract DuoswapV2Test is Test {
             address(token0Oracle),
             9e17,
             9e17,
+            0,
+            0,
+            0,
             0
         );
         IDOSConfig(address(dos)).addERC20Info(
@@ -83,6 +86,9 @@ contract DuoswapV2Test is Test {
             address(token1Oracle),
             9e17,
             9e17,
+            0,
+            0,
+            0,
             0
         );
 
