@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 
-import {IDOS, DOS, DOSConfig, IDOSConfig, DOSLib} from "../../contracts/dos/DOS.sol";
+import {Approval, IDOS, DOS, DOSConfig, IDOSConfig, DSafeLib, DOSState} from "../../contracts/dos/DOS.sol";
 import {Call} from "../../contracts/lib/Call.sol";
 import {DSafeProxy, DSafeLogic} from "../../contracts/dos/DSafeProxy.sol";
 import {IVersionManager, VersionManager, ImmutableVersion} from "../../contracts/dos/VersionManager.sol";
@@ -147,14 +147,17 @@ contract DuoswapV2Test is Test {
             block.timestamp
         );
 
+        Approval[] memory approvals = new Approval[](2);
+        approvals[0] = (Approval({ercContract: address(tokens[0]), amountOrTokenId: amounts[0]}));
+        approvals[1] = (Approval({ercContract: address(tokens[1]), amountOrTokenId: amounts[1]}));
+
         calls[0] = (
             Call({
                 to: address(dos),
                 callData: abi.encodeWithSignature(
-                    "approveBatchAndCall(address[],address,uint256[],bytes)",
-                    tokens,
+                    "approveAndCall((address,uint256)[],address,bytes)",
+                    approvals,
                     address(router),
-                    amounts,
                     callData
                 ),
                 value: 0
@@ -266,25 +269,28 @@ contract DuoswapV2Test is Test {
             block.timestamp
         );
 
+        Approval[] memory approvals = new Approval[](1);
+        approvals[0] = (Approval({ercContract: address(token0), amountOrTokenId: swapAmount}));
+
         bytes memory callData = abi.encodeWithSignature(
-            "approveAndCall(address,address,uint256,bytes)",
-            address(token0),
+            "approveAndCall((address,uint256)[],address,bytes)",
+            approvals,
             address(router),
-            swapAmount,
             data
         );
         Call[] memory calls = new Call[](1);
         calls[0] = (Call({to: address(dos), callData: callData, value: 0}));
 
+        console.log("before approveAndCall");
         DSafeLogic(address(userSafe)).executeBatch(calls);
 
         int256 userSafeBalance0After = IDOSConfig(address(dos)).getDAccountERC20(
             address(userSafe),
-            token0
+            IERC20(token0)
         );
         int256 userSafeBalance1After = IDOSConfig(address(dos)).getDAccountERC20(
             address(userSafe),
-            token1
+            IERC20(token1)
         );
 
         int256 userSafeBalance0Diff = userSafeBalance0After - userSafeBalance0Before;
@@ -302,14 +308,6 @@ contract DuoswapV2Test is Test {
 
         token0.mint(address(userSafe), _amount0);
         token1.mint(address(userSafe), _amount1);
-        Call[] memory calls = new Call[](1);
-        IERC20[] memory tokens = new IERC20[](2);
-        tokens[0] = token0;
-        tokens[1] = token1;
-
-        uint256[] memory amounts = new uint256[](2);
-        amounts[0] = _amount0;
-        amounts[1] = _amount1;
 
         bytes memory callData = abi.encodeWithSignature(
             "addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256)",
@@ -323,14 +321,19 @@ contract DuoswapV2Test is Test {
             block.timestamp
         );
 
+        Approval[] memory approvals = new Approval[](2);
+        approvals[0] = (Approval({ercContract: address(token0), amountOrTokenId: _amount0}));
+        approvals[1] = (Approval({ercContract: address(token1), amountOrTokenId: _amount1}));
+
+        Call[] memory calls = new Call[](1);
+
         calls[0] = (
             Call({
                 to: address(dos),
                 callData: abi.encodeWithSignature(
-                    "approveBatchAndCall(address[],address,uint256[],bytes)",
-                    tokens,
+                    "approveAndCall((address,uint256)[],address,bytes)",
+                    approvals,
                     address(router),
-                    amounts,
                     callData
                 ),
                 value: 0
@@ -409,6 +412,9 @@ contract DuoswapV2Test is Test {
             address(pairOracle),
             9e17,
             9e17,
+            0,
+            0,
+            0,
             0
         );
         return _pair;
