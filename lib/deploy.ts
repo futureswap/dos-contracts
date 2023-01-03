@@ -489,6 +489,9 @@ export const setupDos = async (
       toWei(0.9),
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
+      0,
+      0,
+      0,
     ),
     makeCall(dos).addERC20Info(
       weth.address,
@@ -499,6 +502,9 @@ export const setupDos = async (
       toWei(0.9),
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
+      0,
+      0,
+      0,
     ),
     makeCall(dos).addERC20Info(
       uni.address,
@@ -509,6 +515,9 @@ export const setupDos = async (
       toWei(0.9),
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
+      0,
+      0,
+      0,
     ),
     makeCall(uniV3Oracle).setERC20ValueOracle(usdc.address, usdcOracle.address),
     makeCall(uniV3Oracle).setERC20ValueOracle(weth.address, ethOracle.address),
