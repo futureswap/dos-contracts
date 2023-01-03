@@ -281,7 +281,6 @@ contract DuoswapV2Test is Test {
         Call[] memory calls = new Call[](1);
         calls[0] = (Call({to: address(dos), callData: callData, value: 0}));
 
-        console.log("before approveAndCall");
         DSafeLogic(address(userSafe)).executeBatch(calls);
 
         int256 userSafeBalance0After = IDOSConfig(address(dos)).getDAccountERC20(

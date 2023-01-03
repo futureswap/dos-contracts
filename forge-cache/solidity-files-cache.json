@@ -13,8 +13,8 @@
   },
   "files": {
     "contracts/dos/DOS.sol": {
-      "lastModificationDate": 1672774008233,
-      "contentHash": "aecf506600e889fe3fcf453ab35e6b4f",
+      "lastModificationDate": 1672774494422,
+      "contentHash": "5982f749dc1fa021b22b3d6214b8f0a2",
       "sourceName": "contracts/dos/DOS.sol",
       "solcConfig": {
         "settings": {
@@ -5845,8 +5845,8 @@
       }
     },
     "test/foundry/DuoswapV2.t.sol": {
-      "lastModificationDate": 1672774255316,
-      "contentHash": "48d3133c69c62e45efcc1899605e2011",
+      "lastModificationDate": 1672775429115,
+      "contentHash": "a77f476d5cf7314bc36985d136e92228",
       "sourceName": "test/foundry/DuoswapV2.t.sol",
       "solcConfig": {
         "settings": {
