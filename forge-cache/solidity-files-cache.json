@@ -6,12 +6,15 @@
     "sources": "contracts",
     "tests": "test/foundry",
     "scripts": "script",
-    "libraries": ["lib", "node_modules"]
+    "libraries": [
+      "lib",
+      "node_modules"
+    ]
   },
   "files": {
     "contracts/dos/DOS.sol": {
-      "lastModificationDate": 1671234713749,
-      "contentHash": "c25352abac0fcfdf3bad69524efc84f0",
+      "lastModificationDate": 1672774008233,
+      "contentHash": "aecf506600e889fe3fcf453ab35e6b4f",
       "sourceName": "contracts/dos/DOS.sol",
       "solcConfig": {
         "settings": {
@@ -25,7 +28,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -36,12 +41,16 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
       "imports": [
         "contracts/dos/DSafeProxy.sol",
+        "contracts/dos/DSafeState.sol",
+        "contracts/dos/Liquifier.sol",
         "contracts/dosERC20/DOSERC20.sol",
+        "contracts/external/interfaces/INonfungiblePositionManager.sol",
         "contracts/external/interfaces/IPermit2.sol",
         "contracts/interfaces/IDOS.sol",
         "contracts/interfaces/IERC1363-extended.sol",
@@ -53,7 +62,9 @@
         "contracts/lib/Call.sol",
         "contracts/lib/FsMath.sol",
         "contracts/lib/FsUtils.sol",
+        "contracts/lib/GitCommitHash.sol",
         "contracts/lib/ImmutableGovernance.sol",
+        "contracts/lib/ImmutableVersion.sol",
         "node_modules/@openzeppelin/contracts/interfaces/IERC1271.sol",
         "node_modules/@openzeppelin/contracts/interfaces/IERC1363.sol",
         "node_modules/@openzeppelin/contracts/interfaces/IERC1363Receiver.sol",
@@ -61,6 +72,7 @@
         "node_modules/@openzeppelin/contracts/interfaces/IERC165.sol",
         "node_modules/@openzeppelin/contracts/interfaces/IERC20.sol",
         "node_modules/@openzeppelin/contracts/proxy/Proxy.sol",
+        "node_modules/@openzeppelin/contracts/security/Pausable.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
@@ -93,8 +105,8 @@
         "DOSConfig": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "DOS.sol/DOSConfig.json"
         },
-        "DOSLib": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "DOS.sol/DOSLib.json"
+        "DOSState": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "DOS.sol/DOSState.json"
         },
         "DSafeLib": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "DOS.sol/DSafeLib.json"
@@ -102,8 +114,8 @@
       }
     },
     "contracts/dos/DSafeProxy.sol": {
-      "lastModificationDate": 1671232329965,
-      "contentHash": "abdca18fd71c53a8c5ba2794679e14f3",
+      "lastModificationDate": 1672703102114,
+      "contentHash": "8b425b16daad4f638c2dcfba7fbe2558",
       "sourceName": "contracts/dos/DSafeProxy.sol",
       "solcConfig": {
         "settings": {
@@ -117,7 +129,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -128,10 +142,14 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
       "imports": [
+        "contracts/dos/DSafeState.sol",
+        "contracts/dos/Liquifier.sol",
+        "contracts/external/interfaces/INonfungiblePositionManager.sol",
         "contracts/external/interfaces/IPermit2.sol",
         "contracts/interfaces/IDOS.sol",
         "contracts/interfaces/ISafe.sol",
@@ -139,6 +157,8 @@
         "contracts/interfaces/IVersionManager.sol",
         "contracts/lib/Call.sol",
         "contracts/lib/FsUtils.sol",
+        "contracts/lib/GitCommitHash.sol",
+        "contracts/lib/ImmutableVersion.sol",
         "node_modules/@openzeppelin/contracts/interfaces/IERC1271.sol",
         "node_modules/@openzeppelin/contracts/proxy/Proxy.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
@@ -157,13 +177,158 @@
         "node_modules/@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol",
         "node_modules/hardhat/console.sol"
       ],
-      "versionRequirement": "^0.8.7",
+      "versionRequirement": "^0.8.17",
       "artifacts": {
         "DSafeLogic": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "DSafeProxy.sol/DSafeLogic.json"
         },
         "DSafeProxy": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "DSafeProxy.sol/DSafeProxy.json"
+        }
+      }
+    },
+    "contracts/dos/DSafeState.sol": {
+      "lastModificationDate": 1672702618101,
+      "contentHash": "041922df957ad40e5450cb69abf54fcf",
+      "sourceName": "contracts/dos/DSafeState.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/interfaces/IDOS.sol",
+        "contracts/lib/Call.sol",
+        "contracts/lib/FsUtils.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
+        "node_modules/hardhat/console.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "DSafeState": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "DSafeState.sol/DSafeState.json"
+        }
+      }
+    },
+    "contracts/dos/DosInterestRates.sol": {
+      "lastModificationDate": 1672705738986,
+      "contentHash": "9529e8b7a6fcadacd5d3655ea836c474",
+      "sourceName": "contracts/dos/DosInterestRates.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/lib/FsUtils.sol",
+        "contracts/lib/ImmutableGovernance.sol",
+        "node_modules/hardhat/console.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "DosInterestRates": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "DosInterestRates.sol/DosInterestRates.json"
+        }
+      }
+    },
+    "contracts/dos/Liquifier.sol": {
+      "lastModificationDate": 1672702618101,
+      "contentHash": "7c727869ee28908ca7fb6c14df810143",
+      "sourceName": "contracts/dos/Liquifier.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/dos/DSafeState.sol",
+        "contracts/external/interfaces/INonfungiblePositionManager.sol",
+        "contracts/interfaces/IDOS.sol",
+        "contracts/lib/Call.sol",
+        "contracts/lib/FsUtils.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
+        "node_modules/@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol",
+        "node_modules/@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol",
+        "node_modules/hardhat/console.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "Liquifier": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "Liquifier.sol/Liquifier.json"
         }
       }
     },
@@ -183,7 +348,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -194,6 +361,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -215,8 +383,8 @@
       }
     },
     "contracts/dos/VersionManager.sol": {
-      "lastModificationDate": 1671215886473,
-      "contentHash": "2295966c8147b083c8bb87f6747fbc0a",
+      "lastModificationDate": 1672703096126,
+      "contentHash": "677172727491cfdb955e4831f55b8144",
       "sourceName": "contracts/dos/VersionManager.sol",
       "solcConfig": {
         "settings": {
@@ -230,7 +398,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -241,13 +411,16 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
       "imports": [
         "contracts/interfaces/IVersionManager.sol",
         "contracts/lib/FsUtils.sol",
+        "contracts/lib/GitCommitHash.sol",
         "contracts/lib/ImmutableGovernance.sol",
+        "contracts/lib/ImmutableVersion.sol",
         "node_modules/@openzeppelin/contracts/utils/Address.sol",
         "node_modules/hardhat/console.sol"
       ],
@@ -259,8 +432,8 @@
       }
     },
     "contracts/dosERC20/DOSERC20.sol": {
-      "lastModificationDate": 1671210470206,
-      "contentHash": "1dcbdadde9bbd455ebedae16510e8500",
+      "lastModificationDate": 1672696878366,
+      "contentHash": "487fa95cc57e76b38ee683f3c2e30c65",
       "sourceName": "contracts/dosERC20/DOSERC20.sol",
       "solcConfig": {
         "settings": {
@@ -274,7 +447,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -285,6 +460,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -322,7 +498,7 @@
       }
     },
     "contracts/duoswapV2/DuoswapV2ERC20.sol": {
-      "lastModificationDate": 1671223543991,
+      "lastModificationDate": 1671237247240,
       "contentHash": "ad3ddd8028b6bf9d75486293b23434f9",
       "sourceName": "contracts/duoswapV2/DuoswapV2ERC20.sol",
       "solcConfig": {
@@ -337,7 +513,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -348,10 +526,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol"],
+      "imports": [
+        "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol"
+      ],
       "versionRequirement": "^0.8.7",
       "artifacts": {
         "DuoswapV2ERC20": {
@@ -360,7 +541,7 @@
       }
     },
     "contracts/duoswapV2/DuoswapV2Factory.sol": {
-      "lastModificationDate": 1671223610118,
+      "lastModificationDate": 1671237247240,
       "contentHash": "f62877a1c71af230fb1b12459c1a04cf",
       "sourceName": "contracts/duoswapV2/DuoswapV2Factory.sol",
       "solcConfig": {
@@ -375,7 +556,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -386,6 +569,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -412,7 +596,7 @@
       }
     },
     "contracts/duoswapV2/DuoswapV2Pair.sol": {
-      "lastModificationDate": 1671223750846,
+      "lastModificationDate": 1671237247240,
       "contentHash": "478feeca68b1a60d6e8b76e30aaf16bb",
       "sourceName": "contracts/duoswapV2/DuoswapV2Pair.sol",
       "solcConfig": {
@@ -427,7 +611,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -438,6 +624,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -463,7 +650,7 @@
       }
     },
     "contracts/duoswapV2/DuoswapV2Router.sol": {
-      "lastModificationDate": 1671223718265,
+      "lastModificationDate": 1671237247240,
       "contentHash": "52e8513b44978026b79283fa790747c9",
       "sourceName": "contracts/duoswapV2/DuoswapV2Router.sol",
       "solcConfig": {
@@ -478,7 +665,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -489,6 +678,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -515,7 +705,7 @@
       }
     },
     "contracts/duoswapV2/interfaces/IDuoswapV2Pair.sol": {
-      "lastModificationDate": 1671215886476,
+      "lastModificationDate": 1671237247241,
       "contentHash": "57419176ab85ceaa86f905ce29ea9948",
       "sourceName": "contracts/duoswapV2/interfaces/IDuoswapV2Pair.sol",
       "solcConfig": {
@@ -530,7 +720,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -541,10 +733,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol"],
+      "imports": [
+        "node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol"
+      ],
       "versionRequirement": ">=0.5.0",
       "artifacts": {
         "IDuoswapV2Pair": {
@@ -553,7 +748,7 @@
       }
     },
     "contracts/duoswapV2/interfaces/IDuoswapV2Router.sol": {
-      "lastModificationDate": 1671217789566,
+      "lastModificationDate": 1671237247241,
       "contentHash": "dd596b2915527e2a9e3db9a4ac752dc4",
       "sourceName": "contracts/duoswapV2/interfaces/IDuoswapV2Router.sol",
       "solcConfig": {
@@ -568,7 +763,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -579,10 +776,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["contracts/duoswapV2/interfaces/IDuoswapV2Router01.sol"],
+      "imports": [
+        "contracts/duoswapV2/interfaces/IDuoswapV2Router01.sol"
+      ],
       "versionRequirement": "^0.8.7",
       "artifacts": {
         "IDuoswapV2Router": {
@@ -591,7 +791,7 @@
       }
     },
     "contracts/duoswapV2/interfaces/IDuoswapV2Router01.sol": {
-      "lastModificationDate": 1671217793588,
+      "lastModificationDate": 1671237247241,
       "contentHash": "e1e333e138cd2164915d39f1097a7160",
       "sourceName": "contracts/duoswapV2/interfaces/IDuoswapV2Router01.sol",
       "solcConfig": {
@@ -606,7 +806,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -617,6 +819,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -629,8 +832,8 @@
       }
     },
     "contracts/duoswapV2/libraries/DuoswapV2Library.sol": {
-      "lastModificationDate": 1671231780572,
-      "contentHash": "f7a49c43d2ae173408b26dee3f93acd7",
+      "lastModificationDate": 1672773697897,
+      "contentHash": "23515be20405d4777ae5a3f650248bae",
       "sourceName": "contracts/duoswapV2/libraries/DuoswapV2Library.sol",
       "solcConfig": {
         "settings": {
@@ -644,7 +847,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -655,6 +860,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -670,7 +876,7 @@
       }
     },
     "contracts/duoswapV2/libraries/Math.sol": {
-      "lastModificationDate": 1671215886477,
+      "lastModificationDate": 1671237247242,
       "contentHash": "73acbfa469a36d9e50db37fc5d393fac",
       "sourceName": "contracts/duoswapV2/libraries/Math.sol",
       "solcConfig": {
@@ -685,7 +891,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -696,6 +904,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -708,7 +917,7 @@
       }
     },
     "contracts/duoswapV2/libraries/UQ112x112.sol": {
-      "lastModificationDate": 1671215886477,
+      "lastModificationDate": 1671237247242,
       "contentHash": "0d997592f917ea4e63bff46660b042b5",
       "sourceName": "contracts/duoswapV2/libraries/UQ112x112.sol",
       "solcConfig": {
@@ -723,7 +932,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -734,6 +945,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -761,7 +973,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -772,6 +986,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -780,6 +995,47 @@
       "artifacts": {
         "IAnyswapCreate2Deployer": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "IAnyswapCreate2Deployer.sol/IAnyswapCreate2Deployer.json"
+        }
+      }
+    },
+    "contracts/external/interfaces/INonfungiblePositionManager.sol": {
+      "lastModificationDate": 1672702618102,
+      "contentHash": "56d17e895b6d116f8dd72bb81cc04377",
+      "sourceName": "contracts/external/interfaces/INonfungiblePositionManager.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": ">=0.7.5",
+      "artifacts": {
+        "INonfungiblePositionManager": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "INonfungiblePositionManager.sol/INonfungiblePositionManager.json"
         }
       }
     },
@@ -799,7 +1055,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -810,10 +1068,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol"],
+      "imports": [
+        "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol"
+      ],
       "versionRequirement": "^0.8.17",
       "artifacts": {
         "IPermit2": {
@@ -837,7 +1098,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -848,6 +1111,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -866,8 +1130,8 @@
       }
     },
     "contracts/governance/GovernanceProxy.sol": {
-      "lastModificationDate": 1671210470207,
-      "contentHash": "5b1cb2a953af3328f860d0258ca2c868",
+      "lastModificationDate": 1672703084755,
+      "contentHash": "c3d6b7cbae731c5546aab1f5e9be2fc8",
       "sourceName": "contracts/governance/GovernanceProxy.sol",
       "solcConfig": {
         "settings": {
@@ -881,7 +1145,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -892,25 +1158,26 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
       "imports": [
+        "contracts/lib/AccessControl.sol",
         "contracts/lib/Call.sol",
         "contracts/lib/FsUtils.sol",
         "contracts/lib/ImmutableGovernance.sol",
         "contracts/tokens/HashNFT.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/ERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol",
         "node_modules/@openzeppelin/contracts/utils/Address.sol",
         "node_modules/@openzeppelin/contracts/utils/Context.sol",
-        "node_modules/@openzeppelin/contracts/utils/Strings.sol",
         "node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol",
         "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol",
-        "node_modules/@openzeppelin/contracts/utils/math/Math.sol",
         "node_modules/hardhat/console.sol"
       ],
       "versionRequirement": "^0.8.17",
@@ -923,9 +1190,184 @@
         }
       }
     },
+    "contracts/governance/OffchainEntityProxy.sol": {
+      "lastModificationDate": 1672702618102,
+      "contentHash": "b3594456ede4b012a45f5d7416e34498",
+      "sourceName": "contracts/governance/OffchainEntityProxy.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/lib/Call.sol",
+        "contracts/lib/FsUtils.sol",
+        "node_modules/@openzeppelin/contracts/access/Ownable.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
+        "node_modules/@openzeppelin/contracts/utils/Context.sol",
+        "node_modules/@openzeppelin/contracts/utils/Strings.sol",
+        "node_modules/@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
+        "node_modules/@openzeppelin/contracts/utils/cryptography/EIP712.sol",
+        "node_modules/@openzeppelin/contracts/utils/math/Math.sol",
+        "node_modules/hardhat/console.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "OffchainEntityProxy": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "OffchainEntityProxy.sol/OffchainEntityProxy.json"
+        }
+      }
+    },
+    "contracts/governance/TimeLockedCall.sol": {
+      "lastModificationDate": 1672702618102,
+      "contentHash": "5c8214e5edd98ffdf422f27963b7ba97",
+      "sourceName": "contracts/governance/TimeLockedCall.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/governance/GovernanceProxy.sol",
+        "contracts/lib/AccessControl.sol",
+        "contracts/lib/Call.sol",
+        "contracts/lib/FsUtils.sol",
+        "contracts/lib/ImmutableGovernance.sol",
+        "contracts/tokens/HashNFT.sol",
+        "node_modules/@openzeppelin/contracts/access/Ownable.sol",
+        "node_modules/@openzeppelin/contracts/access/Ownable2Step.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/ERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
+        "node_modules/@openzeppelin/contracts/utils/Context.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol",
+        "node_modules/hardhat/console.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "TimeLockedCall": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "TimeLockedCall.sol/TimeLockedCall.json"
+        }
+      }
+    },
+    "contracts/governance/Voting.sol": {
+      "lastModificationDate": 1672702618102,
+      "contentHash": "ce959b8dc5318446039988d4210df359",
+      "sourceName": "contracts/governance/Voting.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/lib/Call.sol",
+        "contracts/lib/FsUtils.sol",
+        "contracts/lib/Proofs.sol",
+        "contracts/tokens/HashNFT.sol",
+        "node_modules/@openzeppelin/contracts/interfaces/IERC1271.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/ERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
+        "node_modules/@openzeppelin/contracts/utils/Context.sol",
+        "node_modules/@openzeppelin/contracts/utils/Strings.sol",
+        "node_modules/@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
+        "node_modules/@openzeppelin/contracts/utils/cryptography/EIP712.sol",
+        "node_modules/@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol",
+        "node_modules/@openzeppelin/contracts/utils/math/Math.sol",
+        "node_modules/hardhat/console.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "Voting": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "Voting.sol/Voting.json"
+        }
+      }
+    },
     "contracts/interfaces/IDOS.sol": {
-      "lastModificationDate": 1671217173079,
-      "contentHash": "c6af8a7e72ef1f9eac2430de2451a8b9",
+      "lastModificationDate": 1672707085858,
+      "contentHash": "0e7c545bd905cb7374f4a14c6c246d56",
       "sourceName": "contracts/interfaces/IDOS.sol",
       "solcConfig": {
         "settings": {
@@ -939,7 +1381,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -950,6 +1394,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -975,7 +1420,7 @@
       }
     },
     "contracts/interfaces/IERC1363-extended.sol": {
-      "lastModificationDate": 1671232307553,
+      "lastModificationDate": 1671237247243,
       "contentHash": "3ffa6fe6f4cf4ecc192fd5ad7f3f520c",
       "sourceName": "contracts/interfaces/IERC1363-extended.sol",
       "solcConfig": {
@@ -990,7 +1435,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1001,6 +1448,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1034,7 +1482,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1045,6 +1495,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1072,7 +1523,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1083,6 +1536,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1095,7 +1549,7 @@
       }
     },
     "contracts/interfaces/ISafe.sol": {
-      "lastModificationDate": 1671226480920,
+      "lastModificationDate": 1671237247243,
       "contentHash": "293fb15775220b519364fd1b0a68d642",
       "sourceName": "contracts/interfaces/ISafe.sol",
       "solcConfig": {
@@ -1110,7 +1564,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1121,6 +1577,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1136,8 +1593,8 @@
       }
     },
     "contracts/interfaces/ITransferReceiver2.sol": {
-      "lastModificationDate": 1671210470207,
-      "contentHash": "9305b6a1ff77dfe0f8a909b1342e18c2",
+      "lastModificationDate": 1672702618102,
+      "contentHash": "80894dca7b4604220bb31109ee6ecbd7",
       "sourceName": "contracts/interfaces/ITransferReceiver2.sol",
       "solcConfig": {
         "settings": {
@@ -1151,7 +1608,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1162,6 +1621,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1179,8 +1639,8 @@
       }
     },
     "contracts/interfaces/IVersionManager.sol": {
-      "lastModificationDate": 1671210470208,
-      "contentHash": "ef12a168be9e89696bd1bd4a9b3cdd90",
+      "lastModificationDate": 1672702618103,
+      "contentHash": "ad04d061f2a79115b18b7a1c871f1eb6",
       "sourceName": "contracts/interfaces/IVersionManager.sol",
       "solcConfig": {
         "settings": {
@@ -1194,7 +1654,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1205,6 +1667,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1213,9 +1676,61 @@
       "artifacts": {
         "IVersionManager": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "IVersionManager.sol/IVersionManager.json"
-        },
-        "ImmutableVersion": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "IVersionManager.sol/ImmutableVersion.json"
+        }
+      }
+    },
+    "contracts/lib/AccessControl.sol": {
+      "lastModificationDate": 1672702618103,
+      "contentHash": "3874d249399133dd5d3ca88c6c9c738c",
+      "sourceName": "contracts/lib/AccessControl.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/lib/FsUtils.sol",
+        "contracts/lib/ImmutableGovernance.sol",
+        "contracts/tokens/HashNFT.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/ERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
+        "node_modules/@openzeppelin/contracts/utils/Context.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol",
+        "node_modules/hardhat/console.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "AccessControl": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "AccessControl.sol/AccessControl.json"
         }
       }
     },
@@ -1235,7 +1750,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1246,10 +1763,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["node_modules/@openzeppelin/contracts/utils/Address.sol"],
+      "imports": [
+        "node_modules/@openzeppelin/contracts/utils/Address.sol"
+      ],
       "versionRequirement": "^0.8.17",
       "artifacts": {
         "CallLib": {
@@ -1257,47 +1777,9 @@
         }
       }
     },
-    "contracts/lib/FsBits.sol": {
-      "lastModificationDate": 1671210470208,
-      "contentHash": "ea8994e41f9a2f605ba46368b43a4650",
-      "sourceName": "contracts/lib/FsBits.sol",
-      "solcConfig": {
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "metadata": {
-            "bytecodeHash": "ipfs",
-            "appendCBOR": true
-          },
-          "outputSelection": {
-            "*": {
-              "": ["ast"],
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ]
-            }
-          },
-          "evmVersion": "london",
-          "libraries": {}
-        }
-      },
-      "imports": [],
-      "versionRequirement": "^0.8.17",
-      "artifacts": {
-        "FsBits": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "FsBits.sol/FsBits.json"
-        }
-      }
-    },
     "contracts/lib/FsMath.sol": {
-      "lastModificationDate": 1670436095590,
-      "contentHash": "78bdeec00c744a49092d0554fa4f8b1d",
+      "lastModificationDate": 1672702618103,
+      "contentHash": "9328fed63aad1258959514cf3a65a613",
       "sourceName": "contracts/lib/FsMath.sol",
       "solcConfig": {
         "settings": {
@@ -1311,7 +1793,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1322,10 +1806,14 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["contracts/lib/FsUtils.sol", "node_modules/hardhat/console.sol"],
+      "imports": [
+        "contracts/lib/FsUtils.sol",
+        "node_modules/hardhat/console.sol"
+      ],
       "versionRequirement": "^0.8.17",
       "artifacts": {
         "FsMath": {
@@ -1334,8 +1822,8 @@
       }
     },
     "contracts/lib/FsUtils.sol": {
-      "lastModificationDate": 1671210470208,
-      "contentHash": "1ed685323ce956736ba1ca60cac9fc10",
+      "lastModificationDate": 1672702618103,
+      "contentHash": "d87451875ba29b44a651f20a016631ed",
       "sourceName": "contracts/lib/FsUtils.sol",
       "solcConfig": {
         "settings": {
@@ -1349,7 +1837,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1360,10 +1850,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["node_modules/hardhat/console.sol"],
+      "imports": [
+        "node_modules/hardhat/console.sol"
+      ],
       "versionRequirement": "^0.8.17",
       "artifacts": {
         "FsUtils": {
@@ -1387,7 +1880,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1398,6 +1893,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1410,8 +1906,8 @@
       }
     },
     "contracts/lib/ImmutableGovernance.sol": {
-      "lastModificationDate": 1671210470209,
-      "contentHash": "f86574314996ae77bd3b284a6b5d20a6",
+      "lastModificationDate": 1672696850226,
+      "contentHash": "869b3e37ae1db4c1e2a677a125c44c6e",
       "sourceName": "contracts/lib/ImmutableGovernance.sol",
       "solcConfig": {
         "settings": {
@@ -1425,7 +1921,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1436,14 +1934,197 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["contracts/lib/FsUtils.sol", "node_modules/hardhat/console.sol"],
+      "imports": [
+        "contracts/lib/FsUtils.sol",
+        "node_modules/hardhat/console.sol"
+      ],
       "versionRequirement": "^0.8.17",
       "artifacts": {
         "ImmutableGovernance": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "ImmutableGovernance.sol/ImmutableGovernance.json"
+        }
+      }
+    },
+    "contracts/lib/ImmutableVersion.sol": {
+      "lastModificationDate": 1672702618103,
+      "contentHash": "676ce9140a80f0671be225b0a82c2562",
+      "sourceName": "contracts/lib/ImmutableVersion.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/lib/FsUtils.sol",
+        "contracts/lib/GitCommitHash.sol",
+        "node_modules/hardhat/console.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "ImmutableVersion": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "ImmutableVersion.sol/ImmutableVersion.json"
+        }
+      }
+    },
+    "contracts/lib/MathUtils.sol": {
+      "lastModificationDate": 1672765576994,
+      "contentHash": "77abba9596ed6d7cefb3cdaa9bd80721",
+      "sourceName": "contracts/lib/MathUtils.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/lib/WadRayMath.sol"
+      ],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "MathUtils": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "MathUtils.sol/MathUtils.json"
+        }
+      }
+    },
+    "contracts/lib/Proofs.sol": {
+      "lastModificationDate": 1672704166272,
+      "contentHash": "ba018587d71a2deede7bca5a151fda88",
+      "sourceName": "contracts/lib/Proofs.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/lib/FsUtils.sol",
+        "node_modules/hardhat/console.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "BytesViewLib": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "Proofs.sol/BytesViewLib.json"
+        },
+        "RLP": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "Proofs.sol/RLP.json"
+        },
+        "TrieLib": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "Proofs.sol/TrieLib.json"
+        }
+      }
+    },
+    "contracts/lib/WadRayMath.sol": {
+      "lastModificationDate": 1672765524310,
+      "contentHash": "1fc0f6addb8a161dc88f4d6791b05476",
+      "sourceName": "contracts/lib/WadRayMath.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "WadRayMath": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "WadRayMath.sol/WadRayMath.json"
         }
       }
     },
@@ -1463,7 +2144,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1474,6 +2157,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1491,8 +2175,8 @@
       }
     },
     "contracts/oracles/UniV2Oracle.sol": {
-      "lastModificationDate": 1671215886478,
-      "contentHash": "c01486098101abd07d37ea7918bfc981",
+      "lastModificationDate": 1672696878477,
+      "contentHash": "efa76b43ae93cc7732b9276f3e8533db",
       "sourceName": "contracts/oracles/UniV2Oracle.sol",
       "solcConfig": {
         "settings": {
@@ -1506,7 +2190,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1517,6 +2203,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1541,8 +2228,8 @@
       }
     },
     "contracts/oracles/UniV3Oracle.sol": {
-      "lastModificationDate": 1671210470209,
-      "contentHash": "974d9599da9d69abfac6db7158eea4ff",
+      "lastModificationDate": 1672703112124,
+      "contentHash": "3f66770caa2ecc1dc714718ba6a91740",
       "sourceName": "contracts/oracles/UniV3Oracle.sol",
       "solcConfig": {
         "settings": {
@@ -1556,7 +2243,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1567,10 +2256,12 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
       "imports": [
+        "contracts/external/interfaces/INonfungiblePositionManager.sol",
         "contracts/interfaces/IERC20ValueOracle.sol",
         "contracts/interfaces/INFTValueOracle.sol",
         "contracts/lib/FsMath.sol",
@@ -1589,9 +2280,6 @@
       ],
       "versionRequirement": "^0.8.17",
       "artifacts": {
-        "INPM": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "UniV3Oracle.sol/INPM.json"
-        },
         "TickMath": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "UniV3Oracle.sol/TickMath.json"
         },
@@ -1601,8 +2289,8 @@
       }
     },
     "contracts/testing/MockERC20Oracle.sol": {
-      "lastModificationDate": 1671210470209,
-      "contentHash": "5f9cf4d81580a8be725d25c3e598031f",
+      "lastModificationDate": 1672696878477,
+      "contentHash": "b4ff4da245d22126348c997bfe313c7d",
       "sourceName": "contracts/testing/MockERC20Oracle.sol",
       "solcConfig": {
         "settings": {
@@ -1616,7 +2304,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1627,6 +2317,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1659,7 +2350,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1670,6 +2363,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1701,7 +2395,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1712,6 +2408,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1725,6 +2422,51 @@
       "artifacts": {
         "TestERC20": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "TestERC20.sol/TestERC20.json"
+        }
+      }
+    },
+    "contracts/testing/TestFsMath.sol": {
+      "lastModificationDate": 1672702618103,
+      "contentHash": "eefeb2dd21be8b2c7ea0c27eac52eab3",
+      "sourceName": "contracts/testing/TestFsMath.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/lib/FsMath.sol",
+        "contracts/lib/FsUtils.sol",
+        "node_modules/hardhat/console.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "TestFsMath": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "TestFsMath.sol/TestFsMath.json"
         }
       }
     },
@@ -1744,7 +2486,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1755,6 +2499,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1778,6 +2523,69 @@
         }
       }
     },
+    "contracts/testing/VotingTest.sol": {
+      "lastModificationDate": 1672702618104,
+      "contentHash": "824a6c470d441c29f076166bffd3285c",
+      "sourceName": "contracts/testing/VotingTest.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/governance/Voting.sol",
+        "contracts/lib/Call.sol",
+        "contracts/lib/FsUtils.sol",
+        "contracts/lib/Proofs.sol",
+        "contracts/tokens/HashNFT.sol",
+        "node_modules/@openzeppelin/contracts/interfaces/IERC1271.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/ERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
+        "node_modules/@openzeppelin/contracts/utils/Context.sol",
+        "node_modules/@openzeppelin/contracts/utils/Strings.sol",
+        "node_modules/@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
+        "node_modules/@openzeppelin/contracts/utils/cryptography/EIP712.sol",
+        "node_modules/@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol",
+        "node_modules/@openzeppelin/contracts/utils/math/Math.sol",
+        "node_modules/hardhat/console.sol"
+      ],
+      "versionRequirement": "^0.8.17",
+      "artifacts": {
+        "VotingTest": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "VotingTest.sol/VotingTest.json"
+        }
+      }
+    },
     "contracts/testing/external/WETH9.sol": {
       "lastModificationDate": 1669745251374,
       "contentHash": "6beda8c9980de8eb163d673924d7a7c2",
@@ -1794,7 +2602,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1805,6 +2615,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1843,8 +2654,8 @@
       }
     },
     "contracts/tokens/HashNFT.sol": {
-      "lastModificationDate": 1671210470210,
-      "contentHash": "d53707c42f3ddf416e01a587882a89d1",
+      "lastModificationDate": 1672702618104,
+      "contentHash": "96022338f9670abbeb5fbe0460ae106b",
       "sourceName": "contracts/tokens/HashNFT.sol",
       "solcConfig": {
         "settings": {
@@ -1858,7 +2669,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1869,21 +2682,20 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
       "imports": [
-        "node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/ERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol",
         "node_modules/@openzeppelin/contracts/utils/Address.sol",
         "node_modules/@openzeppelin/contracts/utils/Context.sol",
-        "node_modules/@openzeppelin/contracts/utils/Strings.sol",
         "node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol",
-        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol",
-        "node_modules/@openzeppelin/contracts/utils/math/Math.sol"
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"
       ],
       "versionRequirement": "^0.8.17",
       "artifacts": {
@@ -1908,7 +2720,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -1919,6 +2733,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -1931,53 +2746,6 @@
       "artifacts": {
         "BatchDeployer": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "BatchDeployer.sol/BatchDeployer.json"
-        }
-      }
-    },
-    "contracts/utils/FutureSwapProxy.sol": {
-      "lastModificationDate": 1671210470210,
-      "contentHash": "1a98e091c11e267333ff49e353d43233",
-      "sourceName": "contracts/utils/FutureSwapProxy.sol",
-      "solcConfig": {
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "metadata": {
-            "bytecodeHash": "ipfs",
-            "appendCBOR": true
-          },
-          "outputSelection": {
-            "*": {
-              "": ["ast"],
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ]
-            }
-          },
-          "evmVersion": "london",
-          "libraries": {}
-        }
-      },
-      "imports": [
-        "contracts/lib/Call.sol",
-        "node_modules/@openzeppelin/contracts/access/Ownable.sol",
-        "node_modules/@openzeppelin/contracts/utils/Address.sol",
-        "node_modules/@openzeppelin/contracts/utils/Context.sol",
-        "node_modules/@openzeppelin/contracts/utils/Strings.sol",
-        "node_modules/@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
-        "node_modules/@openzeppelin/contracts/utils/cryptography/EIP712.sol",
-        "node_modules/@openzeppelin/contracts/utils/math/Math.sol"
-      ],
-      "versionRequirement": "^0.8.17",
-      "artifacts": {
-        "FutureSwapProxy": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "FutureSwapProxy.sol/FutureSwapProxy.json"
         }
       }
     },
@@ -1997,7 +2765,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2008,6 +2778,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2031,7 +2802,7 @@
       }
     },
     "lib/forge-std/lib/ds-test/src/test.sol": {
-      "lastModificationDate": 1671215886482,
+      "lastModificationDate": 1671237247247,
       "contentHash": "962996f0e05d5218857a538a62d7c47e",
       "sourceName": "lib/forge-std/lib/ds-test/src/test.sol",
       "solcConfig": {
@@ -2046,7 +2817,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2057,6 +2830,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2069,7 +2843,7 @@
       }
     },
     "lib/forge-std/src/Common.sol": {
-      "lastModificationDate": 1671215886483,
+      "lastModificationDate": 1671237247247,
       "contentHash": "385215973dee04c2a4bfefa3a37e253c",
       "sourceName": "lib/forge-std/src/Common.sol",
       "solcConfig": {
@@ -2084,7 +2858,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2095,6 +2871,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2120,7 +2897,7 @@
       }
     },
     "lib/forge-std/src/Components.sol": {
-      "lastModificationDate": 1671215886483,
+      "lastModificationDate": 1671237247247,
       "contentHash": "745a7e4623550699a5e0333bcf4f0184",
       "sourceName": "lib/forge-std/src/Components.sol",
       "solcConfig": {
@@ -2135,7 +2912,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2146,6 +2925,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2170,7 +2950,7 @@
       }
     },
     "lib/forge-std/src/Script.sol": {
-      "lastModificationDate": 1671215886483,
+      "lastModificationDate": 1671237247247,
       "contentHash": "a0d7ca329f3374a1698e48c493ab4f1a",
       "sourceName": "lib/forge-std/src/Script.sol",
       "solcConfig": {
@@ -2185,7 +2965,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2196,6 +2978,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2225,7 +3008,7 @@
       }
     },
     "lib/forge-std/src/StdAssertions.sol": {
-      "lastModificationDate": 1671215886483,
+      "lastModificationDate": 1671237247247,
       "contentHash": "d3f7487aaf77c715fdbdea89ea4f8399",
       "sourceName": "lib/forge-std/src/StdAssertions.sol",
       "solcConfig": {
@@ -2240,7 +3023,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2251,10 +3036,14 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["lib/forge-std/lib/ds-test/src/test.sol", "lib/forge-std/src/StdMath.sol"],
+      "imports": [
+        "lib/forge-std/lib/ds-test/src/test.sol",
+        "lib/forge-std/src/StdMath.sol"
+      ],
       "versionRequirement": ">=0.6.2, <0.9.0",
       "artifacts": {
         "StdAssertions": {
@@ -2263,7 +3052,7 @@
       }
     },
     "lib/forge-std/src/StdCheats.sol": {
-      "lastModificationDate": 1671215886483,
+      "lastModificationDate": 1671237247248,
       "contentHash": "e7337996cb2aa604814b2994c9e65826",
       "sourceName": "lib/forge-std/src/StdCheats.sol",
       "solcConfig": {
@@ -2278,7 +3067,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2289,10 +3080,14 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["lib/forge-std/src/StdStorage.sol", "lib/forge-std/src/Vm.sol"],
+      "imports": [
+        "lib/forge-std/src/StdStorage.sol",
+        "lib/forge-std/src/Vm.sol"
+      ],
       "versionRequirement": ">=0.6.2, <0.9.0",
       "artifacts": {
         "StdCheats": {
@@ -2304,7 +3099,7 @@
       }
     },
     "lib/forge-std/src/StdError.sol": {
-      "lastModificationDate": 1671215886483,
+      "lastModificationDate": 1671237247248,
       "contentHash": "64c896e1276a291776e5ea5aecb3870a",
       "sourceName": "lib/forge-std/src/StdError.sol",
       "solcConfig": {
@@ -2319,7 +3114,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2330,6 +3127,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2342,7 +3140,7 @@
       }
     },
     "lib/forge-std/src/StdJson.sol": {
-      "lastModificationDate": 1671215886484,
+      "lastModificationDate": 1671237247248,
       "contentHash": "1df82178ad2d4556c856d0ca4b8f614d",
       "sourceName": "lib/forge-std/src/StdJson.sol",
       "solcConfig": {
@@ -2357,7 +3155,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2368,10 +3168,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["lib/forge-std/src/Vm.sol"],
+      "imports": [
+        "lib/forge-std/src/Vm.sol"
+      ],
       "versionRequirement": ">=0.6.0, <0.9.0",
       "artifacts": {
         "stdJson": {
@@ -2380,7 +3183,7 @@
       }
     },
     "lib/forge-std/src/StdMath.sol": {
-      "lastModificationDate": 1671215886484,
+      "lastModificationDate": 1671237247248,
       "contentHash": "9da8f453eba6bb98f3d75bc6822bfb29",
       "sourceName": "lib/forge-std/src/StdMath.sol",
       "solcConfig": {
@@ -2395,7 +3198,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2406,6 +3211,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2418,7 +3224,7 @@
       }
     },
     "lib/forge-std/src/StdStorage.sol": {
-      "lastModificationDate": 1671215886484,
+      "lastModificationDate": 1671237247248,
       "contentHash": "3f1bd6d72997330e2f556ececa8114a7",
       "sourceName": "lib/forge-std/src/StdStorage.sol",
       "solcConfig": {
@@ -2433,7 +3239,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2444,10 +3252,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["lib/forge-std/src/Vm.sol"],
+      "imports": [
+        "lib/forge-std/src/Vm.sol"
+      ],
       "versionRequirement": ">=0.6.2, <0.9.0",
       "artifacts": {
         "stdStorage": {
@@ -2459,7 +3270,7 @@
       }
     },
     "lib/forge-std/src/StdUtils.sol": {
-      "lastModificationDate": 1671215886484,
+      "lastModificationDate": 1671237247248,
       "contentHash": "1d1d6bf7b4609a675d06cc41f8dcd5ad",
       "sourceName": "lib/forge-std/src/StdUtils.sol",
       "solcConfig": {
@@ -2474,7 +3285,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2485,10 +3298,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["lib/forge-std/src/console2.sol"],
+      "imports": [
+        "lib/forge-std/src/console2.sol"
+      ],
       "versionRequirement": ">=0.6.2, <0.9.0",
       "artifacts": {
         "StdUtils": {
@@ -2497,7 +3313,7 @@
       }
     },
     "lib/forge-std/src/Test.sol": {
-      "lastModificationDate": 1671215886484,
+      "lastModificationDate": 1671237247249,
       "contentHash": "23c73ad6c59f5d629042303f8ffc1359",
       "sourceName": "lib/forge-std/src/Test.sol",
       "solcConfig": {
@@ -2512,7 +3328,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2523,6 +3341,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2552,7 +3371,7 @@
       }
     },
     "lib/forge-std/src/Vm.sol": {
-      "lastModificationDate": 1671215886485,
+      "lastModificationDate": 1671237247249,
       "contentHash": "af4e1189b1763fe0d73a21d17cc2ea9c",
       "sourceName": "lib/forge-std/src/Vm.sol",
       "solcConfig": {
@@ -2567,7 +3386,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2578,6 +3399,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2593,7 +3415,7 @@
       }
     },
     "lib/forge-std/src/console.sol": {
-      "lastModificationDate": 1671215886485,
+      "lastModificationDate": 1671237247249,
       "contentHash": "100b8a33b917da1147740d7ab8b0ded3",
       "sourceName": "lib/forge-std/src/console.sol",
       "solcConfig": {
@@ -2608,7 +3430,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2619,6 +3443,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2631,7 +3456,7 @@
       }
     },
     "lib/forge-std/src/console2.sol": {
-      "lastModificationDate": 1671215886486,
+      "lastModificationDate": 1671237247250,
       "contentHash": "493035087920d89b7c215d662e53ace3",
       "sourceName": "lib/forge-std/src/console2.sol",
       "solcConfig": {
@@ -2646,7 +3471,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2657,6 +3484,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2684,7 +3512,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2695,6 +3525,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2722,7 +3553,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2733,14 +3566,61 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["node_modules/@openzeppelin/contracts/utils/Context.sol"],
+      "imports": [
+        "node_modules/@openzeppelin/contracts/utils/Context.sol"
+      ],
       "versionRequirement": "^0.8.0",
       "artifacts": {
         "Ownable": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "Ownable.sol/Ownable.json"
+        }
+      }
+    },
+    "node_modules/@openzeppelin/contracts/access/Ownable2Step.sol": {
+      "lastModificationDate": 1669752558102,
+      "contentHash": "9a66ec5f916493cff9d9ef23b16e28d7",
+      "sourceName": "node_modules/@openzeppelin/contracts/access/Ownable2Step.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "node_modules/@openzeppelin/contracts/access/Ownable.sol",
+        "node_modules/@openzeppelin/contracts/utils/Context.sol"
+      ],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "Ownable2Step": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "Ownable2Step.sol/Ownable2Step.json"
         }
       }
     },
@@ -2760,7 +3640,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2771,6 +3653,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2798,7 +3681,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2809,6 +3694,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2841,7 +3727,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2852,6 +3740,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2879,7 +3768,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2890,6 +3781,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -2917,7 +3809,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2928,10 +3822,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"],
+      "imports": [
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"
+      ],
       "versionRequirement": "^0.8.0",
       "artifacts": {
         "IERC165": {
@@ -2955,7 +3852,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -2966,10 +3865,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol"],
+      "imports": [
+        "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol"
+      ],
       "versionRequirement": "^0.8.0",
       "artifacts": {
         "IERC20": {
@@ -2993,7 +3895,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3004,6 +3908,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3012,6 +3917,323 @@
       "artifacts": {
         "Proxy": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "Proxy.sol/Proxy.json"
+        }
+      }
+    },
+    "node_modules/@openzeppelin/contracts/security/Pausable.sol": {
+      "lastModificationDate": 1669752558102,
+      "contentHash": "25c8108f36fdd472bc78d4c4af240c11",
+      "sourceName": "node_modules/@openzeppelin/contracts/security/Pausable.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "node_modules/@openzeppelin/contracts/utils/Context.sol"
+      ],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "Pausable": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "Pausable.sol/Pausable.json"
+        }
+      }
+    },
+    "node_modules/@openzeppelin/contracts/token/ERC1155/ERC1155.sol": {
+      "lastModificationDate": 1669752558102,
+      "contentHash": "447816f3d93d639006eb423c33d2ca2c",
+      "sourceName": "node_modules/@openzeppelin/contracts/token/ERC1155/ERC1155.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
+        "node_modules/@openzeppelin/contracts/utils/Context.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"
+      ],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "ERC1155": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "ERC1155.sol/ERC1155.json"
+        }
+      }
+    },
+    "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155.sol": {
+      "lastModificationDate": 1669752558102,
+      "contentHash": "d5a8f6e07ca38ec384856cfe9f08a867",
+      "sourceName": "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"
+      ],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "IERC1155": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "IERC1155.sol/IERC1155.json"
+        }
+      }
+    },
+    "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol": {
+      "lastModificationDate": 1669752558102,
+      "contentHash": "9f8822b72fe2702979e40160cb6d9636",
+      "sourceName": "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"
+      ],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "IERC1155Receiver": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "IERC1155Receiver.sol/IERC1155Receiver.json"
+        }
+      }
+    },
+    "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol": {
+      "lastModificationDate": 1669752558102,
+      "contentHash": "eb73ad4b21256e7acc58daa388915716",
+      "sourceName": "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "node_modules/@openzeppelin/contracts/token/ERC1155/ERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol",
+        "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol",
+        "node_modules/@openzeppelin/contracts/utils/Address.sol",
+        "node_modules/@openzeppelin/contracts/utils/Context.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"
+      ],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "ERC1155Burnable": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "ERC1155Burnable.sol/ERC1155Burnable.json"
+        }
+      }
+    },
+    "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol": {
+      "lastModificationDate": 1669752558102,
+      "contentHash": "9148c2e10c4efb12c71a7f080da5559b",
+      "sourceName": "node_modules/@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"
+      ],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "IERC1155MetadataURI": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "IERC1155MetadataURI.sol/IERC1155MetadataURI.json"
+        }
+      }
+    },
+    "node_modules/@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol": {
+      "lastModificationDate": 1669752558102,
+      "contentHash": "55b180cf664783e9a2baac20e82683fb",
+      "sourceName": "node_modules/@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "node_modules/@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol",
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"
+      ],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "ERC1155Receiver": {
+          "0.8.17+commit.8df45f5f.Darwin.appleclang": "ERC1155Receiver.sol/ERC1155Receiver.json"
         }
       }
     },
@@ -3031,7 +4253,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3042,6 +4266,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3073,7 +4298,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3084,6 +4311,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3111,7 +4339,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3122,10 +4352,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol"],
+      "imports": [
+        "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol"
+      ],
       "versionRequirement": "^0.8.0",
       "artifacts": {
         "IERC20Metadata": {
@@ -3149,7 +4382,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3160,6 +4395,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3198,7 +4434,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3209,6 +4447,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3236,7 +4475,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3247,6 +4488,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3278,7 +4520,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3289,6 +4533,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3326,7 +4571,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3337,10 +4584,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"],
+      "imports": [
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"
+      ],
       "versionRequirement": "^0.8.0",
       "artifacts": {
         "IERC721": {
@@ -3364,7 +4614,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3375,6 +4627,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3383,55 +4636,6 @@
       "artifacts": {
         "IERC721Receiver": {
           "0.8.17+commit.8df45f5f.Darwin.appleclang": "IERC721Receiver.sol/IERC721Receiver.json"
-        }
-      }
-    },
-    "node_modules/@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol": {
-      "lastModificationDate": 1669752558102,
-      "contentHash": "5a341bfc4fe3ee5357ccdebd3a78ad2c",
-      "sourceName": "node_modules/@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol",
-      "solcConfig": {
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "metadata": {
-            "bytecodeHash": "ipfs",
-            "appendCBOR": true
-          },
-          "outputSelection": {
-            "*": {
-              "": ["ast"],
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ]
-            }
-          },
-          "evmVersion": "london",
-          "libraries": {}
-        }
-      },
-      "imports": [
-        "node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol",
-        "node_modules/@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol",
-        "node_modules/@openzeppelin/contracts/utils/Address.sol",
-        "node_modules/@openzeppelin/contracts/utils/Context.sol",
-        "node_modules/@openzeppelin/contracts/utils/Strings.sol",
-        "node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol",
-        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol",
-        "node_modules/@openzeppelin/contracts/utils/math/Math.sol"
-      ],
-      "versionRequirement": "^0.8.0",
-      "artifacts": {
-        "ERC721Burnable": {
-          "0.8.17+commit.8df45f5f.Darwin.appleclang": "ERC721Burnable.sol/ERC721Burnable.json"
         }
       }
     },
@@ -3451,7 +4655,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3462,6 +4668,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3492,7 +4699,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3503,6 +4712,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3530,7 +4740,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3541,6 +4753,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3568,7 +4781,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3579,6 +4794,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3606,7 +4822,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3617,10 +4835,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["node_modules/@openzeppelin/contracts/utils/math/Math.sol"],
+      "imports": [
+        "node_modules/@openzeppelin/contracts/utils/math/Math.sol"
+      ],
       "versionRequirement": "^0.8.0",
       "artifacts": {
         "Strings": {
@@ -3644,7 +4865,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3655,6 +4878,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3685,7 +4909,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3696,6 +4922,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3727,7 +4954,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3738,6 +4967,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3771,7 +5001,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3782,10 +5014,13 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
-      "imports": ["node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"],
+      "imports": [
+        "node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol"
+      ],
       "versionRequirement": "^0.8.0",
       "artifacts": {
         "ERC165": {
@@ -3809,7 +5044,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3820,6 +5057,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3847,7 +5085,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3858,6 +5098,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3885,7 +5126,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3896,6 +5139,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3923,7 +5167,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3934,6 +5180,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3961,7 +5208,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -3972,6 +5221,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -3999,7 +5249,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4010,6 +5262,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -4037,7 +5290,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4048,6 +5303,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -4075,7 +5331,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4086,6 +5344,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -4120,7 +5379,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4131,6 +5392,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -4158,7 +5420,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4169,6 +5433,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -4196,7 +5461,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4207,6 +5474,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -4234,7 +5502,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4245,6 +5515,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -4272,7 +5543,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4283,6 +5556,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -4310,7 +5584,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4321,6 +5597,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -4348,7 +5625,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4359,6 +5638,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -4386,7 +5666,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4397,6 +5679,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -4424,7 +5707,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4435,6 +5720,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -4449,7 +5735,7 @@
       }
     },
     "node_modules/hardhat/console.sol": {
-      "lastModificationDate": 1671218235078,
+      "lastModificationDate": 1672703474982,
       "contentHash": "4ff3cd2f6272c9a6516e9ee4f2b967d3",
       "sourceName": "node_modules/hardhat/console.sol",
       "solcConfig": {
@@ -4464,7 +5750,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4475,6 +5763,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -4487,7 +5776,7 @@
       }
     },
     "script/PairHashCode.s.sol": {
-      "lastModificationDate": 1671215886489,
+      "lastModificationDate": 1671237247253,
       "contentHash": "1a2eec41566043a754664deba971f488",
       "sourceName": "script/PairHashCode.s.sol",
       "solcConfig": {
@@ -4502,7 +5791,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4513,6 +5804,7 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
@@ -4553,8 +5845,8 @@
       }
     },
     "test/foundry/DuoswapV2.t.sol": {
-      "lastModificationDate": 1671231825058,
-      "contentHash": "452cc87e32865d9615eec8363867fd37",
+      "lastModificationDate": 1672774255316,
+      "contentHash": "48d3133c69c62e45efcc1899605e2011",
       "sourceName": "test/foundry/DuoswapV2.t.sol",
       "solcConfig": {
         "settings": {
@@ -4568,7 +5860,9 @@
           },
           "outputSelection": {
             "*": {
-              "": ["ast"],
+              "": [
+                "ast"
+              ],
               "*": [
                 "abi",
                 "evm.bytecode",
@@ -4579,12 +5873,15 @@
             }
           },
           "evmVersion": "london",
+          "viaIR": true,
           "libraries": {}
         }
       },
       "imports": [
         "contracts/dos/DOS.sol",
         "contracts/dos/DSafeProxy.sol",
+        "contracts/dos/DSafeState.sol",
+        "contracts/dos/Liquifier.sol",
         "contracts/dos/VersionManager.sol",
         "contracts/dosERC20/DOSERC20.sol",
         "contracts/duoswapV2/DuoswapV2ERC20.sol",
@@ -4597,6 +5894,7 @@
         "contracts/duoswapV2/libraries/DuoswapV2Library.sol",
         "contracts/duoswapV2/libraries/Math.sol",
         "contracts/duoswapV2/libraries/UQ112x112.sol",
+        "contracts/external/interfaces/INonfungiblePositionManager.sol",
         "contracts/external/interfaces/IPermit2.sol",
         "contracts/external/interfaces/IWETH9.sol",
         "contracts/interfaces/IDOS.sol",
@@ -4609,7 +5907,9 @@
         "contracts/lib/Call.sol",
         "contracts/lib/FsMath.sol",
         "contracts/lib/FsUtils.sol",
+        "contracts/lib/GitCommitHash.sol",
         "contracts/lib/ImmutableGovernance.sol",
+        "contracts/lib/ImmutableVersion.sol",
         "contracts/oracles/ERC20ChainlinkValueOracle.sol",
         "contracts/oracles/UniV2Oracle.sol",
         "contracts/testing/TestERC20.sol",
@@ -4635,6 +5935,7 @@
         "node_modules/@openzeppelin/contracts/interfaces/IERC165.sol",
         "node_modules/@openzeppelin/contracts/interfaces/IERC20.sol",
         "node_modules/@openzeppelin/contracts/proxy/Proxy.sol",
+        "node_modules/@openzeppelin/contracts/security/Pausable.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol",
         "node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
