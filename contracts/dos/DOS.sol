@@ -26,9 +26,18 @@ error NotApprovedOrOwner();
 error InsufficientAllowance();
 /// @notice Cannot approve self as spender
 error SelfApproval();
+/// @notice The receiving address is not a contract
 error ReceiverNotContract();
+/// @notice The receiver does not implement the required interface
 error ReceiverNoImplementation();
+/// @notice The receiver did not return the correct value - transaction failed
 error WrongDataReturned();
+/// @notice Asset is not an ERC20
+error NotERC20();
+/// @notice Asset is not an NFT
+error NotNFT();
+/// @notice Sender is not the owner
+error NotOwner();
 
 // ERC20 standard token
 // ERC721 single non-fungible token support
@@ -175,7 +184,10 @@ struct ERC20Info {
     ERC20Pool debt;
     int256 collateralFactor;
     int256 borrowFactor;
-    int256 interest; // TODO: use DosInterestRates to calculate dynamic interest
+    uint256 baseRate;
+    uint256 slope1;
+    uint256 slope2;
+    uint32 targetUtilization;
     uint256 timestamp;
 }
 
@@ -596,6 +608,24 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return _allowances[_owner][erc20][spender];
     }
 
+    /// @notice Compute the interest rate of `underlying` at `utilization`
+    /// @param erc20Idx The underlying asset
+    /// @param utilization The utilization rate
+    /// @return The interest rate of `erc20Idx` at `utilization`
+    function computeInterestRate(uint16 erc20Idx, uint32 utilization) public view returns (int96) {
+        ERC20Info memory erc20Info = erc20Infos[erc20Idx];
+        uint256 ir = erc20Info.baseRate;
+
+        if (utilization <= erc20Info.targetUtilization) {
+            ir += utilization * erc20Info.slope1;
+        } else {
+            ir += erc20Info.targetUtilization * erc20Info.slope1;
+            ir += erc20Info.slope2 * (utilization - erc20Info.targetUtilization);
+        }
+
+        return int96(int256(ir));
+    }
+
     function _approve(
         address _owner,
         address spender,
@@ -732,28 +762,25 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     }
 
     function updateInterest(uint16 erc20Idx) internal {
-        ERC20Info storage erc20Info = state.erc20Infos[erc20Idx]; // retrieve ERC20Info and store in memory
+        ERC20Info storage erc20Info = erc20Infos[erc20Idx]; // retrieve ERC20Info and store in memory
         if (erc20Info.timestamp == block.timestamp) return; // already updated this block
         int256 delta = FsMath.safeCastToSigned(block.timestamp - erc20Info.timestamp); // time passed since last update
         erc20Info.timestamp = block.timestamp; // update timestamp to current timestamp
         int256 debt = -erc20Info.debt.tokens; // get the debt
-        // TODO: uint32 utilization = uint32(erc20Info.collateral.tokens / debt); // compute utilization
-        // int256 interestRate = DosInterestRates.computeInterestRate(erc20Info.erc20Contract, utilization);
-        ERC20Info storage erc20Info = erc20Infos[erc20Idx];
-        if (erc20Info.timestamp == block.timestamp) return;
-        int256 delta = FsMath.safeCastToSigned(block.timestamp - erc20Info.timestamp);
-        erc20Info.timestamp = block.timestamp;
-        int256 debt = -erc20Info.debt.tokens;
-        int256 interest = (debt *
-            (FsMath.exp(erc20Info.interest * delta) - FsMath.FIXED_POINT_SCALE)) /
-            FsMath.FIXED_POINT_SCALE; // fixed rate interest
+        int256 poolAssets = debt + erc20Info.collateral.tokens; // get the total assets in the pool
+        uint32 utilization = uint32(FsMath.safeCastToUnsigned(debt / poolAssets)); // compute utilization
+        int256 interestRate = computeInterestRate(erc20Idx, utilization);
+        int256 interest = (debt * (FsMath.exp(interestRate * delta) - FsMath.FIXED_POINT_SCALE)) /
+            FsMath.FIXED_POINT_SCALE; // Get the interest // QUESTION: why exp?
         erc20Info.debt.tokens -= interest; // subtract interest from debt
         erc20Info.collateral.tokens += interest; // add interest to collateral
         // TODO(gerben) add to treasury
     }
 
     function getNFTId(address erc721, uint256 tokenId) internal view returns (NFTId) {
-        require(infoIdx[erc721].kind == ContractKind.ERC721, "Not an NFT");
+        if (infoIdx[erc721].kind != ContractKind.ERC721) {
+            revert NotNFT();
+        }
         uint16 erc721Idx = infoIdx[erc721].idx;
         uint256 tokenHash = uint256(keccak256(abi.encodePacked(tokenId))) >> 32;
         return NFTId.wrap(erc721Idx | (tokenHash << 16) | ((tokenId >> 240) << 240));
@@ -782,7 +809,9 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
 
     function upgradeDSafeImplementation(address dSafe, uint256 version) external {
         address dSafeOwner = dSafes[dSafe].owner;
-        require(msg.sender == dSafeOwner, "DOS: not owner");
+        if (msg.sender != dSafeOwner) {
+            revert NotOwner();
+        }
         dSafeLogic[dSafe] = versionManager.getVersionAddress(version);
     }
 
@@ -802,7 +831,10 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         address valueOracle,
         int256 colFactor,
         int256 borrowFactor,
-        int256 interest
+        uint256 baseRate,
+        uint256 slope1,
+        uint256 slope2,
+        uint32 targetUtilization
     ) external onlyGovernance returns (uint16) {
         uint16 erc20Idx = uint16(erc20Infos.length);
         DOSERC20 dosToken = new DOSERC20(name, symbol, decimals);
@@ -815,7 +847,10 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
                 ERC20Pool(0, 0),
                 colFactor,
                 borrowFactor,
-                interest,
+                baseRate,
+                slope1,
+                slope2,
+                targetUtilization,
                 block.timestamp
             )
         );
@@ -830,7 +865,10 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
             valueOracle,
             colFactor,
             borrowFactor,
-            interest
+            baseRate,
+            slope1,
+            slope2,
+            targetUtilization
         );
         return erc20Idx;
     }
@@ -856,15 +894,23 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
 
     function setERC20Data(
         address erc20,
-        int256 interestRate,
         int256 borrowFactor,
-        int256 collateralFactor
+        int256 collateralFactor,
+        uint256 baseRate,
+        uint256 slope1,
+        uint256 slope2,
+        uint32 targetUtilization
     ) external override onlyGovernance {
         uint16 erc20Idx = infoIdx[erc20].idx;
-        require(infoIdx[erc20].kind == ContractKind.ERC20, "Not an ERC20");
-        erc20Infos[erc20Idx].interest = interestRate;
+        if (infoIdx[erc20].kind != ContractKind.ERC20) {
+            revert NotERC20();
+        }
         erc20Infos[erc20Idx].borrowFactor = borrowFactor;
         erc20Infos[erc20Idx].collateralFactor = collateralFactor;
+        erc20Infos[erc20Idx].baseRate = baseRate;
+        erc20Infos[erc20Idx].slope1 = slope1;
+        erc20Infos[erc20Idx].slope2 = slope2;
+        erc20Infos[erc20Idx].targetUtilization = targetUtilization;
     }
 
     function createDSafe() external returns (address dSafe) {
@@ -916,13 +962,5 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         int256 remainingERC20ToBorrow = borrowable + totalDebt;
 
         return remainingERC20ToBorrow;
-    }
-
-    function _addRateParams(address underlying, RateParams calldata params) internal {
-        state.rateParamsByUnderlying[underlying].baseRate = params.baseRate;
-        state.rateParamsByUnderlying[underlying].slope1 = params.slope1;
-        state.rateParamsByUnderlying[underlying].slope2 = params.slope2;
-        state.rateParamsByUnderlying[underlying].targetUtilization = params.targetUtilization;
-        emit RateParamsAdded(underlying, params);
     }
 }
