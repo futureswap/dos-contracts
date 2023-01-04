@@ -224,10 +224,10 @@ contract DOSState is Pausable {
     /// @dev erc721 & erc1155 operator approvals
     mapping(address => mapping(address => mapping(address => bool))) _operatorApprovals;
     mapping(NFTId => NFTTokenData) tokenDataByNFTId;
-    ERC20Info[] public erc20Infos;
+    ERC20Info[] erc20Infos;
     ERC721Info[] erc721Infos;
     mapping(address => ContractData) infoIdx;
-    IDOSConfig.Config public config;
+    IDOSConfig.Config config;
 
     function getBalance(
         ERC20Share shares,
