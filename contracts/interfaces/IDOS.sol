@@ -3,6 +3,7 @@ pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Call} from "../lib/Call.sol";
+import {IERC20ValueOracle} from "./IERC20ValueOracle.sol";
 
 type ERC20Share is int256;
 
@@ -36,7 +37,7 @@ interface IDOSConfig {
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
-        uint32 targetUtilization
+        uint256 targetUtilization
     );
 
     event DSafeCreated(address dSafe, address owner);
@@ -54,7 +55,7 @@ interface IDOSConfig {
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
-        uint32 targetUtilization
+        uint256 targetUtilization
     ) external returns (uint16);
 
     function addNFTInfo(
@@ -70,7 +71,7 @@ interface IDOSConfig {
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
-        uint32 targetUtilization
+        uint256 targetUtilization
     ) external;
 
     function setConfig(Config calldata _config) external;
@@ -201,6 +202,8 @@ interface IDOSCore {
         address _owner,
         address spender
     ) external view returns (uint256);
+
+    function computeInterestRate(uint16 erc20Idx) external view returns (int96);
 
     function getImplementation(address dSafe) external view returns (address);
 

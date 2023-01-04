@@ -187,7 +187,7 @@ struct ERC20Info {
     uint256 baseRate;
     uint256 slope1;
     uint256 slope2;
-    uint32 targetUtilization;
+    uint256 targetUtilization;
     uint256 timestamp;
 }
 
@@ -224,10 +224,10 @@ contract DOSState is Pausable {
     /// @dev erc721 & erc1155 operator approvals
     mapping(address => mapping(address => mapping(address => bool))) _operatorApprovals;
     mapping(NFTId => NFTTokenData) tokenDataByNFTId;
-    ERC20Info[] erc20Infos;
+    ERC20Info[] public erc20Infos;
     ERC721Info[] erc721Infos;
     mapping(address => ContractData) infoIdx;
-    IDOSConfig.Config config;
+    IDOSConfig.Config public config;
 
     function getBalance(
         ERC20Share shares,
@@ -608,19 +608,27 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return _allowances[_owner][erc20][spender];
     }
 
-    /// @notice Compute the interest rate of `underlying` at `utilization`
+    /// @notice Compute the interest rate of `underlying`
     /// @param erc20Idx The underlying asset
-    /// @param utilization The utilization rate
-    /// @return The interest rate of `erc20Idx` at `utilization`
-    function computeInterestRate(uint16 erc20Idx, uint32 utilization) public view returns (int96) {
+    /// @return The interest rate of `erc20Idx`
+    function computeInterestRate(uint16 erc20Idx) public view returns (int96) {
         ERC20Info memory erc20Info = erc20Infos[erc20Idx];
+        uint256 debt = FsMath.safeCastToUnsigned(-erc20Info.debt.tokens);
+        uint256 collateral = FsMath.safeCastToUnsigned(erc20Info.collateral.tokens);
+        uint256 leverage = FsMath.safeCastToUnsigned(config.fractionalReserveLeverage);
+        uint256 poolAssets = debt + collateral;
+
         uint256 ir = erc20Info.baseRate;
+        uint256 utilization; // utilization of the pool
+        if (poolAssets == 0)
+            utilization = 0; // if there are no assets, utilization is 0
+        else utilization = uint256((debt * 1e18) / ((collateral * leverage) / 10));
 
         if (utilization <= erc20Info.targetUtilization) {
-            ir += utilization * erc20Info.slope1;
+            ir += (utilization * erc20Info.slope1) / 1e18;
         } else {
-            ir += erc20Info.targetUtilization * erc20Info.slope1;
-            ir += erc20Info.slope2 * (utilization - erc20Info.targetUtilization);
+            ir += (erc20Info.targetUtilization * erc20Info.slope1) / 1e18;
+            ir += ((erc20Info.slope2 * (utilization - erc20Info.targetUtilization)) / 1e18);
         }
 
         return int96(int256(ir));
@@ -767,16 +775,16 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         int256 delta = FsMath.safeCastToSigned(block.timestamp - erc20Info.timestamp); // time passed since last update
         erc20Info.timestamp = block.timestamp; // update timestamp to current timestamp
         int256 debt = -erc20Info.debt.tokens; // get the debt
-        int256 poolAssets = debt + erc20Info.collateral.tokens; // get the total assets in the pool
-        uint32 utilization; // utilization of the pool
-        if (poolAssets == 0)
-            utilization = 0; // if there are no assets, utilization is 0
-        else utilization = uint32(FsMath.safeCastToUnsigned(debt / poolAssets));
-        int256 interestRate = computeInterestRate(erc20Idx, utilization);
+        // int256 poolAssets = debt + erc20Info.collateral.tokens; // get the total assets in the pool
+        // uint32 utilization; // utilization of the pool
+        // if (poolAssets == 0)
+        //     utilization = 0; // if there are no assets, utilization is 0
+        // else utilization = uint32(FsMath.safeCastToUnsigned(debt / poolAssets));
+        int256 interestRate = computeInterestRate(erc20Idx);
         int256 interest = (debt * (FsMath.exp(interestRate * delta) - FsMath.FIXED_POINT_SCALE)) /
             FsMath.FIXED_POINT_SCALE; // Get the interest
-        erc20Info.debt.tokens -= interest; // subtract interest from debt
-        erc20Info.collateral.tokens += interest; // add interest to collateral
+        erc20Info.debt.tokens -= interest; // subtract interest from debt (increase)
+        erc20Info.collateral.tokens += interest; // add interest to collateral (increase)
         // TODO(gerben) add to treasury
     }
 
@@ -837,7 +845,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
-        uint32 targetUtilization
+        uint256 targetUtilization
     ) external onlyGovernance returns (uint16) {
         uint16 erc20Idx = uint16(erc20Infos.length);
         DOSERC20 dosToken = new DOSERC20(name, symbol, decimals);
@@ -902,7 +910,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
-        uint32 targetUtilization
+        uint256 targetUtilization
     ) external override onlyGovernance {
         uint16 erc20Idx = infoIdx[erc20].idx;
         if (infoIdx[erc20].kind != ContractKind.ERC20) {
@@ -956,9 +964,13 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     function getMaximumWithdrawableOfERC20(IERC20 erc20) public view returns (int256) {
         (ERC20Info storage erc20Info, ) = getERC20Info(erc20);
         int256 leverage = config.fractionalReserveLeverage;
+        // console.log("leverage:");
+        // console.logInt(leverage);
         int256 tokens = erc20Info.collateral.tokens;
 
         int256 minReserveAmount = tokens / (leverage + 1);
+        // console.log("minReserveAmount:");
+        // console.logInt(minReserveAmount);
         int256 totalDebt = erc20Info.debt.tokens;
         int256 borrowable = erc20Info.collateral.tokens - minReserveAmount;
 

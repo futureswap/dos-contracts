@@ -540,7 +540,7 @@ type LocalhostEnvironment = {
   swapRouter: ISwapRouter;
 };
 
-export const deployLocahostEnvironment = async (
+export const deployLocalhostEnvironment = async (
   signer: ethers.Signer,
 ): Promise<LocalhostEnvironment> => {
   const wethDeploy = await new WETH9__factory(signer).deploy();

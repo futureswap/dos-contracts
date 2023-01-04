@@ -3,22 +3,22 @@ parser: "@typescript-eslint/parser"
 parserOptions:
   project: [./tsconfig.json]
 plugins:
-- "@typescript-eslint/eslint-plugin"
-- filename-rules
-- import
+  - "@typescript-eslint/eslint-plugin"
+  - filename-rules
+  - import
 env:
   node: true
   es2022: true
 ignorePatterns:
-- typechain-types
+  - typechain-types
 extends:
-- eslint:recommended
-- "plugin:@typescript-eslint/recommended"
-- "plugin:@typescript-eslint/recommended-requiring-type-checking"
-- "plugin:@typescript-eslint/strict"
-- plugin:import/errors
-- plugin:import/typescript
-- prettier
+  - eslint:recommended
+  - "plugin:@typescript-eslint/recommended"
+  - "plugin:@typescript-eslint/recommended-requiring-type-checking"
+  - "plugin:@typescript-eslint/strict"
+  - plugin:import/errors
+  - plugin:import/typescript
+  - prettier
 settings:
   import/parsers:
     "@typescript-eslint/parser": [".ts"]
@@ -38,15 +38,13 @@ rules:
   no-unreachable-loop: error
   no-unsafe-negation: off # handled by TypeScript
   require-atomic-updates: error
-  capitalized-comments: [error, never, {
-    ignoreInlineComments: true,
-    ignoreConsecutiveComments: true
-  }]
+  capitalized-comments:
+    [error, never, {ignoreInlineComments: true, ignoreConsecutiveComments: true}]
   default-case-last: error
   dot-notation: error
   logical-assignment-operators: [error, always, {enforceForIfStatements: true}]
   new-cap: error
-  no-console: error
+  no-console: warn
   # fill free to break this rule when needed by explicitly disabling it with an inline comment.
   # It is enabled because it's important to emphasize every place where it's been break and
   # probably specify a reason for doing so in a comment
@@ -64,11 +62,11 @@ rules:
   no-new-wrappers: error
   no-redeclare: off # handled by @typescript-eslint/no-redeclare
   no-restricted-globals:
-  - error
-  - name: setTimeout
-    message: Please, use setTimeout from node:timers/promises instead
-  - name: setInterval
-    message: Please, use setInterval from node:timers/promises instead
+    - error
+    - name: setTimeout
+      message: Please, use setTimeout from node:timers/promises instead
+    - name: setInterval
+      message: Please, use setInterval from node:timers/promises instead
   no-throw-literal: off # handled by @typescript-eslint/no-throw-literal
   no-undef-init: error
   no-underscore-dangle: [error, {allow: [_signTypedData]}]
@@ -100,16 +98,13 @@ rules:
   spaced-comment: error
   symbol-description: error
 
-  "@typescript-eslint/ban-ts-comment": [error, {
-    ts-ignore: "allow-with-description",
-    minimumDescriptionLength: 5,
-  }]
+  "@typescript-eslint/ban-ts-comment":
+    [error, {ts-ignore: "allow-with-description", minimumDescriptionLength: 5}]
   "@typescript-eslint/consistent-generic-constructors": off
   "@typescript-eslint/consistent-type-assertions": off
   "@typescript-eslint/consistent-type-definitions": [error, type]
-  "@typescript-eslint/consistent-type-exports": [error, {
-    fixMixedExportsWithInlineTypeSpecifier: true
-  }]
+  "@typescript-eslint/consistent-type-exports":
+    [error, {fixMixedExportsWithInlineTypeSpecifier: true}]
   "@typescript-eslint/consistent-type-imports": error
   "@typescript-eslint/explicit-member-accessibility": [error, {accessibility: no-public}]
   "@typescript-eslint/explicit-module-boundary-types": error
@@ -130,28 +125,26 @@ rules:
   "@typescript-eslint/lines-between-class-members": [error, always, {exceptAfterSingleLine: true}]
   "@typescript-eslint/no-array-constructor": error
   "@typescript-eslint/no-empty-function": error
-  "@typescript-eslint/no-magic-numbers": [warn, {
-    ignoreArrayIndexes: true,
-    ignoreDefaultValues: true,
-    ignoreClassFieldInitialValues: true,
-    ignore: [-2, -1, 0, 0n, 1, 2, 10n, 1000],
-    ignoreReadonlyClassProperties: true,
-  }]
+  "@typescript-eslint/no-magic-numbers":
+    [
+      warn,
+      {
+        ignoreArrayIndexes: true,
+        ignoreDefaultValues: true,
+        ignoreClassFieldInitialValues: true,
+        ignore: [-2, -1, 0, 0n, 1, 2, 10n, 1000],
+        ignoreReadonlyClassProperties: true,
+      },
+    ]
   "@typescript-eslint/no-redeclare": error
-  "@typescript-eslint/no-unused-expressions": [error, {
-    allowShortCircuit: true,
-    allowTernary: true,
-  }]
+  "@typescript-eslint/no-unused-expressions": [error, {allowShortCircuit: true, allowTernary: true}]
   "@typescript-eslint/no-unused-vars": error
-  "@typescript-eslint/padding-line-between-statements": [error,
-    {blankLine: always, prev: "*", next: [export, class, function]},
-  ]
+  "@typescript-eslint/padding-line-between-statements":
+    [error, {blankLine: always, prev: "*", next: [export, class, function]}]
   "@typescript-eslint/require-await": error
   "@typescript-eslint/return-await": [error, always]
 
-  filename-rules/match: [error, {
-    '.ts': camelCase
-  }]
+  filename-rules/match: [error, {".ts": camelCase}]
 
   # import/no-empty-named-blocks: error # not yet released
   import/no-mutable-exports: error
@@ -159,40 +152,40 @@ rules:
   import/first: error
   import/newline-after-import: error
   import/no-duplicates: error
-  import/order: [error, {
-    groups: [
-      type,
-      [builtin, external],
-      [internal, parent, index, sibling]
-    ],
-    newlines-between: always
-  }]
+  import/order:
+    [
+      error,
+      {
+        groups: [type, [builtin, external], [internal, parent, index, sibling]],
+        newlines-between: always,
+      },
+    ]
 overrides:
-- files: ["**/*.test.ts"]
-  env:
-    mocha: true
-  rules:
-    "@typescript-eslint/no-magic-numbers": off
-    "@typescript-eslint/no-non-null-assertion": off
-    "@typescript-eslint/naming-convention": off
-    "@typescript-eslint/no-unsafe-assignment": off
-    "@typescript-eslint/no-unsafe-call": off
-    "@typescript-eslint/no-unsafe-argument": off
-    # consider disabling rules below as needed
-    # "@typescript-eslint/no-unsafe-declaration-merging": off
-    # "@typescript-eslint/no-unsafe-member-access": off
-    # "@typescript-eslint/no-unsafe-return": off
+  - files: ["**/*.test.ts"]
+    env:
+      mocha: true
+    rules:
+      "@typescript-eslint/no-magic-numbers": off
+      "@typescript-eslint/no-non-null-assertion": off
+      "@typescript-eslint/naming-convention": off
+      "@typescript-eslint/no-unsafe-assignment": off
+      "@typescript-eslint/no-unsafe-call": off
+      "@typescript-eslint/no-unsafe-argument": off
+      # consider disabling rules below as needed
+      # "@typescript-eslint/no-unsafe-declaration-merging": off
+      # "@typescript-eslint/no-unsafe-member-access": off
+      # "@typescript-eslint/no-unsafe-return": off
 
-    # it is expected to have names in PascalCase for tests on Solidity contracts
-    filename-rules/match: off
-- files: ["./lib/deploy.ts"]
-  rules:
-    no-console: off
-    "@typescript-eslint/naming-convention": off
-- files: ["./scripts/*.ts"]
-  rules:
-    no-console: off
-    "@typescript-eslint/naming-convention": off
-- files: ["./hardhat.config.ts"]
-  rules:
-    "@typescript-eslint/naming-convention": off
+      # it is expected to have names in PascalCase for tests on Solidity contracts
+      filename-rules/match: off
+  - files: ["./lib/deploy.ts"]
+    rules:
+      no-console: off
+      "@typescript-eslint/naming-convention": off
+  - files: ["./scripts/*.ts"]
+    rules:
+      no-console: off
+      "@typescript-eslint/naming-convention": off
+  - files: ["./hardhat.config.ts"]
+    rules:
+      "@typescript-eslint/naming-convention": off
