@@ -202,18 +202,33 @@ uint16 constant K_NUMERAIRE_IDX = 0;
 
 contract DOSState is Pausable {
     IVersionManager versionManager;
+    /// @notice mapping between dSafe address and DOS-specific dSafe data
     mapping(address => DSafe) dSafes;
-    // Note: This could be a mapping to a version index instead of the implementation address
+    /// @notice mapping between dSafe address and an instance of deployed dSafeLogic contract.
+    /// It means that this specific dSafeLogic version is setup to operate the dSafe.
+    // @dev this could be a mapping to a version index instead of the implementation address
     mapping(address => address) dSafeLogic;
-    /// @dev erc20 allowances
+    /// @notice mapping from
+    /// dSafe owner address => ERC20 address => dSafe spender address => allowed amount of ERC20.
+    /// It represent the allowance of `spender` to transfer up to `amount` of `erc20` balance of
+    /// owner's dAccount to some other dAccount. E.g. 123 => abc => 456 => 1000, means that
+    /// dSafe 456 can transfer up to 1000 of abc tokens from dAccount of dSafe 123 to some other dAccount.
+    /// Note, that no ERC20 are actually getting transferred - dAccount is a DOS concept, and
+    /// corresponding tokens are owned by DOS
     mapping(address => mapping(address => mapping(address => uint256))) _allowances;
-    /// @dev erc721 approvals
+    /// @notice mapping from ERC721 contract address => tokenId => dSafe spender address.
+    /// It represents the allowance of the `spender` to send `tokenId` of ERC721 contract to
+    /// whatever dAccount
     mapping(address => mapping(uint256 => address)) _tokenApprovals;
+    /// todo - NetSpec after clarification on what it is
     /// @dev erc721 & erc1155 operator approvals
     mapping(address => mapping(address => mapping(address => bool))) _operatorApprovals;
     mapping(NFTId => NFTTokenData) tokenDataByNFTId;
     ERC20Info[] erc20Infos;
     ERC721Info[] erc721Infos;
+    /// @notice mapping of ERC20 or ERC721 address => DOS asset idx and contract kind.
+    /// idx is the index of the ERC20 in `erc20Infos` or ERC721 in `erc721Infos`
+    /// kind is ContractKind enum, that here can be ERC20 or ERC721
     mapping(address => ContractData) infoIdx;
     IDOSConfig.Config config;
 
@@ -287,6 +302,10 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         dosConfigAddress = _dosConfig;
     }
 
+    /// @notice top up the dAccount owned by dSafe `to` with `amount` of `erc20`
+    /// @param erc20 Address of the ERC20 token to be transferred
+    /// @param to Address of the dSafe that dAccount should be top up
+    /// @param amount The amount of `erc20` to be sent
     function depositERC20ForSafe(
         address erc20,
         address to,
@@ -299,6 +318,11 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
+    /// @notice deposit or withdraw `amount` of `erc20` to/from dAccount to dSafe
+    /// Positive amount to deposit.
+    /// Negative amount to withdraw.
+    /// @param erc20 Address of the ERC20 token to be transferred
+    /// @param amount The amount of `erc20` to be transferred
     function depositERC20(IERC20 erc20, int256 amount) external override onlyDSafe {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         if (amount > 0) {
@@ -310,6 +334,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
+    /// @notice deposit all `erc20s` from dSafe to dAccount
+    /// @param erc20s Array of addresses of ERC20 to be transferred
     function depositFull(IERC20[] calldata erc20s) external override onlyDSafe {
         for (uint256 i = 0; i < erc20s.length; i++) {
             (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20s[i]);
@@ -320,6 +346,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
+    /// @notice withdraw all `erc20s` from dAccount to dSafe
+    /// @param erc20s Array of addresses of ERC20 to be transferred
     function withdrawFull(IERC20[] calldata erc20s) external onlyDSafe {
         for (uint256 i = 0; i < erc20s.length; i++) {
             (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20s[i]);
@@ -330,6 +358,11 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
+    /// @notice deposit ERC721 `nftContract` token `tokenId` from dSafe to dAccount
+    /// @dev the part when we track the ownership of deposit NFT to a specific dAccount is in
+    /// `onERC721Received` function of this contract
+    /// @param nftContract The address of the ERC721 contract that the token belongs to
+    /// @param tokenId The id of the token to be transferred
     function depositNFT(
         address nftContract,
         uint256 tokenId
@@ -368,6 +401,9 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         // TODO: require appropriate reserve
     }*/
 
+    /// @notice withdraw ERC721 `nftContract` token `tokenId` from dAccount to dSafe
+    /// @param erc721 The address of the ERC721 contract that the token belongs to
+    /// @param tokenId The id of the token to be transferred
     function claimNFT(address erc721, uint256 tokenId) external onlyDSafe {
         NFTId nftId = getNFTId(erc721, tokenId);
 
@@ -377,11 +413,20 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         delete tokenDataByNFTId[nftId];
     }
 
+    /// @notice transfer `amount` of `erc20` from dAccount of caller dSafe to dAccount of `to` dSafe
+    /// @param erc20 Address of the ERC20 token to be transferred
+    /// @param to dSafe address, whose dAccount is the transfer target
+    /// @param amount The amount of `erc20` to be transferred
     function transfer(IERC20 erc20, address to, uint256 amount) external onlyDSafe dSafeExists(to) {
         if (amount == 0) return;
         transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
     }
 
+    /// @notice transfer NFT `erc721` token `tokenId` from dAccount of caller dSafe to dAccount of
+    /// `to` dSafe
+    /// @param erc721 The address of the ERC721 contract that the token belongs to
+    /// @param tokenId The id of the token to be transferred
+    /// @param to dSafe address, whose dAccount is the transfer target
     function sendNFT(
         address erc721,
         uint256 tokenId,
@@ -397,6 +442,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @param from The address of the dSafe to transfer from
     /// @param to The address of the dSafe to transfer to
     /// @param amount The amount of tokens to transfer
+    /// @return true, when the transfer has been successfully finished without been reverted
     function transferFromERC20(
         address erc20,
         address from,
@@ -428,6 +474,16 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         transferNFT(nftId, from, to);
     }
 
+    /// @notice if dAccount of `dSafe` has more debt then collateral then this function will
+    /// transfer all debt and collateral ERC20s and ERC721 from dAccount of `dSafe` to dAccount of
+    /// caller. Considering that market price of collateral is higher then market price of debt,
+    /// a friction of that difference would be sent back to liquidated dAccount in DOS base currency.
+    ///   More specific - "some fraction" is `liqFraction` parameter of DOS.
+    ///   Considering that call to this function would create debt on caller (debt is less then
+    /// gains, yet still), consider using `liquify` instead, that would liquidate and use
+    /// obtained assets to cover all created debt
+    ///   If dAccount of `dSafe` has less debt then collateral then the transaction will be reverted
+    /// @param dSafe The address of dSafe whose dAccount to be liquidate
     function liquidate(address dSafe) external override onlyDSafe dSafeExists(dSafe) {
         (int256 totalValue, int256 collateral, int256 debt) = computePosition(dSafe);
         require(collateral < debt, "DSafe is not liquidatable");
@@ -454,11 +510,24 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
+    /// @notice execute a batch of commands on DOS from the name of dSafe owner. Eventual state of
+    /// dAccount and DOS must be solvent, i.e. debt on dAccount cannot exceed collateral
+    /// and DOS reserve/debt must be sufficient
     function executeBatch(Call[] memory calls) external override onlyDSafe {
         DSafeProxy(payable(msg.sender)).executeBatch(calls);
         require(isSolvent(msg.sender), "Result of operation is not sufficient liquid");
     }
 
+    /// @dev it's a callback, required to be implemented by IERC721Receiver interface for the
+    /// contract to be able to receive ERC721 NFTs.
+    /// We are using it to track what dAccount owns what NFT.
+    /// `return this.onERC721Received.selector;` is mandatory part for the NFT transfer to work -
+    /// not a part of owr business logic
+    /// @param - operator The address which called `safeTransferFrom` function
+    /// @param from The address which previously owned the token
+    /// @param tokenId The NFT identifier which is being transferred
+    /// @param data Additional data with no specified format
+    /// @return `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`
     function onERC721Received(
         address /* operator */,
         address from,
@@ -476,18 +545,24 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return this.onERC721Received.selector;
     }
 
+    /// @notice provides the specific version of dSafeLogic contract that is associated with `dSafe`
+    /// @param dSafe Address of dSafe whose dSafeLogic contract should be returned
+    /// @return the address of the dSafeLogic contract that is associated with the `dSafe`
     function getImplementation(address dSafe) external view override returns (address) {
         // not using msg.sender since this is an external view function
         return dSafeLogic[dSafe];
     }
 
+    /// @notice provides the owner of `dSafe`. Owner of the dSafe is the address who created the dSafe
+    /// @param dSafe The address of dSafe whose owner should be returned
+    /// @return the owner address of the `dSafe`. Owner is the one who created the `dSafe`
     function getDSafeOwner(address dSafe) external view override returns (address) {
         return dSafes[dSafe].owner;
     }
 
-    /// @notice Approve an array of tokens and then call `onApprovalReceived` on spender.
-    /// @param approvals An array of erc20 tokens
-    /// @param spender The address of the spender
+    /// @notice Approve an array of tokens and then call `onApprovalReceived` on spender
+    /// @param approvals An array of ERC20 tokens with amounts, or ERC721
+    /// @param spender The address of the spender dSafe
     /// @param data Additional data with no specified format, sent in call to `spender`
     function approveAndCall(
         Approval[] calldata approvals,
@@ -512,6 +587,16 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
+    /// @notice returns the collateral, debt and total value of `dSafeAddress`.
+    /// Notice that both collateral and debt has some coefficients on the actual amount of deposit
+    /// and loan assets! E.g.
+    /// for a deposit of 1 ETH the collateral would be equivalent to like 0.8 ETH, and
+    /// for a loan of 1 ETH the debt would be equivalent to like 1.2 ETH.
+    /// At the same time, totalValue is the unmodified difference between deposits and loans.
+    /// @param dSafeAddress The address of dSafe whose collateral, debt and total value would be returned
+    /// @return totalValue The difference between equivalents of deposit and loan assets
+    /// @return collateral The sum of deposited assets multiplied by their collateral factors
+    /// @return debt The sum of borrowed assets multiplied by their borrow factors
     function computePosition(
         address dSafeAddress
     )
@@ -547,6 +632,15 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
+    /// @notice checks the eventual state of `executeBatch` function execution:
+    /// * `dSafe` must have collateral >= debt
+    /// * DOS must have sufficient balance of deposits and loans for each ERC20 token
+    /// @dev when called by the end of `executeBatch`, isSolvent checks the potential target state
+    /// of DOS. Calling this function separately would check current state of DOS, that is always
+    /// solvable, and so the return value would always be `true`, unless the `dSafe` is liquidatable
+    /// @param dSafe The address of a dSafe who performed the `executeBatch`
+    /// @return if the position is solvent. In case of `executeBatch` function, if the position
+    /// would be solvent after executing the batch
     function isSolvent(address dSafe) public view returns (bool) {
         // todo track each erc20 on-change instead of iterating over all DOS stuff
         int256 leverage = config.fractionalReserveLeverage;
@@ -565,14 +659,16 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @notice Returns the approved address for a token, or zero if no address set
     /// @param collection The address of the ERC721 token
     /// @param tokenId The id of the token to query
+    /// @return The dSafe address that is allowed to transfer the ERC721 token
     function getApproved(address collection, uint256 tokenId) public view returns (address) {
         return _tokenApprovals[collection][tokenId];
     }
 
     /// @notice Returns if the `operator` is allowed to manage all of the erc20s of `owner` on the `collection` contract
     /// @param collection The address of the collection contract
-    /// @param _owner The address of the owner
-    /// @param spender The address of the spender
+    /// @param _owner The address of the dSafe owner
+    /// @param spender The address of the dSafe spender
+    /// @return if the `spender` is allowed to operate the assets of `collection` of `_owner`
     function isApprovedForAll(
         address collection,
         address _owner,
@@ -581,13 +677,14 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return _operatorApprovals[collection][_owner][spender];
     }
 
-    /**
-     * @dev Returns the remaining number of tokens that `spender` will be
-     * allowed to spend on behalf of `owner` through {transferFrom}. This is
-     * zero by default.
-     *
-     * This value changes when {approve} or {transferFrom} are called.
-     */
+    /// @notice Returns the remaining amount of tokens that `spender` will be allowed to spend on
+    /// behalf of `owner` through {transferFrom}. This is zero by default
+    /// @dev This value changes when {approve} or {transferFrom} are called
+    /// @param erc20 The address of ERC20 which allowance to be checked
+    /// @param _owner The dSafe address whose `erc20` are allowed to be transferred by `spender`
+    /// @param spender The dSafe address who is allowed to spend `erc20` of `_owner`
+    /// @return the remaining amount of tokens that `spender` will be allowed to spend on
+    /// behalf of `owner` through {transferFrom}
     function allowance(
         address erc20,
         address _owner,
@@ -617,6 +714,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
+    /// @dev changes the quantity of `erc20` by `amount` that are allowed to transfer from dAccount
+    /// of dSafe `_owner` by dSafe `spender`
     function _spendAllowance(
         address erc20,
         address _owner,
@@ -670,12 +769,25 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
+    /// @dev transfer ERC20 balances between dAccounts.
+    /// Because all ERC20 tokens on dAccounts are owned by DOS, no tokens are getting transferred -
+    /// all changes are inside DOS contract state
+    /// @param erc20 The address of ERC20 token balance to transfer
+    /// @param from The address of dSafe whose dAccount balance should be decreased by `amount`
+    /// @param to The address of dSafe whose dAccount balance should be increased by `amount`
+    /// @param amount The amount of `erc20` by witch the balance of
+    /// dAccount of dSafe `from` should be decreased and
+    /// dAccount of dSafe `to` should be increased.
+    /// Note that amount it can be negative
     function transferERC20(IERC20 erc20, address from, address to, int256 amount) internal {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         dAccountERC20ChangeBy(from, erc20Idx, -amount);
         dAccountERC20ChangeBy(to, erc20Idx, amount);
     }
 
+    /// @dev transfer ERC721 NFT ownership between dAccounts.
+    /// Because all ERC721 NFTs on dAccounts are owned by DOS, no NFT is getting transferred - all
+    /// changes are inside DOS contract state
     function transferNFT(NFTId nftId, address from, address to) internal {
         dSafes[from].extractNFT(nftId, tokenDataByNFTId);
         dSafes[to].insertNFT(nftId, tokenDataByNFTId);
@@ -774,20 +886,42 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
 contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     constructor(address _owner) ImmutableGovernance(_owner) {}
 
+    /// @notice upgrades the version of dSafeLogic contract version for the `dSafe`
+    /// @param dSafe The address of the dSafe for which dSafeLogic should be upgraded
+    /// @param version The new target version of dSafeLogic contract
+    // todo - disallow downgrade
     function upgradeDSafeImplementation(address dSafe, uint256 version) external {
         address dSafeOwner = dSafes[dSafe].owner;
         require(msg.sender == dSafeOwner, "DOS: not owner");
         dSafeLogic[dSafe] = versionManager.getVersionAddress(version);
     }
 
+    // todo NetSpec
     function pause() external onlyGovernance {
         _pause();
     }
 
+    // todo NetSpec
     function unpause() external onlyGovernance {
         _unpause();
     }
 
+    /// @notice For governance only. Allow a new ERC20 to be used inside DOS
+    /// @param erc20Contract The address of ERC20 to add
+    /// @param name The name of the ERC20. E.g. "Wrapped ETH"
+    /// @param symbol The symbol of the ERC20. E.g. "WETH"
+    /// @param decimals Decimals of the ERC20. E.g. 18 for WETH and 6 for USDC
+    /// @param valueOracle The address of the Value Oracle. Probably Uniswap one
+    /// @param colFactor A number from 0 to 1 eth. collateral = value * colFactor / 1 eth. E.g.
+    /// if colFactor for WETH is 0.8 eth it means that deposit of 1 WETH to dAccount would
+    /// increase collateral of the position by equivalent of 0.8 WETH
+    /// @param borrowFactor A number from 0 to 1 eth. debt = -value / borrowFactor * 1 eth. E.g.
+    /// if borrowFactor if 0.8 eth it means that borrow of 1 WETH from dAccount would
+    /// increase debt of the position by equivalent of 1.25 WETH (1 / 0.8 is 1.25)
+    /// @param interest Controls the interest rate i.e. how fast the deposit generates income and
+    /// borrowing generates new debt.
+    /// 0 means deposit generates no income and borrowing is free. Todo - an example of non-zero value
+    /// @return the index of the added ERC20 in the erc20Infos array
     function addERC20Info(
         address erc20Contract,
         string calldata name,
@@ -829,6 +963,13 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         return erc20Idx;
     }
 
+    /// @notice for governance only. Allow to new ERC721 to be used inside DOS.
+    /// As for now, it's only Uniswap NFTs.
+    /// @param nftContract The address of the ERC721 to be added
+    /// @param valueOracleAddress The address of the Uniswap Oracle to get the price of a token
+    /// @param collateralFactor A number from 0 to 1 eth. collateral = value * colFactor / 1 eth. E.g.
+    /// if collateralFactor is 0.8 then if valueOracle estimates the NFT on dAccount for 1 ETH it
+    /// means that it increases the collateral of the position by an equivalent of 0.8 ETH
     function addNFTInfo(
         address nftContract,
         address valueOracleAddress,
@@ -840,14 +981,23 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         infoIdx[nftContract] = ContractData(uint16(erc721Idx), ContractKind.ERC721);
     }
 
+    /// @notice for governance only. Updates the config of the DOS
+    /// @param _config the Config of IDOSConfig. A struct with DOS parameters
     function setConfig(Config calldata _config) external onlyGovernance {
         config = _config;
     }
 
+    /// @notice for governance only. Set the address of Version Manager contract
+    /// @param _versionManager The address of the Version Manager contract to be set
     function setVersionManager(address _versionManager) external onlyGovernance {
         versionManager = IVersionManager(_versionManager);
     }
 
+    /// @notice for governance only. Updates some of ERC20 config parameters
+    /// @param erc20 The address of ERC20 contract for which DOS config parameters should be updated
+    /// @param interestRate See `interest` parameter description of `addERC20Info` function
+    /// @param borrowFactor See `borrowFactor` parameter description of `addERC20Info` function
+    /// @param collateralFactor See `colFactor` parameter description of `addERC20Info` function
     function setERC20Data(
         address erc20,
         int256 interestRate,
@@ -861,6 +1011,8 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         erc20Infos[erc20Idx].collateralFactor = collateralFactor;
     }
 
+    /// @notice creates a new dSafe with sender as the owner and returns the dSafe address
+    /// @return dSafe The address of the created dSafe
     function createDSafe() external returns (address dSafe) {
         address[] memory erc20s = new address[](erc20Infos.length);
         for (uint256 i = 0; i < erc20Infos.length; i++) {
@@ -880,6 +1032,11 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         emit IDOSConfig.DSafeCreated(dSafe, msg.sender);
     }
 
+    /// @notice calculates the amount of `erc20` tokens on dAccount of dSafe
+    /// @param dSafeAddr The address of the dSafe for which dAccount the amount of `erc20` should
+    /// be calculated
+    /// @param erc20 The address of ERC20 which balance on dAccount of `dSafe` should be calculated
+    /// @return the amount of `erc20` on the dAccount of `dSafe`
     function getDAccountERC20(address dSafeAddr, IERC20 erc20) external view returns (int256) {
         // TODO(gerben) interest computation
         DSafe storage dSafe = dSafes[dSafeAddr];
@@ -888,6 +1045,9 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         return getBalance(erc20Share, erc20Info);
     }
 
+    /// @notice returns the NFTs on dAccount of `dSafe`
+    /// @param dSafe The address of dSafe which dAccount NFTs should be returned
+    /// @return The array of NFT deposited on the dAccount of `dSafe`
     function viewNFTs(address dSafe) external view returns (NFTData[] memory) {
         NFTData[] memory nftData = new NFTData[](dSafes[dSafe].nfts.length);
         for (uint i = 0; i < nftData.length; i++) {
