@@ -39,7 +39,7 @@ type ERC20Info = {
   timestamp: bigint;
 };
 
-describe.only("Interest", () => {
+describe("Interest", () => {
   async function deployDOSFixture() {
     const [owner, user, user2] = await ethers.getSigners();
 
