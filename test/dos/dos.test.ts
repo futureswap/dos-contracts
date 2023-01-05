@@ -193,7 +193,7 @@ describe("DOS", () => {
 
       const tx = transfer(dos, sender, receiver, usdc.address, toWeiUsdc(20_000));
 
-      await expect(tx).to.be.revertedWith("Result of operation is not sufficient liquid");
+      await expect(tx).to.be.revertedWith("Result of operation is not sufficiently liquid");
     });
 
     it("User can send more ERC20 then they have", async () => {
@@ -492,7 +492,7 @@ describe("DOS", () => {
       await ethChainlink.setPrice(2_100); // 2_000 -> 2_100
       const liquidateTx = liquidator.executeBatch([makeCall(dos).liquidate(liquidatable.address)]);
 
-      await expect(liquidateTx).to.revertedWith("Result of operation is not sufficient liquid");
+      await expect(liquidateTx).to.revertedWith("Result of operation is not sufficiently liquid");
     });
 
     it("when a dSafe trys to liquidate itself should revert", async () => {
@@ -518,7 +518,7 @@ describe("DOS", () => {
         makeCall(dos).liquidate(liquidatable.address),
       ]);
 
-      await expect(liquidateTx).to.revertedWith("Result of operation is not sufficient liquid");
+      await expect(liquidateTx).to.revertedWith("Result of operation is not sufficiently liquid");
     });
 
     it("when collateral is smaller then debt should transfer all ERC20s of the dSafe to the caller", async () => {

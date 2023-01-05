@@ -5,7 +5,6 @@ import "../interfaces/IDOS.sol";
 import "../lib/FsUtils.sol";
 
 /// @title the state part of the DSafeLogic. A parent to all contracts that form dSafe
-/// @author Aleksey Bobyr
 /// @dev the contract is abstract because it is not expected to be used separately from dSafe
 abstract contract DSafeState {
     /// @dev DOS instance to be used by all other dSafe contracts

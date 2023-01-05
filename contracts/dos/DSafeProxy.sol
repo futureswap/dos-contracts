@@ -20,6 +20,8 @@ import {ISafe} from "../interfaces/ISafe.sol";
 import "./DSafeState.sol";
 import "./Liquifier.sol";
 
+/// @title DSafe Proxy
+/// @notice Proxy contract for DOS Safes
 // Inspired by TransparentUpdatableProxy
 contract DSafeProxy is DSafeState, Proxy {
     modifier ifDos() {
@@ -160,6 +162,7 @@ contract DSafeLogic is
         forwardNFT = _forwardNFT;
     }
 
+    /// @notice ERC721 transfer callback
     /// @dev it's a callback, required to be implemented by IERC721Receiver interface for the
     /// contract to be able to receive ERC721 NFTs.
     /// we are already using it to support "forwardNFT" of dSafe.

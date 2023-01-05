@@ -8,7 +8,6 @@ import "../interfaces/IDOS.sol";
 import "./DSafeState.sol";
 
 /// @title Logic for liquify functionality of dSafe
-/// @author Aleksey Bobyr
 /// @dev It is designed to be an extension for dSafeLogic contract.
 /// Functionally, it's a part of the dSafeLogic contract, but has been extracted into a separate
 /// contract for better code structuring. This is why the contract is declared as abstract
@@ -247,9 +246,9 @@ abstract contract Liquifier is DSafeState {
                     tokenOut: address(erc20sToBuy[i]),
                     fee: 500,
                     recipient: address(this),
-                    deadline: type(uint256).max,
+                    deadline: type(uint256).max, // recommend limiting this to block.time
                     amountOut: amountsToBuy[i],
-                    amountInMaximum: type(uint256).max,
+                    amountInMaximum: type(uint256).max, // recommend limiting this
                     sqrtPriceLimitX96: 0
                 });
             ISwapRouter(swapRouter).exactOutputSingle(params);
