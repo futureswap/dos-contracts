@@ -358,7 +358,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         (, uint16 erc20Idx) = getERC20Info(IERC20(erc20));
         if (amount > 0) {
             IERC20(erc20).safeTransferFrom(msg.sender, address(this), uint256(amount));
-            dAccountERC20ChangeBy(to, erc20Idx, FsMath.safeCastToSigned(amount));
+            _dAccountERC20ChangeBy(to, erc20Idx, FsMath.safeCastToSigned(amount));
         }
         emit IDOSCore.ERC20BalanceChanged(erc20, to, int256(amount));
     }
@@ -373,10 +373,10 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         if (amount > 0) {
             erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
-            dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
+            _dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
         } else {
             erc20.safeTransfer(msg.sender, uint256(-amount));
-            dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
+            _dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
         }
         emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, int256(amount));
     }
@@ -389,7 +389,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
             uint256 amount = erc20.balanceOf(msg.sender);
             erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
-            dAccountERC20ChangeBy(msg.sender, erc20Idx, FsMath.safeCastToSigned(amount));
+            _dAccountERC20ChangeBy(msg.sender, erc20Idx, FsMath.safeCastToSigned(amount));
             emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, int256(amount));
         }
     }
@@ -400,7 +400,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         for (uint256 i = 0; i < erc20s.length; i++) {
             (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20s[i]);
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
-            int256 amount = dAccountERC20Clear(msg.sender, erc20Idx);
+            int256 amount = _dAccountERC20Clear(msg.sender, erc20Idx);
             require(amount >= 0, "Can't withdraw debt");
             erc20.safeTransfer(msg.sender, uint256(amount));
             emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, int256(amount));
@@ -437,10 +437,10 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         IDOSERC20 erc20 = IDOSERC20(erc20Info.dosContract);
         if (amount > 0) {
             erc20.burn(msg.sender, uint256(amount));
-            dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
+            _dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
         } else {
             erc20.mint(msg.sender, uint256(-amount));
-            dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
+            _dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
         }
     }
 
@@ -455,7 +455,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @param erc721 The address of the ERC721 contract that the token belongs to
     /// @param tokenId The id of the token to be transferred
     function withdrawERC721(address erc721, uint256 tokenId) external onlyDSafe {
-        NFTId nftId = getNFTId(erc721, tokenId);
+        NFTId nftId = _getNFTId(erc721, tokenId);
 
         ERC721(erc721).safeTransferFrom(address(this), msg.sender, tokenId);
 
@@ -487,8 +487,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         uint256 tokenId,
         address to
     ) external onlyDSafe dSafeExists(to) {
-        NFTId nftId = getNFTId(erc721, tokenId);
-        transferNFT(nftId, msg.sender, to);
+        NFTId nftId = _getNFTId(erc721, tokenId);
+        _transferNFT(nftId, msg.sender, to);
     }
 
     /// @notice Transfer ERC20 tokens from dAccount to another dAccount
@@ -521,12 +521,12 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         address to,
         uint256 tokenId
     ) external onlyDSafe dSafeExists(to) {
-        NFTId nftId = getNFTId(collection, tokenId);
+        NFTId nftId = _getNFTId(collection, tokenId);
         if (!_isApprovedOrOwner(msg.sender, nftId)) {
             revert NotApprovedOrOwner();
         }
         tokenApprovals[collection][tokenId] = address(0);
-        transferNFT(nftId, from, to);
+        _transferNFT(nftId, from, to);
     }
 
     /// @notice Liquidate an undercollateralized position
@@ -546,10 +546,10 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         uint16[] memory dSafeERC20s = dSafes[dSafe].getERC20s();
         for (uint256 i = 0; i < dSafeERC20s.length; i++) {
             uint16 erc20Idx = dSafeERC20s[i];
-            transferAllERC20(erc20Idx, dSafe, msg.sender);
+            _transferAllERC20(erc20Idx, dSafe, msg.sender);
         }
         while (dSafes[dSafe].nfts.length > 0) {
-            transferNFT(dSafes[dSafe].nfts[dSafes[dSafe].nfts.length - 1], dSafe, msg.sender);
+            _transferNFT(dSafes[dSafe].nfts[dSafes[dSafe].nfts.length - 1], dSafe, msg.sender);
         }
         // TODO(gerben) make formula dependent on risk
         if (totalValue > 0) {
@@ -564,6 +564,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
                 leftover
             );
         }
+        emit IDOSCore.SafeLiquidated(dSafe, msg.sender);
     }
 
     /// @notice Execute a batch of calls
@@ -595,7 +596,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         uint256 tokenId,
         bytes calldata data
     ) external override whenNotPaused returns (bytes4) {
-        NFTId nftId = getNFTId(msg.sender, tokenId);
+        NFTId nftId = _getNFTId(msg.sender, tokenId);
         if (data.length != 0) {
             from = abi.decode(data, (address));
         }
@@ -842,46 +843,49 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// Note that amount it can be negative
     function _transferERC20(IERC20 erc20, address from, address to, int256 amount) internal {
         (, uint16 erc20Idx) = getERC20Info(erc20);
-        dAccountERC20ChangeBy(from, erc20Idx, -amount);
-        dAccountERC20ChangeBy(to, erc20Idx, amount);
+        _dAccountERC20ChangeBy(from, erc20Idx, -amount);
+        _dAccountERC20ChangeBy(to, erc20Idx, amount);
         emit IDOSCore.ERC20Transfer(address(erc20), from, to, FsMath.safeCastToUnsigned(amount));
     }
 
     /// @dev transfer ERC721 NFT ownership between dAccounts.
     /// Because all ERC721 NFTs on dAccounts are owned by DOS, no NFT is getting transferred - all
     /// changes are inside DOS contract state
-    function transferNFT(NFTId nftId, address from, address to) internal {
+    function _transferNFT(NFTId nftId, address from, address to) internal {
         dSafes[from].extractNFT(nftId, tokenDataByNFTId);
         dSafes[to].insertNFT(nftId, tokenDataByNFTId);
         emit ERC721Transferred(NFTId.unwrap(nftId), from, to);
     }
 
-    function transferAllERC20(uint16 erc20Idx, address from, address to) internal {
-        int256 amount = dAccountERC20Clear(from, erc20Idx);
-        dAccountERC20ChangeBy(to, erc20Idx, amount);
+    /// @dev transfer all `erc20Idx` from `from` to `to`
+    function _transferAllERC20(uint16 erc20Idx, address from, address to) internal {
+        int256 amount = _dAccountERC20Clear(from, erc20Idx);
+        _dAccountERC20ChangeBy(to, erc20Idx, amount);
+        address erc20 = erc20Infos[erc20Idx].erc20Contract;
+        emit IDOSCore.ERC20Transfer(erc20, from, to, FsMath.safeCastToUnsigned(amount));
     }
 
-    function dAccountERC20ChangeBy(address dSafeAddress, uint16 erc20Idx, int256 amount) internal {
-        updateInterest(erc20Idx);
+    function _dAccountERC20ChangeBy(address dSafeAddress, uint16 erc20Idx, int256 amount) internal {
+        _updateInterest(erc20Idx);
         DSafe storage dSafe = dSafes[dSafeAddress];
         ERC20Share shares = dSafe.erc20Share[erc20Idx];
         ERC20Info storage erc20Info = erc20Infos[erc20Idx];
-        int256 currentAmount = extractPosition(shares, erc20Info);
+        int256 currentAmount = _extractPosition(shares, erc20Info);
         int256 newAmount = currentAmount + amount;
-        dSafe.erc20Share[erc20Idx] = insertPosition(newAmount, dSafe, erc20Idx);
+        dSafe.erc20Share[erc20Idx] = _insertPosition(newAmount, dSafe, erc20Idx);
     }
 
-    function dAccountERC20Clear(address dSafeAddress, uint16 erc20Idx) internal returns (int256) {
-        updateInterest(erc20Idx);
+    function _dAccountERC20Clear(address dSafeAddress, uint16 erc20Idx) internal returns (int256) {
+        _updateInterest(erc20Idx);
         DSafe storage dSafe = dSafes[dSafeAddress];
         ERC20Share shares = dSafe.erc20Share[erc20Idx];
-        int256 erc20Amount = extractPosition(shares, erc20Infos[erc20Idx]);
+        int256 erc20Amount = _extractPosition(shares, erc20Infos[erc20Idx]);
         dSafe.erc20Share[erc20Idx] = ERC20Share.wrap(0);
         dSafe.removeERC20IdxFromDAccount(erc20Idx);
         return erc20Amount;
     }
 
-    function extractPosition(
+    function _extractPosition(
         ERC20Share sharesWrapped,
         ERC20Info storage erc20Info
     ) internal returns (int256) {
@@ -890,7 +894,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return pool.extractPosition(sharesWrapped);
     }
 
-    function insertPosition(
+    function _insertPosition(
         int256 amount,
         DSafe storage dSafe,
         uint16 erc20Idx
@@ -905,7 +909,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return pool.insertPosition(amount);
     }
 
-    function updateInterest(uint16 erc20Idx) internal {
+    function _updateInterest(uint16 erc20Idx) internal {
         ERC20Info storage erc20Info = erc20Infos[erc20Idx];
         if (erc20Info.timestamp == block.timestamp) return;
         int256 delta = FsMath.safeCastToSigned(block.timestamp - erc20Info.timestamp);
@@ -919,7 +923,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         // TODO(gerben) add to treasury
     }
 
-    function getNFTId(address erc721, uint256 tokenId) internal view returns (NFTId) {
+    function _getNFTId(address erc721, uint256 tokenId) internal view returns (NFTId) {
         require(infoIdx[erc721].kind == ContractKind.ERC721, "Not an NFT");
         uint16 erc721Idx = infoIdx[erc721].idx;
         uint256 tokenHash = uint256(keccak256(abi.encodePacked(tokenId))) >> 32;
