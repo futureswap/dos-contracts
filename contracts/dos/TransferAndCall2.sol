@@ -9,7 +9,7 @@ import "../external/interfaces/IWETH9.sol";
 import "../interfaces/ITransferReceiver2.sol";
 
 // Bringing ERC1363 to all tokens, it's to ERC1363 what Permit2 is to ERC2612.
-// This should be proposed as an ERC and should be deployed cross chain on
+// This should be proposed as an EIP and should be deployed cross chain on
 // fixed address using AnyswapCreate2Deployer.
 contract TransferAndCall2 is IERC1363Receiver {
     using Address for address;
@@ -75,6 +75,20 @@ contract TransferAndCall2 is IERC1363Receiver {
         return transferFromAndCall2Impl(from, receiver, address(0), transfers, data);
     }
 
+    // TODO: add natspec
+    function onTransferReceived(
+        address _operator,
+        address _from,
+        uint256 _amount,
+        bytes calldata _data
+    ) external override returns (bytes4) {
+        (address to, bytes memory decodedData) = abi.decode(_data, (address, bytes));
+        ITransferReceiver2.Transfer[] memory transfers = new ITransferReceiver2.Transfer[](1);
+        transfers[0] = ITransferReceiver2.Transfer(msg.sender, _amount);
+        callOnTransferReceived2(to, _operator, _from, transfers, decodedData);
+        return IERC1363Receiver.onTransferReceived.selector;
+    }
+
     function transferFromAndCall2Impl(
         address from,
         address receiver,
@@ -106,19 +120,6 @@ contract TransferAndCall2 is IERC1363Receiver {
 
     // TODO: ERC2612 permit transferAndCall2
     // TODO: permit2 transferAndCall
-
-    function onTransferReceived(
-        address _operator,
-        address _from,
-        uint256 _amount,
-        bytes calldata _data
-    ) external override returns (bytes4) {
-        (address to, bytes memory decodedData) = abi.decode(_data, (address, bytes));
-        ITransferReceiver2.Transfer[] memory transfers = new ITransferReceiver2.Transfer[](1);
-        transfers[0] = ITransferReceiver2.Transfer(msg.sender, _amount);
-        callOnTransferReceived2(to, _operator, _from, transfers, decodedData);
-        return IERC1363Receiver.onTransferReceived.selector;
-    }
 
     function callOnTransferReceived2(
         address to,
