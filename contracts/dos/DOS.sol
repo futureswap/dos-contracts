@@ -44,6 +44,8 @@ error OnlyDSafe();
 error DSafeNonExistent();
 /// @notice Operation leaves dSafe insolvent
 error Insolvent();
+/// @notice The address is not a registered ERC20
+error NotERC20();
 
 // ERC20 standard token
 // ERC721 single non-fungible token support
@@ -220,14 +222,14 @@ uint16 constant K_NUMERAIRE_IDX = 0;
 /// @title DOS State
 /// @notice Contract holds the configuration state for DOS
 contract DOSState is Pausable {
-    IVersionManager versionManager;
+    IVersionManager public versionManager;
     /// @notice mapping between dSafe address and DOS-specific dSafe data
-    mapping(address => DSafe) dSafes;
+    mapping(address => DSafe) public dSafes;
 
     /// @notice mapping between dSafe address and an instance of deployed dSafeLogic contract.
     /// It means that this specific dSafeLogic version is setup to operate the dSafe.
     // @dev this could be a mapping to a version index instead of the implementation address
-    mapping(address => address) dSafeLogic;
+    mapping(address => address) public dSafeLogic;
 
     /// @notice mapping from
     /// dSafe owner address => ERC20 address => dSafe spender address => allowed amount of ERC20.
@@ -236,28 +238,28 @@ contract DOSState is Pausable {
     /// dSafe 456 can transfer up to 1000 of abc tokens from dAccount of dSafe 123 to some other dAccount.
     /// Note, that no ERC20 are actually getting transferred - dAccount is a DOS concept, and
     /// corresponding tokens are owned by DOS
-    mapping(address => mapping(address => mapping(address => uint256))) _allowances;
+    mapping(address => mapping(address => mapping(address => uint256))) public allowances;
 
     /// @notice mapping from ERC721 contract address => tokenId => dSafe spender address.
     /// It represents the allowance of the `spender` to send `tokenId` of ERC721 contract to
     /// whatever dAccount
-    mapping(address => mapping(uint256 => address)) _tokenApprovals;
+    mapping(address => mapping(uint256 => address)) public tokenApprovals;
 
     /// todo - NatSpec after clarification on what it is
     /// @dev erc721 & erc1155 operator approvals
-    mapping(address => mapping(address => mapping(address => bool))) _operatorApprovals;
+    mapping(address => mapping(address => mapping(address => bool))) public operatorApprovals;
 
-    mapping(NFTId => NFTTokenData) tokenDataByNFTId;
+    mapping(NFTId => NFTTokenData) public tokenDataByNFTId;
 
-    ERC20Info[] erc20Infos;
-    ERC721Info[] erc721Infos;
+    ERC20Info[] public erc20Infos;
+    ERC721Info[] public erc721Infos;
 
     /// @notice mapping of ERC20 or ERC721 address => DOS asset idx and contract kind.
     /// idx is the index of the ERC20 in `erc20Infos` or ERC721 in `erc721Infos`
     /// kind is ContractKind enum, that here can be ERC20 or ERC721
-    mapping(address => ContractData) infoIdx;
+    mapping(address => ContractData) public infoIdx;
 
-    IDOSConfig.Config config;
+    IDOSConfig.Config public config;
 
     function getBalance(
         ERC20Share shares,
@@ -353,6 +355,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             IERC20(erc20).safeTransferFrom(msg.sender, address(this), uint256(amount));
             dAccountERC20ChangeBy(to, erc20Idx, FsMath.safeCastToSigned(amount));
         }
+        emit IDOSCore.ERC20BalanceChanged(erc20, to, int256(amount));
     }
 
     // TODO: discuss splitting this function into two: deposit and withdraw
@@ -370,6 +373,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             erc20.safeTransfer(msg.sender, uint256(-amount));
             dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
         }
+        emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, int256(amount));
     }
 
     /// @notice deposit all `erc20s` from dSafe to dAccount
@@ -381,6 +385,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             uint256 amount = erc20.balanceOf(msg.sender);
             erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
             dAccountERC20ChangeBy(msg.sender, erc20Idx, FsMath.safeCastToSigned(amount));
+            emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, int256(amount));
         }
     }
 
@@ -393,31 +398,33 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             int256 amount = dAccountERC20Clear(msg.sender, erc20Idx);
             require(amount >= 0, "Can't withdraw debt");
             erc20.safeTransfer(msg.sender, uint256(amount));
+            emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, int256(amount));
         }
     }
 
-    /// @notice deposit ERC721 `nftContract` token `tokenId` from dSafe to dAccount
+    /// @notice deposit ERC721 `erc721Contract` token `tokenId` from dSafe to dAccount
     /// @dev the part when we track the ownership of deposit NFT to a specific dAccount is in
     /// `onERC721Received` function of this contract
-    /// @param nftContract The address of the ERC721 contract that the token belongs to
+    /// @param erc721Contract The address of the ERC721 contract that the token belongs to
     /// @param tokenId The id of the token to be transferred
     function depositERC721(
-        address nftContract,
+        address erc721Contract,
         uint256 tokenId
     )
         external
         onlyDSafe
-        onlyRegisteredNFT(nftContract, tokenId)
-        onlyNFTOwner(nftContract, tokenId)
+        onlyRegisteredNFT(erc721Contract, tokenId)
+        onlyNFTOwner(erc721Contract, tokenId)
     {
         // NOTE: owner conflicts with the state variable. Should rename to nftOwner, owner_, or similar.
-        address _owner = ERC721(nftContract).ownerOf(tokenId);
-        ERC721(nftContract).safeTransferFrom(
+        address _owner = ERC721(erc721Contract).ownerOf(tokenId);
+        ERC721(erc721Contract).safeTransferFrom(
             _owner,
             address(this),
             tokenId,
             abi.encode(msg.sender)
         );
+        emit IDOSCore.ERC721Deposited(erc721Contract, msg.sender, tokenId);
     }
 
     /*function depositDosERC20(uint16 erc20Idx, int256 amount) external onlyDSafe {
@@ -449,6 +456,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
 
         dSafes[msg.sender].extractNFT(nftId, tokenDataByNFTId);
         delete tokenDataByNFTId[nftId];
+        emit IDOSCore.ERC721Withdrawn(erc721, msg.sender, tokenId);
     }
 
     /// @notice transfer `amount` of `erc20` from dAccount of caller dSafe to dAccount of `to` dSafe
@@ -512,7 +520,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         if (!_isApprovedOrOwner(msg.sender, nftId)) {
             revert NotApprovedOrOwner();
         }
-        _tokenApprovals[collection][tokenId] = address(0);
+        tokenApprovals[collection][tokenId] = address(0);
         transferNFT(nftId, from, to);
     }
 
@@ -709,7 +717,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @param tokenId The id of the token to query
     /// @return The dSafe address that is allowed to transfer the ERC721 token
     function getApproved(address collection, uint256 tokenId) public view returns (address) {
-        return _tokenApprovals[collection][tokenId];
+        return tokenApprovals[collection][tokenId];
     }
 
     /// @notice Returns if the `operator` is allowed to manage all of the erc721s of `owner` on the `collection` contract
@@ -722,7 +730,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         address _owner,
         address spender
     ) public view returns (bool) {
-        return _operatorApprovals[collection][_owner][spender];
+        return operatorApprovals[collection][_owner][spender];
     }
 
     /// @notice Returns the remaining amount of tokens that `spender` will be allowed to spend on
@@ -739,7 +747,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         address spender
     ) public view override returns (uint256) {
         if (_owner == spender) return type(uint256).max;
-        return _allowances[_owner][erc20][spender];
+        return allowances[_owner][erc20][spender];
     }
 
     function _approve(
@@ -753,10 +761,10 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         ContractData memory data = infoIdx[ercContract];
         if (data.kind == ContractKind.ERC20) {
             prev = allowance(ercContract, _owner, spender);
-            _allowances[_owner][ercContract][spender] = amountOrTokenId;
+            allowances[_owner][ercContract][spender] = amountOrTokenId;
         } else if (data.kind == ContractKind.ERC721) {
             prev = amountOrTokenId;
-            _tokenApprovals[ercContract][amountOrTokenId] = erc721Spender;
+            tokenApprovals[ercContract][amountOrTokenId] = erc721Spender;
         } else {
             FsUtils.Assert(false);
         }
@@ -776,7 +784,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
                 revert InsufficientAllowance();
             }
             unchecked {
-                _allowances[_owner][erc20][spender] = currentAllowance - amount;
+                allowances[_owner][erc20][spender] = currentAllowance - amount;
             }
         }
     }
@@ -831,6 +839,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         dAccountERC20ChangeBy(from, erc20Idx, -amount);
         dAccountERC20ChangeBy(to, erc20Idx, amount);
+        emit IDOSCore.ERC20Transfer(address(erc20), from, to, FsMath.safeCastToUnsigned(amount));
     }
 
     /// @dev transfer ERC721 NFT ownership between dAccounts.
@@ -839,6 +848,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     function transferNFT(NFTId nftId, address from, address to) internal {
         dSafes[from].extractNFT(nftId, tokenDataByNFTId);
         dSafes[to].insertNFT(nftId, tokenDataByNFTId);
+        emit ERC721Transferred(NFTId.unwrap(nftId), from, to);
     }
 
     function transferAllERC20(uint16 erc20Idx, address from, address to) internal {
@@ -1028,6 +1038,12 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         uint256 erc721Idx = erc721Infos.length;
         erc721Infos.push(ERC721Info(erc721Contract, valueOracle, collateralFactor));
         infoIdx[erc721Contract] = ContractData(uint16(erc721Idx), ContractKind.ERC721);
+        emit IDOSConfig.ERC721Added(
+            erc721Idx,
+            erc721Contract,
+            valueOracleAddress,
+            collateralFactor
+        );
     }
 
     /// @notice Updates the config of DOS
@@ -1035,7 +1051,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @param _config the Config of IDOSConfig. A struct with DOS parameters
     function setConfig(Config calldata _config) external onlyGovernance {
         config = _config;
-        // TODO: emit an event
+        emit IDOSConfig.ConfigSet(_config);
     }
 
     /// @notice Set the address of Version Manager contract
@@ -1043,7 +1059,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @param _versionManager The address of the Version Manager contract to be set
     function setVersionManager(address _versionManager) external onlyGovernance {
         versionManager = IVersionManager(_versionManager);
-        // TODO: emit an event
+        emit IDOSConfig.VersionManagerSet(_versionManager);
     }
 
     /// @notice Updates some of ERC20 config parameters
@@ -1059,11 +1075,13 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         int256 collateralFactor
     ) external override onlyGovernance {
         uint16 erc20Idx = infoIdx[erc20].idx;
-        // TODO convert to custom error
-        require(infoIdx[erc20].kind == ContractKind.ERC20, "Not an ERC20");
+        if (infoIdx[erc20].kind != ContractKind.ERC20) {
+            revert NotERC20();
+        }
         erc20Infos[erc20Idx].interest = interestRate;
         erc20Infos[erc20Idx].borrowFactor = borrowFactor;
         erc20Infos[erc20Idx].collateralFactor = collateralFactor;
+        emit IDOSConfig.ERC20DataSet(erc20, interestRate, borrowFactor, collateralFactor);
     }
 
     /// @notice creates a new dSafe with sender as the owner and returns the dSafe address
