@@ -26,9 +26,24 @@ error NotApprovedOrOwner();
 error InsufficientAllowance();
 /// @notice Cannot approve self as spender
 error SelfApproval();
+/// @notice The receiving address is not a contract
 error ReceiverNotContract();
+/// @notice The receiver does not implement the required interface
 error ReceiverNoImplementation();
+/// @notice The receiver did not return the correct value - transaction failed
 error WrongDataReturned();
+/// @notice NFT must be in the user's dSafe
+error NFTNotInDSafe();
+/// @notice NFT must be owned the the user or user's dSafe
+error NotNFTOwner();
+/// @notice Asset is not registered
+error NotRegistered(address token);
+/// @notice Only dSafe can call this function
+error OnlyDSafe();
+/// @notice Recipient is not a valid dSafe
+error DSafeNonExistent();
+/// @notice Operation leaves dSafe insolvent
+error Insolvent();
 
 // ERC20 standard token
 // ERC721 single non-fungible token support
@@ -117,7 +132,9 @@ library DSafeLib {
         uint16 idx = map[nftId].dSafeIdx;
         bool userOwnsNFT = dSafe.nfts.length > 0 &&
             NFTId.unwrap(dSafe.nfts[idx]) == NFTId.unwrap(nftId);
-        require(userOwnsNFT, "NFT must be in the user's dSafe");
+        if (!userOwnsNFT) {
+            revert NFTNotInDSafe();
+        }
         if (idx == dSafe.nfts.length - 1) {
             dSafe.nfts.pop();
         } else {
@@ -259,13 +276,17 @@ contract DOSState is Pausable {
     }
 
     function getERC20Info(IERC20 erc20) internal view returns (ERC20Info storage, uint16) {
-        require(infoIdx[address(erc20)].kind == ContractKind.ERC20, "ERC20 not registered");
+        if (infoIdx[address(erc20)].kind != ContractKind.ERC20) {
+            revert NotRegistered(address(erc20));
+        }
         uint16 idx = infoIdx[address(erc20)].idx;
         return (erc20Infos[idx], idx);
     }
 
     function getERC721Info(IERC721 erc721) internal view returns (ERC721Info storage, uint16) {
-        require(infoIdx[address(erc721)].kind == ContractKind.ERC721, "ERC721 not registered");
+        if (infoIdx[address(erc721)].kind != ContractKind.ERC721) {
+            revert NotRegistered(address(erc721));
+        }
         uint16 idx = infoIdx[address(erc721)].idx;
         return (erc721Infos[idx], idx);
     }
@@ -282,29 +303,34 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
 
     modifier onlyDSafe() {
         _requireNotPaused();
-        require(dSafes[msg.sender].owner != address(0), "Only dSafe can execute");
+        if (dSafes[msg.sender].owner == address(0)) {
+            revert OnlyDSafe();
+        }
         _;
     }
 
     modifier dSafeExists(address dSafe) {
-        require(dSafes[dSafe].owner != address(0), "Recipient dSafe doesn't exist");
+        if (dSafes[dSafe].owner == address(0)) {
+            revert DSafeNonExistent();
+        }
         _;
     }
 
     modifier onlyRegisteredNFT(address nftContract, uint256 tokenId) {
         // how can we be sure that Oracle would have a price for any possible tokenId?
         // maybe we should check first if Oracle can return a value for this specific NFT?
-        require(
-            infoIdx[nftContract].kind != ContractKind.Invalid,
-            "Cannot add NFT of unknown NFT contract"
-        );
+        if (infoIdx[nftContract].kind == ContractKind.Invalid) {
+            revert NotRegistered(nftContract);
+        }
         _;
     }
 
     modifier onlyNFTOwner(address nftContract, uint256 tokenId) {
         address _owner = ERC721(nftContract).ownerOf(tokenId);
         bool isOwner = _owner == msg.sender || _owner == dSafes[msg.sender].owner;
-        require(isOwner, "NFT must be owned the the user or user's dSafe");
+        if (!isOwner) {
+            revert NotNFTOwner();
+        }
         _;
     }
 
@@ -425,7 +451,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         delete tokenDataByNFTId[nftId];
     }
 
-    // TODO: rename to transferERC20
     /// @notice transfer `amount` of `erc20` from dAccount of caller dSafe to dAccount of `to` dSafe
     /// @param erc20 Address of the ERC20 token to be transferred
     /// @param to dSafe address, whose dAccount is the transfer target
@@ -535,8 +560,9 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @param calls An array of transaction calls
     function executeBatch(Call[] memory calls) external override onlyDSafe {
         DSafeProxy(payable(msg.sender)).executeBatch(calls);
-        // TODO: convert to custom error
-        require(isSolvent(msg.sender), "Result of operation is not sufficiently liquid");
+        if (!isSolvent(msg.sender)) {
+            revert Insolvent();
+        }
     }
 
     /// @notice ERC721 transfer callback
