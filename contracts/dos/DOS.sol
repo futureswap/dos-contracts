@@ -613,8 +613,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @return The interest rate of `erc20Idx`
     function computeInterestRate(uint16 erc20Idx) public view returns (int96) {
         ERC20Info memory erc20Info = erc20Infos[erc20Idx];
-        uint256 debt = FsMath.safeCastToUnsigned(-erc20Info.debt.tokens);
-        uint256 collateral = FsMath.safeCastToUnsigned(erc20Info.collateral.tokens);
+        uint256 debt = FsMath.safeCastToUnsigned(-erc20Info.debt.tokens); // question: is debt ever positive?
+        uint256 collateral = FsMath.safeCastToUnsigned(erc20Info.collateral.tokens); // question: is collateral ever negative?
         uint256 leverage = FsMath.safeCastToUnsigned(config.fractionalReserveLeverage);
         uint256 poolAssets = debt + collateral;
 
@@ -775,11 +775,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         int256 delta = FsMath.safeCastToSigned(block.timestamp - erc20Info.timestamp); // time passed since last update
         erc20Info.timestamp = block.timestamp; // update timestamp to current timestamp
         int256 debt = -erc20Info.debt.tokens; // get the debt
-        // int256 poolAssets = debt + erc20Info.collateral.tokens; // get the total assets in the pool
-        // uint32 utilization; // utilization of the pool
-        // if (poolAssets == 0)
-        //     utilization = 0; // if there are no assets, utilization is 0
-        // else utilization = uint32(FsMath.safeCastToUnsigned(debt / poolAssets));
         int256 interestRate = computeInterestRate(erc20Idx);
         int256 interest = (debt * (FsMath.exp(interestRate * delta) - FsMath.FIXED_POINT_SCALE)) /
             FsMath.FIXED_POINT_SCALE; // Get the interest

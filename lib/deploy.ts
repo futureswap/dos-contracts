@@ -305,7 +305,6 @@ export const deployFixedAddressForTests = async (
       anyswapCreate2Deployer,
       fsSalt,
     );
-    console.log("deployedTransferAndCall2", deployedTransferAndCall2.address);
     const isCoverage = process.argv.includes("coverage");
     if (isCoverage) {
       checkState(deployedTransferAndCall2.address !== transferAndCall2.address);
@@ -321,7 +320,6 @@ export const deployFixedAddressForTests = async (
       fsSalt,
       testGovernatorAddress,
     );
-    console.log("futureSwapProxy", futureSwapProxy.address);
     // eslint-disable-next-line require-atomic-updates
     governanceProxy = await deployGovernanceProxy(
       isCoverage ? await signer.getAddress() : futureSwapProxy.address,

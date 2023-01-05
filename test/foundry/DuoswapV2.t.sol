@@ -61,7 +61,6 @@ contract DuoswapV2Test is Test {
         dosConfig = new DOSConfig(address(this));
         dos = new DOS(address(dosConfig), address(versionManager));
         logic = new DSafeLogic(address(dos));
-        bytes32 iVersion = ImmutableVersion(logic).immutableVersion();
 
         string memory version = "1.0.0";
 
@@ -99,8 +98,6 @@ contract DuoswapV2Test is Test {
         versionManager.addVersion(IVersionManager.Status.PRODUCTION, address(logic));
         versionManager.markRecommendedVersion(version);
 
-        (string memory versionName, , , address implementation, ) = versionManager
-            .getRecommendedVersion();
         factory = new DuoswapV2Factory(address(dos), address(this));
         router = new DuoswapV2Router(address(factory), address(weth), address(dos));
     }
