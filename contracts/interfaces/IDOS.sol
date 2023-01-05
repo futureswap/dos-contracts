@@ -203,6 +203,11 @@ interface IDOSCore {
         bool approved
     );
 
+    /// @notice Emitted when a dSafe is liquidated
+    /// @param dSafe The address of the liquidated dSafe
+    /// @param liquidator The address of the liquidator
+    event SafeLiquidated(address indexed dSafe, address indexed liquidator);
+
     function liquidate(address dSafe) external;
 
     function changeBalanceERC20(IERC20 erc20, int256 amount) external;
