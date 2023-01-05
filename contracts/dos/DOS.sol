@@ -203,7 +203,6 @@ uint16 constant K_NUMERAIRE_IDX = 0;
 /// @title DOS State
 /// @notice Contract holds the configuration state for DOS
 contract DOSState is Pausable {
-
     IVersionManager versionManager;
     /// @notice mapping between dSafe address and DOS-specific dSafe data
     mapping(address => DSafe) dSafes;
@@ -240,7 +239,7 @@ contract DOSState is Pausable {
     /// idx is the index of the ERC20 in `erc20Infos` or ERC721 in `erc721Infos`
     /// kind is ContractKind enum, that here can be ERC20 or ERC721
     mapping(address => ContractData) infoIdx;
-        
+
     IDOSConfig.Config config;
 
     function getBalance(
@@ -702,7 +701,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
 
     /// @notice Returns the remaining amount of tokens that `spender` will be allowed to spend on
     /// behalf of `owner` through {transferFrom}
-    /// @dev This value changes when {approve} or {transferFrom} are called 
+    /// @dev This value changes when {approve} or {transferFrom} are called
     /// @param erc20 The address of the ERC20 to be checked
     /// @param _owner The dSafe address whose `erc20` are allowed to be transferred by `spender`
     /// @param spender The dSafe address who is allowed to spend `erc20` of `_owner`

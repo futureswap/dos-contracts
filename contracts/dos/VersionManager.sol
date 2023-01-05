@@ -26,7 +26,7 @@ contract VersionManager is IVersionManager, ImmutableGovernance {
         }
         _;
     }
-    
+
     constructor(address _owner) ImmutableGovernance(_owner) {}
 
     /// @notice Registers a new version of the store contract
