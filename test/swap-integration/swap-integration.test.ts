@@ -108,7 +108,11 @@ describe("DOS swap integration", () => {
     await uniswapNftOracle.setERC20ValueOracle(usdc.address, usdcChainlink.oracle.address);
     await uniswapNftOracle.setERC20ValueOracle(weth.address, ethChainlink.oracle.address);
 
-    await dos.addNFTInfo(nonFungiblePositionManager.address, uniswapNftOracle.address, toWei(0.9));
+    await dos.addERC721Info(
+      nonFungiblePositionManager.address,
+      uniswapNftOracle.address,
+      toWei(0.9),
+    );
 
     const ownerDSafe = await createDSafe(dos, owner);
     const usdcAmount = toWeiUsdc(2_000_000);
@@ -126,7 +130,7 @@ describe("DOS swap integration", () => {
 
     const getBalances = async (dSafe: DSafeLogic) => {
       const [nfts, usdcBalance, wethBalance] = await Promise.all([
-        dos.viewNFTs(dSafe.address),
+        dos.getDAccountERC721(dSafe.address),
         dos.getDAccountERC20(dSafe.address, usdc.address),
         dos.getDAccountERC20(dSafe.address, weth.address),
       ]);

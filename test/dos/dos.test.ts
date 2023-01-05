@@ -21,7 +21,7 @@ import {
   createDSafe,
   depositErc20,
   transfer,
-  depositNft,
+  depositERC721,
   depositUserNft,
 } from "../../lib/calls";
 import {Chainlink, deployDos, deployFixedAddressForTests} from "../../lib/deploy";
@@ -104,7 +104,7 @@ describe("DOS", () => {
       0, // no interest which would include time sensitive calculations
     );
 
-    await dos.addNFTInfo(nft.address, nftOracle.address, toWei(0.5));
+    await dos.addERC721Info(nft.address, nftOracle.address, toWei(0.5));
 
     const getBalances = async (
       dSafe: DSafeLogic,
@@ -114,7 +114,7 @@ describe("DOS", () => {
       weth: BigNumber;
     }> => {
       const [nfts, usdcBal, wethBal] = await Promise.all([
-        dos.viewNFTs(dSafe.address),
+        dos.getDAccountERC721(dSafe.address),
         dos.getDAccountERC20(dSafe.address, usdc.address),
         dos.getDAccountERC20(dSafe.address, weth.address),
       ]);
@@ -177,7 +177,7 @@ describe("DOS", () => {
       await usdc.mint(sender.address, tenThousandUsdc);
 
       await sender.executeBatch([
-        makeCall(dos).transfer(usdc.address, receiver.address, tenThousandUsdc),
+        makeCall(dos).transferERC20(usdc.address, receiver.address, tenThousandUsdc),
         makeCall(dos).depositERC20(usdc.address, tenThousandUsdc),
       ]);
 
@@ -283,12 +283,12 @@ describe("DOS", () => {
     });
   });
 
-  describe("#computePosition", () => {
+  describe("#getRiskAdjustedPositionValues", () => {
     it("when dSafe doesn't exist should return 0", async () => {
       const {dos} = await loadFixture(deployDOSFixture);
       const nonDSafeAddress = "0xb4A50D202ca799AA07d4E9FE11C2919e5dFe4220";
 
-      const computeTx = dos.computePosition(nonDSafeAddress);
+      const computeTx = dos.getRiskAdjustedPositionValues(nonDSafeAddress);
 
       await expect(computeTx).to.be.revertedWith("Recipient dSafe doesn't exist");
     });
@@ -297,7 +297,7 @@ describe("DOS", () => {
       const {dos, user} = await loadFixture(deployDOSFixture);
       const dSafe = await createDSafe(dos, user);
 
-      const [totalValue, collateral, debt] = await dos.computePosition(dSafe.address);
+      const [totalValue, collateral, debt] = await dos.getRiskAdjustedPositionValues(dSafe.address);
 
       expect(totalValue).to.equal(0);
       expect(collateral).to.equal(0);
@@ -309,7 +309,7 @@ describe("DOS", () => {
       const dSafe = await createDSafe(dos, user);
       await depositErc20(dos, dSafe, usdc, toWei(10_000, USDC_DECIMALS));
 
-      const position = await dos.computePosition(dSafe.address);
+      const position = await dos.getRiskAdjustedPositionValues(dSafe.address);
 
       const [total, collateral, debt] = position;
       expect(total).to.be.approximately(toWei(10_000, USDC_DECIMALS), 1000);
@@ -327,7 +327,7 @@ describe("DOS", () => {
         depositErc20(dos, dSafe, weth, toWei(1)),
       ]);
 
-      const position = await dos.computePosition(dSafe.address);
+      const position = await dos.getRiskAdjustedPositionValues(dSafe.address);
       const [total, collateral, debt] = position;
       expect(total).to.equal(toWei(12_000, USDC_DECIMALS));
       // collateral factor is defined in setupDos, and it's 0.9. 12 * 0.9 = 10.8
@@ -339,9 +339,9 @@ describe("DOS", () => {
       const {dos, user, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const dSafe = await createDSafe(dos, user);
 
-      await depositNft(dos, dSafe, nft, nftOracle, NFT_PRICE);
+      await depositERC721(dos, dSafe, nft, nftOracle, NFT_PRICE);
 
-      const position = await dos.computePosition(dSafe.address);
+      const position = await dos.getRiskAdjustedPositionValues(dSafe.address);
       const [total, collateral, debt] = position;
       expect(total).to.equal(toWeiUsdc(NFT_PRICE));
       // collateral factor is defined in setupDos, and it's 0.5
@@ -354,12 +354,12 @@ describe("DOS", () => {
       const dSafe = await createDSafe(dos, user);
 
       await Promise.all([
-        depositNft(dos, dSafe, nft, nftOracle, 1),
-        depositNft(dos, dSafe, nft, nftOracle, 2),
-        depositNft(dos, dSafe, nft, nftOracle, 3),
+        depositERC721(dos, dSafe, nft, nftOracle, 1),
+        depositERC721(dos, dSafe, nft, nftOracle, 2),
+        depositERC721(dos, dSafe, nft, nftOracle, 3),
       ]);
 
-      const position = await dos.computePosition(dSafe.address);
+      const position = await dos.getRiskAdjustedPositionValues(dSafe.address);
       const [total, collateral, debt] = position;
       expect(total).to.equal(toWeiUsdc(6)); // 1 + 2 + 3
       // collateral factor is defined in setupDos, and it's 0.5
@@ -380,14 +380,14 @@ describe("DOS", () => {
       const dSafe = await createDSafe(dos, user);
 
       await Promise.all([
-        depositNft(dos, dSafe, nft, nftOracle, 100),
-        depositNft(dos, dSafe, nft, nftOracle, 200),
-        depositNft(dos, dSafe, nft, nftOracle, 300),
+        depositERC721(dos, dSafe, nft, nftOracle, 100),
+        depositERC721(dos, dSafe, nft, nftOracle, 200),
+        depositERC721(dos, dSafe, nft, nftOracle, 300),
         depositErc20(dos, dSafe, usdc, toWeiUsdc(10_000)),
         depositErc20(dos, dSafe, weth, toWei(1)),
       ]);
 
-      const position = await dos.computePosition(dSafe.address);
+      const position = await dos.getRiskAdjustedPositionValues(dSafe.address);
       const [total, collateral, debt] = position;
       expect(total).to.equal(toWei(12_600, USDC_DECIMALS));
       // collateral factor is defined in setupDos,
@@ -401,17 +401,17 @@ describe("DOS", () => {
     it("when called directly on DOS should revert", async () => {
       const {user, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const dSafe = await createDSafe(dos, user);
-      await depositNft(dos, dSafe, nft, nftOracle, 1600);
+      await depositERC721(dos, dSafe, nft, nftOracle, 1600);
 
-      const depositNftTx = dos.liquidate(dSafe.address);
+      const depositERC721Tx = dos.liquidate(dSafe.address);
 
-      await expect(depositNftTx).to.be.revertedWith("Only dSafe can execute");
+      await expect(depositERC721Tx).to.be.revertedWith("Only dSafe can execute");
     });
 
     it("when dSafe to liquidate doesn't exist should revert", async () => {
       const {dos, user, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const liquidator = await createDSafe(dos, user);
-      await depositNft(dos, liquidator, nft, nftOracle, NFT_PRICE);
+      await depositERC721(dos, liquidator, nft, nftOracle, NFT_PRICE);
       const nonDSafeAddress = "0xb4A50D202ca799AA07d4E9FE11C2919e5dFe4220";
 
       const liquidateTx = liquidator.executeBatch([makeCall(dos).liquidate(nonDSafeAddress)]);
@@ -574,7 +574,7 @@ describe("DOS", () => {
         deployDOSFixture
       );
       const liquidatable = await createDSafe(dos, user);
-      const tokenId = await depositNft(dos, liquidatable, nft, nftOracle, 2000);
+      const tokenId = await depositERC721(dos, liquidatable, nft, nftOracle, 2000);
       const liquidator = await createDSafe(dos, user2);
       await depositErc20(dos, liquidator, usdc, toWeiUsdc(2000));
       const other = await createDSafe(dos, user3);
@@ -624,7 +624,7 @@ describe("DOS", () => {
         deployDOSFixture
       );
       const liquidatable = await createDSafe(dos, user);
-      const tokenId = await depositNft(dos, liquidatable, nft, nftOracle, 2000);
+      const tokenId = await depositERC721(dos, liquidatable, nft, nftOracle, 2000);
       await depositErc20(dos, liquidatable, usdc, toWeiUsdc(1_500));
       const liquidator = await createDSafe(dos, user2);
       await depositErc20(dos, liquidator, weth, toWei(1));
@@ -661,7 +661,7 @@ describe("DOS", () => {
     });
   });
 
-  describe("#depositNFT", () => {
+  describe("#depositERC721", () => {
     it(
       "when user owns the NFT " +
         "should change ownership of the NFT from the user to DOS " +
@@ -672,7 +672,7 @@ describe("DOS", () => {
         const tokenId = await depositUserNft(dos, dSafe, nft, nftOracle, NFT_PRICE);
 
         expect(await nft.ownerOf(tokenId)).to.eql(dos.address);
-        const userNfts = (await dos.viewNFTs(dSafe.address)).map(([erc721, tokenId]) => [
+        const userNfts = (await dos.getDAccountERC721(dSafe.address)).map(([erc721, tokenId]) => [
           erc721,
           tokenId,
         ]);
@@ -688,10 +688,10 @@ describe("DOS", () => {
         const {user, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
         const dSafe = await createDSafe(dos, user);
 
-        const tokenId = await depositNft(dos, dSafe, nft, nftOracle, NFT_PRICE);
+        const tokenId = await depositERC721(dos, dSafe, nft, nftOracle, NFT_PRICE);
 
         expect(await nft.ownerOf(tokenId)).to.eql(dos.address);
-        const userNfts = await dos.viewNFTs(dSafe.address);
+        const userNfts = await dos.getDAccountERC721(dSafe.address);
         expect(userNfts).to.eql([[nft.address, tokenId]]);
       },
     );
@@ -700,7 +700,7 @@ describe("DOS", () => {
       const {user, dos, unregisteredNft, nftOracle} = await loadFixture(deployDOSFixture);
       const dSafe = await createDSafe(dos, user);
 
-      const txRevert = depositNft(dos, dSafe, unregisteredNft, nftOracle, NFT_PRICE);
+      const txRevert = depositERC721(dos, dSafe, unregisteredNft, nftOracle, NFT_PRICE);
 
       await expect(txRevert).to.be.revertedWith("Cannot add NFT of unknown NFT contract");
     });
@@ -709,11 +709,13 @@ describe("DOS", () => {
       const {user, user2, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const dSafe = await createDSafe(dos, user);
       const dSafe2 = await createDSafe(dos, user2);
-      const tokenId = await depositNft(dos, dSafe, nft, nftOracle, NFT_PRICE);
+      const tokenId = await depositERC721(dos, dSafe, nft, nftOracle, NFT_PRICE);
 
-      const depositNftTx = dSafe2.executeBatch([makeCall(dos).depositNFT(nft.address, tokenId)]);
+      const depositERC721Tx = dSafe2.executeBatch([
+        makeCall(dos).depositERC721(nft.address, tokenId),
+      ]);
 
-      await expect(depositNftTx).to.be.revertedWith(
+      await expect(depositERC721Tx).to.be.revertedWith(
         "NFT must be owned the the user or user's dSafe",
       );
     });
@@ -725,32 +727,34 @@ describe("DOS", () => {
       const tokenId = mintEventArgs[0] as BigNumber;
       await (await nft.connect(user).approve(dos.address, tokenId)).wait();
 
-      const depositNftTx = dos.depositNFT(nft.address, tokenId);
+      const depositERC721Tx = dos.depositERC721(nft.address, tokenId);
 
-      await expect(depositNftTx).to.be.revertedWith("Only dSafe can execute");
+      await expect(depositERC721Tx).to.be.revertedWith("Only dSafe can execute");
     });
   });
 
-  describe("#claimNFT", () => {
+  describe("#withdrawERC721", () => {
     it("when called not with dSafe should revert", async () => {
       const {user, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const dSafe = await createDSafe(dos, user);
-      const tokenId = await depositNft(dos, dSafe, nft, nftOracle, NFT_PRICE);
+      const tokenId = await depositERC721(dos, dSafe, nft, nftOracle, NFT_PRICE);
 
-      const claimNftTx = dos.connect(user).claimNFT(nft.address, tokenId);
+      const withdrawERC721Tx = dos.connect(user).withdrawERC721(nft.address, tokenId);
 
-      await expect(claimNftTx).to.be.revertedWith("Only dSafe can execute");
+      await expect(withdrawERC721Tx).to.be.revertedWith("Only dSafe can execute");
     });
 
     it("when user is not the owner of the deposited NFT should revert", async () => {
       const {user, user2, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const dSafeOwner = await createDSafe(dos, user);
-      const tokenId = await depositNft(dos, dSafeOwner, nft, nftOracle, NFT_PRICE);
+      const tokenId = await depositERC721(dos, dSafeOwner, nft, nftOracle, NFT_PRICE);
       const nonDSafeOwner = await createDSafe(dos, user2);
 
-      const claimNftTx = nonDSafeOwner.executeBatch([makeCall(dos).claimNFT(nft.address, tokenId)]);
+      const withdrawERC721Tx = nonDSafeOwner.executeBatch([
+        makeCall(dos).withdrawERC721(nft.address, tokenId),
+      ]);
 
-      await expect(claimNftTx).to.be.revertedWith("NFT must be in the user's dSafe");
+      await expect(withdrawERC721Tx).to.be.revertedWith("NFT must be in the user's dSafe");
     });
 
     it(
@@ -760,25 +764,29 @@ describe("DOS", () => {
       async () => {
         const {user, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
         const dSafe = await createDSafe(dos, user);
-        const tokenId = await depositNft(dos, dSafe, nft, nftOracle, NFT_PRICE);
+        const tokenId = await depositERC721(dos, dSafe, nft, nftOracle, NFT_PRICE);
 
-        const claimNftTx = await dSafe.executeBatch([makeCall(dos).claimNFT(nft.address, tokenId)]);
-        await claimNftTx.wait();
+        const withdrawERC721Tx = await dSafe.executeBatch([
+          makeCall(dos).withdrawERC721(nft.address, tokenId),
+        ]);
+        await withdrawERC721Tx.wait();
 
         expect(await nft.ownerOf(tokenId)).to.eql(dSafe.address);
-        expect(await dos.viewNFTs(dSafe.address)).to.eql([]);
+        expect(await dos.getDAccountERC721(dSafe.address)).to.eql([]);
       },
     );
   });
 
-  describe("#sendNFT", () => {
+  describe("#transferERC721", () => {
     it("when called not with dSafe should revert", async () => {
       const {user, user2, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const dSafeOwner = await createDSafe(dos, user);
       const dSafeReceiver = await createDSafe(dos, user2);
-      const tokenId = await depositNft(dos, dSafeOwner, nft, nftOracle, NFT_PRICE);
+      const tokenId = await depositERC721(dos, dSafeOwner, nft, nftOracle, NFT_PRICE);
 
-      const sendNftTx = dos.connect(user).sendNFT(nft.address, tokenId, dSafeReceiver.address);
+      const sendNftTx = dos
+        .connect(user)
+        .transferERC721(nft.address, tokenId, dSafeReceiver.address);
 
       await expect(sendNftTx).to.be.revertedWith("Only dSafe can execute");
     });
@@ -788,7 +796,7 @@ describe("DOS", () => {
       const dSafeOwner = await createDSafe(dos, user);
       const nonDSafeOwner = await createDSafe(dos, user2);
       const dSafeReceiver = await createDSafe(dos, user3);
-      const tokenId = await depositNft(dos, dSafeOwner, nft, nftOracle, NFT_PRICE);
+      const tokenId = await depositERC721(dos, dSafeOwner, nft, nftOracle, NFT_PRICE);
 
       const tx = transfer(dos, nonDSafeOwner, dSafeReceiver, nft, tokenId);
 
@@ -798,7 +806,7 @@ describe("DOS", () => {
     it("when receiver is not a dSafe should revert", async () => {
       const {user, user2, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const dSafeOwner = await createDSafe(dos, user);
-      const tokenId = await depositNft(dos, dSafeOwner, nft, nftOracle, NFT_PRICE);
+      const tokenId = await depositERC721(dos, dSafeOwner, nft, nftOracle, NFT_PRICE);
 
       // @ts-expect-error - bypass `transfer` type that forbids this invariant in TS
       const tx = transfer(dos, dSafeOwner, user2, nft, tokenId);
@@ -810,13 +818,13 @@ describe("DOS", () => {
       const {user, user2, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const sender = await createDSafe(dos, user);
       const receiver = await createDSafe(dos, user2);
-      const tokenId = await depositNft(dos, sender, nft, nftOracle, NFT_PRICE);
+      const tokenId = await depositERC721(dos, sender, nft, nftOracle, NFT_PRICE);
 
       const tx = await transfer(dos, sender, receiver, nft, tokenId);
       await tx.wait();
 
-      expect(await dos.viewNFTs(sender.address)).to.eql([]);
-      const receiverNfts = await dos.viewNFTs(receiver.address);
+      expect(await dos.getDAccountERC721(sender.address)).to.eql([]);
+      const receiverNfts = await dos.getDAccountERC721(receiver.address);
       expect(receiverNfts).to.eql([[nft.address, tokenId]]);
     });
   });
@@ -921,7 +929,7 @@ describe("DOS", () => {
       const owner = await createDSafe(dos, user);
       const spender = await createDSafe(dos, user2);
 
-      const tokenId = await depositNft(dos, owner, nft, nftOracle, 2000);
+      const tokenId = await depositERC721(dos, owner, nft, nftOracle, 2000);
 
       const tx = await approveERC721(dos, owner, spender, nft.address, tokenId);
       await tx.wait();
@@ -935,7 +943,7 @@ describe("DOS", () => {
       const spender = await createDSafe(dos, user2);
       const recipient = await createDSafe(dos, user3);
 
-      const tokenId = await depositNft(dos, owner, nft, nftOracle, 2000);
+      const tokenId = await depositERC721(dos, owner, nft, nftOracle, 2000);
 
       const tx = await approveERC721(dos, owner, spender, nft.address, tokenId);
       await tx.wait();
@@ -963,7 +971,7 @@ describe("DOS", () => {
       const spender = await createDSafe(dos, user2);
       const recipient = await createDSafe(dos, user3);
 
-      const tokenId = await depositNft(dos, owner, nft, nftOracle, 2000);
+      const tokenId = await depositERC721(dos, owner, nft, nftOracle, 2000);
 
       const tx = await approveERC721(dos, owner, spender, nft.address, tokenId);
       await tx.wait();
@@ -995,7 +1003,7 @@ describe("DOS", () => {
       const owner = await createDSafe(dos, user);
       const spender = await createDSafe(dos, user2);
 
-      const tokenId = await depositNft(dos, owner, nft, nftOracle, 2000);
+      const tokenId = await depositERC721(dos, owner, nft, nftOracle, 2000);
 
       const tx = await approveERC721(dos, owner, spender, nft.address, tokenId);
       await tx.wait();

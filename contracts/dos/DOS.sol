@@ -370,13 +370,12 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
-    // TODO: rename to depositERC721
     /// @notice deposit ERC721 `nftContract` token `tokenId` from dSafe to dAccount
     /// @dev the part when we track the ownership of deposit NFT to a specific dAccount is in
     /// `onERC721Received` function of this contract
     /// @param nftContract The address of the ERC721 contract that the token belongs to
     /// @param tokenId The id of the token to be transferred
-    function depositNFT(
+    function depositERC721(
         address nftContract,
         uint256 tokenId
     )
@@ -414,11 +413,10 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         // TODO: require appropriate reserve
     }*/
 
-    // TODO: rename to withdrawERC721
     /// @notice withdraw ERC721 `nftContract` token `tokenId` from dAccount to dSafe
     /// @param erc721 The address of the ERC721 contract that the token belongs to
     /// @param tokenId The id of the token to be transferred
-    function claimNFT(address erc721, uint256 tokenId) external onlyDSafe {
+    function withdrawERC721(address erc721, uint256 tokenId) external onlyDSafe {
         NFTId nftId = getNFTId(erc721, tokenId);
 
         ERC721(erc721).safeTransferFrom(address(this), msg.sender, tokenId);
@@ -432,18 +430,21 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @param erc20 Address of the ERC20 token to be transferred
     /// @param to dSafe address, whose dAccount is the transfer target
     /// @param amount The amount of `erc20` to be transferred
-    function transfer(IERC20 erc20, address to, uint256 amount) external onlyDSafe dSafeExists(to) {
+    function transferERC20(
+        IERC20 erc20,
+        address to,
+        uint256 amount
+    ) external onlyDSafe dSafeExists(to) {
         if (amount == 0) return;
-        transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
+        _transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
     }
 
-    // TODO: transferERC721
     /// @notice transfer NFT `erc721` token `tokenId` from dAccount of caller dSafe to dAccount of
     /// `to` dSafe
     /// @param erc721 The address of the ERC721 contract that the token belongs to
     /// @param tokenId The id of the token to be transferred
     /// @param to dSafe address, whose dAccount is the transfer target
-    function sendNFT(
+    function transferERC721(
         address erc721,
         uint256 tokenId,
         address to
@@ -467,7 +468,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     ) external onlyDSafe dSafeExists(from) dSafeExists(to) whenNotPaused returns (bool) {
         address spender = msg.sender;
         _spendAllowance(erc20, from, spender, amount);
-        transferERC20(IERC20(erc20), from, to, FsMath.safeCastToSigned(amount));
+        _transferERC20(IERC20(erc20), from, to, FsMath.safeCastToSigned(amount));
         return true;
     }
 
@@ -502,7 +503,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     ///   If dAccount of `dSafe` has less debt then collateral then the transaction will be reverted
     /// @param dSafe The address of dSafe whose dAccount to be liquidate
     function liquidate(address dSafe) external override onlyDSafe dSafeExists(dSafe) {
-        (int256 totalValue, int256 collateral, int256 debt) = computePosition(dSafe);
+        (int256 totalValue, int256 collateral, int256 debt) = getRiskAdjustedPositionValues(dSafe);
         require(collateral < debt, "DSafe is not liquidatable");
         uint16[] memory dSafeERC20s = dSafes[dSafe].getERC20s();
         for (uint256 i = 0; i < dSafeERC20s.length; i++) {
@@ -518,7 +519,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             // totalValue * (1 - liqFraction) - reward of the liquidator, and
             // totalValue * liqFraction - change, liquidator is sending back to liquidatable
             int256 leftover = (totalValue * config.liqFraction) / 1 ether;
-            transferERC20(
+            _transferERC20(
                 IERC20(erc20Infos[K_NUMERAIRE_IDX].erc20Contract),
                 msg.sender,
                 dSafe,
@@ -608,7 +609,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
-    // TODO: rename to getRiskAdjustedPositionValues
     /// @notice returns the collateral, debt and total value of `dSafeAddress`.
     /// @dev Notice that both collateral and debt has some coefficients on the actual amount of deposit
     /// and loan assets! E.g.
@@ -619,7 +619,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @return totalValue The difference between equivalents of deposit and loan assets
     /// @return collateral The sum of deposited assets multiplied by their collateral factors
     /// @return debt The sum of borrowed assets multiplied by their borrow factors
-    function computePosition(
+    function getRiskAdjustedPositionValues(
         address dSafeAddress
     )
         public
@@ -674,7 +674,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             );
             require(reserve >= -totalDebt / leverage, "Not enough reserve for debt");
         }
-        (, int256 collateral, int256 debt) = computePosition(dSafe);
+        (, int256 collateral, int256 debt) = getRiskAdjustedPositionValues(dSafe);
         return collateral >= debt;
     }
 
@@ -791,7 +791,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
-    // TODO: rename to _transferERC20
     /// @dev transfer ERC20 balances between dAccounts.
     /// Because all ERC20 tokens on dAccounts are owned by DOS, no tokens are getting transferred -
     /// all changes are inside DOS contract state
@@ -802,7 +801,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// dAccount of dSafe `from` should be decreased and
     /// dAccount of dSafe `to` should be increased.
     /// Note that amount it can be negative
-    function transferERC20(IERC20 erc20, address from, address to, int256 amount) internal {
+    function _transferERC20(IERC20 erc20, address from, address to, int256 amount) internal {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         dAccountERC20ChangeBy(from, erc20Idx, -amount);
         dAccountERC20ChangeBy(to, erc20Idx, amount);
@@ -891,9 +890,9 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         (uint16 infoIndex, uint256 tokenId) = getNFTData(nftId);
         address collection = erc721Infos[infoIndex].erc721Contract;
         uint16 idx = tokenDataByNFTId[nftId].dSafeIdx;
-        bool isDepositNFTOwner = idx < p.nfts.length &&
+        bool isdepositERC721Owner = idx < p.nfts.length &&
             NFTId.unwrap(p.nfts[idx]) == NFTId.unwrap(nftId);
-        return (isDepositNFTOwner ||
+        return (isdepositERC721Owner ||
             getApproved(collection, tokenId) == spender ||
             isApprovedForAll(collection, address(0), spender)); // BUG
     }
@@ -987,7 +986,6 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         return erc20Idx;
     }
 
-    // TODO: rename to addERC721Info
     /// @notice Add a new ERC721 to be used inside DOS.
     /// @dev For governance only.
     /// @param erc721Contract The address of the ERC721 to be added
@@ -995,7 +993,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @param collateralFactor A number from 0 to 1 eth. collateral = value * colFactor / 1 eth. E.g.
     /// if collateralFactor is 0.8 then if valueOracle estimates the NFT on dAccount for 1 ETH it
     /// means that it increases the collateral of the position by an equivalent of 0.8 ETH
-    function addNFTInfo(
+    function addERC721Info(
         address erc721Contract,
         address valueOracleAddress,
         int256 collateralFactor
@@ -1076,11 +1074,10 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         return getBalance(erc20Share, erc20Info);
     }
 
-    // TODO: rename to getDAccountERC721
     /// @notice returns the NFTs on dAccount of `dSafe`
     /// @param dSafe The address of dSafe which dAccount NFTs should be returned
     /// @return The array of NFT deposited on the dAccount of `dSafe`
-    function viewNFTs(address dSafe) external view returns (NFTData[] memory) {
+    function getDAccountERC721(address dSafe) external view returns (NFTData[] memory) {
         NFTData[] memory nftData = new NFTData[](dSafes[dSafe].nfts.length);
         for (uint i = 0; i < nftData.length; i++) {
             (uint16 erc721Idx, uint256 tokenId) = getNFTData(dSafes[dSafe].nfts[i]);

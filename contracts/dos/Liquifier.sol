@@ -173,10 +173,10 @@ abstract contract Liquifier is DSafeState {
         uint256[] memory erc20sToSellAmounts
     ) private {
         INonfungiblePositionManager manager = INonfungiblePositionManager(nftManager);
-        IDOS.NFTData[] memory nfts = dos.viewNFTs(address(this));
+        IDOS.NFTData[] memory nfts = dos.getDAccountERC721(address(this));
         for (uint256 i; i < nfts.length; i++) {
             IDOS.NFTData memory nft = nfts[i];
-            dos.claimNFT(nft.erc721, nft.tokenId);
+            dos.withdrawERC721(nft.erc721, nft.tokenId);
             (, , address token0, address token1, , , , uint128 nftLiquidity, , , , ) = manager
                 .positions(nft.tokenId);
             manager.decreaseLiquidity(

@@ -51,7 +51,7 @@ interface IDOSConfig {
         int256 interest
     ) external returns (uint16);
 
-    function addNFTInfo(
+    function addERC721Info(
         address nftContract,
         address valueOracleAddress,
         int256 collateralFactor
@@ -74,7 +74,7 @@ interface IDOSConfig {
 
     function getDAccountERC20(address dSafe, IERC20 erc20) external view returns (int256);
 
-    function viewNFTs(address dSafe) external view returns (NFTData[] memory);
+    function getDAccountERC721(address dSafe) external view returns (NFTData[] memory);
 
     function getMaximumWithdrawableOfERC20(IERC20 erc20) external view returns (int256);
 }
@@ -128,13 +128,13 @@ interface IDOSCore {
 
     function executeBatch(Call[] memory calls) external;
 
-    function transfer(IERC20 erc20, address to, uint256 amount) external;
+    function transferERC20(IERC20 erc20, address to, uint256 amount) external;
 
-    function depositNFT(address nftContract, uint256 tokenId) external;
+    function depositERC721(address nftContract, uint256 tokenId) external;
 
-    function claimNFT(address erc721, uint256 tokenId) external;
+    function withdrawERC721(address erc721, uint256 tokenId) external;
 
-    function sendNFT(address erc721, uint256 tokenId, address to) external;
+    function transferERC721(address erc721, uint256 tokenId, address to) external;
 
     /// @notice Transfer ERC20 tokens from dSafe to another dSafe
     /// @dev Note: Allowance must be set with approveERC20
@@ -166,7 +166,7 @@ interface IDOSCore {
     /// @param tokenId The id of the token to query
     function getApproved(address collection, uint256 tokenId) external view returns (address);
 
-    function computePosition(
+    function getRiskAdjustedPositionValues(
         address dSafeAddress
     ) external view returns (int256 totalValue, int256 collateral, int256 debt);
 

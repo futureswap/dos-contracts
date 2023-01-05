@@ -513,7 +513,7 @@ export const setupDos = async (
     makeCall(uniV3Oracle).setERC20ValueOracle(usdc.address, usdcOracle.address),
     makeCall(uniV3Oracle).setERC20ValueOracle(weth.address, ethOracle.address),
     makeCall(uniV3Oracle).setERC20ValueOracle(uni.address, uniOracle.address),
-    makeCall(dos).addNFTInfo(
+    makeCall(dos).addERC721Info(
       uniAddresses.nonFungiblePositionManager,
       uniV3Oracle.address,
       toWei(0.5),
@@ -699,7 +699,11 @@ export const setupGovernance = async (
       AccessLevel.Timelock,
       true,
     ),
-    makeCall(governance).setAccessLevel(...getSelector(dos).addNFTInfo, AccessLevel.Timelock, true),
+    makeCall(governance).setAccessLevel(
+      ...getSelector(dos).addERC721Info,
+      AccessLevel.Timelock,
+      true,
+    ),
     makeCall(governance).setAccessLevel(...getSelector(dos).setConfig, AccessLevel.Timelock, true),
     makeCall(governance).setAccessLevel(
       ...getSelector(uniV3Oracle).setERC20ValueOracle,
