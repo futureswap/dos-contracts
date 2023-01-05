@@ -22,6 +22,10 @@ import {IERC1363SpenderExtended, IERC1363ReceiverExtended} from "../interfaces/I
 
 /// @notice Sender is not approved to spend dSafe erc20
 error NotApprovedOrOwner();
+/// @notice Sender is not the owner of the dSafe;
+/// @param sender The address of the sender
+/// @param owner The address of the owner
+error NotOwner(address sender, address owner);
 /// @notice Transfer amount exceeds allowance
 error InsufficientAllowance();
 /// @notice Cannot approve self as spender
@@ -37,6 +41,7 @@ error NFTNotInDSafe();
 /// @notice NFT must be owned the the user or user's dSafe
 error NotNFTOwner();
 /// @notice Asset is not registered
+/// @param token The unregistered asset
 error NotRegistered(address token);
 /// @notice Only dSafe can call this function
 error OnlyDSafe();
@@ -949,9 +954,11 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     // todo - disallow downgrade
     function upgradeDSafeImplementation(address dSafe, uint256 version) external {
         address dSafeOwner = dSafes[dSafe].owner;
-        // TODO: convert to custom error
-        require(msg.sender == dSafeOwner, "DOS: not owner");
+        if (msg.sender != dSafeOwner) {
+            revert NotOwner(msg.sender, dSafeOwner);
+        }
         dSafeLogic[dSafe] = versionManager.getVersionAddress(version);
+        emit IDOSConfig.DSafeImplementationUpgraded(dSafe, version);
     }
 
     /// @notice Pause the contract

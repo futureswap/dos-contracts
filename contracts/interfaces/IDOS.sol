@@ -23,6 +23,11 @@ interface IDOSConfig {
         uint256 tokenId;
     }
 
+    /// @notice Emitted when the implementation of a dSafe is upgraded
+    /// @param dSafe The address of the dSafe
+    /// @param version The new implementation version
+    event DSafeImplementationUpgraded(address indexed dSafe, uint256 indexed version);
+
     /// @notice Emitted when a new ERC20 is added to the protocol
     /// @param erc20Idx The index of the ERC20 in the protocol
     /// @param erc20 The address of the ERC20 contract
