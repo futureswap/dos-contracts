@@ -292,8 +292,8 @@ export const leverageLP = (
     makeCall(token0).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
     makeCall(token1).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
     makeCall(nonFungiblePositionManager).setApprovalForAll(dos.address, true),
-    makeCall(dos).depositERC20(token0.address, -mintParams.amount0Desired),
-    makeCall(dos).depositERC20(token1.address, -mintParams.amount1Desired),
+    makeCall(dos).changeBalanceERC20(token0.address, -mintParams.amount0Desired),
+    makeCall(dos).changeBalanceERC20(token1.address, -mintParams.amount1Desired),
     makeCall(nonFungiblePositionManager).mint(mintParams),
     makeCall(dos).depositERC721(nonFungiblePositionManager.address, tokenId),
     makeCall(dos).depositFull([token0.address, token1.address]),
@@ -348,8 +348,8 @@ export const leverageLP2 = async (
     makeCall(token0).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256), // tODO: remove
     makeCall(token1).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
     //    makeCall(nonFungiblePositionManager).setApprovalForAll(dos.address, true),
-    makeCall(dos).depositERC20(token0.address, -mintParams.amount0Desired),
-    makeCall(dos).depositERC20(token1.address, -mintParams.amount1Desired),
+    makeCall(dos).changeBalanceERC20(token0.address, -mintParams.amount0Desired),
+    makeCall(dos).changeBalanceERC20(token1.address, -mintParams.amount1Desired),
     makeCall(dSafe).forwardNFTs(true),
     makeCall(nonFungiblePositionManager).mint(mintParams),
     makeCall(dos).depositFull([token0.address, token1.address]),
@@ -377,7 +377,7 @@ export const leveragePos = (
   };
 
   return [
-    makeCall(dos).depositERC20(tokenIn.address, -amount),
+    makeCall(dos).changeBalanceERC20(tokenIn.address, -amount),
     makeCall(tokenIn).approve(swapRouter.address, ethers.constants.MaxUint256),
     makeCall(swapRouter).exactInputSingle(exactInputSingleParams),
     makeCall(dos).depositFull([tokenIn.address, tokenOut.address]),
@@ -457,7 +457,7 @@ export const provideLiquidity = async (
   /* eslint-enable */
 };
 
-export async function depositErc20(
+export async function changeBalanceERC20(
   dos: IDOS,
   dSafe: DSafeLogic,
   erc20: TestERC20 | WETH9,
@@ -465,7 +465,9 @@ export async function depositErc20(
 ): Promise<void> {
   await erc20.mint(dSafe.address, amount);
 
-  const depositTx = await dSafe.executeBatch([makeCall(dos).depositERC20(erc20.address, amount)]);
+  const depositTx = await dSafe.executeBatch([
+    makeCall(dos).changeBalanceERC20(erc20.address, amount),
+  ]);
   await depositTx.wait();
 }
 

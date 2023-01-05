@@ -118,7 +118,7 @@ interface IDOSCore {
 
     function liquidate(address dSafe) external;
 
-    function depositERC20(IERC20 erc20, int256 amount) external;
+    function changeBalanceERC20(IERC20 erc20, int256 amount) external;
 
     function depositERC20ForSafe(address erc20, address to, uint256 amount) external;
 

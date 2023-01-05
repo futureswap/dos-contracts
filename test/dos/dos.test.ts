@@ -19,7 +19,7 @@ import {signPermit2TransferFrom} from "../../lib/signers";
 import {
   makeCall,
   createDSafe,
-  depositErc20,
+  changeBalanceERC20,
   transfer,
   depositERC721,
   depositUserNft,
@@ -151,7 +151,7 @@ describe("DOS", () => {
       const {user, dos, usdc, getBalances} = await loadFixture(deployDOSFixture);
       const dSafe = await createDSafe(dos, user);
 
-      await depositErc20(dos, dSafe, usdc, tenThousandUsdc);
+      await changeBalanceERC20(dos, dSafe, usdc, tenThousandUsdc);
 
       expect((await getBalances(dSafe)).usdc).to.equal(tenThousandUsdc);
       expect(await usdc.balanceOf(dos.address)).to.equal(tenThousandUsdc);
@@ -161,7 +161,7 @@ describe("DOS", () => {
       const {user, user2, dos, usdc, getBalances} = await loadFixture(deployDOSFixture);
       const sender = await createDSafe(dos, user);
       const receiver = await createDSafe(dos, user2);
-      await depositErc20(dos, sender, usdc, tenThousandUsdc);
+      await changeBalanceERC20(dos, sender, usdc, tenThousandUsdc);
 
       const tx = transfer(dos, sender, receiver, usdc.address, tenThousandUsdc);
       await (await tx).wait();
@@ -178,7 +178,7 @@ describe("DOS", () => {
 
       await sender.executeBatch([
         makeCall(dos).transferERC20(usdc.address, receiver.address, tenThousandUsdc),
-        makeCall(dos).depositERC20(usdc.address, tenThousandUsdc),
+        makeCall(dos).changeBalanceERC20(usdc.address, tenThousandUsdc),
       ]);
 
       expect((await getBalances(sender)).usdc).to.equal(0);
@@ -189,7 +189,7 @@ describe("DOS", () => {
       const {user, user2, dos, usdc} = await loadFixture(deployDOSFixture);
       const sender = await createDSafe(dos, user);
       const receiver = await createDSafe(dos, user2);
-      await depositErc20(dos, sender, usdc, toWeiUsdc(10_000));
+      await changeBalanceERC20(dos, sender, usdc, toWeiUsdc(10_000));
 
       const tx = transfer(dos, sender, receiver, usdc.address, toWeiUsdc(20_000));
 
@@ -199,11 +199,11 @@ describe("DOS", () => {
     it("User can send more ERC20 then they have", async () => {
       const {user, user2, dos, usdc, weth, getBalances} = await loadFixture(deployDOSFixture);
       const sender = await createDSafe(dos, user);
-      await depositErc20(dos, sender, usdc, tenThousandUsdc);
+      await changeBalanceERC20(dos, sender, usdc, tenThousandUsdc);
       const receiver = await createDSafe(dos, user2);
       // put weth in system so we can borrow weth
       const someOther = await createDSafe(dos, user);
-      await depositErc20(dos, someOther, weth, toWei(2));
+      await changeBalanceERC20(dos, someOther, weth, toWei(2));
 
       const tx = await transfer(dos, sender, receiver, weth.address, oneEth);
       await tx.wait();
@@ -226,14 +226,14 @@ describe("DOS", () => {
         ethChainlink, getBalances
       } = await loadFixture(deployDOSFixture);
       const liquidatable = await createDSafe(dos, user);
-      await depositErc20(dos, liquidatable, usdc, tenThousandUsdc);
+      await changeBalanceERC20(dos, liquidatable, usdc, tenThousandUsdc);
       const liquidator = await createDSafe(dos, user2);
       // ensure that liquidator would have enough collateral to compensate
       // negative balance of collateral/debt obtained from liquidatable
-      await depositErc20(dos, liquidator, usdc, tenThousandUsdc);
+      await changeBalanceERC20(dos, liquidator, usdc, tenThousandUsdc);
       // put WETH in system so we can borrow weth
       const someOther = await createDSafe(dos, user);
-      await depositErc20(dos, someOther, weth, toWei(2));
+      await changeBalanceERC20(dos, someOther, weth, toWei(2));
       await ethChainlink.setPrice(2_000);
 
       // generate a debt on liquidatable
@@ -270,8 +270,8 @@ describe("DOS", () => {
       const liquidator = await createDSafe(dos, user2);
       // put WETH in system so we can borrow weth
       const other = await createDSafe(dos, user);
-      await depositErc20(dos, other, weth, toWei(0.25));
-      await depositErc20(dos, nonLiquidatable, usdc, tenThousandUsdc);
+      await changeBalanceERC20(dos, other, weth, toWei(0.25));
+      await changeBalanceERC20(dos, nonLiquidatable, usdc, tenThousandUsdc);
       const tx = transfer(dos, nonLiquidatable, other, weth.address, oneEth);
       await (await tx).wait();
 
@@ -307,7 +307,7 @@ describe("DOS", () => {
     it("when dSafe has an ERC20 should return the ERC20 value", async () => {
       const {dos, user, usdc} = await loadFixture(deployDOSFixture);
       const dSafe = await createDSafe(dos, user);
-      await depositErc20(dos, dSafe, usdc, toWei(10_000, USDC_DECIMALS));
+      await changeBalanceERC20(dos, dSafe, usdc, toWei(10_000, USDC_DECIMALS));
 
       const position = await dos.getRiskAdjustedPositionValues(dSafe.address);
 
@@ -323,8 +323,8 @@ describe("DOS", () => {
       const dSafe = await createDSafe(dos, user);
 
       await Promise.all([
-        depositErc20(dos, dSafe, usdc, toWeiUsdc(10_000)),
-        depositErc20(dos, dSafe, weth, toWei(1)),
+        changeBalanceERC20(dos, dSafe, usdc, toWeiUsdc(10_000)),
+        changeBalanceERC20(dos, dSafe, weth, toWei(1)),
       ]);
 
       const position = await dos.getRiskAdjustedPositionValues(dSafe.address);
@@ -383,8 +383,8 @@ describe("DOS", () => {
         depositERC721(dos, dSafe, nft, nftOracle, 100),
         depositERC721(dos, dSafe, nft, nftOracle, 200),
         depositERC721(dos, dSafe, nft, nftOracle, 300),
-        depositErc20(dos, dSafe, usdc, toWeiUsdc(10_000)),
-        depositErc20(dos, dSafe, weth, toWei(1)),
+        changeBalanceERC20(dos, dSafe, usdc, toWeiUsdc(10_000)),
+        changeBalanceERC20(dos, dSafe, weth, toWei(1)),
       ]);
 
       const position = await dos.getRiskAdjustedPositionValues(dSafe.address);
@@ -423,7 +423,7 @@ describe("DOS", () => {
       const {dos, user, user2, usdc} = await loadFixture(deployDOSFixture);
       const emptyDSafe = await createDSafe(dos, user);
       const liquidator = await createDSafe(dos, user2);
-      await depositErc20(dos, liquidator, usdc, toWeiUsdc(1000));
+      await changeBalanceERC20(dos, liquidator, usdc, toWeiUsdc(1000));
 
       const liquidateTx = liquidator.executeBatch([makeCall(dos).liquidate(emptyDSafe.address)]);
 
@@ -433,9 +433,9 @@ describe("DOS", () => {
     it("when debt is zero should revert", async () => {
       const {dos, user, user2, usdc} = await loadFixture(deployDOSFixture);
       const nonLiquidatable = await createDSafe(dos, user);
-      await depositErc20(dos, nonLiquidatable, usdc, toWeiUsdc(1000));
+      await changeBalanceERC20(dos, nonLiquidatable, usdc, toWeiUsdc(1000));
       const liquidator = await createDSafe(dos, user2);
-      await depositErc20(dos, liquidator, usdc, toWeiUsdc(1000));
+      await changeBalanceERC20(dos, liquidator, usdc, toWeiUsdc(1000));
 
       const liquidateTx = liquidator.executeBatch([
         makeCall(dos).liquidate(nonLiquidatable.address),
@@ -455,11 +455,11 @@ describe("DOS", () => {
         deployDOSFixture
       );
       const nonLiquidatable = await createDSafe(dos, user);
-      await depositErc20(dos, nonLiquidatable, usdc, toWeiUsdc(1000));
+      await changeBalanceERC20(dos, nonLiquidatable, usdc, toWeiUsdc(1000));
       const liquidator = await createDSafe(dos, user2);
-      await depositErc20(dos, liquidator, usdc, toWeiUsdc(1000));
+      await changeBalanceERC20(dos, liquidator, usdc, toWeiUsdc(1000));
       const other = await createDSafe(dos, user3);
-      await depositErc20(dos, other, weth, toWei(1));
+      await changeBalanceERC20(dos, other, weth, toWei(1));
       const tx = transfer(dos, nonLiquidatable, other, weth.address, toWei(0.1));
       await (await tx).wait();
 
@@ -482,10 +482,10 @@ describe("DOS", () => {
         deployDOSFixture
       );
       const liquidatable = await createDSafe(dos, user);
-      await depositErc20(dos, liquidatable, usdc, toWeiUsdc(10_000));
+      await changeBalanceERC20(dos, liquidatable, usdc, toWeiUsdc(10_000));
       const liquidator = await createDSafe(dos, user2);
       const other = await createDSafe(dos, user3);
-      await depositErc20(dos, other, weth, toWei(10));
+      await changeBalanceERC20(dos, other, weth, toWei(10));
       const tx = transfer(dos, liquidatable, other, weth.address, toWei(4));
       await (await tx).wait();
 
@@ -507,9 +507,9 @@ describe("DOS", () => {
         deployDOSFixture
       );
       const liquidatable = await createDSafe(dos, user);
-      await depositErc20(dos, liquidatable, usdc, toWeiUsdc(10_000));
+      await changeBalanceERC20(dos, liquidatable, usdc, toWeiUsdc(10_000));
       const other = await createDSafe(dos, user2);
-      await depositErc20(dos, other, weth, toWei(10));
+      await changeBalanceERC20(dos, other, weth, toWei(10));
       const tx = transfer(dos, liquidatable, other, weth.address, toWei(4));
       await (await tx).wait();
 
@@ -533,11 +533,11 @@ describe("DOS", () => {
         deployDOSFixture
       );
       const liquidatable = await createDSafe(dos, user);
-      await depositErc20(dos, liquidatable, usdc, toWeiUsdc(10_000));
+      await changeBalanceERC20(dos, liquidatable, usdc, toWeiUsdc(10_000));
       const liquidator = await createDSafe(dos, user2);
-      await depositErc20(dos, liquidator, usdc, toWeiUsdc(10_000));
+      await changeBalanceERC20(dos, liquidator, usdc, toWeiUsdc(10_000));
       const other = await createDSafe(dos, user3);
-      await depositErc20(dos, other, weth, toWei(10));
+      await changeBalanceERC20(dos, other, weth, toWei(10));
       const tx = transfer(dos, liquidatable, other, weth.address, toWei(4));
       await (await tx).wait();
 
@@ -576,9 +576,9 @@ describe("DOS", () => {
       const liquidatable = await createDSafe(dos, user);
       const tokenId = await depositERC721(dos, liquidatable, nft, nftOracle, 2000);
       const liquidator = await createDSafe(dos, user2);
-      await depositErc20(dos, liquidator, usdc, toWeiUsdc(2000));
+      await changeBalanceERC20(dos, liquidator, usdc, toWeiUsdc(2000));
       const other = await createDSafe(dos, user3);
-      await depositErc20(dos, other, weth, toWei(1));
+      await changeBalanceERC20(dos, other, weth, toWei(1));
       const tx = transfer(dos, liquidatable, other, weth.address, toWei(0.4));
       await (await tx).wait();
 
@@ -625,11 +625,11 @@ describe("DOS", () => {
       );
       const liquidatable = await createDSafe(dos, user);
       const tokenId = await depositERC721(dos, liquidatable, nft, nftOracle, 2000);
-      await depositErc20(dos, liquidatable, usdc, toWeiUsdc(1_500));
+      await changeBalanceERC20(dos, liquidatable, usdc, toWeiUsdc(1_500));
       const liquidator = await createDSafe(dos, user2);
-      await depositErc20(dos, liquidator, weth, toWei(1));
+      await changeBalanceERC20(dos, liquidator, weth, toWei(1));
       const other = await createDSafe(dos, user3);
-      await depositErc20(dos, other, weth, toWei(1));
+      await changeBalanceERC20(dos, other, weth, toWei(1));
       const tx = transfer(dos, liquidatable, other, weth.address, toWei(1));
       await (await tx).wait();
 
@@ -849,7 +849,7 @@ describe("DOS", () => {
       const recipient = await createDSafe(dos, user3);
       const amount = ethers.utils.parseEther("100");
 
-      await depositErc20(dos, owner, weth, toWei(100));
+      await changeBalanceERC20(dos, owner, weth, toWei(100));
 
       const approveTx = await approveErc20(dos, owner, spender, weth.address, amount);
       await approveTx.wait();
@@ -878,7 +878,7 @@ describe("DOS", () => {
       const recipient = await createDSafe(dos, user3);
       const amount = ethers.utils.parseEther("100");
 
-      await depositErc20(dos, owner, weth, toWei(100));
+      await changeBalanceERC20(dos, owner, weth, toWei(100));
 
       const approveTx = await approveErc20(dos, owner, spender, weth.address, amount);
       await approveTx.wait();
@@ -912,7 +912,7 @@ describe("DOS", () => {
       const recipient = user3;
       const amount = ethers.utils.parseEther("100");
 
-      await depositErc20(dos, owner, weth, toWei(100));
+      await changeBalanceERC20(dos, owner, weth, toWei(100));
 
       const approveTx = await approveErc20(dos, owner, spender, weth.address, amount);
       await approveTx.wait();

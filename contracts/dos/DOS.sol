@@ -329,13 +329,13 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
-    // TODO: split this function into two: deposit and withdraw - changeBalanceERC20
+    // TODO: discuss splitting this function into two: deposit and withdraw
     /// @notice deposit or withdraw `amount` of `erc20` to/from dAccount to dSafe
     /// Positive amount to deposit.
     /// Negative amount to withdraw.
     /// @param erc20 Address of the ERC20 token to be transferred
     /// @param amount The amount of `erc20` to be transferred
-    function depositERC20(IERC20 erc20, int256 amount) external override onlyDSafe {
+    function changeBalanceERC20(IERC20 erc20, int256 amount) external override onlyDSafe {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         if (amount > 0) {
             erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));

@@ -216,7 +216,7 @@ contract DSafeLogic is
                 ITransferReceiver2.Transfer memory transfer = transfers[i];
 
                 // TODO(gerben)
-                dos.depositERC20(IERC20(transfer.token), int256(transfer.amount));
+                dos.changeBalanceERC20(IERC20(transfer.token), int256(transfer.amount));
             }
         } else if (data[0] == 0x02) {
             // execute signed batch

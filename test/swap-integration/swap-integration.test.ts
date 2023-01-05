@@ -11,7 +11,7 @@ import {
   UniV3Oracle__factory,
 } from "../../typechain-types";
 import {toWei, toWeiUsdc} from "../../lib/numbers";
-import {createDSafe, depositErc20, leverageLP, leveragePos, makeCall} from "../../lib/calls";
+import {createDSafe, changeBalanceERC20, leverageLP, leveragePos, makeCall} from "../../lib/calls";
 import {
   Chainlink,
   deployDos,
@@ -122,8 +122,8 @@ describe("DOS swap integration", () => {
     await ownerDSafe.executeBatch(
       [
         makeCall(weth, toWei(1000)).deposit(),
-        makeCall(dos).depositERC20(usdc.address, usdcAmount),
-        makeCall(dos).depositERC20(weth.address, wethAmount),
+        makeCall(dos).changeBalanceERC20(usdc.address, usdcAmount),
+        makeCall(dos).changeBalanceERC20(weth.address, wethAmount),
       ],
       {value: wethAmount},
     );
@@ -407,7 +407,7 @@ describe("DOS swap integration", () => {
         );
 
         const liquidator = await createDSafe(dos, user3);
-        await depositErc20(dos, liquidator, usdc, toWeiUsdc(100_000));
+        await changeBalanceERC20(dos, liquidator, usdc, toWeiUsdc(100_000));
         await addAllowances(liquidator);
 
         await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
@@ -478,7 +478,7 @@ describe("DOS swap integration", () => {
         );
 
         const liquidator = await createDSafe(dos, user3);
-        await depositErc20(dos, liquidator, usdc, toWeiUsdc(100_000));
+        await changeBalanceERC20(dos, liquidator, usdc, toWeiUsdc(100_000));
         await addAllowances(liquidator);
 
         await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
