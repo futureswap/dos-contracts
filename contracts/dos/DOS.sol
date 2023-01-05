@@ -622,13 +622,13 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         uint256 utilization; // utilization of the pool
         if (poolAssets == 0)
             utilization = 0; // if there are no assets, utilization is 0
-        else utilization = uint256((debt * 1e18) / ((collateral * leverage) / 10));
+        else utilization = uint256((debt * 1e18) / ((collateral - debt) / leverage));
 
         if (utilization <= erc20Info.targetUtilization) {
-            ir += (utilization * erc20Info.slope1) / 1e18;
+            ir += (utilization * erc20Info.slope1) / 1e15;
         } else {
-            ir += (erc20Info.targetUtilization * erc20Info.slope1) / 1e18;
-            ir += ((erc20Info.slope2 * (utilization - erc20Info.targetUtilization)) / 1e18);
+            ir += (erc20Info.targetUtilization * erc20Info.slope1) / 1e15;
+            ir += ((erc20Info.slope2 * (utilization - erc20Info.targetUtilization)) / 1e15);
         }
 
         return int96(int256(ir));
