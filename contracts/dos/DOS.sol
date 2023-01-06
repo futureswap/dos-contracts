@@ -533,7 +533,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         uint256 tokenId
     ) external onlyDSafe dSafeExists(to) {
         NFTId nftId = _getNFTId(collection, tokenId);
-        if (!_isApprovedOrOwner(msg.sender, nftId)) {
+        if (!_isApprovedOrOwner(msg.sender, from, nftId)) {
             revert NotApprovedOrOwner();
         }
         _transferNFT(nftId, from, to);
@@ -970,7 +970,11 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return NFTId.wrap(erc721Idx | (tokenHash << 16) | ((tokenId >> 240) << 240));
     }
 
-    function _isApprovedOrOwner(address spender, NFTId nftId) internal view returns (bool) {
+    function _isApprovedOrOwner(
+        address spender,
+        address _owner,
+        NFTId nftId
+    ) internal view returns (bool) {
         DSafe storage p = dSafes[msg.sender];
         (uint16 infoIndex, uint256 tokenId) = getNFTData(nftId);
         address collection = erc721Infos[infoIndex].erc721Contract;
@@ -979,7 +983,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             NFTId.unwrap(p.nfts[idx]) == NFTId.unwrap(nftId);
         return (isdepositERC721Owner ||
             getApproved(collection, tokenId) == spender ||
-            isApprovedForAll(collection, address(0), spender)); // BUG
+            isApprovedForAll(collection, _owner, spender)); // BUG
     }
 
     // Config functions are handled by DOSConfig
