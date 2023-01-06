@@ -363,22 +363,32 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         emit IDOSCore.ERC20BalanceChanged(erc20, to, int256(amount));
     }
 
-    // TODO: discuss splitting this function into two: deposit and withdraw
-    /// @notice deposit or withdraw `amount` of `erc20` to/from dAccount to dSafe
-    /// Positive amount to deposit.
-    /// Negative amount to withdraw.
+    /// @notice deposit `amount` of `erc20` to dAccount from dSafe
     /// @param erc20 Address of the ERC20 token to be transferred
     /// @param amount The amount of `erc20` to be transferred
-    function changeBalanceERC20(IERC20 erc20, int256 amount) external override onlyDSafe {
+    function depositERC20(IERC20 erc20, uint256 amount) external override onlyDSafe {
         (, uint16 erc20Idx) = getERC20Info(erc20);
-        if (amount > 0) {
-            erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
-            _dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
-        } else {
-            erc20.safeTransfer(msg.sender, uint256(-amount));
-            _dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
-        }
-        emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, int256(amount));
+        erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
+        _dAccountERC20ChangeBy(msg.sender, erc20Idx, FsMath.safeCastToSigned(amount));
+        emit IDOSCore.ERC20BalanceChanged(
+            address(erc20),
+            msg.sender,
+            FsMath.safeCastToSigned(amount)
+        );
+    }
+
+    /// @notice deposit `amount` of `erc20` from dAccount tp dSafe
+    /// @param erc20 Address of the ERC20 token to be transferred
+    /// @param amount The amount of `erc20` to be transferred
+    function withdrawERC20(IERC20 erc20, uint256 amount) external override onlyDSafe {
+        (, uint16 erc20Idx) = getERC20Info(erc20);
+        erc20.safeTransfer(msg.sender, uint256(amount));
+        _dAccountERC20ChangeBy(msg.sender, erc20Idx, -FsMath.safeCastToSigned(amount));
+        emit IDOSCore.ERC20BalanceChanged(
+            address(erc20),
+            msg.sender,
+            -FsMath.safeCastToSigned(amount)
+        );
     }
 
     /// @notice deposit all `erc20s` from dSafe to dAccount
