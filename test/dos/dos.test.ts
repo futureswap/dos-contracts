@@ -1047,9 +1047,8 @@ describe("DOS", () => {
     });
   });
 
-  const oneHundredUsdc = toWei(100, USDC_DECIMALS);
-
   // describe("Interest Rate tests", () => {
+  // const oneHundredUsdc = toWei(100, USDC_DECIMALS);
   //   it("Should return the base interest rate with 0% utilization", async () => {
   //     const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
