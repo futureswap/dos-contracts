@@ -8,7 +8,7 @@ import {DuoswapV2Pair} from "../contracts/duoswapV2/DuoswapV2Pair.sol";
 contract PairHashCodeScript is Script {
     function setUp() public {}
 
-    function run() public {
+    function run() public view {
         // get bytecode for DuoswapV2Pair
         bytes memory bytecode = type(DuoswapV2Pair).creationCode;
         bytes32 hash = keccak256(bytes(bytecode));

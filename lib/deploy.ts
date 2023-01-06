@@ -305,7 +305,6 @@ export const deployFixedAddressForTests = async (
       anyswapCreate2Deployer,
       fsSalt,
     );
-    console.log("deployedTransferAndCall2", deployedTransferAndCall2.address);
     const isCoverage = process.argv.includes("coverage");
     if (isCoverage) {
       checkState(deployedTransferAndCall2.address !== transferAndCall2.address);
@@ -321,7 +320,6 @@ export const deployFixedAddressForTests = async (
       fsSalt,
       testGovernatorAddress,
     );
-    console.log("futureSwapProxy", futureSwapProxy.address);
     // eslint-disable-next-line require-atomic-updates
     governanceProxy = await deployGovernanceProxy(
       isCoverage ? await signer.getAddress() : futureSwapProxy.address,
@@ -489,6 +487,9 @@ export const setupDos = async (
       toWei(0.9),
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
+      0,
+      0,
+      0,
     ),
     makeCall(dos).addERC20Info(
       weth.address,
@@ -499,6 +500,9 @@ export const setupDos = async (
       toWei(0.9),
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
+      0,
+      0,
+      0,
     ),
     makeCall(dos).addERC20Info(
       uni.address,
@@ -509,6 +513,9 @@ export const setupDos = async (
       toWei(0.9),
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
+      0,
+      0,
+      0,
     ),
     makeCall(uniV3Oracle).setERC20ValueOracle(usdc.address, usdcOracle.address),
     makeCall(uniV3Oracle).setERC20ValueOracle(weth.address, ethOracle.address),
@@ -531,7 +538,7 @@ type LocalhostEnvironment = {
   swapRouter: ISwapRouter;
 };
 
-export const deployLocahostEnvironment = async (
+export const deployLocalhostEnvironment = async (
   signer: ethers.Signer,
 ): Promise<LocalhostEnvironment> => {
   const wethDeploy = await new WETH9__factory(signer).deploy();

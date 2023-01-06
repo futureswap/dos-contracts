@@ -83,6 +83,9 @@ describe("DSafeProxy", () => {
       toWei(0.9),
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
+      0,
+      0,
+      0,
     );
 
     await dos.addERC20Info(
@@ -94,6 +97,9 @@ describe("DSafeProxy", () => {
       toWei(0.9),
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
+      0,
+      0,
+      0,
     );
 
     await dos.addERC721Info(nft.address, nftOracle.address, toWei(0.5));

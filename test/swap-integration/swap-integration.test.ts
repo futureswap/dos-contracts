@@ -79,6 +79,9 @@ describe("DOS swap integration", () => {
       toWei(0.9),
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
+      0,
+      0,
+      0,
     );
 
     await dos.addERC20Info(
@@ -90,6 +93,9 @@ describe("DOS swap integration", () => {
       toWei(0.9),
       toWei(0.9),
       0, // no interest which would include time sensitive calculations
+      0,
+      0,
+      0,
     );
 
     const {uniswapV3Factory, nonFungiblePositionManager, swapRouter} = await deployUniswapFactory(

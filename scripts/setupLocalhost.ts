@@ -5,12 +5,12 @@ import type {Api} from "hardhat-ethernal/dist/api";
 import {FormatTypes} from "@ethersproject/abi";
 import hre, {ethers} from "hardhat";
 
-import {deployLocahostEnvironment, setupLocalhost} from "../lib/deploy";
+import {deployLocalhostEnvironment, setupLocalhost} from "../lib/deploy";
 import {saveAddressesForNetwork} from "../lib/deployment";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
-  const env = await deployLocahostEnvironment(deployer);
+  const env = await deployLocalhostEnvironment(deployer);
   const contracts = await setupLocalhost(deployer, env);
   await saveAddressesForNetwork(contracts);
 
