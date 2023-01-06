@@ -292,10 +292,10 @@ export const leverageLP = (
     makeCall(token0).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
     makeCall(token1).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
     makeCall(nonFungiblePositionManager).setApprovalForAll(dos.address, true),
-    makeCall(dos).depositERC20(token0.address, -mintParams.amount0Desired),
-    makeCall(dos).depositERC20(token1.address, -mintParams.amount1Desired),
+    makeCall(dos).withdrawERC20(token0.address, mintParams.amount0Desired),
+    makeCall(dos).withdrawERC20(token1.address, mintParams.amount1Desired),
     makeCall(nonFungiblePositionManager).mint(mintParams),
-    makeCall(dos).depositNFT(nonFungiblePositionManager.address, tokenId),
+    makeCall(dos).depositERC721(nonFungiblePositionManager.address, tokenId),
     makeCall(dos).depositFull([token0.address, token1.address]),
   ];
 };
@@ -348,8 +348,8 @@ export const leverageLP2 = async (
     makeCall(token0).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256), // tODO: remove
     makeCall(token1).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
     //    makeCall(nonFungiblePositionManager).setApprovalForAll(dos.address, true),
-    makeCall(dos).depositERC20(token0.address, -mintParams.amount0Desired),
-    makeCall(dos).depositERC20(token1.address, -mintParams.amount1Desired),
+    makeCall(dos).withdrawERC20(token0.address, mintParams.amount0Desired),
+    makeCall(dos).withdrawERC20(token1.address, mintParams.amount1Desired),
     makeCall(dSafe).forwardNFTs(true),
     makeCall(nonFungiblePositionManager).mint(mintParams),
     makeCall(dos).depositFull([token0.address, token1.address]),
@@ -377,7 +377,7 @@ export const leveragePos = (
   };
 
   return [
-    makeCall(dos).depositERC20(tokenIn.address, -amount),
+    makeCall(dos).withdrawERC20(tokenIn.address, amount),
     makeCall(tokenIn).approve(swapRouter.address, ethers.constants.MaxUint256),
     makeCall(swapRouter).exactInputSingle(exactInputSingleParams),
     makeCall(dos).depositFull([tokenIn.address, tokenOut.address]),
@@ -457,7 +457,7 @@ export const provideLiquidity = async (
   /* eslint-enable */
 };
 
-export async function depositErc20(
+export async function depositERC20(
   dos: IDOS,
   dSafe: DSafeLogic,
   erc20: TestERC20 | WETH9,
@@ -469,7 +469,7 @@ export async function depositErc20(
   await depositTx.wait();
 }
 
-export async function depositNft(
+export async function depositERC721(
   dos: IDOS,
   dSafe: DSafeLogic,
   nft: TestNFT,
@@ -480,17 +480,17 @@ export async function depositNft(
   const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
   const tokenId = mintEventArgs[0] as BigNumber;
   await priceOracle.setPrice(tokenId, toWeiUsdc(price));
-  const depositNftTx = await dSafe.executeBatch([
+  const depositERC721Tx = await dSafe.executeBatch([
     makeCall(nft).approve(dos.address, tokenId),
-    makeCall(dos).depositNFT(nft.address, tokenId),
+    makeCall(dos).depositERC721(nft.address, tokenId),
   ]);
-  await depositNftTx.wait();
+  await depositERC721Tx.wait();
   return tokenId;
 }
 
-// special case of depositNft function above.
+// special case of depositERC721 function above.
 // Used only in one test to show that this scenario is supported.
-// In depositNft the NFT is minted to the dSafe and transferred from the dSafe to DOS.
+// In depositERC721 the NFT is minted to the dSafe and transferred from the dSafe to DOS.
 // In depositUserNft, nft is minted to the user and transferred from the user to DOS
 export async function depositUserNft(
   dos: IDOS,
@@ -505,8 +505,10 @@ export async function depositUserNft(
   const tokenId = mintEventArgs[0] as BigNumber;
   await priceOracle.setPrice(tokenId, toWeiUsdc(price));
   await (await nft.connect(user).approve(dos.address, tokenId)).wait();
-  const depositNftTx = await dSafe.executeBatch([makeCall(dos).depositNFT(nft.address, tokenId)]);
-  await depositNftTx.wait();
+  const depositERC721Tx = await dSafe.executeBatch([
+    makeCall(dos).depositERC721(nft.address, tokenId),
+  ]);
+  await depositERC721Tx.wait();
   return tokenId;
 }
 
@@ -519,11 +521,13 @@ export async function transfer(
   if (typeof value[0] == "string") {
     // transfer erc20
     const [erc20, amount] = value;
-    return await from.executeBatch([makeCall(dos).transfer(erc20, to.address, amount)]);
+    return await from.executeBatch([makeCall(dos).transferERC20(erc20, to.address, amount)]);
   } else {
     // transfer NFT
     const [nft, tokenId] = value;
-    return await from.executeBatch([makeCall(dos).sendNFT(nft.address, tokenId, to.address)]);
+    return await from.executeBatch([
+      makeCall(dos).transferERC721(nft.address, tokenId, to.address),
+    ]);
   }
 }
 

@@ -96,7 +96,7 @@ describe("DSafeProxy", () => {
       0, // no interest which would include time sensitive calculations
     );
 
-    await dos.addNFTInfo(nft.address, nftOracle.address, toWei(0.5));
+    await dos.addERC721Info(nft.address, nftOracle.address, toWei(0.5));
 
     const getBalances = async (
       dSafe: DSafeLogic,
@@ -106,7 +106,7 @@ describe("DSafeProxy", () => {
       weth: BigNumber;
     }> => {
       const [nfts, usdcBal, wethBal] = await Promise.all([
-        dos.viewNFTs(dSafe.address),
+        dos.getDAccountERC721(dSafe.address),
         dos.getDAccountERC20(dSafe.address, usdc.address),
         dos.getDAccountERC20(dSafe.address, weth.address),
       ]);
