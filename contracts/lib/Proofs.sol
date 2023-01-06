@@ -71,7 +71,7 @@ library BytesViewLib {
         return BytesView.unwrap(b) >> 128;
     }
 
-    function toBytesView(bytes memory b) internal pure returns (BytesView) {
+    function fromBytes(bytes memory b) internal pure returns (BytesView) {
         return BytesViewLib.wrap(memPtr(b), b.length);
     }
 
@@ -318,7 +318,7 @@ library TrieLib {
             uint256 nibblesLength = key.length * 2;
             bytes32 keyBytes = BytesViewLib.mload(BytesViewLib.memPtr(key));
             uint256 p = 0;
-            RLPItem rlpListItem = RLP.requireRLPItem(BytesViewLib.toBytesView(proof));
+            RLPItem rlpListItem = RLP.requireRLPItem(BytesViewLib.fromBytes(proof));
             RLPIterator listIt = rlpListItem.requireRLPItemIterator();
             RLPItem[] memory children = new RLPItem[](2);
             BytesView res = BytesViewLib.empty();
@@ -375,9 +375,13 @@ library TrieLib {
                         // Even number of nibbles, low order nibble of tag is zero
                         FsUtils.Assert(tag & 0xF == 0);
                     }
+                    // For a valid MPT, the partial key must be at least one nibble and will
+                    // never be more then 32 bytes.
+                    FsUtils.Assert(partialKeyLength > 0 && partialKeyLength <= 64);
                     if (p + partialKeyLength > nibblesLength) {
                         continue;
                     }
+                    // The partialKeyLength most significant nibbles must match
                     if ((partialKeyBytes ^ keyBytes) >> (256 - 4 * partialKeyLength) != 0) {
                         continue;
                     }
