@@ -252,7 +252,8 @@ contract DOSState is Pausable {
     /// corresponding tokens are owned by DOS
     mapping(address => mapping(address => mapping(address => uint256))) public allowances;
 
-    /// todo - NatSpec after clarification on what it is
+    /// @notice Whether a spender is approved to operate a dSafe's NFTs for a specific collection
+    /// @dev Mapping from dSafe owner address => NFT address => spender address => bool
     /// @dev erc721 & erc1155 operator approvals
     mapping(address => mapping(address => mapping(address => bool))) public operatorApprovals;
 
