@@ -314,7 +314,7 @@ library TrieLib {
         bytes memory proof
     ) internal pure returns (BytesView) {
         unchecked {
-            require(key.length <= 32);
+            require(key.length <= 32, "Invalid key length");
             uint256 nibblesLength = key.length * 2;
             bytes32 keyBytes = BytesViewLib.mload(BytesViewLib.memPtr(key));
             uint256 p = 0;
