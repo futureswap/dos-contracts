@@ -140,7 +140,7 @@ interface IDOSCore {
         address indexed erc20,
         address indexed from,
         address indexed to,
-        uint256 value
+        int256 value
     );
 
     /// @notice Emitted when erc20 tokens are deposited or withdrawn from a credit account

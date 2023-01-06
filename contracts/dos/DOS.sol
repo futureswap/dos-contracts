@@ -845,7 +845,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         _dAccountERC20ChangeBy(from, erc20Idx, -amount);
         _dAccountERC20ChangeBy(to, erc20Idx, amount);
-        emit IDOSCore.ERC20Transfer(address(erc20), from, to, FsMath.safeCastToUnsigned(amount));
+        emit IDOSCore.ERC20Transfer(address(erc20), from, to, amount);
     }
 
     /// @dev transfer ERC721 NFT ownership between dAccounts.
@@ -862,7 +862,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         int256 amount = _dAccountERC20Clear(from, erc20Idx);
         _dAccountERC20ChangeBy(to, erc20Idx, amount);
         address erc20 = erc20Infos[erc20Idx].erc20Contract;
-        emit IDOSCore.ERC20Transfer(erc20, from, to, FsMath.safeCastToUnsigned(amount));
+        emit IDOSCore.ERC20Transfer(erc20, from, to, amount);
     }
 
     function _dAccountERC20ChangeBy(address dSafeAddress, uint16 erc20Idx, int256 amount) internal {
