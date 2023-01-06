@@ -67,7 +67,7 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
             Call({
                 to: address(dos),
                 callData: abi.encodeWithSignature(
-                    "transfer(address,address,uint256)",
+                    "transferERC20(address,address,uint256)",
                     address(token),
                     to,
                     amount

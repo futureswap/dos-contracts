@@ -125,7 +125,7 @@ describe("Fractionalization", () => {
 
       // borrow 90 USDC
       await dSafe2.executeBatch([
-        makeCall(dos).depositERC20(usdc.address, -maxBorrowable), // to borrow use negative
+        makeCall(dos).withdrawERC20(usdc.address, maxBorrowable), // to borrow use negative
       ]);
 
       // check to see if there is anything left
@@ -154,7 +154,7 @@ describe("Fractionalization", () => {
 
       // user 2 borrows 90 USDC
       await dSafe2.executeBatch([
-        makeCall(dos).depositERC20(usdc.address, -maxBorrowableUSDC), // to borrow use negative
+        makeCall(dos).withdrawERC20(usdc.address, maxBorrowableUSDC), // to borrow use negative
       ]);
 
       // vote for FDR to change
@@ -191,7 +191,7 @@ describe("Fractionalization", () => {
 
       // borrow 90 USDC // Max borrow for FRL
       await dSafe2.executeBatch([
-        makeCall(dos).depositERC20(usdc.address, -maxBorrowableUSDC), // to borrow use negative
+        makeCall(dos).withdrawERC20(usdc.address, maxBorrowableUSDC), // to borrow use negative
       ]);
 
       // //vote for FDR to change
@@ -204,7 +204,7 @@ describe("Fractionalization", () => {
 
       // borrow 0.909091 USDC
       await dSafe2.executeBatch([
-        makeCall(dos).depositERC20(usdc.address, -maxBorrowableUSDCPostVote), // to borrow use negative
+        makeCall(dos).withdrawERC20(usdc.address, maxBorrowableUSDCPostVote), // to borrow use negative
       ]);
 
       expect(await dos.getMaximumWithdrawableOfERC20(usdc.address)).to.equal("0");

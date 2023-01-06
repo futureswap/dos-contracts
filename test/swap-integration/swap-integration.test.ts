@@ -11,7 +11,7 @@ import {
   UniV3Oracle__factory,
 } from "../../typechain-types";
 import {toWei, toWeiUsdc} from "../../lib/numbers";
-import {createDSafe, depositErc20, leverageLP, leveragePos, makeCall} from "../../lib/calls";
+import {createDSafe, depositERC20, leverageLP, leveragePos, makeCall} from "../../lib/calls";
 import {
   Chainlink,
   deployDos,
@@ -114,7 +114,11 @@ describe("DOS swap integration", () => {
     await uniswapNftOracle.setERC20ValueOracle(usdc.address, usdcChainlink.oracle.address);
     await uniswapNftOracle.setERC20ValueOracle(weth.address, ethChainlink.oracle.address);
 
-    await dos.addNFTInfo(nonFungiblePositionManager.address, uniswapNftOracle.address, toWei(0.9));
+    await dos.addERC721Info(
+      nonFungiblePositionManager.address,
+      uniswapNftOracle.address,
+      toWei(0.9),
+    );
 
     const ownerDSafe = await createDSafe(dos, owner);
     const usdcAmount = toWeiUsdc(2_000_000);
@@ -132,7 +136,7 @@ describe("DOS swap integration", () => {
 
     const getBalances = async (dSafe: DSafeLogic) => {
       const [nfts, usdcBalance, wethBalance] = await Promise.all([
-        dos.viewNFTs(dSafe.address),
+        dos.getDAccountERC721(dSafe.address),
         dos.getDAccountERC20(dSafe.address, usdc.address),
         dos.getDAccountERC20(dSafe.address, weth.address),
       ]);
@@ -409,7 +413,7 @@ describe("DOS swap integration", () => {
         );
 
         const liquidator = await createDSafe(dos, user3);
-        await depositErc20(dos, liquidator, usdc, toWeiUsdc(100_000));
+        await depositERC20(dos, liquidator, usdc, toWeiUsdc(100_000));
         await addAllowances(liquidator);
 
         await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
@@ -480,7 +484,7 @@ describe("DOS swap integration", () => {
         );
 
         const liquidator = await createDSafe(dos, user3);
-        await depositErc20(dos, liquidator, usdc, toWeiUsdc(100_000));
+        await depositERC20(dos, liquidator, usdc, toWeiUsdc(100_000));
         await addAllowances(liquidator);
 
         await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable

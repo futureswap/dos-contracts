@@ -208,7 +208,7 @@ contract DuoswapV2Test is Test {
             Call({
                 to: address(dos),
                 callData: abi.encodeWithSignature(
-                    "depositERC20(address,int256)",
+                    "depositERC20(address,uint256)",
                     address(token0),
                     1e20
                 ),
@@ -220,7 +220,7 @@ contract DuoswapV2Test is Test {
             Call({
                 to: address(dos),
                 callData: abi.encodeWithSignature(
-                    "depositERC20(address,int256)",
+                    "depositERC20(address,uint256)",
                     address(token1),
                     1e20
                 ),
@@ -372,7 +372,7 @@ contract DuoswapV2Test is Test {
             Call({
                 to: address(dos),
                 callData: abi.encodeWithSignature(
-                    "depositERC20(address,int256)",
+                    "depositERC20(address,uint256)",
                     address(token0),
                     _amount0
                 ),
@@ -384,7 +384,7 @@ contract DuoswapV2Test is Test {
             Call({
                 to: address(dos),
                 callData: abi.encodeWithSignature(
-                    "depositERC20(address,int256)",
+                    "depositERC20(address,uint256)",
                     address(token1),
                     _amount1
                 ),

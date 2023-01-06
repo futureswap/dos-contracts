@@ -24,10 +24,26 @@ interface IDOSConfig {
         uint256 tokenId;
     }
 
+    /// @notice Emitted when the implementation of a dSafe is upgraded
+    /// @param dSafe The address of the dSafe
+    /// @param version The new implementation version
+    event DSafeImplementationUpgraded(address indexed dSafe, uint256 indexed version);
+
+    /// @notice Emitted when a new ERC20 is added to the protocol
+    /// @param erc20Idx The index of the ERC20 in the protocol
+    /// @param erc20 The address of the ERC20 contract
+    /// @param dosToken The address of the DOS token
+    /// @param name The name of the ERC20
+    /// @param symbol The symbol of the ERC20
+    /// @param decimals The decimals of the ERC20
+    /// @param valueOracle The address of the value oracle for the ERC20
+    /// @param colFactor The collateral factor for the ERC20
+    /// @param borrowFactor The borrow factor for the ERC20
+    /// @param interest The interest rate for the ERC20
     event ERC20Added(
         uint16 erc20Idx,
         address erc20,
-        address dosTokem,
+        address dosToken,
         string name,
         string symbol,
         uint8 decimals,
@@ -40,6 +56,41 @@ interface IDOSConfig {
         uint256 targetUtilization
     );
 
+    /// @notice Emitted when a new ERC721 is added to the protocol
+    /// @param erc721Idx The index of the ERC721 in the protocol
+    /// @param erc721Contract The address of the ERC721 contract
+    /// @param valueOracleAddress The address of the value oracle for the ERC721
+    /// @param collateralFactor The collateral factor for the ERC721
+    event ERC721Added(
+        uint256 indexed erc721Idx,
+        address indexed erc721Contract,
+        address valueOracleAddress,
+        int256 collateralFactor
+    );
+
+    /// @notice Emitted when the config is set
+    /// @param config The new config
+    event ConfigSet(Config indexed config);
+
+    /// @notice Emitted when the version manager address is set
+    /// @param versionManager The version manager address
+    event VersionManagerSet(address indexed versionManager);
+
+    /// @notice Emitted when ERC20 Data is set
+    /// @param erc20 The address of the erc20 token
+    /// @param interestRate The new interest rate
+    /// @param borrowFactor The new borrow factor
+    /// @param collateralFactor The new collateral factor
+    event ERC20DataSet(
+        address indexed erc20,
+        int256 interestRate,
+        int256 borrowFactor,
+        int256 collateralFactor
+    );
+
+    /// @notice Emitted when a dSafe is created
+    /// @param dSafe The address of the dSafe
+    /// @param owner The address of the owner
     event DSafeCreated(address dSafe, address owner);
 
     function upgradeDSafeImplementation(address dSafe, uint256 version) external;
@@ -58,7 +109,7 @@ interface IDOSConfig {
         uint256 targetUtilization
     ) external returns (uint16);
 
-    function addNFTInfo(
+    function addERC721Info(
         address nftContract,
         address valueOracleAddress,
         int256 collateralFactor
@@ -84,12 +135,48 @@ interface IDOSConfig {
 
     function getDAccountERC20(address dSafe, IERC20 erc20) external view returns (int256);
 
-    function viewNFTs(address dSafe) external view returns (NFTData[] memory);
+    function getDAccountERC721(address dSafe) external view returns (NFTData[] memory);
 
     function getMaximumWithdrawableOfERC20(IERC20 erc20) external view returns (int256);
 }
 
 interface IDOSCore {
+    /// @notice Emitted when ERC20 tokens are transferred between credit accounts
+    /// @param erc20 The address of the ERC20 token
+    /// @param from The address of the sender
+    /// @param to The address of the receiver
+    /// @param value The amount of tokens transferred
+    event ERC20Transfer(
+        address indexed erc20,
+        address indexed from,
+        address indexed to,
+        int256 value
+    );
+
+    /// @notice Emitted when erc20 tokens are deposited or withdrawn from a credit account
+    /// @param erc20 The address of the ERC20 token
+    /// @param to The address of the dSafe
+    /// @param amount The amount of tokens deposited or withdrawn
+    event ERC20BalanceChanged(address indexed erc20, address indexed to, int256 indexed amount);
+
+    /// @notice Emitted when a ERC721 is transferred between credit accounts
+    /// @param nftId The nftId of the ERC721 token
+    /// @param from The address of the sender
+    /// @param to The address of the receiver
+    event ERC721Transferred(uint256 indexed nftId, address indexed from, address indexed to);
+
+    /// @notice Emitted when an ERC721 token is deposited to a credit account
+    /// @param erc721 The address of the ERC721 token
+    /// @param to The address of the dSafe
+    /// @param tokenId The id of the token deposited
+    event ERC721Deposited(address indexed erc721, address indexed to, uint256 indexed tokenId);
+
+    /// @notice Emitted when an ERC721 token is withdrawn from a credit account
+    /// @param erc721 The address of the ERC721 token
+    /// @param from The address of the dSafe
+    /// @param tokenId The id of the token withdrawn
+    event ERC721Withdrawn(address indexed erc721, address indexed from, uint256 indexed tokenId);
+
     /// @dev Emitted when `owner` approves `spender` to spend `value` tokens on their behalf.
     /// @param erc20 The ERC20 token to approve
     /// @param owner The address of the token owner
@@ -126,9 +213,16 @@ interface IDOSCore {
         bool approved
     );
 
+    /// @notice Emitted when a dSafe is liquidated
+    /// @param dSafe The address of the liquidated dSafe
+    /// @param liquidator The address of the liquidator
+    event SafeLiquidated(address indexed dSafe, address indexed liquidator);
+
     function liquidate(address dSafe) external;
 
-    function depositERC20(IERC20 erc20, int256 amount) external;
+    function depositERC20(IERC20 erc20, uint256 amount) external;
+
+    function withdrawERC20(IERC20 erc20, uint256 amount) external;
 
     function depositERC20ForSafe(address erc20, address to, uint256 amount) external;
 
@@ -138,13 +232,13 @@ interface IDOSCore {
 
     function executeBatch(Call[] memory calls) external;
 
-    function transfer(IERC20 erc20, address to, uint256 amount) external;
+    function transferERC20(IERC20 erc20, address to, uint256 amount) external;
 
-    function depositNFT(address nftContract, uint256 tokenId) external;
+    function depositERC721(address nftContract, uint256 tokenId) external;
 
-    function claimNFT(address erc721, uint256 tokenId) external;
+    function withdrawERC721(address erc721, uint256 tokenId) external;
 
-    function sendNFT(address erc721, uint256 tokenId, address to) external;
+    function transferERC721(address erc721, uint256 tokenId, address to) external;
 
     /// @notice Transfer ERC20 tokens from dSafe to another dSafe
     /// @dev Note: Allowance must be set with approveERC20
@@ -176,7 +270,7 @@ interface IDOSCore {
     /// @param tokenId The id of the token to query
     function getApproved(address collection, uint256 tokenId) external view returns (address);
 
-    function computePosition(
+    function getRiskAdjustedPositionValues(
         address dSafeAddress
     ) external view returns (int256 totalValue, int256 collateral, int256 debt);
 

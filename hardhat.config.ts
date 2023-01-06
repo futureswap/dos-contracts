@@ -80,6 +80,7 @@ const config: HardhatUserConfig = {
             },
           },
           viaIR: true,
+          outputSelection: {"*": {"*": ["irOptimized", "evm.assembly", "storageLayout"]}},
         },
       },
     ],
