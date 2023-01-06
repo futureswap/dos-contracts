@@ -80,6 +80,7 @@ type NFTId is uint256; // 16 bits (tokenId) + 224 bits (hash) + 16 bits (erc721 
 struct NFTTokenData {
     uint240 tokenId; // 240 LSB of the tokenId of the NFT
     uint16 dSafeIdx; // index in dSafe NFT array
+    address approvedSpender; // approved spender for ERC721
 }
 
 struct DSafe {
@@ -137,6 +138,7 @@ library DSafeLib {
         mapping(NFTId => NFTTokenData) storage map
     ) internal {
         uint16 idx = map[nftId].dSafeIdx;
+        map[nftId].approvedSpender = address(0); // remove approval
         bool userOwnsNFT = dSafe.nfts.length > 0 &&
             NFTId.unwrap(dSafe.nfts[idx]) == NFTId.unwrap(nftId);
         if (!userOwnsNFT) {
@@ -244,11 +246,6 @@ contract DOSState is Pausable {
     /// Note, that no ERC20 are actually getting transferred - dAccount is a DOS concept, and
     /// corresponding tokens are owned by DOS
     mapping(address => mapping(address => mapping(address => uint256))) public allowances;
-
-    /// @notice mapping from ERC721 contract address => tokenId => dSafe spender address.
-    /// It represents the allowance of the `spender` to send `tokenId` of ERC721 contract to
-    /// whatever dAccount
-    mapping(address => mapping(uint256 => address)) public tokenApprovals;
 
     /// todo - NatSpec after clarification on what it is
     /// @dev erc721 & erc1155 operator approvals
@@ -535,7 +532,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         if (!_isApprovedOrOwner(msg.sender, nftId)) {
             revert NotApprovedOrOwner();
         }
-        tokenApprovals[collection][tokenId] = address(0);
         _transferNFT(nftId, from, to);
     }
 
@@ -733,7 +729,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @param tokenId The id of the token to query
     /// @return The dSafe address that is allowed to transfer the ERC721 token
     function getApproved(address collection, uint256 tokenId) public view returns (address) {
-        return tokenApprovals[collection][tokenId];
+        NFTId nftId = _getNFTId(collection, tokenId);
+        return tokenDataByNFTId[nftId].approvedSpender;
     }
 
     /// @notice Returns if the `operator` is allowed to manage all of the erc721s of `owner` on the `collection` contract
@@ -780,7 +777,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             allowances[_owner][ercContract][spender] = amountOrTokenId;
         } else if (data.kind == ContractKind.ERC721) {
             prev = amountOrTokenId;
-            tokenApprovals[ercContract][amountOrTokenId] = erc721Spender;
+            tokenDataByNFTId[_getNFTId(ercContract, amountOrTokenId)]
+                .approvedSpender = erc721Spender;
         } else {
             FsUtils.Assert(false);
         }
