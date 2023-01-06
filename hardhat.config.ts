@@ -74,12 +74,13 @@ const config: HardhatUserConfig = {
           },
           optimizer: {
             enabled: true,
-            runs: 200,
+            runs: 1000000,
             details: {
               yul: true,
             },
           },
           viaIR: true,
+          outputSelection: {"*": {"*": ["irOptimized", "evm.assembly", "storageLayout"]}},
         },
       },
     ],
