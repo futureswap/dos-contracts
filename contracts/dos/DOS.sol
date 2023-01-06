@@ -561,7 +561,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         while (dSafes[dSafe].nfts.length > 0) {
             _transferNFT(dSafes[dSafe].nfts[dSafes[dSafe].nfts.length - 1], dSafe, msg.sender);
         }
-        // TODO(gerben) make formula dependent on risk
+        // TODO(gerben) #102 make formula dependent on risk
         if (totalValue > 0) {
             // totalValue of the liquidated dSafe is split between liquidatable and liquidator:
             // totalValue * (1 - liqFraction) - reward of the liquidator, and
@@ -958,7 +958,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             FsMath.FIXED_POINT_SCALE; // Get the interest
         erc20Info.debt.tokens -= interest; // subtract interest from debt (increase)
         erc20Info.collateral.tokens += interest; // add interest to collateral (increase)
-        // TODO(gerben) add to treasury
+        // TODO(gerben) #103 add to treasury
     }
 
     function _getNFTId(address erc721, uint256 tokenId) internal view returns (NFTId) {
@@ -979,7 +979,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             NFTId.unwrap(p.nfts[idx]) == NFTId.unwrap(nftId);
         return (isdepositERC721Owner ||
             getApproved(collection, tokenId) == spender ||
-            isApprovedForAll(collection, address(0), spender)); // BUG
+            isApprovedForAll(collection, address(0), spender)); // BUG #106
     }
 
     // Config functions are handled by DOSConfig
@@ -1189,7 +1189,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @param erc20 The address of ERC20 which balance on dAccount of `dSafe` should be calculated
     /// @return the amount of `erc20` on the dAccount of `dSafe`
     function getDAccountERC20(address dSafeAddr, IERC20 erc20) external view returns (int256) {
-        // TODO(gerben) interest computation
+        // TODO(gerben) #104 interest computation
         DSafe storage dSafe = dSafes[dSafeAddr];
         (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20);
         ERC20Share erc20Share = dSafe.erc20Share[erc20Idx];
@@ -1208,7 +1208,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         return nftData;
     }
 
-    // TODO(gerben) remove this function (its for tests)
+    // TODO(gerben) #105 remove this function (its for tests)
     function getMaximumWithdrawableOfERC20(IERC20 erc20) public view returns (int256) {
         (ERC20Info storage erc20Info, ) = getERC20Info(erc20);
         int256 leverage = config.fractionalReserveLeverage;
