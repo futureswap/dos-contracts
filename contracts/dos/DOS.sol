@@ -983,7 +983,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             NFTId.unwrap(p.nfts[idx]) == NFTId.unwrap(nftId);
         return (isdepositERC721Owner ||
             getApproved(collection, tokenId) == spender ||
-            isApprovedForAll(collection, _owner, spender)); // BUG
+            isApprovedForAll(collection, _owner, spender));
     }
 
     // Config functions are handled by DOSConfig
