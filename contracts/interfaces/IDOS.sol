@@ -39,7 +39,10 @@ interface IDOSConfig {
     /// @param valueOracle The address of the value oracle for the ERC20
     /// @param colFactor The collateral factor for the ERC20
     /// @param borrowFactor The borrow factor for the ERC20
-    /// @param interest The interest rate for the ERC20
+    /// @param baseRate The interest rate at 0% utilization
+    /// @param slope1 The interest rate slope at 0% to target utilization
+    /// @param slope2 The interest rate slope at target utilization to 100% utilization
+    /// @param targetUtilization The target utilization for the ERC20
     event ERC20Added(
         uint16 erc20Idx,
         address erc20,
@@ -78,12 +81,18 @@ interface IDOSConfig {
 
     /// @notice Emitted when ERC20 Data is set
     /// @param erc20 The address of the erc20 token
-    /// @param interestRate The new interest rate
+    /// @param baseRate The new base interest rate
+    /// @param slope1 The new slope1
+    /// @param slope2 The new slope2
+    /// @param targetUtilization The new target utilization
     /// @param borrowFactor The new borrow factor
     /// @param collateralFactor The new collateral factor
     event ERC20DataSet(
         address indexed erc20,
-        int256 interestRate,
+        uint256 baseRate,
+        uint256 slope1,
+        uint256 slope2,
+        uint256 targetUtilization,
         int256 borrowFactor,
         int256 collateralFactor
     );

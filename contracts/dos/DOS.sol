@@ -947,7 +947,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return pool.insertPosition(amount);
     }
 
-    function updateInterest(uint16 erc20Idx) internal {
+    function _updateInterest(uint16 erc20Idx) internal {
         ERC20Info storage erc20Info = erc20Infos[erc20Idx]; // retrieve ERC20Info and store in memory
         if (erc20Info.timestamp == block.timestamp) return; // already updated this block
         int256 delta = FsMath.safeCastToSigned(block.timestamp - erc20Info.timestamp); // time passed since last update
@@ -961,7 +961,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         // TODO(gerben) add to treasury
     }
 
-    function getNFTId(address erc721, uint256 tokenId) internal view returns (NFTId) {
+    function _getNFTId(address erc721, uint256 tokenId) internal view returns (NFTId) {
         if (infoIdx[erc721].kind != ContractKind.ERC721) {
             revert NotNFT();
         }
@@ -1151,7 +1151,15 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         erc20Infos[erc20Idx].slope1 = slope1;
         erc20Infos[erc20Idx].slope2 = slope2;
         erc20Infos[erc20Idx].targetUtilization = targetUtilization;
-        emit IDOSConfig.ERC20DataSet(erc20, baseRate, borrowFactor, collateralFactor);
+        emit IDOSConfig.ERC20DataSet(
+            erc20,
+            baseRate,
+            slope1,
+            slope2,
+            targetUtilization,
+            borrowFactor,
+            collateralFactor
+        );
     }
 
     /// @notice creates a new dSafe with sender as the owner and returns the dSafe address
