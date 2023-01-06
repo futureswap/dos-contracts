@@ -75,7 +75,11 @@ contract TransferAndCall2 is IERC1363Receiver {
         return transferFromAndCall2Impl(from, receiver, address(0), transfers, data);
     }
 
-    // TODO: add natspec
+    /// @notice Callback for ERC1363 transferAndCall
+    /// @param _operator The address which called `transferAndCall` function
+    /// @param _from The address which previously owned the token
+    /// @param _amount The amount of tokens being transferred
+    /// @param _data Additional data containing the receiver address and the extra data
     function onTransferReceived(
         address _operator,
         address _from,
@@ -118,8 +122,8 @@ contract TransferAndCall2 is IERC1363Receiver {
         }
     }
 
-    // TODO: ERC2612 permit transferAndCall2
-    // TODO: permit2 transferAndCall
+    // TODO: #108 ERC2612 permit transferAndCall2
+    // TODO: #109 permit2 transferAndCall
 
     function callOnTransferReceived2(
         address to,
