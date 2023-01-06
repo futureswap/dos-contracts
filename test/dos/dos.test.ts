@@ -199,7 +199,7 @@ describe("DOS", () => {
 
       const tx = transfer(dos, sender, receiver, usdc.address, toWeiUsdc(20_000));
 
-      await expect(tx).to.be.reverted; // withCustomError(dos, "Insolvent");
+      await expect(tx).to.be.revertedWith("Insolvent");
     });
 
     it("User can send more ERC20 then they have", async () => {
@@ -290,13 +290,13 @@ describe("DOS", () => {
   });
 
   describe("#getRiskAdjustedPositionValues", () => {
-    it("when dSafe doesn't exist should return 0", async () => {
+    it("Should revert when dSafe doesn't exist", async () => {
       const {dos} = await loadFixture(deployDOSFixture);
       const nonDSafeAddress = "0xb4A50D202ca799AA07d4E9FE11C2919e5dFe4220";
 
       const computeTx = dos.getRiskAdjustedPositionValues(nonDSafeAddress);
 
-      await expect(computeTx).to.be.reverted; // withCustomError(dos, "DSafeNonExistent");
+      await expect(computeTx).to.be.reverted; // revertedWithCustomError(dos, "DSafeNonExistent");
     });
 
     it("when dSafe is empty should return 0", async () => {
@@ -411,7 +411,7 @@ describe("DOS", () => {
 
       const depositERC721Tx = dos.liquidate(dSafe.address);
 
-      await expect(depositERC721Tx).to.be.reverted; // withCustomError(dos, "OnlyDSafe");
+      await expect(depositERC721Tx).to.be.revertedWith("OnlyDSafe"); // revertedWithCustomError(dos, "OnlyDSafe");
     });
 
     it("when dSafe to liquidate doesn't exist should revert", async () => {
@@ -422,7 +422,7 @@ describe("DOS", () => {
 
       const liquidateTx = liquidator.executeBatch([makeCall(dos).liquidate(nonDSafeAddress)]);
 
-      await expect(liquidateTx).to.be.reverted; // withCustomError(dos, "DSafeNonExistent");
+      await expect(liquidateTx).to.be.revertedWith("DSafeNonExistent"); // revertedWithCustomError(dos, "DSafeNonExistent");
     });
 
     it("when dSafe to liquidate is empty should revert", async () => {
@@ -498,7 +498,7 @@ describe("DOS", () => {
       await ethChainlink.setPrice(2_100); // 2_000 -> 2_100
       const liquidateTx = liquidator.executeBatch([makeCall(dos).liquidate(liquidatable.address)]);
 
-      await expect(liquidateTx).to.reverted; // withCustomError(dos, "Insolvent");
+      await expect(liquidateTx).to.revertedWith(`Insolvent`); // revertedWithCustomError(dos, "Insolvent");
     });
 
     it("when a dSafe trys to liquidate itself should revert", async () => {
@@ -524,7 +524,7 @@ describe("DOS", () => {
         makeCall(dos).liquidate(liquidatable.address),
       ]);
 
-      await expect(liquidateTx).to.reverted; // withCustomError(dos, "Insolvent");
+      await expect(liquidateTx).to.revertedWith(`Insolvent`); // revertedWithCustomError(dos, "Insolvent");
     });
 
     it("when collateral is smaller than debt should transfer all ERC20s of the dSafe to the caller", async () => {
@@ -708,7 +708,7 @@ describe("DOS", () => {
 
       const txRevert = depositERC721(dos, dSafe, unregisteredNft, nftOracle, NFT_PRICE);
 
-      await expect(txRevert).to.be.reverted; // withCustomError(dos "NotRegistered");
+      await expect(txRevert).to.be.revertedWith(`NotRegistered`); // revertedWithCustomError(dos "NotRegistered");
     });
 
     it("when user is not an owner of NFT should revert the deposit", async () => {
@@ -721,7 +721,7 @@ describe("DOS", () => {
         makeCall(dos).depositERC721(nft.address, tokenId),
       ]);
 
-      await expect(depositERC721Tx).to.be.reverted; // withCustomError(dos, "NotNFTOwner");
+      await expect(depositERC721Tx).to.be.revertedWith(`NotNFTOwner`); // revertedWithCustomError(dos, "NotNFTOwner");
     });
 
     it("when called directly on DOS should revert the deposit", async () => {
@@ -733,7 +733,7 @@ describe("DOS", () => {
 
       const depositERC721Tx = dos.depositERC721(nft.address, tokenId);
 
-      await expect(depositERC721Tx).to.be.reverted; // withCustomError(dos, "OnlyDSafe");
+      await expect(depositERC721Tx).to.be.revertedWith(`OnlyDSafe`); // revertedWithCustomError(dos, "OnlyDSafe");
     });
   });
 
@@ -745,7 +745,7 @@ describe("DOS", () => {
 
       const withdrawERC721Tx = dos.connect(user).withdrawERC721(nft.address, tokenId);
 
-      await expect(withdrawERC721Tx).to.be.reverted; // withCustomError(dos, "OnlyDSafe");
+      await expect(withdrawERC721Tx).to.be.revertedWith(`OnlyDSafe`); // revertedWithCustomError(dos, "OnlyDSafe");
     });
 
     it("when user is not the owner of the deposited NFT should revert", async () => {
@@ -792,7 +792,7 @@ describe("DOS", () => {
         .connect(user)
         .transferERC721(nft.address, tokenId, dSafeReceiver.address);
 
-      await expect(sendNftTx).to.be.reverted; // withCustomError(dos, "OnlyDSafe");
+      await expect(sendNftTx).to.be.revertedWith(`OnlyDSafe`); // revertedWithCustomError(dos, "OnlyDSafe");
     });
 
     it("when user is not the owner of the deposited NFT should revert", async () => {
@@ -815,7 +815,7 @@ describe("DOS", () => {
       // @ts-expect-error - bypass `transfer` type that forbids this invariant in TS
       const tx = transfer(dos, dSafeOwner, user2, nft, tokenId);
 
-      await expect(tx).to.be.reverted; // withCustomError(dos, "DSafeNonExistent");
+      await expect(tx).to.be.revertedWith(`DSafeNonExistent`); // revertedWithCustomError(dos, "DSafeNonExistent");
     });
 
     it("when user owns the deposited NFT should be able to move the NFT to another dSafe", async () => {
