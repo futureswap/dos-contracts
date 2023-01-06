@@ -20,6 +20,8 @@ import {ISafe} from "../interfaces/ISafe.sol";
 import "./DSafeState.sol";
 import "./Liquifier.sol";
 
+/// @title DSafe Proxy
+/// @notice Proxy contract for DOS Safes
 // Inspired by TransparentUpdatableProxy
 contract DSafeProxy is DSafeState, Proxy {
     modifier ifDos() {
@@ -118,6 +120,15 @@ contract DSafeLogic is
         address _dos
     ) EIP712("DOS dSafe", VERSION) ImmutableVersion(VERSION) DSafeState(_dos) {}
 
+    /// @notice makes a batch of different calls from the name of dSafe owner. Eventual state of
+    /// dAccount and DOS must be solvent, i.e. debt on dAccount cannot exceed collateral on
+    /// dAccount and dSafe and DOS reserve/debt must be sufficient
+    /// @dev - this goes to dos.executeBatch that would immediately call DSafeProxy.executeBatch
+    /// from above of this file
+    /// @param calls {address to, bytes callData, uint256 value}[], where
+    ///   * to - is the address of the contract whose function should be called
+    ///   * callData - encoded function name and it's arguments
+    ///   * value - the amount of ETH to sent with the call
     function executeBatch(Call[] memory calls) external payable onlyOwner {
         dos.executeBatch(calls);
     }
@@ -151,6 +162,17 @@ contract DSafeLogic is
         forwardNFT = _forwardNFT;
     }
 
+    /// @notice ERC721 transfer callback
+    /// @dev it's a callback, required to be implemented by IERC721Receiver interface for the
+    /// contract to be able to receive ERC721 NFTs.
+    /// we are already using it to support "forwardNFT" of dSafe.
+    /// `return this.onERC721Received.selector;` is mandatory part for the NFT transfer to work -
+    /// not a part of owr business logic
+    /// @param - operator The address which called `safeTransferFrom` function
+    /// @param - from The address which previously owned the token
+    /// @param tokenId The NFT identifier which is being transferred
+    /// @param data Additional data with no specified format
+    /// @return `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`
     function onERC721Received(
         address /* operator */,
         address /* from */,

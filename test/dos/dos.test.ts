@@ -199,7 +199,7 @@ describe("DOS", () => {
 
       const tx = transfer(dos, sender, receiver, usdc.address, toWeiUsdc(20_000));
 
-      await expect(tx).to.be.revertedWith("Result of operation is not sufficient liquid");
+      await expect(tx).to.be.revertedWith("Result of operation is not sufficiently liquid");
     });
 
     it("User can send more ERC20 then they have", async () => {
@@ -498,7 +498,7 @@ describe("DOS", () => {
       await ethChainlink.setPrice(2_100); // 2_000 -> 2_100
       const liquidateTx = liquidator.executeBatch([makeCall(dos).liquidate(liquidatable.address)]);
 
-      await expect(liquidateTx).to.revertedWith("Result of operation is not sufficient liquid");
+      await expect(liquidateTx).to.revertedWith("Result of operation is not sufficiently liquid");
     });
 
     it("when a dSafe trys to liquidate itself should revert", async () => {
@@ -524,7 +524,7 @@ describe("DOS", () => {
         makeCall(dos).liquidate(liquidatable.address),
       ]);
 
-      await expect(liquidateTx).to.revertedWith("Result of operation is not sufficient liquid");
+      await expect(liquidateTx).to.revertedWith("Result of operation is not sufficiently liquid");
     });
 
     it("when collateral is smaller then debt should transfer all ERC20s of the dSafe to the caller", async () => {
@@ -1067,12 +1067,24 @@ describe("DOS", () => {
 
   //     const erc20Idx: BigNumber = BigNumber.from(0);
   //     const interestRate: BigNumber = await dos.computeInterestRate(erc20Idx);
+  //     console.log("interestRate", interestRate.toString());
+  //     expect(interestRate).to.equal(BigNumber.from("0"));
+  //   });
+  //     const erc20Idx: BigNumber = BigNumber.from(0);
+  //     const interestRate: BigNumber = await dos.computeInterestRate(erc20Idx);
   //     expect(interestRate).to.equal(BigNumber.from("0"));
   //   });
 
   //   it("Should return the correct interest rate with 0 < utilization < target", async () => {
   //     const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
+  //   it("Should return the correct interest rate with 0 < utilization < target", async () => {
+  //     const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
+  //     // setup 1st user
+  //     const dSafe1 = await createDSafe(dos, user);
+  //     expect(await dSafe1.owner()).to.equal(user.address);
+  //     await usdc.mint(dSafe1.address, oneHundredUsdc);
+  //     await dSafe1.executeBatch([makeCall(dos).depositERC20(usdc.address, oneHundredUsdc)]); // deposits 100 USDC
   //     // setup 1st user
   //     const dSafe1 = await createDSafe(dos, user);
   //     expect(await dSafe1.owner()).to.equal(user.address);
@@ -1084,21 +1096,28 @@ describe("DOS", () => {
   //     expect(await dSafe2.owner()).to.equal(user2.address);
   //     await weth.mint(dSafe2.address, toWei(2));
   //     await dSafe2.executeBatch([makeCall(dos).depositERC20(weth.address, toWei(2))]);
+  //     // setup 2nd user
+  //     const dSafe2 = await createDSafe(dos, user2);
+  //     expect(await dSafe2.owner()).to.equal(user2.address);
+  //     await weth.mint(dSafe2.address, toWei(2));
+  //     await dSafe2.executeBatch([makeCall(dos).depositERC20(weth.address, toWei(2))]);
 
   //     // check what the max to borrow of USDC is (90 USDC)
   //     const maxBorrowable = await dos.getMaximumWithdrawableOfERC20(usdc.address);
+  //     // check what the max to borrow of USDC is (90 USDC)
+  //     const maxBorrowable = await dos.getMaximumWithdrawableOfERC20(usdc.address);
 
-  //     const targetUtilization = 0.8;
-  //     const utilization = targetUtilization / 2;
+  //     const utilization = 0.8696;
 
   //     // borrow 72 USDC (.8 * 90)
   //     await dSafe2.executeBatch([
-  //       makeCall(dos).depositERC20(usdc.address, -maxBorrowable * utilization), // to borrow use negative
+  //       makeCall(dos).depositERC20(usdc.address, -maxBorrowable - 1), // to borrow use negative
   //     ]);
 
   //     const erc20Idx: BigNumber = BigNumber.from(0);
   //     const interestRate: BigNumber = await dos.computeInterestRate(erc20Idx);
-  //     expect(interestRate).to.equal(BigNumber.from("2"));
+  //     console.log("interestRate", interestRate.toString());
+  //     expect(interestRate).to.equal(BigNumber.from("2000"));
   //   });
 
   //   it("Should return the target interest rate at the target utilization", async () => {
@@ -1119,7 +1138,7 @@ describe("DOS", () => {
   //     // check what the max to borrow of USDC is (90 USDC)
   //     const maxBorrowable = await dos.getMaximumWithdrawableOfERC20(usdc.address);
 
-  //     const targetUtilization = 0.8;
+  //     const targetUtilization = 0.9;
 
   //     // borrow 72 USDC (.8 * 90)
   //     await dSafe2.executeBatch([
@@ -1128,7 +1147,8 @@ describe("DOS", () => {
 
   //     const erc20Idx: BigNumber = BigNumber.from(0);
   //     const interestRate: BigNumber = await dos.computeInterestRate(erc20Idx);
-  //     expect(interestRate).to.equal(BigNumber.from("4"));
+  //     console.log("interestRate", interestRate.toString());
+  //     expect(interestRate).to.equal(BigNumber.from("4000"));
   //   });
 
   //   it("Should return the correct interest rate with target < utilization < 100", async () => {
@@ -1149,7 +1169,7 @@ describe("DOS", () => {
   //     // check what the max to borrow of USDC is (90 USDC)
   //     const maxBorrowable = await dos.getMaximumWithdrawableOfERC20(usdc.address);
 
-  //     const utilization = 0.9;
+  //     const utilization = 0.95;
 
   //     // borrow 72 USDC (.8 * 90)
   //     await dSafe2.executeBatch([
@@ -1158,7 +1178,8 @@ describe("DOS", () => {
 
   //     const erc20Idx: BigNumber = BigNumber.from(0);
   //     const interestRate: BigNumber = await dos.computeInterestRate(erc20Idx);
-  //     expect(interestRate).to.equal(BigNumber.from("52"));
+  //     console.log("interestRate", interestRate.toString());
+  //     expect(interestRate).to.equal(BigNumber.from("52000"));
   //   });
 
   //   it("Should return the max interest rate with 100% utilization", async () => {
@@ -1186,7 +1207,8 @@ describe("DOS", () => {
 
   //     const erc20Idx: BigNumber = BigNumber.from(0);
   //     const interestRate: BigNumber = await dos.computeInterestRate(erc20Idx);
-  //     expect(interestRate).to.equal(BigNumber.from("100"));
+  //     console.log("interestRate", interestRate.toString());
+  //     expect(interestRate).to.equal(BigNumber.from("100000"));
   //   });
 
   //   it("Should not increase interest rate when different asset is borrowed", async () => {

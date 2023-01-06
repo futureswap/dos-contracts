@@ -9,6 +9,7 @@ import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 import {ImmutableVersion} from "../lib/ImmutableVersion.sol";
 import "../interfaces/IVersionManager.sol";
 
+/// @title DOS Version Manager
 contract VersionManager is IVersionManager, ImmutableGovernance {
     /// @notice Array of all version names
     string[] internal _versionString;
