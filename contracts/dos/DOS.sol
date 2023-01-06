@@ -1153,13 +1153,9 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     function getMaximumWithdrawableOfERC20(IERC20 erc20) public view returns (int256) {
         (ERC20Info storage erc20Info, ) = getERC20Info(erc20);
         int256 leverage = config.fractionalReserveLeverage;
-        // console.log("leverage:");
-        // console.logInt(leverage);
         int256 tokens = erc20Info.collateral.tokens;
 
         int256 minReserveAmount = tokens / (leverage + 1);
-        // console.log("minReserveAmount:");
-        // console.logInt(minReserveAmount);
         int256 totalDebt = erc20Info.debt.tokens;
         int256 borrowable = erc20Info.collateral.tokens - minReserveAmount;
 
