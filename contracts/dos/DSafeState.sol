@@ -10,7 +10,7 @@ abstract contract DSafeState {
     /// @dev DOS instance to be used by all other dSafe contracts
     IDOS public immutable dos;
 
-    bool internal forwardNFT; // TODO: find better way to dedup between proxy / logic
+    bool internal forwardNFT; // TODO: #107 find better way to dedup between proxy / logic
 
     /// @param _dos - address of a deployed DOS contract
     constructor(address _dos) {
