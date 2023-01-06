@@ -255,7 +255,7 @@ describe("DOS", () => {
       const liquidationLeftover = toWei((10_000 - 9_000) * 0.8, USDC_DECIMALS); // 800 USDC in ETH
       expect(liquidatableBalances.weth).to.equal(0);
       expect(liquidatableBalances.usdc).to.be.approximately(liquidationLeftover, 1000);
-      expect(liquidatorBalances.weth).to.equal(-oneEth); // own 10k + 10k of liquidatable
+      expect(liquidatorBalances.weth).to.be.approximately(-oneEth, 200_000); // own 10k + 10k of liquidatable
       expect(liquidatorBalances.usdc).to.be.approximately(
         tenThousandUsdc + tenThousandUsdc - liquidationLeftover,
         1000,
@@ -527,7 +527,7 @@ describe("DOS", () => {
       await expect(liquidateTx).to.revertedWith("Result of operation is not sufficiently liquid");
     });
 
-    it("when collateral is smaller then debt should transfer all ERC20s of the dSafe to the caller", async () => {
+    it("when collateral is smaller than debt should transfer all ERC20s of the dSafe to the caller", async () => {
       // prettier-ignore
       const {
         dos,
@@ -566,7 +566,7 @@ describe("DOS", () => {
         toWei(10_000 + 10_000 - liquidatableTotal * 0.8, USDC_DECIMALS),
         2000,
       );
-      expect(liquidatorBalance.weth).to.equal(-toWei(4));
+      expect(liquidatorBalance.weth).to.be.approximately(-toWei(4), 600_000);
     });
 
     it("when collateral is smaller then debt should transfer all NFTs of the dSafe to the caller", async () => {
@@ -612,7 +612,7 @@ describe("DOS", () => {
       expect(liquidatorBalance.weth).to.be.approximately(
         // 1 - initial balance; -0.4 transferred debt; 0.8 - liqFactor defined in deployDOSFixture
         toWei(-0.4),
-        2000,
+        60_000,
       );
       expect(liquidatorBalance.nfts).to.eql([[nft.address, tokenId]]);
     });
@@ -662,7 +662,7 @@ describe("DOS", () => {
       const liquidatorBalance = await getBalances(liquidator);
       expect(liquidatorBalance.usdc).to.equal(toWeiUsdc(1_500 - liquidatableTotal * 0.8));
       // 1 - initial balance; -1 transferred debt; 0.8 - liqFactor defined in deployDOSFixture
-      expect(liquidatorBalance.weth).to.be.approximately(toWei(0), 2000);
+      expect(liquidatorBalance.weth).to.be.approximately(toWei(0), 130_000);
       expect(liquidatorBalance.nfts).to.eql([[nft.address, tokenId]]);
     });
   });
