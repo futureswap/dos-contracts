@@ -71,7 +71,7 @@ library BytesViewLib {
         return BytesView.unwrap(b) >> 128;
     }
 
-    function toBytesView(bytes memory b) internal pure returns (BytesView) {
+    function fromBytes(bytes memory b) internal pure returns (BytesView) {
         return BytesViewLib.wrap(memPtr(b), b.length);
     }
 
@@ -90,7 +90,7 @@ library BytesViewLib {
 
     function loadBytes32(BytesView b, uint256 offset) internal pure returns (bytes32) {
         unchecked {
-            FsUtils.Assert(offset + 32 <= length(b));
+            //FsUtils.Assert(offset + 32 <= length(b));
             return mload(memPtr(b) + offset);
         }
     }
@@ -170,7 +170,34 @@ library RLP {
         }
     }
 
-    function toRLPItem(BytesView b) internal pure returns (RLPItem) {
+    function unsafeRLPLen(BytesView b) internal pure returns (uint256) {
+        unchecked {
+            FsUtils.Assert(b.length() > 0); // "RLP: Empty buffer");
+            uint256 len = 0;
+            uint256 lenLen = 0;
+            uint256 initial = b.loadUInt8(0);
+            if (initial < 0x80) {
+                // nothing
+            } else if (initial < 0xb8) {
+                len = initial - 0x80;
+            } else if (initial < 0xc0) {
+                lenLen = initial - 0xb7;
+                // Continue below
+            } else if (initial < 0xf8) {
+                len = initial - 0xc0;
+            } else {
+                lenLen = initial - 0xf7;
+                // Continue below
+            }
+            for (uint256 i = 0; i < lenLen; i++) {
+                len = (len << 8) | b.loadUInt8(1 + i);
+            }
+            FsUtils.Assert(len + lenLen + 1 <= b.length()); // "RLP: Invalid length rlpLen");
+            return len + lenLen + 1;
+        }
+    }
+
+    function requireRLPItem(BytesView b) internal pure returns (RLPItem) {
         uint256 len = rlpLen(b);
         require(len == b.length(), "RLP: Invalid length");
         return asRLPItem(b);
@@ -219,17 +246,28 @@ library RLP {
                     len = (len << 8) | buffer(item).loadUInt8(1 + i);
                 }
             }
-            require(len + lenLen + 1 == buffer(item).length(), "RLP: Invalid length it");
+            FsUtils.Assert(len + lenLen + 1 == buffer(item).length()); // , "RLP: Invalid length it");
             BytesView b = buffer(item).slice(1 + lenLen, len);
             return RLPIterator.wrap(BytesView.unwrap(b));
         }
     }
 
     function next(RLPIterator it) internal pure returns (RLPItem item, RLPIterator nextIt) {
-        require(buffer(it).length() > 0, "RLP: Iterator out of bounds");
-        uint256 len = rlpLen(buffer(it));
-        require(len <= buffer(it).length(), "RLP: Iterator out of bounds");
+        uint256 len = unsafeRLPLen(buffer(it));
         item = asRLPItem(buffer(it).slice(0, len));
+        nextIt = asRLPIterator(buffer(it).skip(len));
+    }
+
+    function requireNext(RLPIterator it) internal pure returns (RLPItem item, RLPIterator nextIt) {
+        uint256 len = rlpLen(buffer(it));
+        item = requireRLPItem(buffer(it).slice(0, len));
+        nextIt = asRLPIterator(buffer(it).skip(len));
+    }
+
+    function skipNext(RLPIterator it) internal pure returns (RLPIterator nextIt) {
+        FsUtils.Assert(buffer(it).length() > 0); // "RLP: Iterator out of bounds");
+        uint256 len = rlpLen(buffer(it));
+        FsUtils.Assert(len <= buffer(it).length()); // , "RLP: Iterator out of bounds");
         nextIt = asRLPIterator(buffer(it).skip(len));
     }
 
@@ -265,8 +303,9 @@ library TrieLib {
 
     /// @dev Verify a proof of a key in a Merkle Patricia Trie, revert if the proof is invalid.
     /// @param key The key to verify.
-    /// @param root The root hash of the trie.
-    /// @param proof The proof of the key.
+    /// @param root The root hash of the trie. This is assumed to be from a trusted source (e.g. a block header)
+    ///        and therefore represents a structurally valid tree.
+    /// @param proof The proof of the key. Untrusted data.
     /// @return The value of the key if the key exists or empty if key doesn't exist.
     /// @notice The stored value is encoded as RLP and thus never empty, so empty means the key doesn't exist.
     function verify(
@@ -275,75 +314,88 @@ library TrieLib {
         bytes memory proof
     ) internal pure returns (BytesView) {
         unchecked {
-            bytes memory nibbles = new bytes(key.length * 2);
-            for (uint256 i = 0; i < key.length; i++) {
-                nibbles[i * 2] = key[i] >> 4;
-                nibbles[i * 2 + 1] = key[i] & bytes1(uint8(0xf));
-            }
+            require(key.length <= 32, "Invalid key length");
+            uint256 nibblesLength = key.length * 2;
+            bytes32 keyBytes = BytesViewLib.mload(BytesViewLib.memPtr(key));
             uint256 p = 0;
-            RLPItem rlpListItem = RLP.toRLPItem(BytesViewLib.toBytesView(proof));
+            RLPItem rlpListItem = RLP.requireRLPItem(BytesViewLib.fromBytes(proof));
             RLPIterator listIt = rlpListItem.requireRLPItemIterator();
-            RLPItem[] memory children = new RLPItem[](17);
+            RLPItem[] memory children = new RLPItem[](2);
             BytesView res = BytesViewLib.empty();
             while (listIt.hasNext()) {
                 RLPItem rlpItem;
-                (rlpItem, listIt) = listIt.next();
+                (rlpItem, listIt) = listIt.requireNext();
                 require(rlpItem.buffer().keccak() == root, "IP: node mismatch");
+                // Because it passed this the cryptographic check, we know that the RLP is well-formed.
 
-                RLPIterator childIt = rlpItem.requireRLPItemIterator();
-                uint256 count = 0;
-                while (childIt.hasNext()) {
-                    (children[count], childIt) = childIt.next();
-                    count++;
-                    require(count <= 17, "IP: invalid node");
-                }
-                FsUtils.Assert(p <= nibbles.length);
+                RLPIterator childIt = rlpItem.toRLPItemIterator();
+                FsUtils.Assert(childIt.hasNext());
+                (children[0], childIt) = childIt.next();
+                FsUtils.Assert(childIt.hasNext());
+                (children[1], childIt) = childIt.next();
+
+                FsUtils.Assert(p <= nibblesLength);
                 RLPItem nextRoot;
                 root = EMPTY_TRIE_HASH; // sentinel indicating end of proof
-                if (count == 17) {
+                if (childIt.hasNext()) {
                     // Branch node
-                    if (p == nibbles.length) {
-                        res = children[16].requireBytesView();
+                    uint nibble = p == nibblesLength ? 16 : uint256(keyBytes) >> 252;
+
+                    if (nibble < 2) {
+                        nextRoot = children[nibble];
+                    } else {
+                        for (uint i = 2; i < nibble; i++) {
+                            FsUtils.Assert(childIt.hasNext());
+                            childIt = childIt.skipNext();
+                        }
+                        FsUtils.Assert(childIt.hasNext());
+                        (nextRoot, childIt) = childIt.next();
+                    }
+
+                    if (p == nibblesLength) {
+                        res = nextRoot.requireBytesView();
                         continue;
                     }
-                    uint8 nibble = uint8(nibbles[p++]);
-                    nextRoot = children[nibble];
-                } else if (count == 2) {
+                    keyBytes <<= 4;
+                    p++;
+                } else {
                     // Extension or leaf nodes
-                    BytesView partialKey = children[0].requireBytesView();
-                    require(partialKey.length() > 0, "IP: empty HP partial key");
+                    BytesView partialKey = children[0].toBytesView();
+                    FsUtils.Assert(partialKey.length() > 0);
                     uint256 tag = partialKey.loadUInt8(0);
+                    bytes32 partialKeyBytes = partialKey.loadBytes32(1);
+                    uint partialKeyLength = 2 * partialKey.length() - 2;
                     // Two most significant bits must be zero for a valid hex-prefix string
-                    require(tag < 64, "IP: invalid HP tag");
+                    FsUtils.Assert(tag < 64);
                     if ((tag & 16) != 0) {
                         // Odd number of nibbles, low order nibble of tag is first nibble of key
-                        if (p == nibbles.length || (tag & 0xF) != uint8(nibbles[p++])) {
-                            continue;
-                        }
+                        partialKeyBytes = (partialKeyBytes >> 4) | bytes32(tag << 252);
+                        partialKeyLength += 1;
                     } else {
                         // Even number of nibbles, low order nibble of tag is zero
-                        require(tag & 0xF == 0, "IP: invalid HP even tag");
+                        FsUtils.Assert(tag & 0xF == 0);
                     }
-                    if (p + 2 * (partialKey.length() - 1) > nibbles.length) {
+                    // For a valid MPT, the partial key must be at least one nibble and will
+                    // never be more then 32 bytes.
+                    FsUtils.Assert(partialKeyLength > 0 && partialKeyLength <= 64);
+                    if (p + partialKeyLength > nibblesLength) {
                         continue;
                     }
-                    for (uint256 i = 1; i < partialKey.length(); i++) {
-                        uint256 bite = partialKey.loadUInt8(i);
-                        if (bite != (uint256(uint8(nibbles[p]) << 4) | uint8(nibbles[p + 1]))) {
-                            continue;
-                        }
-                        p += 2;
+                    // The partialKeyLength most significant nibbles must match
+                    if ((partialKeyBytes ^ keyBytes) >> (256 - 4 * partialKeyLength) != 0) {
+                        continue;
                     }
+                    p += partialKeyLength;
+                    keyBytes <<= 4 * partialKeyLength;
+
                     if ((tag & 32) != 0) {
                         // Leaf node
-                        if (p == nibbles.length) {
-                            res = children[1].requireBytesView();
+                        if (p == nibblesLength) {
+                            res = children[1].toBytesView();
                         }
                         continue;
                     }
                     nextRoot = children[1];
-                } else {
-                    revert("IP: invalid node");
                 }
                 // Proof continue with child node
                 if (nextRoot.isBytes()) {
@@ -351,13 +403,13 @@ library TrieLib {
                     if (childBytes.length() == 0) {
                         continue;
                     }
-                    require(childBytes.length() == 32, "IP: invalid child hash");
+                    FsUtils.Assert(childBytes.length() == 32); // Invalid child hash
                     root = childBytes.loadBytes32(0);
                 } else {
                     FsUtils.Assert(nextRoot.isList());
                     // The next node is embedded directly in this node
                     // as it's RLP length is less than 32 bytes.
-                    require(nextRoot.buffer().length() < 32, "IP: child node too long");
+                    FsUtils.Assert(nextRoot.buffer().length() < 32); // "IP: child node too long";
                     root = nextRoot.buffer().keccak();
                 }
             }
@@ -383,7 +435,7 @@ library TrieLib {
         if (accountRLP.length() == 0) {
             return (0, 0, bytes32(0), bytes32(0));
         }
-        RLPItem item = RLP.toRLPItem(accountRLP);
+        RLPItem item = RLP.requireRLPItem(accountRLP);
         RLPIterator it = item.requireRLPItemIterator();
         require(it.hasNext(), "Invalid account");
         (item, it) = it.next();
@@ -412,7 +464,7 @@ library TrieLib {
         if (valueRLP.length() == 0) {
             return 0;
         }
-        RLPItem item = RLP.toRLPItem(valueRLP);
+        RLPItem item = RLP.requireRLPItem(valueRLP);
         BytesView storedAmount = item.requireBytesView();
         return storedAmount.decodeScalar();
     }
