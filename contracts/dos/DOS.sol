@@ -770,18 +770,20 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @notice Compute the interest rate of `underlying`
     /// @param erc20Idx The underlying asset
     /// @return The interest rate of `erc20Idx`
-    function computeInterestRate(uint16 erc20Idx) public view returns (int96) {
+    function computeInterestRate(uint16 erc20Idx) public view returns (int256) {
         ERC20Info memory erc20Info = erc20Infos[erc20Idx];
         uint256 debt = FsMath.safeCastToUnsigned(-erc20Info.debt.tokens); // question: is debt ever positive?
         uint256 collateral = FsMath.safeCastToUnsigned(erc20Info.collateral.tokens); // question: is collateral ever negative?
         uint256 leverage = FsMath.safeCastToUnsigned(config.fractionalReserveLeverage);
-        uint256 poolAssets = debt + collateral;
 
         uint256 ir = erc20Info.baseRate;
         uint256 utilization; // utilization of the pool
-        if (poolAssets == 0)
+        if (collateral == 0)
             utilization = 0; // if there are no assets, utilization is 0
-        else utilization = uint256((debt * 1e18) / ((collateral - debt) / leverage));
+        else utilization = (debt * 1e18) / (collateral);
+        uint256 maxBorrowable = (1e9 - (1e9 / (leverage + 1)));
+        uint256 leverageFactor = 1e18 / maxBorrowable;
+        utilization = (utilization * leverageFactor) / 1e9;
 
         if (utilization <= erc20Info.targetUtilization) {
             ir += (utilization * erc20Info.slope1) / 1e15;
@@ -789,8 +791,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             ir += (erc20Info.targetUtilization * erc20Info.slope1) / 1e15;
             ir += ((erc20Info.slope2 * (utilization - erc20Info.targetUtilization)) / 1e15);
         }
-
-        return int96(int256(ir));
+        return int256(ir);
     }
 
     function _approve(

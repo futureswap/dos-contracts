@@ -306,7 +306,7 @@ interface IDOSCore {
         address spender
     ) external view returns (uint256);
 
-    function computeInterestRate(uint16 erc20Idx) external view returns (int96);
+    function computeInterestRate(uint16 erc20Idx) external view returns (int256);
 
     function getImplementation(address dSafe) external view returns (address);
 
