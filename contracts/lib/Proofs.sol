@@ -12,6 +12,9 @@ type RLPIterator is uint256;
 library BytesViewLib {
     uint256 private constant WORD_SIZE = 32;
 
+    error OutOfBounds();
+    error InvalidScalarEncoding();
+
     function mload(uint256 ptr) internal pure returns (bytes32 res) {
         assembly {
             res := mload(ptr)
@@ -36,18 +39,17 @@ library BytesViewLib {
     }
 
     function mCopy(uint256 src, uint256 dest, uint256 len) internal pure {
-        if (len == 0) return;
         unchecked {
             // copy as many word sizes as possible
-            for (; len > WORD_SIZE; len -= WORD_SIZE) {
+            for (; len >= WORD_SIZE; len -= WORD_SIZE) {
                 mstore(dest, mload(src));
 
                 src += WORD_SIZE;
                 dest += WORD_SIZE;
             }
-
+            if (len == 0) return;
             // left over bytes. Mask is used to remove unwanted bytes from the word
-            FsUtils.Assert(len > 0 && len <= WORD_SIZE);
+            FsUtils.Assert(len > 0 && len < WORD_SIZE);
             bytes32 mask = bytes32((1 << ((WORD_SIZE - len) << 3)) - 1);
             bytes32 srcpart = mload(src) & ~mask; // zero out src
             bytes32 destpart = mload(dest) & mask; // retrieve the bytes
@@ -81,44 +83,63 @@ library BytesViewLib {
         mCopy(memPtr(b), BytesViewLib.memPtr(res), len);
     }
 
-    function loadUInt8(BytesView b, uint256 offset) internal pure returns (uint256) {
+    function unsafeLoadUInt8(BytesView b, uint256 offset) internal pure returns (uint256) {
         unchecked {
-            FsUtils.Assert(offset + 1 <= length(b));
             return uint256(mload(memPtr(b) + offset)) >> 248;
         }
     }
 
-    function loadBytes32(BytesView b, uint256 offset) internal pure returns (bytes32) {
+    function loadUInt8(BytesView b, uint256 offset) internal pure returns (uint256) {
+        if (offset >= length(b)) revert OutOfBounds();
+        return unsafeLoadUInt8(b, offset);
+    }
+
+    function unsafeLoadBytes32(BytesView b, uint256 offset) internal pure returns (bytes32) {
         unchecked {
-            //FsUtils.Assert(offset + 32 <= length(b));
             return mload(memPtr(b) + offset);
         }
     }
 
-    // Decode scalar value (non-negative integer) as described in yellow paper
-    function decodeScalar(BytesView b) internal pure returns (uint256) {
-        unchecked {
-            uint len = length(b);
-            if (len == 0) return 0;
-            require(len <= 32, "Invalid scalar representation");
-            bytes32 data = mload(memPtr(b));
-            require(data[0] != 0, "Invalid scalar representation");
-            return uint256(data >> ((WORD_SIZE - len) << 3));
-        }
+    function loadBytes32(BytesView b, uint256 offset) internal pure returns (bytes32) {
+        if (offset + 32 > length(b)) revert OutOfBounds();
+        return unsafeLoadBytes32(b, offset);
     }
 
-    function slice(BytesView b, uint256 offset, uint256 len) internal pure returns (BytesView) {
+    // Decode scalar value (non-negative integer) as described in yellow paper
+    function decodeScalar(BytesView b) internal pure returns (uint256) {
+        uint len = length(b);
+        if (len == 0) return 0;
+        bytes32 data = unsafeLoadBytes32(b, 0);
+        if (data[0] == 0) revert InvalidScalarEncoding();
+        return uint256(data >> ((WORD_SIZE - len) << 3)); // reverts if len > 32
+    }
+
+    function unsafeSlice(
+        BytesView b,
+        uint256 offset,
+        uint256 len
+    ) internal pure returns (BytesView) {
         unchecked {
             FsUtils.Assert(offset + len <= length(b));
             return BytesViewLib.wrap(memPtr(b) + offset, len);
         }
     }
 
-    function skip(BytesView b, uint256 offset) internal pure returns (BytesView) {
+    function slice(BytesView b, uint256 offset, uint256 len) internal pure returns (BytesView) {
+        if (offset + len > length(b)) revert OutOfBounds();
+        return unsafeSlice(b, offset, len);
+    }
+
+    function unsafeSkip(BytesView b, uint256 offset) internal pure returns (BytesView) {
         unchecked {
             FsUtils.Assert(offset <= length(b));
             return BytesViewLib.wrap(memPtr(b) + offset, length(b) - offset);
         }
+    }
+
+    function skip(BytesView b, uint256 offset) internal pure returns (BytesView) {
+        if (offset > length(b)) revert OutOfBounds();
+        return unsafeSkip(b, offset);
     }
 
     function keccak(BytesView b) internal pure returns (bytes32 res) {
@@ -135,20 +156,115 @@ library RLP {
     using RLP for RLPItem;
     using RLP for RLPIterator;
 
+    error InvalidRLPItem();
+    error ItemIsNotList();
+    error ItemIsNotBytes();
+
     function isList(RLPItem item) internal pure returns (bool) {
-        return buffer(item).loadUInt8(0) >= 0xc0;
+        FsUtils.Assert(buffer(item).length() > 0);
+        return buffer(item).unsafeLoadUInt8(0) >= 0xc0;
     }
 
     function isBytes(RLPItem item) internal pure returns (bool) {
         return !isList(item);
     }
 
-    function unsafeRLPLen(BytesView b) internal pure returns (uint256) {
+    function requireRLPItem(BytesView b) internal pure returns (RLPItem) {
+        uint256 len = rlpLen(b);
+        if (len != b.length()) revert InvalidRLPItem();
+        return asRLPItem(b);
+    }
+
+    function requireBytesView(RLPItem item) internal pure returns (BytesView) {
+        if (!isBytes(item)) revert ItemIsNotBytes();
+        return toBytesView(item);
+    }
+
+    function toBytesView(RLPItem item) internal pure returns (BytesView) {
+        unchecked {
+            FsUtils.Assert(isBytes(item));
+            uint256 tag = buffer(item).unsafeLoadUInt8(0);
+            if (tag < 0x80) {
+                return buffer(item).unsafeSlice(0, 1);
+            } else if (tag < 0xb8) {
+                return buffer(item).unsafeSlice(1, tag - 0x80);
+            } else {
+                uint256 lenLen = tag - 0xb7;
+                uint256 len = uint256(buffer(item).unsafeLoadBytes32(1)) >> (8 * (32 - lenLen));
+                return buffer(item).unsafeSlice(1 + lenLen, len);
+            }
+        }
+    }
+
+    function requireRLPItemIterator(RLPItem item) internal pure returns (RLPIterator) {
+        if (!isList(item)) revert ItemIsNotList();
+        return toRLPItemIterator(item);
+    }
+
+    function toRLPItemIterator(RLPItem item) internal pure returns (RLPIterator) {
+        unchecked {
+            FsUtils.Assert(isList(item));
+            uint256 len = 0;
+            uint256 lenLen = 0;
+            uint256 initial = buffer(item).unsafeLoadUInt8(0);
+            if (initial < 0xf8) {
+                len = initial - 0xc0;
+            } else {
+                lenLen = initial - 0xf7;
+                len = uint256(buffer(item).unsafeLoadBytes32(1)) >> (8 * (32 - lenLen));
+            }
+            FsUtils.Assert(len + lenLen + 1 == buffer(item).length()); // , "RLP: Invalid length it");
+            BytesView b = buffer(item).unsafeSlice(1 + lenLen, len);
+            return RLPIterator.wrap(BytesView.unwrap(b));
+        }
+    }
+
+    function unsafeNext(RLPIterator it) internal pure returns (RLPItem item, RLPIterator nextIt) {
+        FsUtils.Assert(buffer(it).length() > 0); // "RLP: Iterator out of bounds");
+        uint256 len = rlpLen(buffer(it));
+        item = asRLPItem(buffer(it).unsafeSlice(0, len));
+        nextIt = asRLPIterator(buffer(it).unsafeSkip(len));
+    }
+
+    function next(RLPIterator it) internal pure returns (RLPItem item, RLPIterator nextIt) {
+        FsUtils.Assert(buffer(it).length() > 0); // "RLP: Iterator out of bounds");
+        uint256 len = rlpLen(buffer(it));
+        item = asRLPItem(buffer(it).slice(0, len));
+        nextIt = asRLPIterator(buffer(it).unsafeSkip(len));
+    }
+
+    function unsafeSkipNext(RLPIterator it) internal pure returns (RLPIterator nextIt) {
+        FsUtils.Assert(buffer(it).length() > 0); // "RLP: Iterator out of bounds");
+        uint256 len = rlpLen(buffer(it));
+        nextIt = asRLPIterator(buffer(it).unsafeSkip(len));
+    }
+
+    function hasNext(RLPIterator it) internal pure returns (bool) {
+        return buffer(it).length() > 0;
+    }
+
+    function length(RLPItem item) internal pure returns (uint256) {
+        return buffer(item).length();
+    }
+
+    function keccak(RLPItem item) internal pure returns (bytes32 res) {
+        return buffer(item).keccak();
+    }
+
+    function buffer(RLPItem item) private pure returns (BytesView) {
+        return BytesView.wrap(RLPItem.unwrap(item));
+    }
+
+    function buffer(RLPIterator it) private pure returns (BytesView) {
+        return BytesView.wrap(RLPIterator.unwrap(it));
+    }
+
+    function rlpLen(BytesView b) private pure returns (uint256) {
         unchecked {
             FsUtils.Assert(b.length() > 0); // "RLP: Empty buffer");
             uint256 len = 0;
             uint256 lenLen = 0;
-            uint256 initial = b.loadUInt8(0);
+            uint256 initial = b.unsafeLoadUInt8(0);
             if (initial < 0x80) {
                 return 1;
                 // nothing
@@ -163,91 +279,9 @@ library RLP {
                 lenLen = initial - 0xf7;
                 // Continue below
             }
-            len = uint256(b.loadBytes32(1)) >> (8 * (32 - lenLen));
+            len = uint256(b.unsafeLoadBytes32(1)) >> (8 * (32 - lenLen));
             return len + lenLen + 1;
         }
-    }
-
-    function requireRLPItem(BytesView b) internal pure returns (RLPItem) {
-        uint256 len = unsafeRLPLen(b);
-        require(len == b.length(), "RLP: Invalid length");
-        return asRLPItem(b);
-    }
-
-    function requireBytesView(RLPItem item) internal pure returns (BytesView) {
-        require(isBytes(item), "RLP: Not bytes");
-        return toBytesView(item);
-    }
-
-    function toBytesView(RLPItem item) internal pure returns (BytesView) {
-        unchecked {
-            FsUtils.Assert(isBytes(item));
-            uint256 tag = buffer(item).loadUInt8(0);
-            if (tag < 0x80) {
-                return buffer(item).slice(0, 1);
-            } else if (tag < 0xb8) {
-                return buffer(item).slice(1, tag - 0x80);
-            } else {
-                uint256 lenLen = tag - 0xb7;
-                uint256 len = uint256(buffer(item).loadBytes32(1)) >> (8 * (32 - lenLen));
-                return buffer(item).slice(1 + lenLen, len);
-            }
-        }
-    }
-
-    function requireRLPItemIterator(RLPItem item) internal pure returns (RLPIterator) {
-        require(isList(item), "RLP: Not a list");
-        return toRLPItemIterator(item);
-    }
-
-    function toRLPItemIterator(RLPItem item) internal pure returns (RLPIterator) {
-        unchecked {
-            FsUtils.Assert(isList(item));
-            uint256 len = 0;
-            uint256 lenLen = 0;
-            uint256 initial = buffer(item).loadUInt8(0);
-            if (initial < 0xf8) {
-                len = initial - 0xc0;
-            } else {
-                lenLen = initial - 0xf7;
-                len = uint256(buffer(item).loadBytes32(1)) >> (8 * (32 - lenLen));
-            }
-            FsUtils.Assert(len + lenLen + 1 == buffer(item).length()); // , "RLP: Invalid length it");
-            BytesView b = buffer(item).slice(1 + lenLen, len);
-            return RLPIterator.wrap(BytesView.unwrap(b));
-        }
-    }
-
-    function next(RLPIterator it) internal pure returns (RLPItem item, RLPIterator nextIt) {
-        uint256 len = unsafeRLPLen(buffer(it));
-        item = asRLPItem(buffer(it).slice(0, len));
-        nextIt = asRLPIterator(buffer(it).skip(len));
-    }
-
-    function requireNext(RLPIterator it) internal pure returns (RLPItem item, RLPIterator nextIt) {
-        uint256 len = unsafeRLPLen(buffer(it));
-        require(len <= buffer(it).length(), "RLP: Iterator out of bounds");
-        item = requireRLPItem(buffer(it).slice(0, len));
-        nextIt = asRLPIterator(buffer(it).skip(len));
-    }
-
-    function skipNext(RLPIterator it) internal pure returns (RLPIterator nextIt) {
-        FsUtils.Assert(buffer(it).length() > 0); // "RLP: Iterator out of bounds");
-        uint256 len = unsafeRLPLen(buffer(it));
-        FsUtils.Assert(len <= buffer(it).length()); // , "RLP: Iterator out of bounds");
-        nextIt = asRLPIterator(buffer(it).skip(len));
-    }
-
-    function hasNext(RLPIterator it) internal pure returns (bool) {
-        return buffer(it).length() > 0;
-    }
-
-    function buffer(RLPItem item) internal pure returns (BytesView) {
-        return BytesView.wrap(RLPItem.unwrap(item));
-    }
-
-    function buffer(RLPIterator it) internal pure returns (BytesView) {
-        return BytesView.wrap(RLPIterator.unwrap(it));
     }
 
     function asRLPItem(BytesView b) private pure returns (RLPItem) {
@@ -268,6 +302,11 @@ library TrieLib {
     bytes32 private constant EMPTY_TRIE_HASH =
         0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421;
 
+    error KeyTooLong();
+    error ProofTooLong();
+    error IncompleteProof();
+    error InvalidProof();
+
     /// @dev Verify a proof of a key in a Merkle Patricia Trie, revert if the proof is invalid.
     /// @param key The key to verify.
     /// @param root The root hash of the trie. This is assumed to be from a trusted source (e.g. a block header)
@@ -282,7 +321,7 @@ library TrieLib {
         bytes memory proof
     ) internal pure returns (BytesView) {
         unchecked {
-            require(key.length <= 32, "Invalid key length");
+            if (key.length > 32) revert KeyTooLong();
             uint256 nibblesLength = key.length * 2;
             bytes32 keyBytes = BytesViewLib.mload(BytesViewLib.memPtr(key));
             uint256 p = 0;
@@ -291,16 +330,18 @@ library TrieLib {
             RLPItem[] memory children = new RLPItem[](2);
             BytesView res = BytesViewLib.empty();
             while (listIt.hasNext()) {
+                if (root == EMPTY_TRIE_HASH) revert ProofTooLong();
                 RLPItem rlpItem;
-                (rlpItem, listIt) = listIt.requireNext();
-                require(rlpItem.buffer().keccak() == root, "IP: node mismatch");
-                // Because it passed this the cryptographic check, we know that the RLP is well-formed.
+                (rlpItem, listIt) = listIt.next();
+                if (rlpItem.keccak() != root) revert InvalidProof();
+                // Because it passed this cryptographic check, we know that the rlpItem is a well-formed
+                // RLP encoded MPT node.
 
                 RLPIterator childIt = rlpItem.toRLPItemIterator();
                 FsUtils.Assert(childIt.hasNext());
-                (children[0], childIt) = childIt.next();
+                (children[0], childIt) = childIt.unsafeNext();
                 FsUtils.Assert(childIt.hasNext());
-                (children[1], childIt) = childIt.next();
+                (children[1], childIt) = childIt.unsafeNext();
 
                 FsUtils.Assert(p <= nibblesLength);
                 RLPItem nextRoot;
@@ -314,10 +355,10 @@ library TrieLib {
                     } else {
                         for (uint i = 2; i < nibble; i++) {
                             FsUtils.Assert(childIt.hasNext());
-                            childIt = childIt.skipNext();
+                            childIt = childIt.unsafeSkipNext();
                         }
                         FsUtils.Assert(childIt.hasNext());
-                        (nextRoot, childIt) = childIt.next();
+                        (nextRoot, childIt) = childIt.unsafeNext();
                     }
 
                     if (p == nibblesLength) {
@@ -330,8 +371,8 @@ library TrieLib {
                     // Extension or leaf nodes
                     BytesView partialKey = children[0].toBytesView();
                     FsUtils.Assert(partialKey.length() > 0);
-                    uint256 tag = partialKey.loadUInt8(0);
-                    bytes32 partialKeyBytes = partialKey.loadBytes32(1);
+                    uint256 tag = partialKey.unsafeLoadUInt8(0);
+                    bytes32 partialKeyBytes = partialKey.unsafeLoadBytes32(1);
                     uint partialKeyLength = 2 * partialKey.length() - 2;
                     // Two most significant bits must be zero for a valid hex-prefix string
                     FsUtils.Assert(tag < 64);
@@ -372,16 +413,16 @@ library TrieLib {
                         continue;
                     }
                     FsUtils.Assert(childBytes.length() == 32); // Invalid child hash
-                    root = childBytes.loadBytes32(0);
+                    root = childBytes.unsafeLoadBytes32(0);
                 } else {
                     FsUtils.Assert(nextRoot.isList());
                     // The next node is embedded directly in this node
                     // as it's RLP length is less than 32 bytes.
-                    FsUtils.Assert(nextRoot.buffer().length() < 32); // "IP: child node too long";
-                    root = nextRoot.buffer().keccak();
+                    FsUtils.Assert(nextRoot.length() < 32); // "IP: child node too long";
+                    root = nextRoot.keccak();
                 }
             }
-            require(root == EMPTY_TRIE_HASH, "IP: incomplete proof");
+            if (root != EMPTY_TRIE_HASH) revert IncompleteProof();
             return res;
         }
     }
@@ -405,18 +446,18 @@ library TrieLib {
         }
         RLPItem item = RLP.requireRLPItem(accountRLP);
         RLPIterator it = item.requireRLPItemIterator();
-        require(it.hasNext(), "Invalid account");
+        FsUtils.Assert(it.hasNext());
         (item, it) = it.next();
         nonce = item.requireBytesView().decodeScalar();
-        require(it.hasNext(), "Invalid account");
+        FsUtils.Assert(it.hasNext());
         (item, it) = it.next();
         balance = item.requireBytesView().decodeScalar();
-        require(it.hasNext(), "invalid account");
+        FsUtils.Assert(it.hasNext());
         (item, it) = it.next();
-        storageHash = item.requireBytesView().loadBytes32(0);
-        require(it.hasNext(), "invalid account");
+        storageHash = item.requireBytesView().unsafeLoadBytes32(0);
+        FsUtils.Assert(it.hasNext());
         (item, it) = it.next();
-        codeHash = item.requireBytesView().loadBytes32(0);
+        codeHash = item.requireBytesView().unsafeLoadBytes32(0);
     }
 
     function proofStorageAt(
