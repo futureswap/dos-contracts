@@ -258,7 +258,7 @@ export const governatorAddress = "0x6eEf89f0383dD76c06A8a6Ead63cf95795B5bA3F";
 export const testGovernatorAddress = "0xc9B6088732E83ef013873e2f04d032F1a7a2E42D";
 
 export const testGovernatorHardhatSignature =
-  "0xdac1d5f854314694698344193a85e61e0d84273ab34097dd2c184ff5a203754b7c0a4d788fda789ebfb8fcaa7dd2bf6a69bb143e520bec233a1511c27bd2b8dc1c";
+  "0xb843a40459a06a1b53feba1397c39fa84a0c27dd3277ab3bea74063cf613f498666f4af3e9d69a55d173f02e497fd934468346cadeca7b270e47c63d9f0c255e1c";
 
 export const deployOffchainEntityProxy = async (
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
@@ -278,7 +278,7 @@ export const deployOffchainEntityProxy = async (
 export const fsSalt = "0x1234567890123456789012345678901234567890123456789012345678901234";
 
 const permit2Address = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
-const transferAndCall2Address = "0x86b18c7bc3A3a62954d2D755c20d28a1520e4b36";
+const transferAndCall2Address = "0xabf228b1F2Bf09a8Ff8882dA8AEf2AB72c2FE6a4";
 
 let futureSwapProxy: OffchainEntityProxy;
 let governanceProxy: GovernanceProxy | undefined;
