@@ -47,24 +47,6 @@ const config: HardhatUserConfig = {
   solidity: {
     compilers: [
       {
-        version: "0.8.7",
-        settings: {
-          metadata: {
-            // not including the metadata hash
-            // https://github.com/paulrberg/solidity-template/issues/31
-            bytecodeHash: "none",
-          },
-          optimizer: {
-            enabled: true,
-            runs: 200,
-            details: {
-              yul: true,
-            },
-          },
-          viaIR: true,
-        },
-      },
-      {
         version: "0.8.17",
         settings: {
           metadata: {
@@ -74,7 +56,7 @@ const config: HardhatUserConfig = {
           },
           optimizer: {
             enabled: true,
-            runs: 200,
+            runs: 2000000000,
             details: {
               yul: true,
             },

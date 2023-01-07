@@ -12,7 +12,7 @@ abstract contract ITransferReceiver2 {
     // we deploy it on local block chain on fixed address, when we go deploy this needs to change
     // to the permanent address.
     address private constant TRANSFER_AND_CALL2 =
-        address(0x86b18c7bc3A3a62954d2D755c20d28a1520e4b36);
+        address(0xabf228b1F2Bf09a8Ff8882dA8AEf2AB72c2FE6a4);
 
     error InvalidSender(address sender);
 
