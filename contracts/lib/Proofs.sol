@@ -143,33 +143,6 @@ library RLP {
         return !isList(item);
     }
 
-    function rlpLen(BytesView b) internal pure returns (uint256) {
-        unchecked {
-            require(b.length() > 0, "RLP: Empty buffer");
-            uint256 len = 0;
-            uint256 lenLen = 0;
-            uint256 initial = b.loadUInt8(0);
-            if (initial < 0x80) {
-                // nothing
-            } else if (initial < 0xb8) {
-                len = initial - 0x80;
-            } else if (initial < 0xc0) {
-                lenLen = initial - 0xb7;
-                // Continue below
-            } else if (initial < 0xf8) {
-                len = initial - 0xc0;
-            } else {
-                lenLen = initial - 0xf7;
-                // Continue below
-            }
-            for (uint256 i = 0; i < lenLen; i++) {
-                len = (len << 8) | b.loadUInt8(1 + i);
-            }
-            require(len + lenLen + 1 <= b.length(), "RLP: Invalid length rlpLen");
-            return len + lenLen + 1;
-        }
-    }
-
     function unsafeRLPLen(BytesView b) internal pure returns (uint256) {
         unchecked {
             FsUtils.Assert(b.length() > 0); // "RLP: Empty buffer");
@@ -177,28 +150,26 @@ library RLP {
             uint256 lenLen = 0;
             uint256 initial = b.loadUInt8(0);
             if (initial < 0x80) {
+                return 1;
                 // nothing
             } else if (initial < 0xb8) {
-                len = initial - 0x80;
+                return 1 + initial - 0x80;
             } else if (initial < 0xc0) {
                 lenLen = initial - 0xb7;
                 // Continue below
             } else if (initial < 0xf8) {
-                len = initial - 0xc0;
+                return 1 + initial - 0xc0;
             } else {
                 lenLen = initial - 0xf7;
                 // Continue below
             }
-            for (uint256 i = 0; i < lenLen; i++) {
-                len = (len << 8) | b.loadUInt8(1 + i);
-            }
-            FsUtils.Assert(len + lenLen + 1 <= b.length()); // "RLP: Invalid length rlpLen");
+            len = uint256(b.loadBytes32(1)) >> (8 * (32 - lenLen));
             return len + lenLen + 1;
         }
     }
 
     function requireRLPItem(BytesView b) internal pure returns (RLPItem) {
-        uint256 len = rlpLen(b);
+        uint256 len = unsafeRLPLen(b);
         require(len == b.length(), "RLP: Invalid length");
         return asRLPItem(b);
     }
@@ -218,10 +189,7 @@ library RLP {
                 return buffer(item).slice(1, tag - 0x80);
             } else {
                 uint256 lenLen = tag - 0xb7;
-                uint256 len = 0;
-                for (uint256 i = 0; i < lenLen; i++) {
-                    len = (len << 8) | buffer(item).loadUInt8(1 + i);
-                }
+                uint256 len = uint256(buffer(item).loadBytes32(1)) >> (8 * (32 - lenLen));
                 return buffer(item).slice(1 + lenLen, len);
             }
         }
@@ -242,9 +210,7 @@ library RLP {
                 len = initial - 0xc0;
             } else {
                 lenLen = initial - 0xf7;
-                for (uint256 i = 0; i < lenLen; i++) {
-                    len = (len << 8) | buffer(item).loadUInt8(1 + i);
-                }
+                len = uint256(buffer(item).loadBytes32(1)) >> (8 * (32 - lenLen));
             }
             FsUtils.Assert(len + lenLen + 1 == buffer(item).length()); // , "RLP: Invalid length it");
             BytesView b = buffer(item).slice(1 + lenLen, len);
@@ -259,14 +225,15 @@ library RLP {
     }
 
     function requireNext(RLPIterator it) internal pure returns (RLPItem item, RLPIterator nextIt) {
-        uint256 len = rlpLen(buffer(it));
+        uint256 len = unsafeRLPLen(buffer(it));
+        require(len <= buffer(it).length(), "RLP: Iterator out of bounds");
         item = requireRLPItem(buffer(it).slice(0, len));
         nextIt = asRLPIterator(buffer(it).skip(len));
     }
 
     function skipNext(RLPIterator it) internal pure returns (RLPIterator nextIt) {
         FsUtils.Assert(buffer(it).length() > 0); // "RLP: Iterator out of bounds");
-        uint256 len = rlpLen(buffer(it));
+        uint256 len = unsafeRLPLen(buffer(it));
         FsUtils.Assert(len <= buffer(it).length()); // , "RLP: Iterator out of bounds");
         nextIt = asRLPIterator(buffer(it).skip(len));
     }
@@ -308,6 +275,7 @@ library TrieLib {
     /// @param proof The proof of the key. Untrusted data.
     /// @return The value of the key if the key exists or empty if key doesn't exist.
     /// @notice The stored value is encoded as RLP and thus never empty, so empty means the key doesn't exist.
+    ///         This is reasonably optimized for gas, it's around 25k gas per proof depending on the depth.
     function verify(
         bytes memory key,
         bytes32 root,
@@ -353,7 +321,7 @@ library TrieLib {
                     }
 
                     if (p == nibblesLength) {
-                        res = nextRoot.requireBytesView();
+                        res = nextRoot.toBytesView();
                         continue;
                     }
                     keyBytes <<= 4;
