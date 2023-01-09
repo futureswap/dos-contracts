@@ -580,10 +580,11 @@ export async function transferFromERC721(
 }
 
 export async function getMaximumWithdrawableOfERC20(dos: IDOS, erc20: string): BigNumber {
-  const config = await dos.config();
+  const config: {liqFraction: BigNumber; fractionalReserveLeverage: BigNumber} = await dos.config();
   const leverage: BigNumber = config.fractionalReserveLeverage;
-  const erc20Idx = await dos.infoIdx(erc20);
-  const erc20Info = await dos.erc20Infos(erc20Idx.idx);
+  const infoIdx: {idx: number; kind: number} = await dos.infoIdx(erc20);
+  const erc20Idx: number = infoIdx.idx;
+  const erc20Info = await dos.erc20Infos(erc20Idx);
   const tokens: BigNumber = erc20Info.collateral.tokens;
   const minReserveAmount: BigNumber = tokens.div(leverage.add(1));
   const totalDebt: BigNumber = erc20Info.debt.tokens;
