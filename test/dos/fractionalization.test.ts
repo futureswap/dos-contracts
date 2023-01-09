@@ -47,7 +47,7 @@ describe("Fractionalization", () => {
 
     await nftOracle.setPrice(1, toWei(100));
 
-    const {dos, versionManager} = await deployDos(
+    const {dos, realDos, versionManager} = await deployDos(
       owner.address,
       anyswapCreate2Deployer,
       "0x3",
@@ -99,14 +99,15 @@ describe("Fractionalization", () => {
       nft,
       nftOracle,
       dos,
+      realDos,
     };
   }
 
   const oneHundredUsdc = toWei(100, USDC_DECIMALS);
 
-  describe.only("Fractional Reserve Leverage tests", () => {
+  describe("Fractional Reserve Leverage tests", () => {
     it("Check fractional reserve after user borrows", async () => {
-      const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, realDos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       // setup 1st user
       const dSafe1 = await createDSafe(dos, user);
@@ -121,7 +122,6 @@ describe("Fractionalization", () => {
       await dSafe2.executeBatch([makeCall(dos).depositERC20(weth.address, toWei(2))]);
 
       // check what the max to borrow of USDC is (90 USDC)
-      const realDos = await ethers.getContractAt("DOS", dos.address);
       const maxBorrowable = await getMaximumWithdrawableOfERC20(realDos, usdc.address);
 
       // borrow 90 USDC
@@ -137,7 +137,7 @@ describe("Fractionalization", () => {
 
     it("Fractional reserve check should fail after borrow and rate is set below threshold", async () => {
       // setup 2 users dSafes
-      const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, realDos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       // setup first user
       const dSafe1 = await createDSafe(dos, user);
@@ -151,7 +151,6 @@ describe("Fractionalization", () => {
       await weth.mint(dSafe2.address, toWei(2));
       await dSafe2.executeBatch([makeCall(dos).depositERC20(weth.address, toWei(2))]);
 
-      const realDos = await ethers.getContractAt("DOS", dos.address);
       const maxBorrowableUSDC = await getMaximumWithdrawableOfERC20(realDos, usdc.address);
 
       // user 2 borrows 90 USDC
@@ -175,7 +174,7 @@ describe("Fractionalization", () => {
       // vote on increasing maximum
       // borrow more
 
-      const {user, user2, dos, usdc, weth} = await loadFixture(deployDOSFixture);
+      const {user, user2, dos, realDos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       // setup 1st user
       const dSafe1 = await createDSafe(dos, user);
@@ -189,7 +188,6 @@ describe("Fractionalization", () => {
       await weth.mint(dSafe2.address, toWei(2));
       await dSafe2.executeBatch([makeCall(dos).depositERC20(weth.address, toWei(2))]);
 
-      const realDos = await ethers.getContractAt("DOS", dos.address);
       const maxBorrowableUSDC = await getMaximumWithdrawableOfERC20(realDos, usdc.address);
 
       // borrow 90 USDC // Max borrow for FRL
