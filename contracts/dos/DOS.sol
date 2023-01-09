@@ -1212,19 +1212,4 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         }
         return nftData;
     }
-
-    // TODO(gerben) #105 remove this function (its for tests)
-    function getMaximumWithdrawableOfERC20(IERC20 erc20) public view returns (int256) {
-        (ERC20Info storage erc20Info, ) = getERC20Info(erc20);
-        int256 leverage = config.fractionalReserveLeverage;
-        int256 tokens = erc20Info.collateral.tokens;
-
-        int256 minReserveAmount = tokens / (leverage + 1);
-        int256 totalDebt = erc20Info.debt.tokens;
-        int256 borrowable = erc20Info.collateral.tokens - minReserveAmount;
-
-        int256 remainingERC20ToBorrow = borrowable + totalDebt;
-
-        return remainingERC20ToBorrow;
-    }
 }

@@ -578,3 +578,16 @@ export async function transferFromERC721(
     makeCall(dos).transferFromERC721(nft, owner.address, to.address, tokenId),
   ]);
 }
+
+export async function getMaximumWithdrawableOfERC20(dos: IDOS, erc20: string): BigNumber {
+  const config = await dos.config();
+  const leverage: BigNumber = config.fractionalReserveLeverage;
+  const erc20Idx = await dos.infoIdx(erc20);
+  const erc20Info = await dos.erc20Infos(erc20Idx.idx);
+  const tokens: BigNumber = erc20Info.collateral.tokens;
+  const minReserveAmount: BigNumber = tokens.div(leverage.add(1));
+  const totalDebt: BigNumber = erc20Info.debt.tokens;
+  const borrowable: BigNumber = tokens.sub(minReserveAmount);
+  const remainingERC20ToBorrow: BigNumber = borrowable.add(totalDebt);
+  return remainingERC20ToBorrow;
+}
