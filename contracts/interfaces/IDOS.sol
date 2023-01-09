@@ -5,8 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Call} from "../lib/Call.sol";
 import {IERC20ValueOracle} from "./IERC20ValueOracle.sol";
 
-type ERC20Share is int256;
-
 interface IDOSERC20 is IERC20 {
     function mint(address account, uint256 amount) external;
 
