@@ -105,7 +105,9 @@ interface IDOSConfig {
     /// @param owner The address of the owner
     event DSafeCreated(address dSafe, address owner);
 
-    function upgradeDSafeImplementation(address dSafe, uint256 version) external;
+    function upgradeDSafeImplementation(uint256 version) external;
+
+    function transferDSafeOwnership(address newOwner) external;
 
     function addERC20Info(
         address erc20Contract,
@@ -139,6 +141,8 @@ interface IDOSConfig {
 
     function setConfig(Config calldata _config) external;
 
+    function setVersionManager(address _versionManager) external;
+
     function createDSafe() external returns (address dSafe);
 
     function pause() external;
@@ -151,6 +155,11 @@ interface IDOSConfig {
 }
 
 interface IDOSCore {
+    struct Approval {
+        address ercContract; // ERC20/ERC721 contract
+        uint256 amountOrTokenId; // amount or tokenId
+    }
+
     /// @notice Emitted when ERC20 tokens are transferred between credit accounts
     /// @param erc20 The address of the ERC20 token
     /// @param from The address of the sender
@@ -276,6 +285,12 @@ interface IDOSCore {
         address from,
         address to,
         uint256 tokenId
+    ) external;
+
+    function approveAndCall(
+        Approval[] calldata approvals,
+        address spender,
+        bytes calldata data
     ) external;
 
     /// @notice Returns the approved address for a token, or zero if no address set
