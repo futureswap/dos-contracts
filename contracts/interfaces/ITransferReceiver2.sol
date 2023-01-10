@@ -34,10 +34,7 @@ abstract contract ITransferReceiver2 {
     ) external virtual returns (bytes4);
 
     modifier onlyTransferAndCall2() {
-        if (msg.sender == TRANSFER_AND_CALL2) {
-            _;
-        } else {
-            revert InvalidSender(msg.sender);
-        }
+        if (msg.sender != TRANSFER_AND_CALL2) revert InvalidSender(msg.sender);
+        _;
     }
 }

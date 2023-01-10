@@ -60,7 +60,7 @@ contract GovernanceProxy {
     /// @notice Propose a new account as governance account. Note that this can
     /// only be called through the execute method above and hence only
     /// by the current governance.
-    /// @param newGovernance address of the new governance account
+    /// @param newGovernance address of the new governance account (or zero to revoke proposal)
     function proposeGovernance(address newGovernance) external {
         if (msg.sender != address(this)) revert OnlyGovernance();
         emit NewGovernanceProposed(newGovernance);
@@ -94,14 +94,12 @@ contract Governance is AccessControl, ERC1155Receiver {
     function executeBatch(CallWithoutValue[] memory calls) external {
         uint256 tokenId = hashNFT.toTokenId(voting, CallLib.hashCallWithoutValueArray(calls));
         hashNFT.burn(address(this), tokenId, 1); // reverts if tokenId isn't owned.
-        try governanceProxy().executeBatch(calls) {} catch {
-            require(gasleft() > 100000, "Governance: out of gas");
-        }
+
         // For governance calls we do not want them to revert and be in limbo. Thus if the batch
         // reverts we should still burn the NFT. The only caveat is that we want to prevent
         // sabotage votes by executing with insufficient gas and provoking a spurious revert.
-        bool failed;
-        string memory reason;
+        bool failed = false;
+        string memory reason = "";
         try governanceProxy().executeBatch(calls) {} catch Error(string memory _reason) {
             failed = true;
             reason = _reason;
@@ -135,7 +133,7 @@ contract Governance is AccessControl, ERC1155Receiver {
     }
 
     function transferVoting(address newVoting) external onlyGovernance {
-        voting = newVoting;
+        voting = FsUtils.nonNull(newVoting);
     }
 
     function setAccessLevel(

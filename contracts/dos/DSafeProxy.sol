@@ -19,6 +19,7 @@ import "../external/interfaces/IPermit2.sol";
 import {ISafe} from "../interfaces/ISafe.sol";
 import "./DSafeState.sol";
 import "./Liquifier.sol";
+import "../interfaces/IERC1363-extended.sol";
 
 /// @title DSafe Proxy
 /// @notice Proxy contract for DOS Safes
@@ -75,7 +76,8 @@ contract DSafeLogic is
     ITransferReceiver2,
     EIP712,
     ISafe,
-    Liquifier
+    Liquifier,
+    IERC1363SpenderExtended
 {
     struct Nonce {
         uint256 bitfield;

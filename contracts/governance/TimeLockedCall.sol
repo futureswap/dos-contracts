@@ -35,8 +35,8 @@ contract TimeLockedCall is ImmutableGovernance, Ownable2Step {
 
     function proposeBatch(CallWithoutValue[] calldata calls) external onlyOwner {
         uint256 executionTime = block.timestamp + lockTime;
-        hashNFT.mint(address(this), calcDigest(calls, executionTime), "");
         emit BatchProposed(calls, block.timestamp + lockTime);
+        hashNFT.mint(address(this), calcDigest(calls, executionTime), "");
     }
 
     function executeBatch(CallWithoutValue[] calldata calls, uint256 executionTime) external {
