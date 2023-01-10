@@ -10,10 +10,6 @@ import "../lib/Call.sol";
 import "../lib/FsUtils.sol";
 
 contract Voting is EIP712 {
-    using BytesViewLib for BytesView;
-    using RLP for RLPItem;
-    using RLP for RLPIterator;
-
     struct Proposal {
         bytes32 digest;
         uint256 deadline;
