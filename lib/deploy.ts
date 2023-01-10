@@ -423,7 +423,7 @@ export const deployDos = async (
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
   salt: ethers.BytesLike,
   signer: ethers.Signer,
-): Promise<{idos: IDOS; dos: DOS; versionManager: VersionManager}> => {
+): Promise<{iDos: IDOS; dos: DOS; versionManager: VersionManager}> => {
   const versionManager = await deployAtFixedAddress(
     new VersionManager__factory(signer),
     anyswapCreate2Deployer,
@@ -443,7 +443,7 @@ export const deployDos = async (
     dosConfig.address,
     versionManager.address,
   );
-  return {idos: IDOS__factory.connect(dos.address, signer), dos, versionManager};
+  return {iDos: IDOS__factory.connect(dos.address, signer), dos, versionManager};
 };
 
 export const setupDos = async (

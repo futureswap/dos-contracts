@@ -59,22 +59,22 @@ describe("DSafeProxy", () => {
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();
 
-    const {idos, versionManager} = await deployDos(
+    const {iDos, versionManager} = await deployDos(
       owner.address,
       anyswapCreate2Deployer,
       "0x04",
       owner,
     );
-    const proxyLogic = await new DSafeLogic__factory(owner).deploy(idos.address);
+    const proxyLogic = await new DSafeLogic__factory(owner).deploy(iDos.address);
     await versionManager.addVersion(2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
-    await idos.setConfig({
+    await iDos.setConfig({
       liqFraction: toWei(0.8),
       fractionalReserveLeverage: 9,
     });
 
-    await idos.addERC20Info(
+    await iDos.addERC20Info(
       usdc.address,
       "USD Coin",
       "USDC",
@@ -88,7 +88,7 @@ describe("DSafeProxy", () => {
       0,
     );
 
-    await idos.addERC20Info(
+    await iDos.addERC20Info(
       weth.address,
       "Wrapped ETH",
       "WETH",
@@ -102,7 +102,7 @@ describe("DSafeProxy", () => {
       0,
     );
 
-    await idos.addERC721Info(nft.address, nftOracle.address, toWei(0.5));
+    await iDos.addERC721Info(nft.address, nftOracle.address, toWei(0.5));
 
     const getBalances = async (
       dSafe: DSafeLogic,
@@ -112,14 +112,14 @@ describe("DSafeProxy", () => {
       weth: BigNumber;
     }> => {
       const [nfts, usdcBal, wethBal] = await Promise.all([
-        idos.getDAccountERC721(dSafe.address),
-        idos.getDAccountERC20(dSafe.address, usdc.address),
-        idos.getDAccountERC20(dSafe.address, weth.address),
+        iDos.getDAccountERC721(dSafe.address),
+        iDos.getDAccountERC20(dSafe.address, usdc.address),
+        iDos.getDAccountERC20(dSafe.address, weth.address),
       ]);
       return {nfts, usdc: usdcBal, weth: wethBal};
     };
 
-    const dSafe = await createDSafe(idos, user);
+    const dSafe = await createDSafe(iDos, user);
     await usdc.mint(user.address, tenThousandUsdc);
     await weth.connect(user).deposit({value: oneEth});
     await usdc.connect(user).approve(transferAndCall2.address, ethers.constants.MaxUint256);
@@ -137,7 +137,7 @@ describe("DSafeProxy", () => {
       nft,
       nftOracle, // some registered nft
       unregisteredNft, // some unregistered nft
-      idos,
+      iDos,
       permit2,
       getBalances,
       dSafe,
@@ -199,9 +199,9 @@ describe("DSafeProxy", () => {
   });
 
   it("should be able to transferAndCall into other dSafe and make a swap with signatures", async () => {
-    const {user, user2, usdc, weth, idos, transferAndCall2} = await loadFixture(deployDOSFixture);
+    const {user, user2, usdc, weth, iDos, transferAndCall2} = await loadFixture(deployDOSFixture);
 
-    const dSafe2 = await createDSafe(idos, user2);
+    const dSafe2 = await createDSafe(iDos, user2);
     await usdc.connect(user).transfer(dSafe2.address, tenThousandUsdc);
 
     const signedCall = {
