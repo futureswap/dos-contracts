@@ -615,21 +615,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return this.onERC721Received.selector;
     }
 
-    /// @notice provides the specific version of dSafeLogic contract that is associated with `dSafe`
-    /// @param dSafe Address of dSafe whose dSafeLogic contract should be returned
-    /// @return the address of the dSafeLogic contract that is associated with the `dSafe`
-    function getImplementation(address dSafe) external view override returns (address) {
-        // not using msg.sender since this is an external view function
-        return dSafeLogic[dSafe];
-    }
-
-    /// @notice provides the owner of `dSafe`. Owner of the dSafe is the address who created the dSafe
-    /// @param dSafe The address of dSafe whose owner should be returned
-    /// @return the owner address of the `dSafe`. Owner is the one who created the `dSafe`
-    function getDSafeOwner(address dSafe) external view override returns (address) {
-        return dSafes[dSafe].owner;
-    }
-
     /// @notice Approve an array of tokens and then call `onApprovalReceived` on spender
     /// @param approvals An array of ERC20 tokens with amounts, or ERC721 contracts with tokenIds
     /// @param spender The address of the spender dSafe
@@ -655,6 +640,21 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         for (uint256 i = 0; i < approvals.length; i++) {
             _approve(msg.sender, spender, approvals[i].ercContract, prev[i], address(0)); // reset allowance
         }
+    }
+
+    /// @notice provides the specific version of dSafeLogic contract that is associated with `dSafe`
+    /// @param dSafe Address of dSafe whose dSafeLogic contract should be returned
+    /// @return the address of the dSafeLogic contract that is associated with the `dSafe`
+    function getImplementation(address dSafe) external view override returns (address) {
+        // not using msg.sender since this is an external view function
+        return dSafeLogic[dSafe];
+    }
+
+    /// @notice provides the owner of `dSafe`. Owner of the dSafe is the address who created the dSafe
+    /// @param dSafe The address of dSafe whose owner should be returned
+    /// @return the owner address of the `dSafe`. Owner is the one who created the `dSafe`
+    function getDSafeOwner(address dSafe) external view override returns (address) {
+        return dSafes[dSafe].owner;
     }
 
     /// @notice returns the collateral, debt and total value of `dSafeAddress`.
