@@ -30,6 +30,8 @@ interface IDOSConfig {
     /// @param version The new implementation version
     event DSafeImplementationUpgraded(address indexed dSafe, uint256 indexed version);
 
+    event DSafeOwnershipTransferred(address indexed dSafe, address indexed newOwner);
+
     /// @notice Emitted when a new ERC20 is added to the protocol
     /// @param erc20Idx The index of the ERC20 in the protocol
     /// @param erc20 The address of the ERC20 contract

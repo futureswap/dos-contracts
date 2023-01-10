@@ -281,7 +281,7 @@ export const deployOffchainEntityProxy = async (
 export const fsSalt = "0x1234567890123456789012345678901234567890123456789012345678901234";
 
 const permit2Address = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
-const transferAndCall2Address = "0xabf228b1F2Bf09a8Ff8882dA8AEf2AB72c2FE6a4";
+const transferAndCall2Address = "0xE43C615729F4d93E2532064a4e2ABec2f7D81ce1";
 
 let futureSwapProxy: OffchainEntityProxy;
 let governanceProxy: GovernanceProxy | undefined;
@@ -323,6 +323,10 @@ export const deployFixedAddressForTests = async (
       fsSalt,
       testGovernatorAddress,
     );
+    console.log({
+      transferAndCall2: deployedTransferAndCall2.address,
+      futureSwapProxy: futureSwapProxy.address,
+    });
     // eslint-disable-next-line require-atomic-updates
     governanceProxy = await deployGovernanceProxy(
       isCoverage ? await signer.getAddress() : futureSwapProxy.address,
@@ -482,6 +486,7 @@ export const setupDos = async (
     makeCall(ethOracle).setPrice(toWei(ETH_PRICE), USDC_DECIMALS, ETHEREUM_DECIMALS),
     makeCall(uniOracle).setPrice(toWei(UNI_PRICE), USDC_DECIMALS, ETHEREUM_DECIMALS),
     makeCall(dos).setConfig({
+      maxSolvencyCheckGasCost: 1e6,
       liqFraction: toWei(0.8),
       fractionalReserveLeverage: 9,
     }),

@@ -272,6 +272,21 @@ contract DOSState is Pausable {
 
     IDOSConfig.Config public config;
 
+    modifier onlyDSafe() {
+        _requireNotPaused();
+        if (dSafes[msg.sender].owner == address(0)) {
+            revert OnlyDSafe();
+        }
+        _;
+    }
+
+    modifier dSafeExists(address dSafe) {
+        if (dSafes[dSafe].owner == address(0)) {
+            revert DSafeNonExistent();
+        }
+        _;
+    }
+
     function getBalance(
         ERC20Share shares,
         ERC20Info storage erc20Info
@@ -315,21 +330,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     using Address for address;
 
     address immutable dosConfigAddress;
-
-    modifier onlyDSafe() {
-        _requireNotPaused();
-        if (dSafes[msg.sender].owner == address(0)) {
-            revert OnlyDSafe();
-        }
-        _;
-    }
-
-    modifier dSafeExists(address dSafe) {
-        if (dSafes[dSafe].owner == address(0)) {
-            revert DSafeNonExistent();
-        }
-        _;
-    }
 
     modifier onlyRegisteredNFT(address nftContract, uint256 tokenId) {
         // how can we be sure that Oracle would have a price for any possible tokenId?
@@ -728,7 +728,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             require(reserve >= -totalDebt / leverage, "Not enough reserve for debt");
         }
         (, int256 collateral, int256 debt) = getRiskAdjustedPositionValues(dSafe);
-        if (gasBefore - gasleft > config.maxSolvencyCheckGasCost)
+        if (gasBefore - gasleft() > config.maxSolvencyCheckGasCost)
             revert SolvencyCheckTooExpensive();
         return collateral >= debt;
     }
