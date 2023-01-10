@@ -65,7 +65,7 @@ contract Voting is EIP712 {
             proposalId < proposals.length && proposals[proposalId].deadline > 0,
             "proposal not found"
         );
-        require(proposals[proposalId].deadline > block.timestamp, "voting ended");
+        require(proposals[proposalId].deadline >= block.timestamp, "voting ended");
         _;
     }
 
