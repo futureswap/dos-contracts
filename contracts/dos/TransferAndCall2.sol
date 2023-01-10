@@ -25,6 +25,10 @@ contract TransferAndCall2 is IERC1363Receiver {
         bytes data
     );
 
+    error TransfersUnsorted();
+
+    error EthDoesntMatchWethTransfer();
+
     error UnauthorizedOperator(address operator, address from);
 
     /// @dev Set approval for all token transfers from msg.sender to a particular operator
@@ -100,23 +104,26 @@ contract TransferAndCall2 is IERC1363Receiver {
         ITransferReceiver2.Transfer[] calldata transfers,
         bytes memory data
     ) internal {
-        if (msg.value != 0) {
+        uint256 ethAmount = msg.value;
+        if (ethAmount != 0) {
             IWETH9(payable(weth)).deposit{value: msg.value}();
             IERC20(weth).safeTransfer(receiver, msg.value);
         }
         address prev = address(0);
         for (uint256 i = 0; i < transfers.length; i++) {
             address tokenAddress = transfers[i].token;
-            require(prev < tokenAddress, "transfer tokens addresses are not in order");
+            if (prev >= tokenAddress) revert TransfersUnsorted();
             prev = tokenAddress;
             uint256 amount = transfers[i].amount;
             if (tokenAddress == weth) {
                 // Already send WETH
-                amount -= msg.value; // reverts if msg.value > amount
+                amount -= ethAmount; // reverts if msg.value > amount
+                ethAmount = 0;
             }
             IERC20 token = IERC20(tokenAddress);
             if (amount > 0) token.safeTransferFrom(from, receiver, amount);
         }
+        if (ethAmount != 0) revert EthDoesntMatchWethTransfer();
         if (receiver.isContract()) {
             callOnTransferReceived2(receiver, msg.sender, from, transfers, data);
         }

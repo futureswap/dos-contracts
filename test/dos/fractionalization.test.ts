@@ -58,6 +58,7 @@ describe("Fractionalization", () => {
     await versionManager.markRecommendedVersion("1.0.0");
 
     await iDos.setConfig({
+      maxSolvencyCheckGasCost: 1e6,
       liqFraction: toWei(0.8),
       fractionalReserveLeverage: 9,
     });
@@ -160,6 +161,7 @@ describe("Fractionalization", () => {
 
       // vote for FDR to change
       await iDos.setConfig({
+        maxSolvencyCheckGasCost: 1e6,
         liqFraction: toWei(0.8),
         fractionalReserveLeverage: 8,
       });
@@ -197,6 +199,7 @@ describe("Fractionalization", () => {
 
       // //vote for FDR to change
       await iDos.setConfig({
+        maxSolvencyCheckGasCost: 1e6,
         liqFraction: toWei(0.8),
         fractionalReserveLeverage: 10,
       });

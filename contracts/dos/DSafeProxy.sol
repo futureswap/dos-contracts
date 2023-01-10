@@ -89,10 +89,10 @@ contract DSafeLogic is
     bytes private constant ONTRANSFERRECEIVED2CALL_TYPESTRING =
         "OnTransferReceived2Call(address operator,address from,Transfer[] transfers,Call[] calls,uint256 nonce,uint256 deadline)";
 
-    bytes32 constant EXECUTEBATCH_TYPEHASH =
+    bytes32 private constant EXECUTEBATCH_TYPEHASH =
         keccak256(abi.encodePacked(EXECUTEBATCH_TYPESTRING, CallLib.CALL_TYPESTRING));
-    bytes32 constant TRANSFER_TYPEHASH = keccak256(TRANSFER_TYPESTRING);
-    bytes32 constant ONTRANSFERRECEIVED2CALL_TYPEHASH =
+    bytes32 private constant TRANSFER_TYPEHASH = keccak256(TRANSFER_TYPESTRING);
+    bytes32 private constant ONTRANSFERRECEIVED2CALL_TYPEHASH =
         keccak256(
             abi.encodePacked(
                 ONTRANSFERRECEIVED2CALL_TYPESTRING,
@@ -101,7 +101,7 @@ contract DSafeLogic is
             )
         );
 
-    string constant VERSION = "1.0.0";
+    string private constant VERSION = "1.0.0";
 
     mapping(uint248 => Nonce) public nonces;
 
@@ -312,8 +312,7 @@ contract DSafeLogic is
         slot.bitfield = slot.bitfield | bitmask;
     }
 
-    function splitNonce(uint256 nonce) internal view returns (Nonce storage slot, uint256 bitmask) {
-        slot = nonces[uint248(nonce >> 8)];
-        bitmask = 1 << (nonce & 0xff);
+    function splitNonce(uint256 nonce) internal view returns (Nonce storage, uint256) {
+        return (nonces[uint248(nonce >> 8)], 1 << (nonce & 0xff));
     }
 }

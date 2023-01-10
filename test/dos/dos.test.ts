@@ -78,6 +78,7 @@ describe("DOS", () => {
     await versionManager.markRecommendedVersion("1.0.0");
 
     await iDos.setConfig({
+      maxSolvencyCheckGasCost: 1e6,
       liqFraction: toWei(0.8),
       fractionalReserveLeverage: 9,
     });

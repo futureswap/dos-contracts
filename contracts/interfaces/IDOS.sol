@@ -15,6 +15,7 @@ interface IDOSERC20 is IERC20 {
 
 interface IDOSConfig {
     struct Config {
+        uint256 maxSolvencyCheckGasCost;
         int256 liqFraction; // Fraction for the user
         int256 fractionalReserveLeverage; // Ratio of debt to reserves
     }
@@ -28,6 +29,8 @@ interface IDOSConfig {
     /// @param dSafe The address of the dSafe
     /// @param version The new implementation version
     event DSafeImplementationUpgraded(address indexed dSafe, uint256 indexed version);
+
+    event DSafeOwnershipTransferred(address indexed dSafe, address indexed newOwner);
 
     /// @notice Emitted when a new ERC20 is added to the protocol
     /// @param erc20Idx The index of the ERC20 in the protocol
@@ -102,7 +105,9 @@ interface IDOSConfig {
     /// @param owner The address of the owner
     event DSafeCreated(address dSafe, address owner);
 
-    function upgradeDSafeImplementation(address dSafe, uint256 version) external;
+    function upgradeDSafeImplementation(uint256 version) external;
+
+    function transferDSafeOwnership(address newOwner) external;
 
     function addERC20Info(
         address erc20Contract,
@@ -136,6 +141,8 @@ interface IDOSConfig {
 
     function setConfig(Config calldata _config) external;
 
+    function setVersionManager(address _versionManager) external;
+
     function createDSafe() external returns (address dSafe);
 
     function pause() external;
@@ -148,6 +155,11 @@ interface IDOSConfig {
 }
 
 interface IDOSCore {
+    struct Approval {
+        address ercContract; // ERC20/ERC721 contract
+        uint256 amountOrTokenId; // amount or tokenId
+    }
+
     /// @notice Emitted when ERC20 tokens are transferred between credit accounts
     /// @param erc20 The address of the ERC20 token
     /// @param from The address of the sender
@@ -225,6 +237,9 @@ interface IDOSCore {
     /// @param liquidator The address of the liquidator
     event SafeLiquidated(address indexed dSafe, address indexed liquidator);
 
+    /// @notice Error thrown if a dSafe accumulates too many assets
+    error SolvencyCheckTooExpensive();
+
     function liquidate(address dSafe) external;
 
     function depositERC20(IERC20 erc20, uint256 amount) external;
@@ -270,6 +285,12 @@ interface IDOSCore {
         address from,
         address to,
         uint256 tokenId
+    ) external;
+
+    function approveAndCall(
+        Approval[] calldata approvals,
+        address spender,
+        bytes calldata data
     ) external;
 
     /// @notice Returns the approved address for a token, or zero if no address set

@@ -53,16 +53,16 @@ contract TimeLockedCall is ImmutableGovernance, Ownable2Step {
         _setLockTime(_lockTime);
     }
 
+    function _setLockTime(uint256 _lockTime) internal {
+        require(_lockTime >= MIN_TIMELOCK, "TimeLockedCall: too short");
+        require(_lockTime <= MAX_TIMELOCK, "TimeLockedCall: too long");
+        lockTime = _lockTime;
+    }
+
     function calcDigest(
         CallWithoutValue[] calldata calls,
         uint256 executionTime
     ) internal pure returns (bytes32) {
         return keccak256(abi.encode(executionTime, calls));
-    }
-
-    function _setLockTime(uint256 _lockTime) internal {
-        require(_lockTime >= MIN_TIMELOCK, "TimeLockedCall: too short");
-        require(_lockTime <= MAX_TIMELOCK, "TimeLockedCall: too long");
-        lockTime = _lockTime;
     }
 }

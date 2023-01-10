@@ -107,64 +107,6 @@ abstract contract Liquifier is DSafeState {
         dos.executeBatch(calls);
     }
 
-    function analiseDAccountStructure(
-        IERC20[] calldata erc20s,
-        address numeraire
-    )
-        private
-        view
-        returns (
-            IERC20[] memory erc20sToWithdraw,
-            uint256[] memory erc20sToSellAmounts,
-            IERC20[] memory erc20sToDeposit,
-            uint256[] memory erc20sToBuyAmounts
-        )
-    {
-        uint256 numToWithdraw = 0;
-        uint256 numToDeposit = 0;
-        int256[] memory balances = new int256[](erc20s.length);
-
-        for (uint256 i = 0; i < erc20s.length; i++) {
-            int256 balance = dos.getDAccountERC20(address(this), erc20s[i]);
-            if (balance > 0) {
-                balances[i] = balance;
-                numToWithdraw++;
-            } else if (balance < 0) {
-                balances[i] = balance;
-                numToDeposit++;
-            }
-        }
-
-        int256 dAccountNumeraireBalance = dos.getDAccountERC20(address(this), IERC20(numeraire));
-        if (dAccountNumeraireBalance > 0) {
-            numToWithdraw++;
-        } else if (dAccountNumeraireBalance < 0) {
-            numToDeposit++;
-        }
-
-        erc20sToWithdraw = new IERC20[](numToWithdraw);
-        erc20sToSellAmounts = new uint256[](erc20s.length);
-        erc20sToDeposit = new IERC20[](numToDeposit);
-        erc20sToBuyAmounts = new uint256[](erc20s.length);
-
-        if (dAccountNumeraireBalance > 0) {
-            erc20sToWithdraw[0] = IERC20(numeraire);
-        } else if (dAccountNumeraireBalance < 0) {
-            erc20sToDeposit[0] = IERC20(numeraire);
-        }
-
-        for (uint256 i = 0; i < erc20s.length; i++) {
-            int256 balance = balances[i];
-            if (balance > 0) {
-                erc20sToWithdraw[--numToWithdraw] = erc20s[i];
-                erc20sToSellAmounts[i] = uint256(balance);
-            } else if (balance < 0) {
-                erc20sToDeposit[--numToDeposit] = erc20s[i];
-                erc20sToBuyAmounts[i] = uint256(-balance);
-            }
-        }
-    }
-
     // !modifies the erc20sToSellAmounts! amounts of tokens obtained from NFTs termination would
     // be added to the corresponding items of erc20sToSellAmounts
     function terminateERC721s(
@@ -252,6 +194,64 @@ abstract contract Liquifier is DSafeState {
                     sqrtPriceLimitX96: 0
                 });
             ISwapRouter(swapRouter).exactOutputSingle(params);
+        }
+    }
+
+    function analiseDAccountStructure(
+        IERC20[] calldata erc20s,
+        address numeraire
+    )
+        private
+        view
+        returns (
+            IERC20[] memory erc20sToWithdraw,
+            uint256[] memory erc20sToSellAmounts,
+            IERC20[] memory erc20sToDeposit,
+            uint256[] memory erc20sToBuyAmounts
+        )
+    {
+        uint256 numToWithdraw = 0;
+        uint256 numToDeposit = 0;
+        int256[] memory balances = new int256[](erc20s.length);
+
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            int256 balance = dos.getDAccountERC20(address(this), erc20s[i]);
+            if (balance > 0) {
+                balances[i] = balance;
+                numToWithdraw++;
+            } else if (balance < 0) {
+                balances[i] = balance;
+                numToDeposit++;
+            }
+        }
+
+        int256 dAccountNumeraireBalance = dos.getDAccountERC20(address(this), IERC20(numeraire));
+        if (dAccountNumeraireBalance > 0) {
+            numToWithdraw++;
+        } else if (dAccountNumeraireBalance < 0) {
+            numToDeposit++;
+        }
+
+        erc20sToWithdraw = new IERC20[](numToWithdraw);
+        erc20sToSellAmounts = new uint256[](erc20s.length);
+        erc20sToDeposit = new IERC20[](numToDeposit);
+        erc20sToBuyAmounts = new uint256[](erc20s.length);
+
+        if (dAccountNumeraireBalance > 0) {
+            erc20sToWithdraw[0] = IERC20(numeraire);
+        } else if (dAccountNumeraireBalance < 0) {
+            erc20sToDeposit[0] = IERC20(numeraire);
+        }
+
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            int256 balance = balances[i];
+            if (balance > 0) {
+                erc20sToWithdraw[--numToWithdraw] = erc20s[i];
+                erc20sToSellAmounts[i] = uint256(balance);
+            } else if (balance < 0) {
+                erc20sToDeposit[--numToDeposit] = erc20s[i];
+                erc20sToBuyAmounts[i] = uint256(-balance);
+            }
         }
     }
 }

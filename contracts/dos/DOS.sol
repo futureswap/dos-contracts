@@ -89,11 +89,6 @@ struct ERC20Pool {
     int256 shares;
 }
 
-struct Approval {
-    address ercContract; // ERC20/ERC721 contract
-    uint256 amountOrTokenId; // amount or tokenId
-}
-
 library DSafeLib {
     type NFTId is uint256; // 16 bits (tokenId) + 224 bits (hash) + 16 bits (erc721 index)
 
@@ -272,6 +267,21 @@ contract DOSState is Pausable {
 
     IDOSConfig.Config public config;
 
+    modifier onlyDSafe() {
+        _requireNotPaused();
+        if (dSafes[msg.sender].owner == address(0)) {
+            revert OnlyDSafe();
+        }
+        _;
+    }
+
+    modifier dSafeExists(address dSafe) {
+        if (dSafes[dSafe].owner == address(0)) {
+            revert DSafeNonExistent();
+        }
+        _;
+    }
+
     function getBalance(
         ERC20Share shares,
         ERC20Info storage erc20Info
@@ -316,21 +326,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
 
     address immutable dosConfigAddress;
 
-    modifier onlyDSafe() {
-        _requireNotPaused();
-        if (dSafes[msg.sender].owner == address(0)) {
-            revert OnlyDSafe();
-        }
-        _;
-    }
-
-    modifier dSafeExists(address dSafe) {
-        if (dSafes[dSafe].owner == address(0)) {
-            revert DSafeNonExistent();
-        }
-        _;
-    }
-
     modifier onlyRegisteredNFT(address nftContract, uint256 tokenId) {
         // how can we be sure that Oracle would have a price for any possible tokenId?
         // maybe we should check first if Oracle can return a value for this specific NFT?
@@ -362,7 +357,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         address erc20,
         address to,
         uint256 amount
-    ) external dSafeExists(to) whenNotPaused {
+    ) external override dSafeExists(to) whenNotPaused {
         if (amount == 0) return;
         (, uint16 erc20Idx) = getERC20Info(IERC20(erc20));
         int256 signedAmount = FsMath.safeCastToSigned(amount);
@@ -391,7 +386,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         int256 signedAmount = FsMath.safeCastToSigned(amount);
         _dAccountERC20ChangeBy(msg.sender, erc20Idx, -signedAmount);
         emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, -signedAmount);
-        erc20.safeTransfer(msg.sender, uint256(amount));
+        erc20.safeTransfer(msg.sender, amount);
     }
 
     /// @notice deposit all `erc20s` from dSafe to dAccount
@@ -401,9 +396,10 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20s[i]);
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
             uint256 amount = erc20.balanceOf(msg.sender);
-            erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
-            _dAccountERC20ChangeBy(msg.sender, erc20Idx, FsMath.safeCastToSigned(amount));
-            emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, int256(amount));
+            int256 signedAmount = FsMath.safeCastToSigned(amount);
+            _dAccountERC20ChangeBy(msg.sender, erc20Idx, signedAmount);
+            emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, signedAmount);
+            erc20.safeTransferFrom(msg.sender, address(this), amount);
         }
     }
 
@@ -415,8 +411,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
             int256 amount = _dAccountERC20Clear(msg.sender, erc20Idx);
             require(amount >= 0, "Can't withdraw debt");
+            emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, amount);
             erc20.safeTransfer(msg.sender, uint256(amount));
-            emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, int256(amount));
         }
     }
 
@@ -430,6 +426,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         uint256 tokenId
     )
         external
+        override
         onlyDSafe
         onlyRegisteredNFT(erc721Contract, tokenId)
         onlyNFTOwner(erc721Contract, tokenId)
@@ -466,7 +463,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @notice withdraw ERC721 `nftContract` token `tokenId` from dAccount to dSafe
     /// @param erc721 The address of the ERC721 contract that the token belongs to
     /// @param tokenId The id of the token to be transferred
-    function withdrawERC721(address erc721, uint256 tokenId) external onlyDSafe {
+    function withdrawERC721(address erc721, uint256 tokenId) external override onlyDSafe {
         DSafeLib.NFTId nftId = _getNFTId(erc721, tokenId);
 
         dSafes[msg.sender].extractNFT(nftId, tokenDataByNFTId);
@@ -484,7 +481,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         IERC20 erc20,
         address to,
         uint256 amount
-    ) external onlyDSafe dSafeExists(to) {
+    ) external override onlyDSafe dSafeExists(to) {
         if (amount == 0) return;
         _transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
     }
@@ -498,7 +495,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         address erc721,
         uint256 tokenId,
         address to
-    ) external onlyDSafe dSafeExists(to) {
+    ) external override onlyDSafe dSafeExists(to) {
         DSafeLib.NFTId nftId = _getNFTId(erc721, tokenId);
         _transferNFT(nftId, msg.sender, to);
     }
@@ -515,7 +512,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         address from,
         address to,
         uint256 amount
-    ) external onlyDSafe dSafeExists(from) dSafeExists(to) whenNotPaused returns (bool) {
+    ) external override onlyDSafe dSafeExists(from) dSafeExists(to) whenNotPaused returns (bool) {
         address spender = msg.sender;
         _spendAllowance(erc20, from, spender, amount);
         _transferERC20(IERC20(erc20), from, to, FsMath.safeCastToSigned(amount));
@@ -532,7 +529,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         address from,
         address to,
         uint256 tokenId
-    ) external onlyDSafe dSafeExists(to) {
+    ) external override onlyDSafe dSafeExists(to) {
         DSafeLib.NFTId nftId = _getNFTId(collection, tokenId);
         if (!_isApprovedOrOwner(msg.sender, from, nftId)) {
             revert NotApprovedOrOwner();
@@ -618,21 +615,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return this.onERC721Received.selector;
     }
 
-    /// @notice provides the specific version of dSafeLogic contract that is associated with `dSafe`
-    /// @param dSafe Address of dSafe whose dSafeLogic contract should be returned
-    /// @return the address of the dSafeLogic contract that is associated with the `dSafe`
-    function getImplementation(address dSafe) external view override returns (address) {
-        // not using msg.sender since this is an external view function
-        return dSafeLogic[dSafe];
-    }
-
-    /// @notice provides the owner of `dSafe`. Owner of the dSafe is the address who created the dSafe
-    /// @param dSafe The address of dSafe whose owner should be returned
-    /// @return the owner address of the `dSafe`. Owner is the one who created the `dSafe`
-    function getDSafeOwner(address dSafe) external view override returns (address) {
-        return dSafes[dSafe].owner;
-    }
-
     /// @notice Approve an array of tokens and then call `onApprovalReceived` on spender
     /// @param approvals An array of ERC20 tokens with amounts, or ERC721 contracts with tokenIds
     /// @param spender The address of the spender dSafe
@@ -641,7 +623,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         Approval[] calldata approvals,
         address spender,
         bytes calldata data
-    ) public onlyDSafe dSafeExists(spender) {
+    ) external override onlyDSafe dSafeExists(spender) {
         uint256[] memory prev = new uint256[](approvals.length);
         for (uint256 i = 0; i < approvals.length; i++) {
             prev[i] = _approve(
@@ -660,6 +642,21 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
+    /// @notice provides the specific version of dSafeLogic contract that is associated with `dSafe`
+    /// @param dSafe Address of dSafe whose dSafeLogic contract should be returned
+    /// @return the address of the dSafeLogic contract that is associated with the `dSafe`
+    function getImplementation(address dSafe) external view override returns (address) {
+        // not using msg.sender since this is an external view function
+        return dSafeLogic[dSafe];
+    }
+
+    /// @notice provides the owner of `dSafe`. Owner of the dSafe is the address who created the dSafe
+    /// @param dSafe The address of dSafe whose owner should be returned
+    /// @return the owner address of the `dSafe`. Owner is the one who created the `dSafe`
+    function getDSafeOwner(address dSafe) external view override returns (address) {
+        return dSafes[dSafe].owner;
+    }
+
     /// @notice returns the collateral, debt and total value of `dSafeAddress`.
     /// @dev Notice that both collateral and debt has some coefficients on the actual amount of deposit
     /// and loan assets! E.g.
@@ -675,6 +672,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     )
         public
         view
+        override
         dSafeExists(dSafeAddress)
         returns (int256 totalValue, int256 collateral, int256 debt)
     {
@@ -705,35 +703,14 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
-    /// @notice Checks if the account's positions are overcollateralized
-    /// @dev checks the eventual state of `executeBatch` function execution:
-    /// * `dSafe` must have collateral >= debt
-    /// * DOS must have sufficient balance of deposits and loans for each ERC20 token
-    /// @dev when called by the end of `executeBatch`, isSolvent checks the potential target state
-    /// of DOS. Calling this function separately would check current state of DOS, that is always
-    /// solvable, and so the return value would always be `true`, unless the `dSafe` is liquidatable
-    /// @param dSafe The address of a dSafe who performed the `executeBatch`
-    /// @return Whether the position is solvent.
-    function isSolvent(address dSafe) public view returns (bool) {
-        // todo track each erc20 on-change instead of iterating over all DOS stuff
-        int256 leverage = config.fractionalReserveLeverage;
-        for (uint256 i = 0; i < erc20Infos.length; i++) {
-            int256 totalDebt = erc20Infos[i].debt.tokens;
-            int256 reserve = erc20Infos[i].collateral.tokens + totalDebt;
-            FsUtils.Assert(
-                IERC20(erc20Infos[i].erc20Contract).balanceOf(address(this)) >= uint256(reserve)
-            );
-            require(reserve >= -totalDebt / leverage, "Not enough reserve for debt");
-        }
-        (, int256 collateral, int256 debt) = getRiskAdjustedPositionValues(dSafe);
-        return collateral >= debt;
-    }
-
     /// @notice Returns the approved address for a token, or zero if no address set
     /// @param collection The address of the ERC721 token
     /// @param tokenId The id of the token to query
     /// @return The dSafe address that is allowed to transfer the ERC721 token
-    function getApproved(address collection, uint256 tokenId) public view returns (address) {
+    function getApproved(
+        address collection,
+        uint256 tokenId
+    ) public view override returns (address) {
         DSafeLib.NFTId nftId = _getNFTId(collection, tokenId);
         return tokenDataByNFTId[nftId].approvedSpender;
     }
@@ -747,7 +724,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         address collection,
         address _owner,
         address spender
-    ) public view returns (bool) {
+    ) public view override returns (bool) {
         return operatorApprovals[collection][_owner][spender];
     }
 
@@ -771,7 +748,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @notice Compute the interest rate of `underlying`
     /// @param erc20Idx The underlying asset
     /// @return The interest rate of `erc20Idx`
-    function computeInterestRate(uint16 erc20Idx) public view returns (int96) {
+    function computeInterestRate(uint16 erc20Idx) public view override returns (int96) {
         ERC20Info memory erc20Info = erc20Infos[erc20Idx];
         uint256 debt = FsMath.safeCastToUnsigned(-erc20Info.debt.tokens); // question: is debt ever positive?
         uint256 collateral = FsMath.safeCastToUnsigned(erc20Info.collateral.tokens); // question: is collateral ever negative?
@@ -959,6 +936,33 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         // TODO(gerben) #103 add to treasury
     }
 
+    /// @notice Checks if the account's positions are overcollateralized
+    /// @dev checks the eventual state of `executeBatch` function execution:
+    /// * `dSafe` must have collateral >= debt
+    /// * DOS must have sufficient balance of deposits and loans for each ERC20 token
+    /// @dev when called by the end of `executeBatch`, isSolvent checks the potential target state
+    /// of DOS. Calling this function separately would check current state of DOS, that is always
+    /// solvable, and so the return value would always be `true`, unless the `dSafe` is liquidatable
+    /// @param dSafe The address of a dSafe who performed the `executeBatch`
+    /// @return Whether the position is solvent.
+    function isSolvent(address dSafe) internal view returns (bool) {
+        // todo track each erc20 on-change instead of iterating over all DOS stuff
+        uint gasBefore = gasleft();
+        int256 leverage = config.fractionalReserveLeverage;
+        for (uint256 i = 0; i < erc20Infos.length; i++) {
+            int256 totalDebt = erc20Infos[i].debt.tokens;
+            int256 reserve = erc20Infos[i].collateral.tokens + totalDebt;
+            FsUtils.Assert(
+                IERC20(erc20Infos[i].erc20Contract).balanceOf(address(this)) >= uint256(reserve)
+            );
+            require(reserve >= -totalDebt / leverage, "Not enough reserve for debt");
+        }
+        (, int256 collateral, int256 debt) = getRiskAdjustedPositionValues(dSafe);
+        if (gasBefore - gasleft() > config.maxSolvencyCheckGasCost)
+            revert SolvencyCheckTooExpensive();
+        return collateral >= debt;
+    }
+
     function _getNFTId(address erc721, uint256 tokenId) internal view returns (DSafeLib.NFTId) {
         if (infoIdx[erc721].kind != ContractKind.ERC721) {
             revert NotNFT();
@@ -1000,25 +1004,25 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     constructor(address _owner) ImmutableGovernance(_owner) {}
 
     /// @notice upgrades the version of dSafeLogic contract for the `dSafe`
-    /// @param dSafe The address of the dSafe to be upgraded
     /// @param version The new target version of dSafeLogic contract
     // todo - disallow downgrade
-    function upgradeDSafeImplementation(address dSafe, uint256 version) external {
-        address dSafeOwner = dSafes[dSafe].owner;
-        if (msg.sender != dSafeOwner) {
-            revert NotOwner(msg.sender, dSafeOwner);
-        }
-        dSafeLogic[dSafe] = versionManager.getVersionAddress(version);
-        emit IDOSConfig.DSafeImplementationUpgraded(dSafe, version);
+    function upgradeDSafeImplementation(uint256 version) external override onlyDSafe {
+        dSafeLogic[msg.sender] = versionManager.getVersionAddress(version);
+        emit IDOSConfig.DSafeImplementationUpgraded(msg.sender, version);
+    }
+
+    function transferDSafeOwnership(address newOwner) external override onlyDSafe {
+        dSafes[msg.sender].owner = newOwner;
+        emit IDOSConfig.DSafeOwnershipTransferred(msg.sender, newOwner);
     }
 
     /// @notice Pause the contract
-    function pause() external onlyGovernance {
+    function pause() external override onlyGovernance {
         _pause();
     }
 
     /// @notice Unpause the contract
-    function unpause() external onlyGovernance {
+    function unpause() external override onlyGovernance {
         _unpause();
     }
 
@@ -1052,7 +1056,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         uint256 slope1,
         uint256 slope2,
         uint256 targetUtilization
-    ) external onlyGovernance returns (uint16) {
+    ) external override onlyGovernance returns (uint16) {
         uint16 erc20Idx = uint16(erc20Infos.length);
         DOSERC20 dosToken = new DOSERC20(name, symbol, decimals);
         erc20Infos.push(
@@ -1101,7 +1105,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         address erc721Contract,
         address valueOracleAddress,
         int256 collateralFactor
-    ) external onlyGovernance {
+    ) external override onlyGovernance {
         INFTValueOracle valueOracle = INFTValueOracle(valueOracleAddress);
         uint256 erc721Idx = erc721Infos.length;
         erc721Infos.push(ERC721Info(erc721Contract, valueOracle, collateralFactor));
@@ -1117,7 +1121,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @notice Updates the config of DOS
     /// @dev for governance only.
     /// @param _config the Config of IDOSConfig. A struct with DOS parameters
-    function setConfig(Config calldata _config) external onlyGovernance {
+    function setConfig(Config calldata _config) external override onlyGovernance {
         config = _config;
         emit IDOSConfig.ConfigSet(_config);
     }
@@ -1125,7 +1129,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @notice Set the address of Version Manager contract
     /// @dev for governance only.
     /// @param _versionManager The address of the Version Manager contract to be set
-    function setVersionManager(address _versionManager) external onlyGovernance {
+    function setVersionManager(address _versionManager) external override onlyGovernance {
         versionManager = IVersionManager(_versionManager);
         emit IDOSConfig.VersionManagerSet(_versionManager);
     }
@@ -1171,7 +1175,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
 
     /// @notice creates a new dSafe with sender as the owner and returns the dSafe address
     /// @return dSafe The address of the created dSafe
-    function createDSafe() external returns (address dSafe) {
+    function createDSafe() external override whenNotPaused returns (address dSafe) {
         address[] memory erc20s = new address[](erc20Infos.length);
         for (uint256 i = 0; i < erc20Infos.length; i++) {
             erc20s[i] = erc20Infos[i].erc20Contract;
@@ -1195,7 +1199,10 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// be calculated
     /// @param erc20 The address of ERC20 which balance on dAccount of `dSafe` should be calculated
     /// @return the amount of `erc20` on the dAccount of `dSafe`
-    function getDAccountERC20(address dSafeAddr, IERC20 erc20) external view returns (int256) {
+    function getDAccountERC20(
+        address dSafeAddr,
+        IERC20 erc20
+    ) external view override returns (int256) {
         // TODO(gerben) #104 interest computation
         DSafeLib.DSafe storage dSafe = dSafes[dSafeAddr];
         (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20);
@@ -1206,7 +1213,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @notice returns the NFTs on dAccount of `dSafe`
     /// @param dSafe The address of dSafe which dAccount NFTs should be returned
     /// @return The array of NFT deposited on the dAccount of `dSafe`
-    function getDAccountERC721(address dSafe) external view returns (NFTData[] memory) {
+    function getDAccountERC721(address dSafe) external view override returns (NFTData[] memory) {
         NFTData[] memory nftData = new NFTData[](dSafes[dSafe].nfts.length);
         for (uint i = 0; i < nftData.length; i++) {
             (uint16 erc721Idx, uint256 tokenId) = getNFTData(dSafes[dSafe].nfts[i]);
