@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-await-in-loop */
 
 import type {MockContract} from "@ethereum-waffle/mock-contract";
@@ -15,7 +13,6 @@ import type {
   Governance,
   IPermit2,
   VersionManager,
-  IDOS,
   IUniswapV3Factory,
   ISwapRouter,
   OffchainEntityProxy,
@@ -25,6 +22,9 @@ import type {
   TestERC20,
   UniV3Oracle,
   TimeLockedCall,
+  DOS,
+  IDOS,
+  MockERC20Oracle,
 } from "../typechain-types";
 import type {TransactionRequest} from "@ethersproject/abstract-provider";
 
@@ -49,7 +49,6 @@ import {
   IUniswapV3Factory__factory,
   ISwapRouter__factory,
   VersionManager__factory,
-  IDOS__factory,
   AggregatorV3Interface__factory,
   ERC20ChainlinkValueOracle__factory,
   GovernanceProxy__factory,
@@ -60,6 +59,8 @@ import {
   TransferAndCall2__factory,
   DOS__factory,
   DOSConfig__factory,
+  IDOS__factory,
+  TimeLockedCall__factory,
 } from "../typechain-types";
 import {getEventsTx} from "./events";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
@@ -73,7 +74,6 @@ import {
   proposeAndExecute,
 } from "./calls";
 import {checkDefined, checkState} from "./preconditions";
-import {TimeLockedCall__factory} from "../typechain-types/factories/contracts/governance/TimeLockedCall__factory";
 
 export async function deployUniswapPool(
   uniswapV3Factory: IUniswapV3Factory,
@@ -187,7 +187,10 @@ export class Chainlink {
   ): Promise<Chainlink> {
     const mockChainLink = await waffle.deployMockContract(
       signer,
-      JSON.parse(JSON.stringify(AggregatorV3Interface__factory.abi)), // todo strange readonly -> mutable type error on github
+      // @ts-expect-error -- the type of abi is readonly array,
+      // while the type in deployMockContract is `any[]`. I have checked the implementation -
+      // it should have been readonly as well. Consider as a bug in types of the waffle
+      AggregatorV3Interface__factory.abi,
     );
     await mockChainLink.mock.decimals.returns(chainLinkDecimals);
     const erc20Oracle = await new ERC20ChainlinkValueOracle__factory(signer).deploy(
@@ -353,8 +356,8 @@ export const deployFixedAddressForTests = async (
  * contracts inheriting them from `BaseContract`.  This breaks the type inference in `DeployResult`.
  */
 type ContractFactoryLike = {
-  deploy: (...args: any[]) => Promise<ethers.BaseContract>;
-  getDeployTransaction: (...args: any[]) => TransactionRequest;
+  deploy: (...args: never[]) => Promise<ethers.BaseContract>;
+  getDeployTransaction: (...args: never[]) => TransactionRequest;
   attach: (address: string) => ethers.BaseContract;
 };
 
@@ -371,7 +374,7 @@ type DeployParams<T extends ContractFactoryLike> = T extends {
  * type of the logic contract deployed by a factory.
  */
 type DeployResult<T extends ContractFactoryLike> = T extends {
-  deploy: (...args: any[]) => Promise<infer Result>;
+  deploy: (...args: never[]) => Promise<infer Result>;
 }
   ? Result
   : never;
@@ -420,7 +423,7 @@ export const deployDos = async (
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
   salt: ethers.BytesLike,
   signer: ethers.Signer,
-): Promise<{dos: IDOS; versionManager: VersionManager}> => {
+): Promise<{iDos: IDOS; dos: DOS; versionManager: VersionManager}> => {
   const versionManager = await deployAtFixedAddress(
     new VersionManager__factory(signer),
     anyswapCreate2Deployer,
@@ -440,10 +443,9 @@ export const deployDos = async (
     dosConfig.address,
     versionManager.address,
   );
-  return {dos: IDOS__factory.connect(dos.address, signer), versionManager};
+  return {iDos: IDOS__factory.connect(dos.address, signer), dos, versionManager};
 };
 
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export const setupDos = async (
   governanceProxy: GovernanceProxy,
   dos: IDOS,
@@ -452,7 +454,12 @@ export const setupDos = async (
   uni: IERC20WithMetadata,
   uniAddresses: Record<string, string>,
   deployer: ethers.Signer,
-) => {
+): Promise<{
+  usdcOracle: MockERC20Oracle;
+  ethOracle: MockERC20Oracle;
+  uniOracle: MockERC20Oracle;
+  uniV3Oracle: UniV3Oracle;
+}> => {
   const usdcOracle = await new MockERC20Oracle__factory(deployer).deploy(governanceProxy.address);
   const ethOracle = await new MockERC20Oracle__factory(deployer).deploy(governanceProxy.address);
   const uniOracle = await new MockERC20Oracle__factory(deployer).deploy(governanceProxy.address);
@@ -558,7 +565,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
   const {permit2, anyswapCreate2Deployer, transferAndCall2, governanceProxy} =
     await deployFixedAddressForTests(signer);
 
-  const {dos, versionManager} = await deployDos(
+  const {iDos, versionManager} = await deployDos(
     governanceProxy.address,
     anyswapCreate2Deployer,
     fsSalt,
@@ -569,7 +576,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
     new DSafeLogic__factory(signer),
     anyswapCreate2Deployer,
     fsSalt,
-    dos.address,
+    iDos.address,
   );
   await governanceProxy.executeBatch([
     makeCall(versionManager).addVersion(2, dSafeLogic.address),
@@ -583,7 +590,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
 
   const {usdcOracle, ethOracle, uniOracle, uniV3Oracle} = await setupDos(
     governanceProxy,
-    dos,
+    iDos,
     env.usdc,
     env.weth,
     env.uni,
@@ -600,7 +607,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
     await erc20.approve(env.swapRouter.address, ethers.constants.MaxUint256);
     await erc20.approve(env.nonFungiblePositionManager.address, ethers.constants.MaxUint256);
   }
-  const dsafe = await createDSafe(dos, signer);
+  const dsafe = await createDSafe(iDos, signer);
   await depositIntoDos(
     transferAndCall2,
     dsafe,
@@ -625,7 +632,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
       dsafe.executeBatch(
         await leverageLP2(
           dsafe,
-          dos,
+          iDos,
           env.nonFungiblePositionManager,
           {token0: env.weth, token1: env.usdc, fee: 500},
           normalize(900),
@@ -643,7 +650,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
       dsafe.executeBatch(
         await leverageLP2(
           dsafe,
-          dos,
+          iDos,
           env.nonFungiblePositionManager,
           {token0: env.weth, token1: env.uni, fee: 500},
           0.9,
@@ -665,7 +672,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
     futureSwapProxy,
     transferAndCall2,
     governanceProxy,
-    dos,
+    iDos,
     versionManager,
     weth: env.weth,
     usdc: env.usdc,

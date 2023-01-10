@@ -3,6 +3,7 @@ import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import type {
   Governance,
   HashNFT,
+  DOS,
   IDOS,
   DSafeLogic,
   TransferAndCall2,
@@ -577,4 +578,16 @@ export async function transferFromERC721(
   return await spender.executeBatch([
     makeCall(dos).transferFromERC721(nft, owner.address, to.address, tokenId),
   ]);
+}
+
+export async function getMaximumWithdrawableOfERC20(dos: DOS, erc20: string): Promise<BigNumber> {
+  const {fractionalReserveLeverage: leverage} = await dos.config();
+  const {idx: erc20Idx} = await dos.infoIdx(erc20);
+  const erc20Info = await dos.erc20Infos(erc20Idx);
+  const {tokens} = erc20Info.collateral;
+  const {tokens: totalDebt} = erc20Info.debt;
+  const minReserveAmount = tokens.div(leverage.add(1));
+  const borrowable = tokens.sub(minReserveAmount);
+  const remainingERC20ToBorrow = borrowable.add(totalDebt);
+  return remainingERC20ToBorrow;
 }

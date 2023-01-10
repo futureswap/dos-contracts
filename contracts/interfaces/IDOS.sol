@@ -145,8 +145,6 @@ interface IDOSConfig {
     function getDAccountERC20(address dSafe, IERC20 erc20) external view returns (int256);
 
     function getDAccountERC721(address dSafe) external view returns (NFTData[] memory);
-
-    function getMaximumWithdrawableOfERC20(IERC20 erc20) external view returns (int256);
 }
 
 interface IDOSCore {
