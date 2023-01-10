@@ -391,7 +391,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         int256 signedAmount = FsMath.safeCastToSigned(amount);
         _dAccountERC20ChangeBy(msg.sender, erc20Idx, -signedAmount);
         emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, -signedAmount);
-        erc20.safeTransfer(msg.sender, uint256(amount));
+        erc20.safeTransfer(msg.sender, amount);
     }
 
     /// @notice deposit all `erc20s` from dSafe to dAccount
@@ -401,9 +401,10 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20s[i]);
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
             uint256 amount = erc20.balanceOf(msg.sender);
-            erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
-            _dAccountERC20ChangeBy(msg.sender, erc20Idx, FsMath.safeCastToSigned(amount));
-            emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, int256(amount));
+            int256 signedAmount = FsMath.safeCastToSigned(amount);
+            _dAccountERC20ChangeBy(msg.sender, erc20Idx, signedAmount);
+            emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, signedAmount);
+            erc20.safeTransferFrom(msg.sender, address(this), amount);
         }
     }
 
@@ -415,8 +416,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
             int256 amount = _dAccountERC20Clear(msg.sender, erc20Idx);
             require(amount >= 0, "Can't withdraw debt");
+            emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, amount);
             erc20.safeTransfer(msg.sender, uint256(amount));
-            emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, int256(amount));
         }
     }
 
@@ -716,6 +717,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @return Whether the position is solvent.
     function isSolvent(address dSafe) public view returns (bool) {
         // todo track each erc20 on-change instead of iterating over all DOS stuff
+        uint gasBefore = gasleft();
         int256 leverage = config.fractionalReserveLeverage;
         for (uint256 i = 0; i < erc20Infos.length; i++) {
             int256 totalDebt = erc20Infos[i].debt.tokens;
@@ -726,6 +728,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             require(reserve >= -totalDebt / leverage, "Not enough reserve for debt");
         }
         (, int256 collateral, int256 debt) = getRiskAdjustedPositionValues(dSafe);
+        if (gasBefore - gasleft > config.maxSolvencyCheckGasCost)
+            revert SolvencyCheckTooExpensive();
         return collateral >= debt;
     }
 
@@ -1003,13 +1007,23 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @param dSafe The address of the dSafe to be upgraded
     /// @param version The new target version of dSafeLogic contract
     // todo - disallow downgrade
-    function upgradeDSafeImplementation(address dSafe, uint256 version) external {
+    function upgradeDSafeImplementation(address dSafe, uint256 version) external whenNotPaused {
         address dSafeOwner = dSafes[dSafe].owner;
         if (msg.sender != dSafeOwner) {
             revert NotOwner(msg.sender, dSafeOwner);
         }
         dSafeLogic[dSafe] = versionManager.getVersionAddress(version);
         emit IDOSConfig.DSafeImplementationUpgraded(dSafe, version);
+    }
+
+    function transferDSafeOwnership(address newOwner) external onlyDSafe {
+        address dSafe = msg.sender;
+        address dSafeOwner = dSafes[dSafe].owner;
+        if (msg.sender != dSafeOwner) {
+            revert NotOwner(msg.sender, dSafeOwner);
+        }
+        dSafes[dSafe].owner = newOwner;
+        emit IDOSConfig.DSafeOwnershipTransferred(dSafe, newOwner);
     }
 
     /// @notice Pause the contract
@@ -1171,7 +1185,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
 
     /// @notice creates a new dSafe with sender as the owner and returns the dSafe address
     /// @return dSafe The address of the created dSafe
-    function createDSafe() external returns (address dSafe) {
+    function createDSafe() external whenNotPaused returns (address dSafe) {
         address[] memory erc20s = new address[](erc20Infos.length);
         for (uint256 i = 0; i < erc20Infos.length; i++) {
             erc20s[i] = erc20Infos[i].erc20Contract;

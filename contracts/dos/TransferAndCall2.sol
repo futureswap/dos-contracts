@@ -100,7 +100,8 @@ contract TransferAndCall2 is IERC1363Receiver {
         ITransferReceiver2.Transfer[] calldata transfers,
         bytes memory data
     ) internal {
-        if (msg.value != 0) {
+        uint256 ethAmount = msg.value;
+        if (ethAmount != 0) {
             IWETH9(payable(weth)).deposit{value: msg.value}();
             IERC20(weth).safeTransfer(receiver, msg.value);
         }
@@ -112,11 +113,13 @@ contract TransferAndCall2 is IERC1363Receiver {
             uint256 amount = transfers[i].amount;
             if (tokenAddress == weth) {
                 // Already send WETH
-                amount -= msg.value; // reverts if msg.value > amount
+                amount -= ethAmount; // reverts if msg.value > amount
+                ethAmount = 0;
             }
             IERC20 token = IERC20(tokenAddress);
             if (amount > 0) token.safeTransferFrom(from, receiver, amount);
         }
+        require(ethAmount == 0, "Did not specify WETH while sending ETH");
         if (receiver.isContract()) {
             callOnTransferReceived2(receiver, msg.sender, from, transfers, data);
         }

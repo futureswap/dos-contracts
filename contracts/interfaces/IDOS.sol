@@ -15,6 +15,7 @@ interface IDOSERC20 is IERC20 {
 
 interface IDOSConfig {
     struct Config {
+        uint256 maxSolvencyCheckGasCost;
         int256 liqFraction; // Fraction for the user
         int256 fractionalReserveLeverage; // Ratio of debt to reserves
     }
@@ -224,6 +225,9 @@ interface IDOSCore {
     /// @param dSafe The address of the liquidated dSafe
     /// @param liquidator The address of the liquidator
     event SafeLiquidated(address indexed dSafe, address indexed liquidator);
+
+    /// @notice Error thrown if a dSafe accumulates too many assets
+    error SolvencyCheckTooExpensive();
 
     function liquidate(address dSafe) external;
 
