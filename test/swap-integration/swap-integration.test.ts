@@ -55,22 +55,22 @@ describe("DOS swap integration", () => {
     );
     const ethChainlink = await Chainlink.deploy(owner, ETH_PRICE, 8, USDC_DECIMALS, WETH_DECIMALS);
 
-    const {dos, versionManager} = await deployDos(
+    const {idos, versionManager} = await deployDos(
       owner.address,
       anyswapCreate2Deployer,
       "0x02",
       owner,
     );
-    const proxyLogic = await new DSafeLogic__factory(owner).deploy(dos.address);
+    const proxyLogic = await new DSafeLogic__factory(owner).deploy(idos.address);
     await versionManager.addVersion(2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
-    await dos.setConfig({
+    await idos.setConfig({
       liqFraction: toWei(0.8),
       fractionalReserveLeverage: 9,
     });
 
-    await dos.addERC20Info(
+    await idos.addERC20Info(
       usdc.address,
       "USD Coin",
       "USDC",
@@ -84,7 +84,7 @@ describe("DOS swap integration", () => {
       0,
     );
 
-    await dos.addERC20Info(
+    await idos.addERC20Info(
       weth.address,
       "Wrapped ETH",
       "WETH",
@@ -114,13 +114,13 @@ describe("DOS swap integration", () => {
     await uniswapNftOracle.setERC20ValueOracle(usdc.address, usdcChainlink.oracle.address);
     await uniswapNftOracle.setERC20ValueOracle(weth.address, ethChainlink.oracle.address);
 
-    await dos.addERC721Info(
+    await idos.addERC721Info(
       nonFungiblePositionManager.address,
       uniswapNftOracle.address,
       toWei(0.9),
     );
 
-    const ownerDSafe = await createDSafe(dos, owner);
+    const ownerDSafe = await createDSafe(idos, owner);
     const usdcAmount = toWeiUsdc(2_000_000);
     const wethAmount = toWei(1000);
 
@@ -128,17 +128,17 @@ describe("DOS swap integration", () => {
     await ownerDSafe.executeBatch(
       [
         makeCall(weth, toWei(1000)).deposit(),
-        makeCall(dos).depositERC20(usdc.address, usdcAmount),
-        makeCall(dos).depositERC20(weth.address, wethAmount),
+        makeCall(idos).depositERC20(usdc.address, usdcAmount),
+        makeCall(idos).depositERC20(weth.address, wethAmount),
       ],
       {value: wethAmount},
     );
 
     const getBalances = async (dSafe: DSafeLogic) => {
       const [nfts, usdcBalance, wethBalance] = await Promise.all([
-        dos.getDAccountERC721(dSafe.address),
-        dos.getDAccountERC20(dSafe.address, usdc.address),
-        dos.getDAccountERC20(dSafe.address, weth.address),
+        idos.getDAccountERC721(dSafe.address),
+        idos.getDAccountERC20(dSafe.address, usdc.address),
+        idos.getDAccountERC20(dSafe.address, weth.address),
       ]);
       return {nfts, usdcBalance: usdcBalance.toBigInt(), wethBalance: wethBalance.toBigInt()};
     };
@@ -159,7 +159,7 @@ describe("DOS swap integration", () => {
       weth,
       usdcChainlink,
       ethChainlink,
-      dos,
+      idos,
       nonFungiblePositionManager,
       swapRouter,
       getBalances,
@@ -169,11 +169,11 @@ describe("DOS swap integration", () => {
 
   describe("Dos tests", () => {
     it("User can leverage LP", async () => {
-      const {user, dos, usdc, weth, nonFungiblePositionManager, getBalances} = await loadFixture(
+      const {user, idos, usdc, weth, nonFungiblePositionManager, getBalances} = await loadFixture(
         deployDOSFixture,
       );
 
-      const dSafe = await createDSafe(dos, user);
+      const dSafe = await createDSafe(idos, user);
       await usdc.mint(dSafe.address, toWeiUsdc(1_600));
 
       const mintParams = {
@@ -190,7 +190,7 @@ describe("DOS swap integration", () => {
         deadline: ethers.constants.MaxUint256,
       };
       await expect(
-        dSafe.executeBatch(leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 1)),
+        dSafe.executeBatch(leverageLP(idos, weth, usdc, nonFungiblePositionManager, mintParams, 1)),
       ).to.not.be.reverted;
       const {usdcBalance, wethBalance, nfts} = await getBalances(dSafe);
       // expect leveraged LP position with NFT as collateral
@@ -200,10 +200,10 @@ describe("DOS swap integration", () => {
     });
 
     it("User can create leveraged position", async () => {
-      const {user, user2, dos, usdc, weth, nonFungiblePositionManager, swapRouter, getBalances} =
+      const {user, user2, idos, usdc, weth, nonFungiblePositionManager, swapRouter, getBalances} =
         await loadFixture(deployDOSFixture);
 
-      const dSafe = await createDSafe(dos, user);
+      const dSafe = await createDSafe(idos, user);
       await usdc.mint(dSafe.address, toWeiUsdc(16_000));
 
       const mintParams = {
@@ -220,14 +220,14 @@ describe("DOS swap integration", () => {
         deadline: ethers.constants.MaxUint256,
       };
       await dSafe.executeBatch(
-        leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+        leverageLP(idos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
       );
 
-      const dSafe2 = await createDSafe(dos, user2);
+      const dSafe2 = await createDSafe(idos, user2);
       await usdc.mint(dSafe2.address, toWeiUsdc(1_000));
       await expect(
         dSafe2.executeBatch(
-          leveragePos(dSafe2, dos, usdc, weth, 500, swapRouter, toWeiUsdc(2_000)),
+          leveragePos(dSafe2, idos, usdc, weth, 500, swapRouter, toWeiUsdc(2_000)),
         ),
       ).to.not.be.reverted;
 
@@ -239,13 +239,13 @@ describe("DOS swap integration", () => {
     });
 
     // considering that #liquify uses #liquidate, all "negative" tests for non-liquidatable
-    // positions are done in tests for #liquidate in dos.tests.ts
+    // positions are done in tests for #liquidate in idos.tests.ts
     describe("#liquify successfully", () => {
       describe("when liquidatable dSafe has only erc20s", () => {
         it("when liquidation creates no intermediate debt on liquidator", async () => {
           // prettier-ignore
           const {
-            dos,
+            idos,
             user, user2, user3,
             usdc, weth,
             swapRouter, nonFungiblePositionManager, ethChainlink,
@@ -253,7 +253,7 @@ describe("DOS swap integration", () => {
           } = await loadFixture(deployDOSFixture);
 
           // provides assets both to DOS and to Uniswap pool
-          const initialAssetsProvider = await createDSafe(dos, user);
+          const initialAssetsProvider = await createDSafe(idos, user);
           await usdc.mint(initialAssetsProvider.address, toWeiUsdc(16_000));
           const mintParams = {
             token0: weth.address,
@@ -269,19 +269,19 @@ describe("DOS swap integration", () => {
             deadline: ethers.constants.MaxUint256,
           };
           await initialAssetsProvider.executeBatch(
-            leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+            leverageLP(idos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
           );
 
-          const liquidatable = await createDSafe(dos, user2);
+          const liquidatable = await createDSafe(idos, user2);
           await usdc.mint(liquidatable.address, toWeiUsdc(1_000));
           await liquidatable.executeBatch(
-            leveragePos(liquidatable, dos, usdc, weth, 500, swapRouter, toWeiUsdc(2_000)),
+            leveragePos(liquidatable, idos, usdc, weth, 500, swapRouter, toWeiUsdc(2_000)),
           );
 
           // make `liquidatable` liquidatable
           await ethChainlink.setPrice(ETH_PRICE / 2);
 
-          const liquidator = await createDSafe(dos, user3);
+          const liquidator = await createDSafe(idos, user3);
           await usdc.mint(liquidator.address, toWeiUsdc(1_000));
           await addAllowances(liquidator);
 
@@ -305,7 +305,7 @@ describe("DOS swap integration", () => {
         it("when liquidation creates an intermediate debt on liquidator", async () => {
           // prettier-ignore
           const {
-            dos,
+            idos,
             user, user2, user3,
             usdc, weth,
             swapRouter, nonFungiblePositionManager, ethChainlink,
@@ -313,7 +313,7 @@ describe("DOS swap integration", () => {
           } = await loadFixture(deployDOSFixture);
 
           // provides assets both to DOS and to Uniswap pool
-          const initialAssetsProvider = await createDSafe(dos, user);
+          const initialAssetsProvider = await createDSafe(idos, user);
           await weth.mint(initialAssetsProvider.address, toWei(10));
           await usdc.mint(initialAssetsProvider.address, toWeiUsdc(20_000));
           const mintParams = {
@@ -330,19 +330,19 @@ describe("DOS swap integration", () => {
             deadline: ethers.constants.MaxUint256,
           };
           await initialAssetsProvider.executeBatch(
-            leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+            leverageLP(idos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
           );
 
-          const liquidatable = await createDSafe(dos, user2);
+          const liquidatable = await createDSafe(idos, user2);
           await weth.mint(liquidatable.address, toWei(1));
           await liquidatable.executeBatch(
-            leveragePos(liquidatable, dos, weth, usdc, 500, swapRouter, toWei(2)),
+            leveragePos(liquidatable, idos, weth, usdc, 500, swapRouter, toWei(2)),
           );
 
           // make `liquidatable` liquidatable
           await ethChainlink.setPrice(ETH_PRICE * 2);
 
-          const liquidator = await createDSafe(dos, user3);
+          const liquidator = await createDSafe(idos, user3);
           await usdc.mint(liquidator.address, toWeiUsdc(1_000));
           await addAllowances(liquidator);
 
@@ -367,14 +367,14 @@ describe("DOS swap integration", () => {
       it("when liquidatable dSafe has erc721", async () => {
         // prettier-ignore
         const {
-          dos,
+          idos,
           user, user2, user3,
           usdc, weth,
           nonFungiblePositionManager, swapRouter, ethChainlink,
           getBalances, addAllowances,
         } = await loadFixture(deployDOSFixture);
 
-        const initialAssetsProvider = await createDSafe(dos, user);
+        const initialAssetsProvider = await createDSafe(idos, user);
         await usdc.mint(initialAssetsProvider.address, toWeiUsdc(160_000));
         const initMintParams = {
           token0: weth.address,
@@ -390,10 +390,10 @@ describe("DOS swap integration", () => {
           deadline: ethers.constants.MaxUint256,
         };
         await initialAssetsProvider.executeBatch(
-          leverageLP(dos, weth, usdc, nonFungiblePositionManager, initMintParams, 1),
+          leverageLP(idos, weth, usdc, nonFungiblePositionManager, initMintParams, 1),
         );
 
-        const liquidatable = await createDSafe(dos, user2);
+        const liquidatable = await createDSafe(idos, user2);
         await usdc.mint(liquidatable.address, toWeiUsdc(5_000));
         const mintParams = {
           token0: weth.address,
@@ -409,11 +409,11 @@ describe("DOS swap integration", () => {
           deadline: ethers.constants.MaxUint256,
         };
         await liquidatable.executeBatch(
-          leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 2),
+          leverageLP(idos, weth, usdc, nonFungiblePositionManager, mintParams, 2),
         );
 
-        const liquidator = await createDSafe(dos, user3);
-        await depositERC20(dos, liquidator, usdc, toWeiUsdc(100_000));
+        const liquidator = await createDSafe(idos, user3);
+        await depositERC20(idos, liquidator, usdc, toWeiUsdc(100_000));
         await addAllowances(liquidator);
 
         await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
@@ -435,14 +435,14 @@ describe("DOS swap integration", () => {
       it("when liquidatable dSafe has erc20 and erc721", async () => {
         // prettier-ignore
         const {
-          dos,
+          idos,
           user, user2, user3,
           usdc, weth,
           nonFungiblePositionManager, swapRouter, ethChainlink,
           getBalances, addAllowances,
         } = await loadFixture(deployDOSFixture);
 
-        const initialAssetsProvider = await createDSafe(dos, user);
+        const initialAssetsProvider = await createDSafe(idos, user);
         await usdc.mint(initialAssetsProvider.address, toWeiUsdc(160_000));
         const initMintParams = {
           token0: weth.address,
@@ -458,13 +458,13 @@ describe("DOS swap integration", () => {
           deadline: ethers.constants.MaxUint256,
         };
         await initialAssetsProvider.executeBatch(
-          leverageLP(dos, weth, usdc, nonFungiblePositionManager, initMintParams, 1),
+          leverageLP(idos, weth, usdc, nonFungiblePositionManager, initMintParams, 1),
         );
 
-        const liquidatable = await createDSafe(dos, user2);
+        const liquidatable = await createDSafe(idos, user2);
         await usdc.mint(liquidatable.address, toWeiUsdc(5_000));
         await liquidatable.executeBatch(
-          leveragePos(liquidatable, dos, weth, usdc, 500, swapRouter, toWei(2.5)),
+          leveragePos(liquidatable, idos, weth, usdc, 500, swapRouter, toWei(2.5)),
         );
         const mintParams = {
           token0: weth.address,
@@ -480,11 +480,11 @@ describe("DOS swap integration", () => {
           deadline: ethers.constants.MaxUint256,
         };
         await liquidatable.executeBatch(
-          leverageLP(dos, weth, usdc, nonFungiblePositionManager, mintParams, 2),
+          leverageLP(idos, weth, usdc, nonFungiblePositionManager, mintParams, 2),
         );
 
-        const liquidator = await createDSafe(dos, user3);
-        await depositERC20(dos, liquidator, usdc, toWeiUsdc(100_000));
+        const liquidator = await createDSafe(idos, user3);
+        await depositERC20(idos, liquidator, usdc, toWeiUsdc(100_000));
         await addAllowances(liquidator);
 
         await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable

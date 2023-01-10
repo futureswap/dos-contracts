@@ -47,23 +47,23 @@ describe("Fractionalization", () => {
 
     await nftOracle.setPrice(1, toWei(100));
 
-    const {dos, realDos, versionManager} = await deployDos(
+    const {idos, dos, versionManager} = await deployDos(
       owner.address,
       anyswapCreate2Deployer,
       "0x3",
       owner,
     );
-    const proxyLogic = await new DSafeLogic__factory(owner).deploy(dos.address);
+    const proxyLogic = await new DSafeLogic__factory(owner).deploy(idos.address);
     await versionManager.addVersion(2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
-    await dos.setConfig({
+    await idos.setConfig({
       liqFraction: toWei(0.8),
       fractionalReserveLeverage: 9,
     });
 
     // no interest which would include time sensitive calculations
-    await dos.addERC20Info(
+    await idos.addERC20Info(
       usdc.address,
       "USD Coin",
       "USDC",
@@ -76,7 +76,7 @@ describe("Fractionalization", () => {
       0,
       0,
     );
-    await dos.addERC20Info(
+    await idos.addERC20Info(
       weth.address,
       "Wrapped ETH",
       "WETH",
@@ -98,8 +98,8 @@ describe("Fractionalization", () => {
       weth,
       nft,
       nftOracle,
+      idos,
       dos,
-      realDos,
     };
   }
 
@@ -107,64 +107,64 @@ describe("Fractionalization", () => {
 
   describe("Fractional Reserve Leverage tests", () => {
     it("Check fractional reserve after user borrows", async () => {
-      const {user, user2, dos, realDos, usdc, weth} = await loadFixture(deployDOSFixture);
+      const {user, user2, idos, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       // setup 1st user
-      const dSafe1 = await createDSafe(dos, user);
+      const dSafe1 = await createDSafe(idos, user);
       expect(await dSafe1.owner()).to.equal(user.address);
       await usdc.mint(dSafe1.address, oneHundredUsdc);
-      await dSafe1.executeBatch([makeCall(dos).depositERC20(usdc.address, oneHundredUsdc)]); // deposits 100 USDC
+      await dSafe1.executeBatch([makeCall(idos).depositERC20(usdc.address, oneHundredUsdc)]); // deposits 100 USDC
 
       // setup 2nd user
-      const dSafe2 = await createDSafe(dos, user2);
+      const dSafe2 = await createDSafe(idos, user2);
       expect(await dSafe2.owner()).to.equal(user2.address);
       await weth.mint(dSafe2.address, toWei(2));
-      await dSafe2.executeBatch([makeCall(dos).depositERC20(weth.address, toWei(2))]);
+      await dSafe2.executeBatch([makeCall(idos).depositERC20(weth.address, toWei(2))]);
 
       // check what the max to borrow of USDC is (90 USDC)
-      const maxBorrowable = await getMaximumWithdrawableOfERC20(realDos, usdc.address);
+      const maxBorrowable = await getMaximumWithdrawableOfERC20(dos, usdc.address);
 
       // borrow 90 USDC
       await dSafe2.executeBatch([
-        makeCall(dos).withdrawERC20(usdc.address, maxBorrowable), // to borrow use negative
+        makeCall(idos).withdrawERC20(usdc.address, maxBorrowable), // to borrow use negative
       ]);
 
       // check to see if there is anything left
-      const maxBorrowablePost = await getMaximumWithdrawableOfERC20(realDos, usdc.address);
+      const maxBorrowablePost = await getMaximumWithdrawableOfERC20(dos, usdc.address);
 
       expect(maxBorrowablePost).to.equal("0");
     });
 
     it("Fractional reserve check should fail after borrow and rate is set below threshold", async () => {
       // setup 2 users dSafes
-      const {user, user2, dos, realDos, usdc, weth} = await loadFixture(deployDOSFixture);
+      const {user, user2, idos, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       // setup first user
-      const dSafe1 = await createDSafe(dos, user);
+      const dSafe1 = await createDSafe(idos, user);
       expect(await dSafe1.owner()).to.equal(user.address);
       await usdc.mint(dSafe1.address, oneHundredUsdc);
-      await dSafe1.executeBatch([makeCall(dos).depositERC20(usdc.address, oneHundredUsdc)]); // deposits 100 USDC
+      await dSafe1.executeBatch([makeCall(idos).depositERC20(usdc.address, oneHundredUsdc)]); // deposits 100 USDC
 
       // setup 2nd user
-      const dSafe2 = await createDSafe(dos, user2);
+      const dSafe2 = await createDSafe(idos, user2);
       expect(await dSafe2.owner()).to.equal(user2.address);
       await weth.mint(dSafe2.address, toWei(2));
-      await dSafe2.executeBatch([makeCall(dos).depositERC20(weth.address, toWei(2))]);
+      await dSafe2.executeBatch([makeCall(idos).depositERC20(weth.address, toWei(2))]);
 
-      const maxBorrowableUSDC = await getMaximumWithdrawableOfERC20(realDos, usdc.address);
+      const maxBorrowableUSDC = await getMaximumWithdrawableOfERC20(dos, usdc.address);
 
       // user 2 borrows 90 USDC
       await dSafe2.executeBatch([
-        makeCall(dos).withdrawERC20(usdc.address, maxBorrowableUSDC), // to borrow use negative
+        makeCall(idos).withdrawERC20(usdc.address, maxBorrowableUSDC), // to borrow use negative
       ]);
 
       // vote for FDR to change
-      await dos.setConfig({
+      await idos.setConfig({
         liqFraction: toWei(0.8),
         fractionalReserveLeverage: 8,
       });
 
-      const maxBorrowableUSDCPost = await getMaximumWithdrawableOfERC20(realDos, usdc.address);
+      const maxBorrowableUSDCPost = await getMaximumWithdrawableOfERC20(dos, usdc.address);
 
       expect(maxBorrowableUSDCPost).is.lessThan(0);
     });
@@ -174,41 +174,41 @@ describe("Fractionalization", () => {
       // vote on increasing maximum
       // borrow more
 
-      const {user, user2, dos, realDos, usdc, weth} = await loadFixture(deployDOSFixture);
+      const {user, user2, idos, dos, usdc, weth} = await loadFixture(deployDOSFixture);
 
       // setup 1st user
-      const dSafe1 = await createDSafe(dos, user);
+      const dSafe1 = await createDSafe(idos, user);
       expect(await dSafe1.owner()).to.equal(user.address);
       await usdc.mint(dSafe1.address, oneHundredUsdc);
-      await dSafe1.executeBatch([makeCall(dos).depositERC20(usdc.address, oneHundredUsdc)]); // deposits 100 USDC
+      await dSafe1.executeBatch([makeCall(idos).depositERC20(usdc.address, oneHundredUsdc)]); // deposits 100 USDC
 
       // setup 2nd user
-      const dSafe2 = await createDSafe(dos, user2);
+      const dSafe2 = await createDSafe(idos, user2);
       expect(await dSafe2.owner()).to.equal(user2.address);
       await weth.mint(dSafe2.address, toWei(2));
-      await dSafe2.executeBatch([makeCall(dos).depositERC20(weth.address, toWei(2))]);
+      await dSafe2.executeBatch([makeCall(idos).depositERC20(weth.address, toWei(2))]);
 
-      const maxBorrowableUSDC = await getMaximumWithdrawableOfERC20(realDos, usdc.address);
+      const maxBorrowableUSDC = await getMaximumWithdrawableOfERC20(dos, usdc.address);
 
       // borrow 90 USDC // Max borrow for FRL
       await dSafe2.executeBatch([
-        makeCall(dos).withdrawERC20(usdc.address, maxBorrowableUSDC), // to borrow use negative
+        makeCall(idos).withdrawERC20(usdc.address, maxBorrowableUSDC), // to borrow use negative
       ]);
 
       // //vote for FDR to change
-      await dos.setConfig({
+      await idos.setConfig({
         liqFraction: toWei(0.8),
         fractionalReserveLeverage: 10,
       });
 
-      const maxBorrowableUSDCPostVote = await getMaximumWithdrawableOfERC20(realDos, usdc.address);
+      const maxBorrowableUSDCPostVote = await getMaximumWithdrawableOfERC20(dos, usdc.address);
 
       // borrow 0.909091 USDC
       await dSafe2.executeBatch([
-        makeCall(dos).withdrawERC20(usdc.address, maxBorrowableUSDCPostVote), // to borrow use negative
+        makeCall(idos).withdrawERC20(usdc.address, maxBorrowableUSDCPostVote), // to borrow use negative
       ]);
 
-      expect(await getMaximumWithdrawableOfERC20(realDos, usdc.address)).to.equal("0");
+      expect(await getMaximumWithdrawableOfERC20(dos, usdc.address)).to.equal("0");
     });
   });
 });
