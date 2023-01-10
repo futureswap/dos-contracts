@@ -120,8 +120,8 @@ abstract contract Liquifier is DSafeState {
             uint256[] memory erc20sToBuyAmounts
         )
     {
-        uint256 numToWithdraw;
-        uint256 numToDeposit;
+        uint256 numToWithdraw = 0;
+        uint256 numToDeposit = 0;
         int256[] memory balances = new int256[](erc20s.length);
 
         for (uint256 i = 0; i < erc20s.length; i++) {
@@ -174,7 +174,7 @@ abstract contract Liquifier is DSafeState {
     ) private {
         INonfungiblePositionManager manager = INonfungiblePositionManager(nftManager);
         IDOS.NFTData[] memory nfts = dos.getDAccountERC721(address(this));
-        for (uint256 i; i < nfts.length; i++) {
+        for (uint256 i = 0; i < nfts.length; i++) {
             IDOS.NFTData memory nft = nfts[i];
             dos.withdrawERC721(nft.erc721, nft.tokenId);
             (, , address token0, address token1, , , , uint128 nftLiquidity, , , , ) = manager
@@ -214,7 +214,7 @@ abstract contract Liquifier is DSafeState {
         uint256[] memory amountsToSell,
         address erc20ToSellFor
     ) private {
-        for (uint256 i; i < erc20sToSell.length; i++) {
+        for (uint256 i = 0; i < erc20sToSell.length; i++) {
             if (amountsToSell[i] == 0) continue;
 
             ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({

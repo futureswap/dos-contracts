@@ -350,8 +350,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     }
 
     constructor(address _dosConfig, address _versionManager) {
-        versionManager = IVersionManager(_versionManager);
-        dosConfigAddress = _dosConfig;
+        versionManager = IVersionManager(FsUtils.nonNull(_versionManager));
+        dosConfigAddress = FsUtils.nonNull(_dosConfig);
     }
 
     /// @notice top up the dAccount owned by dSafe `to` with `amount` of `erc20`
@@ -363,26 +363,24 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         address to,
         uint256 amount
     ) external dSafeExists(to) whenNotPaused {
+        if (amount == 0) return;
         (, uint16 erc20Idx) = getERC20Info(IERC20(erc20));
-        if (amount > 0) {
-            IERC20(erc20).safeTransferFrom(msg.sender, address(this), uint256(amount));
-            _dAccountERC20ChangeBy(to, erc20Idx, FsMath.safeCastToSigned(amount));
-        }
-        emit IDOSCore.ERC20BalanceChanged(erc20, to, int256(amount));
+        int256 signedAmount = FsMath.safeCastToSigned(amount);
+        _dAccountERC20ChangeBy(to, erc20Idx, signedAmount);
+        emit IDOSCore.ERC20BalanceChanged(erc20, to, signedAmount);
+        IERC20(erc20).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /// @notice deposit `amount` of `erc20` to dAccount from dSafe
     /// @param erc20 Address of the ERC20 token to be transferred
     /// @param amount The amount of `erc20` to be transferred
     function depositERC20(IERC20 erc20, uint256 amount) external override onlyDSafe {
+        if (amount == 0) return;
         (, uint16 erc20Idx) = getERC20Info(erc20);
-        erc20.safeTransferFrom(msg.sender, address(this), uint256(amount));
-        _dAccountERC20ChangeBy(msg.sender, erc20Idx, FsMath.safeCastToSigned(amount));
-        emit IDOSCore.ERC20BalanceChanged(
-            address(erc20),
-            msg.sender,
-            FsMath.safeCastToSigned(amount)
-        );
+        int256 signedAmount = FsMath.safeCastToSigned(amount);
+        _dAccountERC20ChangeBy(msg.sender, erc20Idx, signedAmount);
+        emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, signedAmount);
+        erc20.safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /// @notice deposit `amount` of `erc20` from dAccount tp dSafe
@@ -390,13 +388,10 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @param amount The amount of `erc20` to be transferred
     function withdrawERC20(IERC20 erc20, uint256 amount) external override onlyDSafe {
         (, uint16 erc20Idx) = getERC20Info(erc20);
+        int256 signedAmount = FsMath.safeCastToSigned(amount);
+        _dAccountERC20ChangeBy(msg.sender, erc20Idx, -signedAmount);
+        emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, -signedAmount);
         erc20.safeTransfer(msg.sender, uint256(amount));
-        _dAccountERC20ChangeBy(msg.sender, erc20Idx, -FsMath.safeCastToSigned(amount));
-        emit IDOSCore.ERC20BalanceChanged(
-            address(erc20),
-            msg.sender,
-            -FsMath.safeCastToSigned(amount)
-        );
     }
 
     /// @notice deposit all `erc20s` from dSafe to dAccount
@@ -440,13 +435,13 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         onlyNFTOwner(erc721Contract, tokenId)
     {
         address _owner = ERC721(erc721Contract).ownerOf(tokenId);
+        emit IDOSCore.ERC721Deposited(erc721Contract, msg.sender, tokenId);
         ERC721(erc721Contract).safeTransferFrom(
             _owner,
             address(this),
             tokenId,
             abi.encode(msg.sender)
         );
-        emit IDOSCore.ERC721Deposited(erc721Contract, msg.sender, tokenId);
     }
 
     /*function depositDosERC20(uint16 erc20Idx, int256 amount) external onlyDSafe {
@@ -474,11 +469,11 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     function withdrawERC721(address erc721, uint256 tokenId) external onlyDSafe {
         DSafeLib.NFTId nftId = _getNFTId(erc721, tokenId);
 
-        ERC721(erc721).safeTransferFrom(address(this), msg.sender, tokenId);
-
         dSafes[msg.sender].extractNFT(nftId, tokenDataByNFTId);
         delete tokenDataByNFTId[nftId];
         emit IDOSCore.ERC721Withdrawn(erc721, msg.sender, tokenId);
+
+        ERC721(erc721).safeTransferFrom(address(this), msg.sender, tokenId);
     }
 
     /// @notice transfer `amount` of `erc20` from dAccount of caller dSafe to dAccount of `to` dSafe
@@ -867,10 +862,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             if (reason.length == 0) {
                 revert ReceiverNoImplementation();
             } else {
-                /// @solidity memory-safe-assembly
-                assembly {
-                    revert(add(32, reason), mload(reason))
-                }
+                FsUtils.revertBytes(reason);
             }
         }
     }

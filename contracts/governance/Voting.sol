@@ -175,9 +175,10 @@ contract Voting is EIP712 {
             delete proposals[proposalId];
             return;
         }
-        // Vote passed;
-        hashNFT.mint(governance, proposal.digest, "");
+        bytes32 digest = proposal.digest;
         delete proposals[proposalId];
+        // Vote passed;
+        hashNFT.mint(governance, digest, "");
     }
 
     function setDelegate(address delegate) external {

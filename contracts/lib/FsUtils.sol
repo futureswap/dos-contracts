@@ -63,6 +63,13 @@ library FsUtils {
         return _address;
     }
 
+    function revertBytes(bytes memory b) internal pure {
+        /// @solidity memory-safe-assembly
+        assembly {
+            revert(add(b, 0x20), mload(b))
+        }
+    }
+
     // assert a condition. Assert should be used to assert an invariant that should be true
     // logically.
     // This is useful for readability and debugability. A failing assert is always a bug.
