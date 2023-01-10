@@ -282,7 +282,9 @@ contract DOSState is Pausable {
         return pool.computeERC20(shares);
     }
 
-    function getNFTData(DSafeLib.NFTId nftId) internal view returns (uint16 erc721Idx, uint256 tokenId) {
+    function getNFTData(
+        DSafeLib.NFTId nftId
+    ) internal view returns (uint16 erc721Idx, uint256 tokenId) {
         uint256 unwrappedId = DSafeLib.NFTId.unwrap(nftId);
         erc721Idx = uint16(unwrappedId);
         tokenId = tokenDataByNFTId[nftId].tokenId | ((unwrappedId >> 240) << 240);
