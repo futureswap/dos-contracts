@@ -703,33 +703,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
-    /// @notice Checks if the account's positions are overcollateralized
-    /// @dev checks the eventual state of `executeBatch` function execution:
-    /// * `dSafe` must have collateral >= debt
-    /// * DOS must have sufficient balance of deposits and loans for each ERC20 token
-    /// @dev when called by the end of `executeBatch`, isSolvent checks the potential target state
-    /// of DOS. Calling this function separately would check current state of DOS, that is always
-    /// solvable, and so the return value would always be `true`, unless the `dSafe` is liquidatable
-    /// @param dSafe The address of a dSafe who performed the `executeBatch`
-    /// @return Whether the position is solvent.
-    function isSolvent(address dSafe) internal view returns (bool) {
-        // todo track each erc20 on-change instead of iterating over all DOS stuff
-        uint gasBefore = gasleft();
-        int256 leverage = config.fractionalReserveLeverage;
-        for (uint256 i = 0; i < erc20Infos.length; i++) {
-            int256 totalDebt = erc20Infos[i].debt.tokens;
-            int256 reserve = erc20Infos[i].collateral.tokens + totalDebt;
-            FsUtils.Assert(
-                IERC20(erc20Infos[i].erc20Contract).balanceOf(address(this)) >= uint256(reserve)
-            );
-            require(reserve >= -totalDebt / leverage, "Not enough reserve for debt");
-        }
-        (, int256 collateral, int256 debt) = getRiskAdjustedPositionValues(dSafe);
-        if (gasBefore - gasleft() > config.maxSolvencyCheckGasCost)
-            revert SolvencyCheckTooExpensive();
-        return collateral >= debt;
-    }
-
     /// @notice Returns the approved address for a token, or zero if no address set
     /// @param collection The address of the ERC721 token
     /// @param tokenId The id of the token to query
@@ -961,6 +934,33 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         erc20Info.debt.tokens -= interest; // subtract interest from debt (increase)
         erc20Info.collateral.tokens += interest; // add interest to collateral (increase)
         // TODO(gerben) #103 add to treasury
+    }
+
+    /// @notice Checks if the account's positions are overcollateralized
+    /// @dev checks the eventual state of `executeBatch` function execution:
+    /// * `dSafe` must have collateral >= debt
+    /// * DOS must have sufficient balance of deposits and loans for each ERC20 token
+    /// @dev when called by the end of `executeBatch`, isSolvent checks the potential target state
+    /// of DOS. Calling this function separately would check current state of DOS, that is always
+    /// solvable, and so the return value would always be `true`, unless the `dSafe` is liquidatable
+    /// @param dSafe The address of a dSafe who performed the `executeBatch`
+    /// @return Whether the position is solvent.
+    function isSolvent(address dSafe) internal view returns (bool) {
+        // todo track each erc20 on-change instead of iterating over all DOS stuff
+        uint gasBefore = gasleft();
+        int256 leverage = config.fractionalReserveLeverage;
+        for (uint256 i = 0; i < erc20Infos.length; i++) {
+            int256 totalDebt = erc20Infos[i].debt.tokens;
+            int256 reserve = erc20Infos[i].collateral.tokens + totalDebt;
+            FsUtils.Assert(
+                IERC20(erc20Infos[i].erc20Contract).balanceOf(address(this)) >= uint256(reserve)
+            );
+            require(reserve >= -totalDebt / leverage, "Not enough reserve for debt");
+        }
+        (, int256 collateral, int256 debt) = getRiskAdjustedPositionValues(dSafe);
+        if (gasBefore - gasleft() > config.maxSolvencyCheckGasCost)
+            revert SolvencyCheckTooExpensive();
+        return collateral >= debt;
     }
 
     function _getNFTId(address erc721, uint256 tokenId) internal view returns (DSafeLib.NFTId) {
