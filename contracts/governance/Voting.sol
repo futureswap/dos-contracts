@@ -10,10 +10,6 @@ import "../lib/Call.sol";
 import "../lib/FsUtils.sol";
 
 contract Voting is EIP712 {
-    using BytesViewLib for BytesView;
-    using RLP for RLPItem;
-    using RLP for RLPIterator;
-
     struct Proposal {
         bytes32 digest;
         uint256 deadline;
@@ -140,10 +136,10 @@ contract Voting is EIP712 {
     }
 
     // Allow multiple offchain votes to be verified in a single transaction
-    function voteBatch(
-        uint256 proposalId,
-        Vote[] calldata votes
-    ) external requireValidProposal(proposalId) {
+    function voteBatch(uint256 proposalId, Vote[] calldata votes)
+        external
+        requireValidProposal(proposalId)
+    {
         bytes32 yesVoteDigest = _hashTypedDataV4(
             keccak256(abi.encode(VOTE_TYPEHASH, proposalId, true))
         );
@@ -188,7 +184,12 @@ contract Voting is EIP712 {
         delegates[msg.sender] = delegate;
     }
 
-    function _vote(address addr, uint256 proposalId, bool support, bytes calldata proof) internal {
+    function _vote(
+        address addr,
+        uint256 proposalId,
+        bool support,
+        bytes calldata proof
+    ) internal {
         require(
             (hasVoted[addr][uint248(proposalId >> 8)] & (1 << (proposalId & 7))) == 0,
             "already voted"
