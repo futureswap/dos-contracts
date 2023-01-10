@@ -5,8 +5,12 @@ import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "./GovernanceProxy.sol";
 import "../lib/ImmutableGovernance.sol";
 import "../tokens/HashNFT.sol";
+import "../lib/AccessControl.sol";
 
 contract TimeLockedCall is ImmutableGovernance, Ownable2Step {
+    uint256 constant MIN_TIMELOCK = 1 days;
+    uint256 constant MAX_TIMELOCK = 3 days;
+
     HashNFT public immutable hashNFT;
     uint8 public immutable accessLevel;
 
@@ -20,9 +24,13 @@ contract TimeLockedCall is ImmutableGovernance, Ownable2Step {
         uint8 _accessLevel,
         uint256 _lockTime
     ) ImmutableGovernance(governance) {
+        require(
+            _accessLevel == uint8(AccessControl.AccessLevel.FINANCIAL_RISK),
+            "TimeLockedCall: invalid access level"
+        );
         accessLevel = _accessLevel;
         hashNFT = HashNFT(FsUtils.nonNull(hashNFT_));
-        lockTime = _lockTime;
+        _setLockTime(_lockTime);
     }
 
     function proposeBatch(CallWithoutValue[] calldata calls) external onlyOwner {
@@ -42,7 +50,7 @@ contract TimeLockedCall is ImmutableGovernance, Ownable2Step {
     }
 
     function setLockTime(uint256 _lockTime) external onlyGovernance {
-        lockTime = _lockTime;
+        _setLockTime(_lockTime);
     }
 
     function calcDigest(
@@ -50,5 +58,11 @@ contract TimeLockedCall is ImmutableGovernance, Ownable2Step {
         uint256 executionTime
     ) internal pure returns (bytes32) {
         return keccak256(abi.encode(executionTime, calls));
+    }
+
+    function _setLockTime(uint256 _lockTime) internal {
+        require(_lockTime >= MIN_TIMELOCK, "TimeLockedCall: too short");
+        require(_lockTime <= MAX_TIMELOCK, "TimeLockedCall: too long");
+        lockTime = _lockTime;
     }
 }

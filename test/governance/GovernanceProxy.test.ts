@@ -228,7 +228,7 @@ describe("Governance test", () => {
       proposeAndExecute(governance, hashNFT, [
         makeCall(governance).setAccessLevel(...getSelector(governance).setAccessLevel, 1, true),
       ]),
-    ).to.be.reverted;
+    ).to.emit(governance, "ExecutionFailed");
   });
 
   it("Cannot set access level of transferVoting", async () => {
@@ -238,7 +238,7 @@ describe("Governance test", () => {
       proposeAndExecute(governance, hashNFT, [
         makeCall(governance).setAccessLevel(...getSelector(governance).transferVoting, 1, true),
       ]),
-    ).to.be.reverted;
+    ).to.emit(governance, "ExecutionFailed");
   });
 
   it("Cannot set access level of mintAccess", async () => {
@@ -248,7 +248,7 @@ describe("Governance test", () => {
       proposeAndExecute(governance, hashNFT, [
         makeCall(governance).setAccessLevel(...getSelector(governance).mintAccess, 1, true),
       ]),
-    ).to.be.reverted;
+    ).to.emit(governance, "ExecutionFailed");
   });
 
   it("Can set access level of revokeAccess", async () => {
@@ -258,7 +258,7 @@ describe("Governance test", () => {
       proposeAndExecute(governance, hashNFT, [
         makeCall(governance).setAccessLevel(...getSelector(governance).revokeAccess, 1, true),
       ]),
-    ).to.not.be.reverted;
+    ).to.emit(governance, "ExecutionSucceeded");
   });
 
   it("Cannot set access level of proposeGovernance", async () => {
@@ -272,6 +272,6 @@ describe("Governance test", () => {
           true,
         ),
       ]),
-    ).to.be.reverted;
+    ).to.emit(governance, "ExecutionFailed");
   });
 });

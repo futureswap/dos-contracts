@@ -70,13 +70,18 @@ contract GovernanceProxy {
 
 contract Governance is AccessControl, ERC1155Receiver {
     address public voting;
+    uint256 public maxSupportedGasCost = 8e6;
     mapping(address => mapping(bytes4 => uint256)) public bitmaskByAddressBySelector;
+
+    event ExecutionFailed(uint256 indexed messageId, string reason);
+    event ExecutionSucceeded(uint256 indexed messageId);
 
     error AccessDenied(address account, uint8 accessLevel);
     error InvalidCall(address to, bytes callData);
     error CallDenied(address to, bytes callData, uint8 accessLevel);
     error PrivilagedMethod(address to, bytes4 selector);
     error OnlyHashNFT();
+    error InsufficientGas();
 
     constructor(
         address _governanceProxy,
@@ -89,7 +94,29 @@ contract Governance is AccessControl, ERC1155Receiver {
     function executeBatch(CallWithoutValue[] memory calls) external {
         uint256 tokenId = hashNFT.toTokenId(voting, CallLib.hashCallWithoutValueArray(calls));
         hashNFT.burn(address(this), tokenId, 1); // reverts if tokenId isn't owned.
-        governanceProxy().executeBatch(calls);
+        try governanceProxy().executeBatch(calls) {} catch {
+            require(gasleft() > 100000, "Governance: out of gas");
+        }
+        // For governance calls we do not want them to revert and be in limbo. Thus if the batch
+        // reverts we should still burn the NFT. The only caveat is that we want to prevent
+        // sabotage votes by executing with insufficient gas and provoking a spurious revert.
+        bool failed;
+        string memory reason;
+        try governanceProxy().executeBatch(calls) {} catch Error(string memory _reason) {
+            failed = true;
+            reason = _reason;
+        } catch {
+            failed = true;
+        }
+        if (failed) {
+            // 1/64th of the gas is left in case the execution fails because of OOG. We need to
+            // require that this exceeds maxSupportedGasCost / 64 to ensure that in case it
+            // reverted because of OOG the execution was given ample gas.
+            if (gasleft() < maxSupportedGasCost / 64) revert InsufficientGas();
+            emit ExecutionFailed(tokenId, reason);
+        } else {
+            emit ExecutionSucceeded(tokenId);
+        }
     }
 
     function executeBatchWithClearance(
@@ -133,6 +160,11 @@ contract Governance is AccessControl, ERC1155Receiver {
         } else {
             bitmaskByAddressBySelector[addr][selector] &= ~(1 << accessLevel);
         }
+    }
+
+    function setMaxSupportedGasCost(uint256 _maxSupportedGasCost) external onlyGovernance {
+        require(_maxSupportedGasCost > 0, "Governance: invalid gas cost");
+        maxSupportedGasCost = _maxSupportedGasCost;
     }
 
     function onERC1155Received(

@@ -27,12 +27,25 @@ contract VersionManager is IVersionManager, ImmutableGovernance {
         _;
     }
 
+    modifier validStatus(Status status) {
+        require(uint8(status) <= uint8(Status.DEPRECATED), "Invalid status");
+        _;
+    }
+
+    modifier validBugLevel(BugLevel bugLevel) {
+        require(uint8(bugLevel) <= uint8(BugLevel.CRITICAL), "Invalid bug level");
+        _;
+    }
+
     constructor(address _owner) ImmutableGovernance(_owner) {}
 
     /// @notice Registers a new version of the store contract
     /// @param status Status of the version to be added
     /// @param _implementation The address of the implementation of the version
-    function addVersion(Status status, address _implementation) external onlyGovernance {
+    function addVersion(
+        Status status,
+        address _implementation
+    ) external onlyGovernance validStatus(status) {
         address implementation = FsUtils.nonNull(_implementation);
         // implementation must be a contract
         if (!Address.isContract(implementation)) {
@@ -76,7 +89,13 @@ contract VersionManager is IVersionManager, ImmutableGovernance {
         string calldata versionName,
         Status status,
         BugLevel bugLevel
-    ) external onlyGovernance versionExists(versionName) {
+    )
+        external
+        onlyGovernance
+        versionExists(versionName)
+        validStatus(status)
+        validBugLevel(bugLevel)
+    {
         _versions[versionName].status = status;
         _versions[versionName].bugLevel = bugLevel;
 
@@ -88,6 +107,11 @@ contract VersionManager is IVersionManager, ImmutableGovernance {
     function markRecommendedVersion(
         string calldata versionName
     ) external onlyGovernance versionExists(versionName) {
+        require(
+            _versions[versionName].status != IVersionManager.Status.DEPRECATED &&
+                _versions[versionName].bugLevel == IVersionManager.BugLevel.NONE,
+            "Version not valid"
+        );
         // set the version name as the recommended version
         _recommendedVersion = versionName;
 
@@ -135,14 +159,12 @@ contract VersionManager is IVersionManager, ImmutableGovernance {
     /// @notice Get total count of versions
     function getVersionCount() external view returns (uint256 count) {
         count = _versionString.length;
-        return count;
     }
 
     /// @dev Returns the version name at specific index in the versionString[] array
     /// @param index The index to be searched for
     function getVersionAtIndex(uint256 index) external view returns (string memory versionName) {
         versionName = _versionString[index];
-        return versionName;
     }
 
     /// @notice Get the implementation address for a version

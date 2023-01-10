@@ -19,6 +19,10 @@ contract AccessControl is ImmutableGovernance {
 
     constructor(address owner, address hashNFT_) ImmutableGovernance(owner) {
         hashNFT = HashNFT(FsUtils.nonNull(hashNFT_));
+        require(
+            hashNFT.supportsInterface(type(IERC1155).interfaceId),
+            "AccessControl: not HashNFT"
+        );
     }
 
     function mintAccess(
