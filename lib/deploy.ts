@@ -565,7 +565,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
   const {permit2, anyswapCreate2Deployer, transferAndCall2, governanceProxy} =
     await deployFixedAddressForTests(signer);
 
-  const {dos, versionManager} = await deployDos(
+  const {iDos, versionManager} = await deployDos(
     governanceProxy.address,
     anyswapCreate2Deployer,
     fsSalt,
@@ -576,7 +576,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
     new DSafeLogic__factory(signer),
     anyswapCreate2Deployer,
     fsSalt,
-    dos.address,
+    iDos.address,
   );
   await governanceProxy.executeBatch([
     makeCall(versionManager).addVersion(2, dSafeLogic.address),
@@ -590,7 +590,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
 
   const {usdcOracle, ethOracle, uniOracle, uniV3Oracle} = await setupDos(
     governanceProxy,
-    dos,
+    iDos,
     env.usdc,
     env.weth,
     env.uni,
@@ -607,7 +607,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
     await erc20.approve(env.swapRouter.address, ethers.constants.MaxUint256);
     await erc20.approve(env.nonFungiblePositionManager.address, ethers.constants.MaxUint256);
   }
-  const dsafe = await createDSafe(dos, signer);
+  const dsafe = await createDSafe(iDos, signer);
   await depositIntoDos(
     transferAndCall2,
     dsafe,
@@ -632,7 +632,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
       dsafe.executeBatch(
         await leverageLP2(
           dsafe,
-          dos,
+          iDos,
           env.nonFungiblePositionManager,
           {token0: env.weth, token1: env.usdc, fee: 500},
           normalize(900),
@@ -650,7 +650,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
       dsafe.executeBatch(
         await leverageLP2(
           dsafe,
-          dos,
+          iDos,
           env.nonFungiblePositionManager,
           {token0: env.weth, token1: env.uni, fee: 500},
           0.9,
@@ -672,7 +672,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
     futureSwapProxy,
     transferAndCall2,
     governanceProxy,
-    dos,
+    iDos,
     versionManager,
     weth: env.weth,
     usdc: env.usdc,
