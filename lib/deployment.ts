@@ -4,7 +4,6 @@ import {readFile, writeFile} from "node:fs/promises";
 
 import {
   TransferAndCall2__factory,
-  BatchDeployer__factory,
   GovernanceProxy__factory,
   Governance__factory,
   IWETH9__factory,
@@ -68,8 +67,6 @@ export const getContractFactory = (
       return IAnyswapCreate2Deployer__factory.connect(address, signer);
     case "permit2":
       return IPermit2__factory.connect(address, signer);
-    case "batchDeployer":
-      return BatchDeployer__factory.connect(address, signer);
     case "transferAndCall2":
       return TransferAndCall2__factory.connect(address, signer);
     case "dos":
