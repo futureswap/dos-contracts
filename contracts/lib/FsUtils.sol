@@ -55,14 +55,6 @@ library FsUtils {
         return _address;
     }
 
-    // Slither sees this function is not used, but it is convenient to have it around, as it
-    // actually provides better error messages than `nonNull` above.
-    // slither-disable-next-line dead-code
-    function nonNull(address _address, string memory message) internal pure returns (address) {
-        require(_address != address(0), message);
-        return _address;
-    }
-
     function revertBytes(bytes memory b) internal pure {
         /// @solidity memory-safe-assembly
         assembly {

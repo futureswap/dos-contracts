@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
+import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
@@ -12,6 +13,7 @@ import "../lib/NonceMap.sol";
 
 contract Voting is EIP712 {
     using NonceMapLib for NonceMap;
+    using Address for address;
 
     struct Proposal {
         bytes32 digest;
@@ -29,16 +31,17 @@ contract Voting is EIP712 {
         bytes proof;
     }
 
-    uint256 constant FRACTION = 10; // 10% must vote for quorum
+    bytes private constant VOTE_TYPESTRING = "Vote(uint256 proposalId,bool support)";
+    bytes32 private constant VOTE_TYPEHASH = keccak256(VOTE_TYPESTRING);
+
+    uint256 public constant FRACTION = 10; // 10% must vote for quorum
+    uint256 public constant MIN_VOTING_POWER = 100 ether;
 
     HashNFT public immutable hashNFT;
     address public immutable governanceToken;
     address public immutable governance;
     uint256 public immutable mappingSlot;
     uint256 public immutable totalSupplySlot;
-
-    bytes constant VOTE_TYPESTRING = "Vote(uint256 proposalId,bool support)";
-    bytes32 constant VOTE_TYPEHASH = keccak256(VOTE_TYPESTRING);
 
     Proposal[] public proposals;
     mapping(address => NonceMap) private votesByAddress;
@@ -86,8 +89,16 @@ contract Voting is EIP712 {
         uint256 blockNumber,
         bytes calldata blockHeader,
         bytes calldata stateProof,
-        bytes calldata totalSupplyProof
+        bytes calldata totalSupplyProof,
+        address voter,
+        bytes calldata proof
     ) external {
+        require(msg.sender == voter || delegates[voter] == msg.sender, "not authorized");
+        require(calls.length > 0, "Empty proposal");
+        for (uint256 i = 0; i < calls.length; i++) {
+            require(calls[i].to.isContract(), "target not a contract");
+            require(calls[i].callData.length >= 4, "Invalid callData");
+        }
         bytes32 storageHash;
         {
             bytes32 blockHash = getBlockHash(blockNumber);
@@ -119,6 +130,9 @@ contract Voting is EIP712 {
             proposal.digest,
             blockNumber
         );
+
+        uint256 amount = _vote(voter, proposals.length - 1, true, proof);
+        require(amount >= MIN_VOTING_POWER, "insufficient voting power");
     }
 
     function vote(
@@ -189,11 +203,16 @@ contract Voting is EIP712 {
         return votesByAddress[voter].getNonce(proposalId);
     }
 
-    function _vote(address addr, uint256 proposalId, bool support, bytes calldata proof) internal {
+    function _vote(
+        address addr,
+        uint256 proposalId,
+        bool support,
+        bytes calldata proof
+    ) internal returns (uint256 amount) {
         votesByAddress[addr].validateAndUseNonce(proposalId);
         // Solidity mapping convention
         bytes32 addressMappingSlot = keccak256(abi.encode(addr, mappingSlot));
-        uint256 amount = TrieLib.proofStorageAt(
+        amount = TrieLib.proofStorageAt(
             addressMappingSlot,
             proposals[proposalId].storageHash,
             proof

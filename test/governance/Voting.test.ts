@@ -186,16 +186,23 @@ describe("Voting test", () => {
     );
     await voting.setMockBlockHash(block.hash);
 
+    await owner.sendTransaction({to: voters[1], value: ethers.utils.parseEther("1")});
+    const acct2 = await hEthers.getImpersonatedSigner(voters[1]);
+    await voting.connect(acct2).setDelegate(owner.address);
+
+    const dummyCalls = [{to: hashNFT.address, callData: "0x12345678"}];
+
     return {
       owner,
       user,
       hashNFT,
       voting,
+      dummyCalls,
     };
   }
 
   it("Can propose vote", async () => {
-    const {voting} = await loadFixture(deployVotingFixture);
+    const {voting, dummyCalls} = await loadFixture(deployVotingFixture);
 
     const blockHeader = encodeBlockHeader(block);
 
@@ -203,66 +210,72 @@ describe("Voting test", () => {
       voting.proposeVote(
         "Test",
         "Test vote",
-        [],
+        dummyCalls,
         1,
         blockHeader,
         encodeProof(proofs.accountProof),
         encodeProof(proofs.storageProof[0].proof),
+        voters[1],
+        encodeProof(proofs.storageProof[2].proof),
       ),
     ).to.emit(voting, "ProposalCreated");
   });
 
   it("Can vote", async () => {
-    const {voting} = await loadFixture(deployVotingFixture);
+    const {voting, dummyCalls} = await loadFixture(deployVotingFixture);
 
     const blockHeader = encodeBlockHeader(block);
 
     await voting.proposeVote(
       "Test",
       "Test vote",
-      [],
+      dummyCalls,
       1,
       blockHeader,
       encodeProof(proofs.accountProof),
       encodeProof(proofs.storageProof[0].proof),
+      voters[1],
+      encodeProof(proofs.storageProof[2].proof),
     );
 
-    await expect(voting.voteBatch(0, [makeVote(0), makeVote(1)])).to.emit(voting, "VoteCasted");
+    await expect(voting.voteBatch(0, [makeVote(0)])).to.emit(voting, "VoteCasted");
   });
 
   it("Can't vote twice", async () => {
-    const {voting} = await loadFixture(deployVotingFixture);
+    const {voting, dummyCalls} = await loadFixture(deployVotingFixture);
 
     const blockHeader = encodeBlockHeader(block);
 
     await voting.proposeVote(
       "Test",
       "Test vote",
-      [],
+      dummyCalls,
       1,
       blockHeader,
       encodeProof(proofs.accountProof),
       encodeProof(proofs.storageProof[0].proof),
+      voters[1],
+      encodeProof(proofs.storageProof[2].proof),
     );
 
-    await voting.voteBatch(0, [makeVote(0), makeVote(1)]);
-
-    await expect(voting.voteBatch(0, [makeVote(0), makeVote(1)])).to.be.reverted;
+    await expect(voting.voteBatch(0, [makeVote(1)])).to.be.reverted;
   });
 
   it("Can't vote without non-zero balance", async () => {
-    const {user, voting} = await loadFixture(deployVotingFixture);
+    const {user, voting, dummyCalls} = await loadFixture(deployVotingFixture);
 
     const blockHeader = encodeBlockHeader(block);
 
     await voting.proposeVote(
       "Test",
       "Test vote",
-      [],
+      dummyCalls,
       1,
       blockHeader,
       encodeProof(proofs.accountProof),
       encodeProof(proofs.storageProof[0].proof),
+      voters[1],
+      encodeProof(proofs.storageProof[2].proof),
     );
 
     const signature = await signVote(voting, 0, true, user);
