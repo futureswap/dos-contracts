@@ -25,12 +25,20 @@ abstract contract Liquifier is DSafeState {
     /// @notice Advanced version of liquidate function. Potentially unwanted side-affect of
     /// liquidation is a debt on the liquidator. So liquify would liquidate and then re-balance
     /// obtained assets to have no debt. This is the algorithm:
-    ///   * liquidate target `dSafe`
+    ///   * liquidate dAccount of target `dSafe`
     ///   * terminate all obtained ERC721s (NFTs)
-    ///   * sell for `numeraire` all obtained from liquidation and from ERC721 termination `erc20s`
-    ///   * for all `erc20s` that created debt as the result of liquidation,
-    ///     buy that tokens in the amount of debt
-    ///   * deposit bought `erc20s` to cover the debt and `numeraire` if there is a debt on it
+    ///   * buy/sell `erc20s` for `numeraire` so the balance of `dSafe` on that ERC20s matches the
+    ///     debt of `dSafe` on it's dAccount. E.g.:
+    ///     - for 1 WETH of debt on dAccount and 3 WETH on the balance of dSafe - sell 2 WETH
+    ///     - for 3 WETH of debt on dAccount and 1 WETH on the balance of dSafe - buy 2 WETH
+    ///     - for no debt on dAccount and 1 WETH on the balance of dSafe - sell 2 WETH
+    ///     - for 1 WETH of debt on dAccount and no WETH on the balance of dSave - buy 1 WETH
+    ///   * deposit `erc20s` to cover the debt and `numeraire` if there is a debt on it
+    ///
+    /// !! IMPORTANT: because this function executes quite a lot of logic on top of DOS.liquidate(),
+    /// there is a risk that for liquidatable position with a long list of NFTs it will run out
+    /// of gas. As for now, it's up to liquidator to estimate if specific position is liquifiable,
+    /// or DOS.liquidate() need to be used (with further assets re-balancing in other transactions)
     /// @dev notes on erc20s: the reason for erc20s been a call parameter, and not been calculated
     /// inside of liquify, is reducing gas costs
     ///   erc20s should NOT include numeraire. Otherwise, the transaction would be reverted with an
@@ -50,12 +58,12 @@ abstract contract Liquifier is DSafeState {
     /// @param dSafe - the address of a dSafe to liquidate
     /// @param swapRouter - the address of a Uniswap swap router to be used to buy/sell erc20s
     /// @param nftManager - the address of a Uniswap NonFungibleTokenManager to be used to terminate
-    ///   ERC721 (NFTs)
+    /// ERC721 (NFTs)
     /// @param numeraire - the address of an ERC20 to be used to convert to and from erc20s. The
-    ///   liquidation reward would be in this token
+    /// liquidation reward would be in this token
     /// @param erc20s - the list of ERC20 that liquidated has debt, collateral or that would be
-    ///   obtained from termination of any ERC721 that he owns. Except of numeraire, that should
-    ///   never be included in erc20s array
+    /// obtained from termination of any ERC721 that he owns. Except of numeraire, that should
+    /// never be included in erc20s array
     function liquify(
         address dSafe,
         address swapRouter,
@@ -70,18 +78,22 @@ abstract contract Liquifier is DSafeState {
         dos.liquidate(dSafe);
 
         (
-            IERC20[] memory erc20sToWithdraw,
-            uint256[] memory erc20sToSellAmounts,
-            IERC20[] memory erc20sToDeposit,
-            uint256[] memory erc20sToBuyAmounts
+            IERC20[] memory erc20sCollateral,
+            IERC20[] memory erc20sDebt,
+            uint256[] memory erc20sDebtAmounts
         ) = analiseDAccountStructure(erc20s, numeraire);
 
-        dos.withdrawFull(erc20sToWithdraw);
-        terminateERC721s(nftManager, erc20s, erc20sToSellAmounts);
+        dos.withdrawFull(erc20sCollateral);
+        terminateERC721s(nftManager);
+
+        (
+            uint256[] memory erc20sToSellAmounts,
+            uint256[] memory erc20sToBuyAmounts
+        ) = calcSellAndBuyERC20Amounts(erc20s, erc20sDebtAmounts);
         sellERC20s(swapRouter, erc20s, erc20sToSellAmounts, numeraire);
         buyERC20s(swapRouter, erc20s, erc20sToBuyAmounts, numeraire);
 
-        dos.depositFull(erc20sToDeposit);
+        dos.depositFull(erc20sDebt);
     }
 
     function callOverBatchExecute(
@@ -107,20 +119,69 @@ abstract contract Liquifier is DSafeState {
         dos.executeBatch(calls);
     }
 
-    // !modifies the erc20sToSellAmounts! amounts of tokens obtained from NFTs termination would
-    // be added to the corresponding items of erc20sToSellAmounts
-    function terminateERC721s(
-        address nftManager,
+    function analiseDAccountStructure(
         IERC20[] calldata erc20s,
-        uint256[] memory erc20sToSellAmounts
-    ) private {
+        address numeraire
+    )
+        private
+        view
+        returns (
+            IERC20[] memory erc20sCollateral,
+            IERC20[] memory erc20sDebt,
+            uint256[] memory erc20sDebtAmounts
+        )
+    {
+        uint256 numOfERC20sCollateral = 0;
+        uint256 numOfERC20sDebt = 0;
+        int256[] memory balances = new int256[](erc20s.length);
+
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            int256 balance = dos.getDAccountERC20(address(this), erc20s[i]);
+            if (balance > 0) {
+                numOfERC20sCollateral++;
+                balances[i] = balance;
+            } else if (balance < 0) {
+                numOfERC20sDebt++;
+                balances[i] = balance;
+            }
+        }
+
+        int256 dAccountNumeraireBalance = dos.getDAccountERC20(address(this), IERC20(numeraire));
+        if (dAccountNumeraireBalance > 0) {
+            numOfERC20sCollateral++;
+        } else if (dAccountNumeraireBalance < 0) {
+            numOfERC20sDebt++;
+        }
+
+        erc20sCollateral = new IERC20[](numOfERC20sCollateral);
+        erc20sDebt = new IERC20[](numOfERC20sDebt);
+        erc20sDebtAmounts = new uint256[](erc20s.length);
+
+        if (dAccountNumeraireBalance > 0) {
+            erc20sCollateral[0] = IERC20(numeraire);
+        } else if (dAccountNumeraireBalance < 0) {
+            erc20sDebt[0] = IERC20(numeraire);
+        }
+
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            if (balances[i] > 0) {
+                erc20sCollateral[--numOfERC20sCollateral] = erc20s[i];
+            } else if (balances[i] < 0) {
+                erc20sDebt[--numOfERC20sDebt] = erc20s[i];
+                erc20sDebtAmounts[i] = uint256(-balances[i]);
+            }
+        }
+    }
+
+    /// @param nftManager - passed as-is from liquify function. The address of a Uniswap
+    ///   NonFungibleTokenManager to be used to terminate ERC721 (NFTs)
+    function terminateERC721s(address nftManager) private {
         INonfungiblePositionManager manager = INonfungiblePositionManager(nftManager);
         IDOS.NFTData[] memory nfts = dos.getDAccountERC721(address(this));
         for (uint256 i = 0; i < nfts.length; i++) {
             IDOS.NFTData memory nft = nfts[i];
             dos.withdrawERC721(nft.erc721, nft.tokenId);
-            (, , address token0, address token1, , , , uint128 nftLiquidity, , , , ) = manager
-                .positions(nft.tokenId);
+            (, , , , , , , uint128 nftLiquidity, , , , ) = manager.positions(nft.tokenId);
             manager.decreaseLiquidity(
                 INonfungiblePositionManager.DecreaseLiquidityParams({
                     tokenId: nft.tokenId,
@@ -130,7 +191,7 @@ abstract contract Liquifier is DSafeState {
                     deadline: type(uint256).max
                 })
             );
-            (uint256 amount0, uint256 amount1) = manager.collect(
+            manager.collect(
                 INonfungiblePositionManager.CollectParams({
                     tokenId: nft.tokenId,
                     recipient: address(this),
@@ -138,15 +199,29 @@ abstract contract Liquifier is DSafeState {
                     amount1Max: type(uint128).max
                 })
             );
-            for (uint256 j = 0; j < erc20s.length; j++) {
-                if (address(erc20s[j]) == token0) {
-                    erc20sToSellAmounts[j] += amount0;
-                } else if (address(erc20s[j]) == token1) {
-                    erc20sToSellAmounts[j] += amount1;
-                }
-            }
 
             manager.burn(nft.tokenId);
+        }
+    }
+
+    function calcSellAndBuyERC20Amounts(
+        IERC20[] calldata erc20s,
+        uint256[] memory erc20sDebtAmounts
+    )
+        private
+        view
+        returns (uint256[] memory erc20ToSellAmounts, uint256[] memory erc20ToBuyAmounts)
+    {
+        erc20ToBuyAmounts = new uint256[](erc20s.length);
+        erc20ToSellAmounts = new uint256[](erc20s.length);
+
+        for (uint256 i = 0; i < erc20s.length; i++) {
+            uint256 balance = erc20s[i].balanceOf(address(this));
+            if (balance > erc20sDebtAmounts[i]) {
+                erc20ToSellAmounts[i] = balance - erc20sDebtAmounts[i];
+            } else if (balance < erc20sDebtAmounts[i]) {
+                erc20ToBuyAmounts[i] = erc20sDebtAmounts[i] - balance;
+            }
         }
     }
 
@@ -194,64 +269,6 @@ abstract contract Liquifier is DSafeState {
                     sqrtPriceLimitX96: 0
                 });
             ISwapRouter(swapRouter).exactOutputSingle(params);
-        }
-    }
-
-    function analiseDAccountStructure(
-        IERC20[] calldata erc20s,
-        address numeraire
-    )
-        private
-        view
-        returns (
-            IERC20[] memory erc20sToWithdraw,
-            uint256[] memory erc20sToSellAmounts,
-            IERC20[] memory erc20sToDeposit,
-            uint256[] memory erc20sToBuyAmounts
-        )
-    {
-        uint256 numToWithdraw = 0;
-        uint256 numToDeposit = 0;
-        int256[] memory balances = new int256[](erc20s.length);
-
-        for (uint256 i = 0; i < erc20s.length; i++) {
-            int256 balance = dos.getDAccountERC20(address(this), erc20s[i]);
-            if (balance > 0) {
-                balances[i] = balance;
-                numToWithdraw++;
-            } else if (balance < 0) {
-                balances[i] = balance;
-                numToDeposit++;
-            }
-        }
-
-        int256 dAccountNumeraireBalance = dos.getDAccountERC20(address(this), IERC20(numeraire));
-        if (dAccountNumeraireBalance > 0) {
-            numToWithdraw++;
-        } else if (dAccountNumeraireBalance < 0) {
-            numToDeposit++;
-        }
-
-        erc20sToWithdraw = new IERC20[](numToWithdraw);
-        erc20sToSellAmounts = new uint256[](erc20s.length);
-        erc20sToDeposit = new IERC20[](numToDeposit);
-        erc20sToBuyAmounts = new uint256[](erc20s.length);
-
-        if (dAccountNumeraireBalance > 0) {
-            erc20sToWithdraw[0] = IERC20(numeraire);
-        } else if (dAccountNumeraireBalance < 0) {
-            erc20sToDeposit[0] = IERC20(numeraire);
-        }
-
-        for (uint256 i = 0; i < erc20s.length; i++) {
-            int256 balance = balances[i];
-            if (balance > 0) {
-                erc20sToWithdraw[--numToWithdraw] = erc20s[i];
-                erc20sToSellAmounts[i] = uint256(balance);
-            } else if (balance < 0) {
-                erc20sToDeposit[--numToDeposit] = erc20s[i];
-                erc20sToBuyAmounts[i] = uint256(-balance);
-            }
         }
     }
 }
