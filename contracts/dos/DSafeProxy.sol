@@ -103,7 +103,7 @@ contract DSafeLogic is
 
     string private constant VERSION = "1.0.0";
 
-    NonceMap public nonceMap;
+    NonceMap private nonceMap;
 
     error InvalidData();
     error InvalidSignature();
