@@ -1005,12 +1005,23 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
 
     /// @notice upgrades the version of dSafeLogic contract for the `dSafe`
     /// @param version The new target version of dSafeLogic contract
-    // todo - disallow downgrade
-    function upgradeDSafeImplementation(uint256 version) external override onlyDSafe {
-        dSafeLogic[msg.sender] = versionManager.getVersionAddress(version);
-        emit IDOSConfig.DSafeImplementationUpgraded(msg.sender, version);
+    function upgradeDSafeImplementation(string calldata version) external override onlyDSafe {
+        (
+            ,
+            IVersionManager.Status status,
+            IVersionManager.BugLevel bugLevel,
+            address implementation,
+
+        ) = versionManager.getVersionDetails(version);
+        require(status != IVersionManager.Status.DEPRECATED, "Version is deprecated");
+        require(bugLevel == IVersionManager.BugLevel.NONE, "Version has bugs");
+        dSafeLogic[msg.sender] = implementation;
+        emit IDOSConfig.DSafeImplementationUpgraded(msg.sender, version, implementation);
     }
 
+    /// @notice transfers the ownership of the `dSafe` to the `newOwner`
+    /// @param newOwner The new owner of the `dSafe`
+    /// todo: should `dsafe` ownership follow ERC721?
     function transferDSafeOwnership(address newOwner) external override onlyDSafe {
         dSafes[msg.sender].owner = newOwner;
         emit IDOSConfig.DSafeOwnershipTransferred(msg.sender, newOwner);

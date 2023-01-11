@@ -28,7 +28,11 @@ interface IDOSConfig {
     /// @notice Emitted when the implementation of a dSafe is upgraded
     /// @param dSafe The address of the dSafe
     /// @param version The new implementation version
-    event DSafeImplementationUpgraded(address indexed dSafe, uint256 indexed version);
+    event DSafeImplementationUpgraded(
+        address indexed dSafe,
+        string indexed version,
+        address implementation
+    );
 
     event DSafeOwnershipTransferred(address indexed dSafe, address indexed newOwner);
 
@@ -105,7 +109,7 @@ interface IDOSConfig {
     /// @param owner The address of the owner
     event DSafeCreated(address dSafe, address owner);
 
-    function upgradeDSafeImplementation(uint256 version) external;
+    function upgradeDSafeImplementation(string calldata version) external;
 
     function transferDSafeOwnership(address newOwner) external;
 
