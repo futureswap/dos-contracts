@@ -20,6 +20,7 @@ import {ISafe} from "../interfaces/ISafe.sol";
 import "./DSafeState.sol";
 import "./Liquifier.sol";
 import "../interfaces/IERC1363-extended.sol";
+import "../lib/NonceMap.sol";
 
 /// @title DSafe Proxy
 /// @notice Proxy contract for DOS Safes
@@ -40,6 +41,7 @@ contract DSafeProxy is DSafeState, Proxy {
             IERC20 erc20 = IERC20(FsUtils.nonNull(erc20s[i]));
             erc20.approve(_dos, type(uint256).max);
             erc20.approve(address(PERMIT2), type(uint256).max);
+            erc20.approve(address(TRANSFER_AND_CALL2), type(uint256).max);
         }
         // Approve DOS to spend all ERC721s
         for (uint256 i = 0; i < erc721s.length; i++) {
@@ -79,9 +81,7 @@ contract DSafeLogic is
     Liquifier,
     IERC1363SpenderExtended
 {
-    struct Nonce {
-        uint256 bitfield;
-    }
+    using NonceMapLib for NonceMap;
 
     bytes private constant EXECUTEBATCH_TYPESTRING =
         "ExecuteBatch(Call[] calls,uint256 nonce,uint256 deadline)";
@@ -103,7 +103,7 @@ contract DSafeLogic is
 
     string private constant VERSION = "1.0.0";
 
-    mapping(uint248 => Nonce) public nonces;
+    NonceMap private nonceMap;
 
     error InvalidData();
     error InvalidSignature();
@@ -142,7 +142,7 @@ contract DSafeLogic is
         bytes calldata signature
     ) external payable {
         if (deadline < block.timestamp) revert DeadlineExpired();
-        validateAndUseNonce(nonce);
+        nonceMap.validateAndUseNonce(nonce);
         bytes32 digest = _hashTypedDataV4(
             keccak256(
                 abi.encode(EXECUTEBATCH_TYPEHASH, CallLib.hashCallArray(calls), nonce, deadline)
@@ -188,8 +188,7 @@ contract DSafeLogic is
     }
 
     function setNonce(uint256 nonce) external onlyOwner {
-        (Nonce storage slot, uint256 bitmask) = splitNonce(nonce);
-        slot.bitfield |= bitmask;
+        nonceMap.validateAndUseNonce(nonce);
     }
 
     /// @inheritdoc ITransferReceiver2
@@ -228,7 +227,7 @@ contract DSafeLogic is
                 .decode(data[1:], (Call[], uint256, uint256, bytes));
 
             if (deadline < block.timestamp) revert DeadlineExpired();
-            validateAndUseNonce(nonce);
+            nonceMap.validateAndUseNonce(nonce);
 
             bytes32[] memory transferDigests = new bytes32[](transfers.length);
             for (uint256 i = 0; i < transfers.length; i++) {
@@ -301,18 +300,6 @@ contract DSafeLogic is
     }
 
     function valueNonce(uint256 nonce) external view returns (bool) {
-        (Nonce storage slot, uint256 bitmask) = splitNonce(nonce);
-        return (slot.bitfield & bitmask) != 0;
-    }
-
-    function validateAndUseNonce(uint256 nonce) internal {
-        (Nonce storage slot, uint256 bitmask) = splitNonce(nonce);
-        uint256 bitfield = slot.bitfield;
-        if ((bitfield & bitmask) != 0) revert NonceAlreadyUsed();
-        slot.bitfield = slot.bitfield | bitmask;
-    }
-
-    function splitNonce(uint256 nonce) internal view returns (Nonce storage, uint256) {
-        return (nonces[uint248(nonce >> 8)], 1 << (nonce & 0xff));
+        return nonceMap.getNonce(nonce);
     }
 }

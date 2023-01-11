@@ -8,8 +8,11 @@ import "../tokens/HashNFT.sol";
 import "../lib/Proofs.sol";
 import "../lib/Call.sol";
 import "../lib/FsUtils.sol";
+import "../lib/NonceMap.sol";
 
 contract Voting is EIP712 {
+    using NonceMapLib for NonceMap;
+
     struct Proposal {
         bytes32 digest;
         uint256 deadline;
@@ -38,10 +41,7 @@ contract Voting is EIP712 {
     bytes32 constant VOTE_TYPEHASH = keccak256(VOTE_TYPESTRING);
 
     Proposal[] public proposals;
-    // proposal ids are assigned as consecutive integers starting from 0
-    // therefore we pack the lowest 8 bits of the proposal id into a bit
-    // field. This allows us to store 256 votes per mapping slot.
-    mapping(address => mapping(uint248 => uint256)) public hasVoted;
+    mapping(address => NonceMap) private votesByAddress;
     mapping(address => address) public delegates;
 
     event ProposalCreated(
@@ -185,12 +185,12 @@ contract Voting is EIP712 {
         delegates[msg.sender] = delegate;
     }
 
+    function hasVoted(address voter, uint256 proposalId) external view returns (bool) {
+        return votesByAddress[voter].getNonce(proposalId);
+    }
+
     function _vote(address addr, uint256 proposalId, bool support, bytes calldata proof) internal {
-        require(
-            (hasVoted[addr][uint248(proposalId >> 8)] & (1 << (proposalId & 7))) == 0,
-            "already voted"
-        );
-        hasVoted[addr][uint248(proposalId >> 8)] |= (1 << (proposalId & 7));
+        votesByAddress[addr].validateAndUseNonce(proposalId);
         // Solidity mapping convention
         bytes32 addressMappingSlot = keccak256(abi.encode(addr, mappingSlot));
         uint256 amount = TrieLib.proofStorageAt(

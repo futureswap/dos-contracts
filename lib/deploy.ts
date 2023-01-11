@@ -281,7 +281,7 @@ export const deployOffchainEntityProxy = async (
 export const fsSalt = "0x1234567890123456789012345678901234567890123456789012345678901234";
 
 const permit2Address = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
-const transferAndCall2Address = "0xE43C615729F4d93E2532064a4e2ABec2f7D81ce1";
+const transferAndCall2Address = "0x812fa1460CF523b880Ac5106A9EB713543508E9a";
 
 let futureSwapProxy: OffchainEntityProxy;
 let governanceProxy: GovernanceProxy | undefined;
