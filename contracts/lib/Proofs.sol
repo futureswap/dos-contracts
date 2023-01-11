@@ -33,11 +33,6 @@ library BytesViewLib {
         }
     }
 
-    function bytesFromBytes32(bytes32 x) internal pure returns (bytes memory res) {
-        res = new bytes(32);
-        mstore(memPtr(res), x);
-    }
-
     function mCopy(uint256 src, uint256 dest, uint256 len) internal pure {
         unchecked {
             // copy as many word sizes as possible
@@ -316,18 +311,18 @@ library TrieLib {
     /// @notice The stored value is encoded as RLP and thus never empty, so empty means the key doesn't exist.
     ///         This is reasonably optimized for gas, it's around 25k gas per proof depending on the depth.
     function verify(
-        bytes memory key,
+        bytes32 key,
+        uint256 keyLength,
         bytes32 root,
         bytes memory proof
     ) internal pure returns (BytesView) {
         unchecked {
-            if (key.length > 32) revert KeyTooLong();
-            uint256 nibblesLength = key.length * 2;
-            bytes32 keyBytes = BytesViewLib.mload(BytesViewLib.memPtr(key));
-            uint256 p = 0;
+            if (keyLength > 32) revert KeyTooLong();
+            uint256 nibblesLeft = keyLength * 2;
             RLPItem rlpListItem = RLP.requireRLPItem(BytesViewLib.fromBytes(proof));
             RLPIterator listIt = rlpListItem.requireRLPItemIterator();
-            RLPItem[] memory children = new RLPItem[](2);
+            RLPItem child0;
+            RLPItem child1;
             BytesView res = BytesViewLib.empty();
             while (listIt.hasNext()) {
                 if (root == EMPTY_TRIE_HASH) revert ProofTooLong();
@@ -339,19 +334,18 @@ library TrieLib {
 
                 RLPIterator childIt = rlpItem.toRLPItemIterator();
                 FsUtils.Assert(childIt.hasNext());
-                (children[0], childIt) = childIt.unsafeNext();
+                (child0, childIt) = childIt.unsafeNext();
                 FsUtils.Assert(childIt.hasNext());
-                (children[1], childIt) = childIt.unsafeNext();
+                (child1, childIt) = childIt.unsafeNext();
 
-                FsUtils.Assert(p <= nibblesLength);
                 RLPItem nextRoot;
                 root = EMPTY_TRIE_HASH; // sentinel indicating end of proof
                 if (childIt.hasNext()) {
                     // Branch node
-                    uint nibble = p == nibblesLength ? 16 : uint256(keyBytes) >> 252;
+                    uint nibble = nibblesLeft == 0 ? 16 : uint256(key) >> 252;
 
                     if (nibble < 2) {
-                        nextRoot = children[nibble];
+                        nextRoot = nibble == 0 ? child0 : child1;
                     } else {
                         for (uint i = 2; i < nibble; i++) {
                             FsUtils.Assert(childIt.hasNext());
@@ -361,16 +355,16 @@ library TrieLib {
                         (nextRoot, childIt) = childIt.unsafeNext();
                     }
 
-                    if (p == nibblesLength) {
+                    if (nibblesLeft == 0) {
                         res = nextRoot.toBytesView();
                         continue;
                     }
-                    keyBytes <<= 4;
-                    p++;
+                    key <<= 4;
+                    nibblesLeft -= 1;
                 } else {
                     // Extension or leaf nodes
-                    BytesView partialKey = children[0].toBytesView();
-                    FsUtils.Assert(partialKey.length() > 0);
+                    BytesView partialKey = child0.toBytesView();
+                    FsUtils.Assert(partialKey.length() > 0 && partialKey.length() <= 33);
                     uint256 tag = partialKey.unsafeLoadUInt8(0);
                     bytes32 partialKeyBytes = partialKey.unsafeLoadBytes32(1);
                     uint partialKeyLength = 2 * partialKey.length() - 2;
@@ -387,24 +381,25 @@ library TrieLib {
                     // For a valid MPT, the partial key must be at least one nibble and will
                     // never be more then 32 bytes.
                     FsUtils.Assert(partialKeyLength > 0 && partialKeyLength <= 64);
-                    if (p + partialKeyLength > nibblesLength) {
+                    // The partialKey must be a prefix of key
+                    if (
+                        partialKeyLength > nibblesLeft ||
+                        (partialKeyBytes ^ key) >> (256 - 4 * partialKeyLength) != 0
+                    ) {
+                        // The partial key is not a prefix of the key, so the key doesn't exist
                         continue;
                     }
-                    // The partialKeyLength most significant nibbles must match
-                    if ((partialKeyBytes ^ keyBytes) >> (256 - 4 * partialKeyLength) != 0) {
-                        continue;
-                    }
-                    p += partialKeyLength;
-                    keyBytes <<= 4 * partialKeyLength;
+                    nibblesLeft -= partialKeyLength;
+                    key <<= 4 * partialKeyLength;
 
                     if ((tag & 32) != 0) {
                         // Leaf node
-                        if (p == nibblesLength) {
-                            res = children[1].toBytesView();
+                        if (nibblesLeft == 0) {
+                            res = child1.toBytesView();
                         }
                         continue;
                     }
-                    nextRoot = children[1];
+                    nextRoot = child1;
                 }
                 // Proof continue with child node
                 if (nextRoot.isBytes()) {
@@ -436,11 +431,7 @@ library TrieLib {
         pure
         returns (uint256 nonce, uint256 balance, bytes32 storageHash, bytes32 codeHash)
     {
-        BytesView accountRLP = verify(
-            BytesViewLib.bytesFromBytes32(keccak256(abi.encodePacked(account))),
-            stateRoot,
-            proof
-        );
+        BytesView accountRLP = verify(keccak256(abi.encodePacked(account)), 32, stateRoot, proof);
         if (accountRLP.length() == 0) {
             return (0, 0, bytes32(0), bytes32(0));
         }
@@ -465,11 +456,7 @@ library TrieLib {
         bytes32 storageHash,
         bytes memory proof
     ) internal pure returns (uint256) {
-        BytesView valueRLP = verify(
-            BytesViewLib.bytesFromBytes32(keccak256(abi.encodePacked(slot))),
-            storageHash,
-            proof
-        );
+        BytesView valueRLP = verify(keccak256(abi.encodePacked(slot)), 32, storageHash, proof);
         if (valueRLP.length() == 0) {
             return 0;
         }

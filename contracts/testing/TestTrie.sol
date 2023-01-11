@@ -9,6 +9,6 @@ contract TestTrie {
         bytes32 root,
         bytes calldata proof
     ) external pure returns (bytes memory) {
-        return BytesViewLib.toBytes(TrieLib.verify(key, root, proof));
+        return BytesViewLib.toBytes(TrieLib.verify(bytes32(key), key.length, root, proof));
     }
 }
