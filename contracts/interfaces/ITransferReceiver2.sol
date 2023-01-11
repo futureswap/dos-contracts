@@ -5,15 +5,14 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+// This address is in flux as long as the bytecode of this contract is not fixed. For now
+// we deploy it on local block chain on fixed address, when we go deploy this needs to change
+// to the permanent address.
+address constant TRANSFER_AND_CALL2 = address(0xE43C615729F4d93E2532064a4e2ABec2f7D81ce1);
+
 // Contracts that implement can receive multiple ERC20 transfers in a single transaction,
 // with backwards compatibility for legacy ERC20's not implementing ERC677.
 abstract contract ITransferReceiver2 {
-    // This address is in flux as long as the bytecode of this contract is not fixed. For now
-    // we deploy it on local block chain on fixed address, when we go deploy this needs to change
-    // to the permanent address.
-    address private constant TRANSFER_AND_CALL2 =
-        address(0xE43C615729F4d93E2532064a4e2ABec2f7D81ce1);
-
     error InvalidSender(address sender);
 
     struct Transfer {
