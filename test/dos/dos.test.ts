@@ -192,7 +192,7 @@ describe("DOS", () => {
       expect((await getBalances(receiver)).usdc).to.equal(tenThousandUsdc);
     });
 
-    it("User cannot send more then they own", async () => {
+    it("User cannot send more than they own", async () => {
       const {user, user2, iDos, usdc} = await loadFixture(deployDOSFixture);
       const sender = await createDSafe(iDos, user);
       const receiver = await createDSafe(iDos, user2);
