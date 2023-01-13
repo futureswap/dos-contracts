@@ -52,8 +52,18 @@ describe("DOS swap integration", () => {
       8,
       USDC_DECIMALS,
       USDC_DECIMALS,
+      ethers.utils.parseEther("1"),
+      owner.address,
     );
-    const ethChainlink = await Chainlink.deploy(owner, ETH_PRICE, 8, USDC_DECIMALS, WETH_DECIMALS);
+    const ethChainlink = await Chainlink.deploy(
+      owner,
+      ETH_PRICE,
+      8,
+      USDC_DECIMALS,
+      WETH_DECIMALS,
+      ethers.utils.parseEther("1"),
+      owner.address,
+    );
 
     const {iDos, versionManager} = await deployDos(
       owner.address,

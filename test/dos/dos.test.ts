@@ -62,8 +62,18 @@ describe("DOS", () => {
       8,
       USDC_DECIMALS,
       USDC_DECIMALS,
+      toWei(0.9),
+      owner.address,
     );
-    const ethChainlink = await Chainlink.deploy(owner, ETH_PRICE, 8, USDC_DECIMALS, WETH_DECIMALS);
+    const ethChainlink = await Chainlink.deploy(
+      owner,
+      ETH_PRICE,
+      8,
+      USDC_DECIMALS,
+      WETH_DECIMALS,
+      toWei(0.9),
+      owner.address,
+    );
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();
 

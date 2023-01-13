@@ -46,8 +46,24 @@ describe("UniswapOracle", () => {
     // tests the price is hardcoded with ticks - changing one without another will break it
     if (BigInt(tok0.address) > BigInt(tok1.address)) [tok0, tok1] = [tok1, tok0];
 
-    const tok0Chainlink = await Chainlink.deploy(owner, PRICE, 8, 18, 18);
-    const tok1Chainlink = await Chainlink.deploy(owner, 1, 8, 18, 18);
+    const tok0Chainlink = await Chainlink.deploy(
+      owner,
+      PRICE,
+      8,
+      18,
+      18,
+      ethers.utils.parseEther("1"),
+      owner.address,
+    );
+    const tok1Chainlink = await Chainlink.deploy(
+      owner,
+      1,
+      8,
+      18,
+      18,
+      ethers.utils.parseEther("1"),
+      owner.address,
+    );
 
     const pool = await deployUniswapPool(uniswapV3Factory, tok0.address, tok1.address, 500, PRICE);
 
@@ -103,7 +119,7 @@ describe("UniswapOracle", () => {
         // having it otherwise probably means that there is an issue in ordering the tokens
         expect(token0IncreaseLiquidity > token1IncreaseLiquidity);
         const totalIncreaseLiquidityRaw = await uniswapOracle.calcValue(IncreaseLiquidity.tokenId);
-        const totalIncreaseLiquidity = totalIncreaseLiquidityRaw.toBigInt();
+        const totalIncreaseLiquidity = BigInt(totalIncreaseLiquidityRaw[0]);
         expect(totalIncreaseLiquidity).to.approximately(
           token0IncreaseLiquidity + token1IncreaseLiquidity,
           100,
@@ -148,7 +164,7 @@ describe("UniswapOracle", () => {
         expect(token0IncreaseLiquidity).to.approximately(100_000_000_000_000_000_000n, 100);
         expect(token1IncreaseLiquidity).to.equal(0n);
         const totalIncreaseLiquidityRaw = await uniswapOracle.calcValue(IncreaseLiquidity.tokenId);
-        const totalIncreaseLiquidity = totalIncreaseLiquidityRaw.toBigInt();
+        const totalIncreaseLiquidity = BigInt(totalIncreaseLiquidityRaw[0]);
         expect(totalIncreaseLiquidity).to.approximately(token0IncreaseLiquidity, 100);
       },
     );
@@ -191,7 +207,7 @@ describe("UniswapOracle", () => {
         // the exact value calculation dependents on the internal Uniswap logic
         expect(token1IncreaseLiquidity).to.approximately(100_000_000_000_000_000_000n, 100);
         const totalIncreaseLiquidityRaw = await uniswapOracle.calcValue(IncreaseLiquidity.tokenId);
-        const totalIncreaseLiquidity = totalIncreaseLiquidityRaw.toBigInt();
+        const totalIncreaseLiquidity = BigInt(totalIncreaseLiquidityRaw[0]);
         expect(totalIncreaseLiquidity).to.approximately(token1IncreaseLiquidity, 100);
       },
     );

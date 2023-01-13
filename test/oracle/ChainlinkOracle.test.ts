@@ -23,6 +23,8 @@ describe("ChainlinkOracle", () => {
       usdcChainlinkDecimals,
       usdcDecimals,
       usdcDecimals,
+      toWei(0.9),
+      owner.address,
     );
     const ethChainlink = await Chainlink.deploy(
       owner,
@@ -30,6 +32,8 @@ describe("ChainlinkOracle", () => {
       ethChainlinkDecimals,
       usdcDecimals,
       ethDecimals,
+      toWei(0.9),
+      owner.address,
     );
 
     return {usdcChainlink, ethChainlink};
