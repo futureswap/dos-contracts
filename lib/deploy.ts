@@ -486,6 +486,8 @@ export const setupDos = async (
     makeCall(ethOracle).setPrice(toWei(ETH_PRICE), USDC_DECIMALS, ETHEREUM_DECIMALS),
     makeCall(uniOracle).setPrice(toWei(UNI_PRICE), USDC_DECIMALS, ETHEREUM_DECIMALS),
     makeCall(dos).setConfig({
+      treasurySafe: await deployer.getAddress(), // todo: update to a dWallet address
+      treasuryInterestFraction: toWei(0.05),
       maxSolvencyCheckGasCost: 1e6,
       liqFraction: toWei(0.8),
       fractionalReserveLeverage: 9,
