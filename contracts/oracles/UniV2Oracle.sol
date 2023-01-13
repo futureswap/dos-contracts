@@ -39,11 +39,14 @@ contract UniV2Oracle is ImmutableGovernance, IERC20ValueOracle {
 
     /// @notice Calculate the value of a uniswap pair token
     /// @param amount The amount of the token
-    /// @return The value of the uniswap pair token
-    function calcValue(int256 amount) external view override returns (int256) {
+    /// @return value The value of the uniswap pair token
+    /// @return riskAdjustedValue The risk adjusted value of the uniswap pair token
+    function calcValue(
+        int256 amount
+    ) external view override returns (int256 value, int256 riskAdjustedValue) {
         uint256 totalSupply = pair.totalSupply();
         if (totalSupply == 0) {
-            return 0;
+            return (0, 0);
         }
         address dSafe = pair.dSafe();
         address token0 = pair.token0();
@@ -52,9 +55,17 @@ contract UniV2Oracle is ImmutableGovernance, IERC20ValueOracle {
         uint256 balance0 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token0)));
         uint256 balance1 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token1)));
 
-        int256 price0 = erc20ValueOracle[token0].calcValue(FsMath.safeCastToSigned(balance0));
-        int256 price1 = erc20ValueOracle[token1].calcValue(FsMath.safeCastToSigned(balance1));
+        (int256 price0, int256 adjustedPrice0) = erc20ValueOracle[token0].calcValue(
+            FsMath.safeCastToSigned(balance0)
+        );
+        (int256 price1, int256 adjustedPrice1) = erc20ValueOracle[token1].calcValue(
+            FsMath.safeCastToSigned(balance1)
+        );
 
-        return ((price0 + price1) * amount) / FsMath.safeCastToSigned(totalSupply);
+        value = ((price0 + price1) * amount) / FsMath.safeCastToSigned(totalSupply);
+        riskAdjustedValue =
+            ((adjustedPrice0 + adjustedPrice1) * amount) /
+            FsMath.safeCastToSigned(totalSupply);
+        return (value, riskAdjustedValue);
     }
 }

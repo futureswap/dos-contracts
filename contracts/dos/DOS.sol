@@ -685,21 +685,21 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             uint16 erc20Idx = erc20Idxs[i];
             ERC20Info storage erc20Info = erc20Infos[erc20Idx];
             int256 balance = getBalance(dSafe.erc20Share[erc20Idx], erc20Info);
-            int256 value = erc20Info.valueOracle.calcValue(balance);
+            (int256 value, int256 riskAdjustedValue) = erc20Info.valueOracle.calcValue(balance);
             totalValue += value;
             if (balance >= 0) {
-                collateral += (value * erc20Info.collateralFactor) / 1 ether;
+                collateral += riskAdjustedValue;
             } else {
-                debt += (-value * 1 ether) / erc20Info.borrowFactor;
+                debt -= riskAdjustedValue;
             }
         }
         for (uint256 i = 0; i < dSafe.nfts.length; i++) {
             DSafeLib.NFTId nftId = dSafe.nfts[i];
             (uint16 erc721Idx, uint256 tokenId) = getNFTData(nftId);
             ERC721Info storage nftInfo = erc721Infos[erc721Idx];
-            int256 nftValue = int256(nftInfo.valueOracle.calcValue(tokenId));
+            (int256 nftValue, int256 nftRiskAdjustedValue) = nftInfo.valueOracle.calcValue(tokenId);
             totalValue += nftValue;
-            collateral += (nftValue * nftInfo.collateralFactor) / 1 ether;
+            collateral += nftRiskAdjustedValue;
         }
     }
 

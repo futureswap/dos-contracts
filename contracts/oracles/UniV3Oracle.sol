@@ -81,7 +81,7 @@ contract UniV3Oracle is ImmutableGovernance, INFTValueOracle {
         erc20ValueOracle[token] = IERC20ValueOracle(oracle);
     }
 
-    function calcValue(uint256 tokenId) external view override returns (int256) {
+    function calcValue(uint256 tokenId) external view override returns (int256, int256) {
         address token0;
         address token1;
         int256 liquidity;
@@ -124,18 +124,23 @@ contract UniV3Oracle is ImmutableGovernance, INFTValueOracle {
         int256 amountX = (liquidity * Q96) / sqrtPrice - baseX;
 
         int256 value = 0;
+        int256 riskAdjustedValue;
         {
             IERC20ValueOracle valueOracle = erc20ValueOracle[token0];
-            value += (address(valueOracle) == address(0))
-                ? int256(0)
-                : valueOracle.calcValue(amountX);
+            if (address(valueOracle) != address(0)) {
+                (int256 assetValue, int256 adjustedAssetValue) = valueOracle.calcValue(amountX);
+                value += assetValue;
+                riskAdjustedValue += adjustedAssetValue;
+            }
         }
         {
             IERC20ValueOracle valueOracle = erc20ValueOracle[token1];
-            value += (address(valueOracle) == address(0))
-                ? int256(0)
-                : valueOracle.calcValue(amountY);
+            if (address(valueOracle) != address(0)) {
+                (int256 assetValue, int256 adjustedAssetValue) = valueOracle.calcValue(amountY);
+                value += assetValue;
+                riskAdjustedValue += adjustedAssetValue;
+            }
         }
-        return value;
+        return (value, riskAdjustedValue);
     }
 }

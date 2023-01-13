@@ -15,7 +15,7 @@ contract MockNFTOracle is INFTValueOracle {
         prices[tokenId] = price + 1;
     }
 
-    function calcValue(uint256 tokenId) external view override returns (int256) {
+    function calcValue(uint256 tokenId) external view override returns (int256, int256) {
         require(
             prices[tokenId] > 0,
             string.concat(
@@ -24,6 +24,8 @@ contract MockNFTOracle is INFTValueOracle {
                 " is not set"
             )
         );
-        return prices[tokenId] - 1;
+        int256 value = prices[tokenId] - 1;
+        int256 riskAdjustedValue;
+        return (value, riskAdjustedValue);
     }
 }

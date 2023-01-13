@@ -14,8 +14,10 @@ contract ERC20ChainlinkValueOracle is IERC20ValueOracle {
         base = int256(10) ** (tokenDecimals + priceOracle.decimals() - baseDecimals);
     }
 
-    function calcValue(int256 balance) external view override returns (int256) {
+    function calcValue(int256 balance) external view override returns (int256, int256) {
         (, int256 price, , , ) = priceOracle.latestRoundData();
-        return (balance * price) / base;
+        int256 value = (balance * price) / base;
+        int256 riskAdjustedValue;
+        return (value, riskAdjustedValue);
     }
 }
