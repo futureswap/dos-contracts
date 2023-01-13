@@ -197,8 +197,6 @@ struct ERC20Info {
     IERC20ValueOracle valueOracle;
     ERC20Pool collateral;
     ERC20Pool debt;
-    int256 collateralFactor;
-    int256 borrowFactor;
     uint256 baseRate;
     uint256 slope1;
     uint256 slope2;
@@ -209,7 +207,6 @@ struct ERC20Info {
 struct ERC721Info {
     address erc721Contract;
     INFTValueOracle valueOracle;
-    int256 collateralFactor;
 }
 
 enum ContractKind {
@@ -685,21 +682,21 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             uint16 erc20Idx = erc20Idxs[i];
             ERC20Info storage erc20Info = erc20Infos[erc20Idx];
             int256 balance = getBalance(dSafe.erc20Share[erc20Idx], erc20Info);
-            int256 value = erc20Info.valueOracle.calcValue(balance);
+            (int256 value, int256 riskAdjustedValue) = erc20Info.valueOracle.calcValue(balance);
             totalValue += value;
             if (balance >= 0) {
-                collateral += (value * erc20Info.collateralFactor) / 1 ether;
+                collateral += riskAdjustedValue;
             } else {
-                debt += (-value * 1 ether) / erc20Info.borrowFactor;
+                debt -= riskAdjustedValue;
             }
         }
         for (uint256 i = 0; i < dSafe.nfts.length; i++) {
             DSafeLib.NFTId nftId = dSafe.nfts[i];
             (uint16 erc721Idx, uint256 tokenId) = getNFTData(nftId);
             ERC721Info storage nftInfo = erc721Infos[erc721Idx];
-            int256 nftValue = int256(nftInfo.valueOracle.calcValue(tokenId));
+            (int256 nftValue, int256 nftRiskAdjustedValue) = nftInfo.valueOracle.calcValue(tokenId);
             totalValue += nftValue;
-            collateral += (nftValue * nftInfo.collateralFactor) / 1 ether;
+            collateral += nftRiskAdjustedValue;
         }
     }
 
@@ -1044,12 +1041,6 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @param symbol The symbol of the ERC20. E.g. "WETH"
     /// @param decimals Decimals of the ERC20. E.g. 18 for WETH and 6 for USDC
     /// @param valueOracle The address of the Value Oracle. Probably Uniswap one
-    /// @param colFactor A number from 0 to 1 eth. collateral = value * colFactor / 1 eth. E.g.
-    /// if colFactor for WETH is 0.8 eth it means that deposit of 1 WETH to dAccount would
-    /// increase collateral of the position by equivalent of 0.8 WETH
-    /// @param borrowFactor A number from 0 to 1 eth. debt = -value / borrowFactor * 1 eth. E.g.
-    /// if borrowFactor if 0.8 eth it means that borrow of 1 WETH from dAccount would
-    /// increase debt of the position by equivalent of 1.25 WETH (1 / 0.8 is 1.25)
     /// @param baseRate The interest rate when utilization is 0
     /// @param slope1 The interest rate slope when utilization is less than the targetUtilization
     /// @param slope2 The interest rate slope when utilization is more than the targetUtilization
@@ -1061,8 +1052,6 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         string calldata symbol,
         uint8 decimals,
         address valueOracle,
-        int256 colFactor,
-        int256 borrowFactor,
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
@@ -1077,8 +1066,6 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
                 IERC20ValueOracle(valueOracle),
                 ERC20Pool(0, 0),
                 ERC20Pool(0, 0),
-                colFactor,
-                borrowFactor,
                 baseRate,
                 slope1,
                 slope2,
@@ -1095,8 +1082,6 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
             symbol,
             decimals,
             valueOracle,
-            colFactor,
-            borrowFactor,
             baseRate,
             slope1,
             slope2,
@@ -1109,24 +1094,15 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @dev For governance only.
     /// @param erc721Contract The address of the ERC721 to be added
     /// @param valueOracleAddress The address of the Uniswap Oracle to get the price of a token
-    /// @param collateralFactor A number from 0 to 1 eth. collateral = value * colFactor / 1 eth. E.g.
-    /// if collateralFactor is 0.8 then if valueOracle estimates the NFT on dAccount for 1 ETH it
-    /// means that it increases the collateral of the position by an equivalent of 0.8 ETH
     function addERC721Info(
         address erc721Contract,
-        address valueOracleAddress,
-        int256 collateralFactor
+        address valueOracleAddress
     ) external override onlyGovernance {
         INFTValueOracle valueOracle = INFTValueOracle(valueOracleAddress);
         uint256 erc721Idx = erc721Infos.length;
-        erc721Infos.push(ERC721Info(erc721Contract, valueOracle, collateralFactor));
+        erc721Infos.push(ERC721Info(erc721Contract, valueOracle));
         infoIdx[erc721Contract] = ContractData(uint16(erc721Idx), ContractKind.ERC721);
-        emit IDOSConfig.ERC721Added(
-            erc721Idx,
-            erc721Contract,
-            valueOracleAddress,
-            collateralFactor
-        );
+        emit IDOSConfig.ERC721Added(erc721Idx, erc721Contract, valueOracleAddress);
     }
 
     /// @notice Updates the config of DOS
@@ -1152,12 +1128,8 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @param slope1 The interest rate slope when utilization is less than the targetUtilization
     /// @param slope2 The interest rate slope when utilization is more than the targetUtilization
     /// @param targetUtilization The target utilization for the asset
-    /// @param borrowFactor See `borrowFactor` parameter description of `addERC20Info` function
-    /// @param collateralFactor See `colFactor` parameter description of `addERC20Info` function
     function setERC20Data(
         address erc20,
-        int256 borrowFactor,
-        int256 collateralFactor,
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
@@ -1167,21 +1139,11 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         if (infoIdx[erc20].kind != ContractKind.ERC20) {
             revert NotERC20();
         }
-        erc20Infos[erc20Idx].borrowFactor = borrowFactor;
-        erc20Infos[erc20Idx].collateralFactor = collateralFactor;
         erc20Infos[erc20Idx].baseRate = baseRate;
         erc20Infos[erc20Idx].slope1 = slope1;
         erc20Infos[erc20Idx].slope2 = slope2;
         erc20Infos[erc20Idx].targetUtilization = targetUtilization;
-        emit IDOSConfig.ERC20DataSet(
-            erc20,
-            baseRate,
-            slope1,
-            slope2,
-            targetUtilization,
-            borrowFactor,
-            collateralFactor
-        );
+        emit IDOSConfig.ERC20DataSet(erc20, baseRate, slope1, slope2, targetUtilization);
     }
 
     /// @notice creates a new dSafe with sender as the owner and returns the dSafe address

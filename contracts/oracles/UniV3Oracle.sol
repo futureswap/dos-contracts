@@ -68,6 +68,8 @@ contract UniV3Oracle is ImmutableGovernance, INFTValueOracle {
     INonfungiblePositionManager public immutable manager;
     IUniswapV3Factory public immutable factory;
 
+    int256 collateralFactor = 1 ether;
+
     mapping(address => IERC20ValueOracle) public erc20ValueOracle;
 
     int256 constant Q96 = int256(FixedPoint96.Q96);
@@ -81,7 +83,11 @@ contract UniV3Oracle is ImmutableGovernance, INFTValueOracle {
         erc20ValueOracle[token] = IERC20ValueOracle(oracle);
     }
 
-    function calcValue(uint256 tokenId) external view override returns (int256) {
+    function setCollateralFactor(int256 _collateralFactor) external onlyGovernance {
+        collateralFactor = _collateralFactor;
+    }
+
+    function calcValue(uint256 tokenId) external view override returns (int256, int256) {
         address token0;
         address token1;
         int256 liquidity;
@@ -124,18 +130,24 @@ contract UniV3Oracle is ImmutableGovernance, INFTValueOracle {
         int256 amountX = (liquidity * Q96) / sqrtPrice - baseX;
 
         int256 value = 0;
+        int256 riskAdjustedValue;
         {
             IERC20ValueOracle valueOracle = erc20ValueOracle[token0];
-            value += (address(valueOracle) == address(0))
-                ? int256(0)
-                : valueOracle.calcValue(amountX);
+            if (address(valueOracle) != address(0)) {
+                (int256 assetValue, int256 adjustedAssetValue) = valueOracle.calcValue(amountX);
+                value += assetValue;
+                riskAdjustedValue += adjustedAssetValue;
+            }
         }
         {
             IERC20ValueOracle valueOracle = erc20ValueOracle[token1];
-            value += (address(valueOracle) == address(0))
-                ? int256(0)
-                : valueOracle.calcValue(amountY);
+            if (address(valueOracle) != address(0)) {
+                (int256 assetValue, int256 adjustedAssetValue) = valueOracle.calcValue(amountY);
+                value += assetValue;
+                riskAdjustedValue += adjustedAssetValue;
+            }
         }
-        return value;
+        riskAdjustedValue = (riskAdjustedValue * collateralFactor) / 1 ether;
+        return (value, riskAdjustedValue);
     }
 }

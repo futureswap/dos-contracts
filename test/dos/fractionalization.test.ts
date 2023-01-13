@@ -34,6 +34,9 @@ describe("Fractionalization", () => {
       CHAINLINK_DECIMALS,
       USDC_DECIMALS,
       USDC_DECIMALS,
+      toWei(0.9),
+      toWei(0.9),
+      owner.address,
     );
     const ethChainlink = await Chainlink.deploy(
       owner,
@@ -41,6 +44,9 @@ describe("Fractionalization", () => {
       CHAINLINK_DECIMALS,
       USDC_DECIMALS,
       ETH_DECIMALS,
+      toWei(0.9),
+      toWei(0.9),
+      owner.address,
     );
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();
@@ -70,8 +76,6 @@ describe("Fractionalization", () => {
       "USDC",
       6,
       usdcChainlink.oracle.address,
-      toWei(0.9),
-      toWei(0.9),
       0,
       0,
       0,
@@ -83,8 +87,6 @@ describe("Fractionalization", () => {
       "WETH",
       18,
       ethChainlink.oracle.address,
-      toWei(0.9),
-      toWei(0.9),
       0,
       0,
       0,

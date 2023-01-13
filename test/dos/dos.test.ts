@@ -62,8 +62,20 @@ describe("DOS", () => {
       8,
       USDC_DECIMALS,
       USDC_DECIMALS,
+      toWei(0.9),
+      toWei(0.9),
+      owner.address,
     );
-    const ethChainlink = await Chainlink.deploy(owner, ETH_PRICE, 8, USDC_DECIMALS, WETH_DECIMALS);
+    const ethChainlink = await Chainlink.deploy(
+      owner,
+      ETH_PRICE,
+      8,
+      USDC_DECIMALS,
+      WETH_DECIMALS,
+      toWei(0.9),
+      toWei(0.9),
+      owner.address,
+    );
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();
 
@@ -89,8 +101,6 @@ describe("DOS", () => {
       "USDC",
       USDC_DECIMALS,
       usdcChainlink.oracle.address,
-      toWei(0.9),
-      toWei(0.9),
       0, // 0%
       5, // 0.05 * 100
       480, // 4.8 * 100
@@ -103,15 +113,14 @@ describe("DOS", () => {
       "WETH",
       WETH_DECIMALS,
       ethChainlink.oracle.address,
-      toWei(0.9),
-      toWei(0.9),
       0, // 0%
       5, // 0.05 * 100
       480, // 4.8 * 100
       ethers.utils.parseEther("0.8"), // 0.80
     );
 
-    await iDos.addERC721Info(nft.address, nftOracle.address, toWei(0.5));
+    await iDos.addERC721Info(nft.address, nftOracle.address);
+    await nftOracle.setCollateralFactor(toWei(0.5));
 
     const getBalances = async (
       dSafe: DSafeLogic,
@@ -192,7 +201,7 @@ describe("DOS", () => {
       expect((await getBalances(receiver)).usdc).to.equal(tenThousandUsdc);
     });
 
-    it("User cannot send more then they own", async () => {
+    it("User cannot send more than they own", async () => {
       const {user, user2, iDos, usdc} = await loadFixture(deployDOSFixture);
       const sender = await createDSafe(iDos, user);
       const receiver = await createDSafe(iDos, user2);

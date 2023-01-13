@@ -54,8 +54,20 @@ describe("DSafeProxy", () => {
       8,
       USDC_DECIMALS,
       USDC_DECIMALS,
+      toWei(0.9),
+      toWei(0.9),
+      owner.address,
     );
-    const ethChainlink = await Chainlink.deploy(owner, ETH_PRICE, 8, USDC_DECIMALS, WETH_DECIMALS);
+    const ethChainlink = await Chainlink.deploy(
+      owner,
+      ETH_PRICE,
+      8,
+      USDC_DECIMALS,
+      WETH_DECIMALS,
+      toWei(0.9),
+      toWei(0.9),
+      owner.address,
+    );
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();
 
@@ -81,8 +93,6 @@ describe("DSafeProxy", () => {
       "USDC",
       USDC_DECIMALS,
       usdcChainlink.oracle.address,
-      toWei(0.9),
-      toWei(0.9),
       0, // no interest which would include time sensitive calculations
       0,
       0,
@@ -95,15 +105,14 @@ describe("DSafeProxy", () => {
       "WETH",
       WETH_DECIMALS,
       ethChainlink.oracle.address,
-      toWei(0.9),
-      toWei(0.9),
       0, // no interest which would include time sensitive calculations
       0,
       0,
       0,
     );
 
-    await iDos.addERC721Info(nft.address, nftOracle.address, toWei(0.5));
+    await iDos.addERC721Info(nft.address, nftOracle.address);
+    await nftOracle.setCollateralFactor(toWei(0.5));
 
     const getBalances = async (
       dSafe: DSafeLogic,

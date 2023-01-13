@@ -23,6 +23,9 @@ describe("ChainlinkOracle", () => {
       usdcChainlinkDecimals,
       usdcDecimals,
       usdcDecimals,
+      toWei(0.9),
+      toWei(0.9),
+      owner.address,
     );
     const ethChainlink = await Chainlink.deploy(
       owner,
@@ -30,6 +33,9 @@ describe("ChainlinkOracle", () => {
       ethChainlinkDecimals,
       usdcDecimals,
       ethDecimals,
+      toWei(0.9),
+      toWei(0.9),
+      owner.address,
     );
 
     return {usdcChainlink, ethChainlink};
@@ -37,16 +43,14 @@ describe("ChainlinkOracle", () => {
 
   it("Returns right price for usdc", async () => {
     const {usdcChainlink} = await loadFixture(setupOracle);
-    expect(await usdcChainlink.oracle.calcValue(toWei(1, usdcDecimals))).to.equal(
-      toWei(1, usdcDecimals),
-    );
+    const value = await usdcChainlink.oracle.calcValue(toWei(1, usdcDecimals));
+    expect(value[0]).to.equal(toWei(1, usdcDecimals));
   });
 
   it("Returns right price for eth", async () => {
     const {ethChainlink} = await loadFixture(setupOracle);
 
-    expect(await ethChainlink.oracle.calcValue(toWei(1, ethDecimals))).to.equal(
-      toWei(ethPrice, usdcDecimals),
-    );
+    const value = await ethChainlink.oracle.calcValue(toWei(1, ethDecimals));
+    expect(value[0]).to.equal(toWei(ethPrice, usdcDecimals));
   });
 });

@@ -52,8 +52,20 @@ describe("DOS swap integration", () => {
       8,
       USDC_DECIMALS,
       USDC_DECIMALS,
+      toWei(0.9),
+      toWei(0.9),
+      owner.address,
     );
-    const ethChainlink = await Chainlink.deploy(owner, ETH_PRICE, 8, USDC_DECIMALS, WETH_DECIMALS);
+    const ethChainlink = await Chainlink.deploy(
+      owner,
+      ETH_PRICE,
+      8,
+      USDC_DECIMALS,
+      WETH_DECIMALS,
+      toWei(0.9),
+      toWei(0.9),
+      owner.address,
+    );
 
     const {iDos, versionManager} = await deployDos(
       owner.address,
@@ -77,8 +89,6 @@ describe("DOS swap integration", () => {
       "USDC",
       USDC_DECIMALS,
       usdcChainlink.oracle.address,
-      toWei(0.9),
-      toWei(0.9),
       0, // no interest which would include time sensitive calculations
       0,
       0,
@@ -91,8 +101,6 @@ describe("DOS swap integration", () => {
       "WETH",
       WETH_DECIMALS,
       ethChainlink.oracle.address,
-      toWei(0.9),
-      toWei(0.9),
       0, // no interest which would include time sensitive calculations
       0,
       0,
@@ -115,11 +123,7 @@ describe("DOS swap integration", () => {
     await uniswapNftOracle.setERC20ValueOracle(usdc.address, usdcChainlink.oracle.address);
     await uniswapNftOracle.setERC20ValueOracle(weth.address, ethChainlink.oracle.address);
 
-    await iDos.addERC721Info(
-      nonFungiblePositionManager.address,
-      uniswapNftOracle.address,
-      toWei(0.9),
-    );
+    await iDos.addERC721Info(nonFungiblePositionManager.address, uniswapNftOracle.address);
 
     const ownerDSafe = await createDSafe(iDos, owner);
     const usdcAmount = toWeiUsdc(2_000_000);
