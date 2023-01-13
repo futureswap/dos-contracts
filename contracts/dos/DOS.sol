@@ -325,7 +325,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     using Address for address;
 
     address immutable dosConfigAddress;
-    address immutable treasurySafe;
 
     modifier onlyRegisteredNFT(address nftContract, uint256 tokenId) {
         // how can we be sure that Oracle would have a price for any possible tokenId?
@@ -348,7 +347,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     constructor(address _dosConfig, address _versionManager) {
         versionManager = IVersionManager(FsUtils.nonNull(_versionManager));
         dosConfigAddress = FsUtils.nonNull(_dosConfig);
-        treasury = createDSafe();
     }
 
     /// @notice top up the dAccount owned by dSafe `to` with `amount` of `erc20`
@@ -933,12 +931,12 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         int256 interestRate = computeInterestRate(erc20Idx);
         int256 interest = (debt * (FsMath.exp(interestRate * delta) - FsMath.FIXED_POINT_SCALE)) /
             FsMath.FIXED_POINT_SCALE; // Get the interest
-        int256 treasuryInterest = (interest * config.treasuryInterestFraction) / 1 ether; // Get the treasury interest
-        interest -= treasuryInterest; // subtract treasury interest from interest
+        int256 treasuryInterest = (interest *
+            FsMath.safeCastToSigned(config.treasuryInterestFraction)) / 1 ether; // Get the treasury interest
         erc20Info.debt.tokens -= interest; // subtract interest from debt (increase)
-        erc20Info.collateral.tokens += interest; // add interest to collateral (increase)
+        erc20Info.collateral.tokens += interest - treasuryInterest; // add interest to collateral (increase)
 
-        _dAccountERC20ChangeBy(treasurySafe, erc20Idx, treasuryInterest); // add treasury interest to treasury
+        _dAccountERC20ChangeBy(config.treasurySafe, erc20Idx, treasuryInterest); // add treasury interest to treasury
     }
 
     /// @notice Checks if the account's positions are overcollateralized

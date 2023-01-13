@@ -77,7 +77,11 @@ describe("DOS", () => {
     await versionManager.addVersion(2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
+    const treasurySafe = await createDSafe(iDos, owner);
+
     await iDos.setConfig({
+      treasurySafe: treasurySafe.address,
+      treasuryInterestFraction: toWei(0.05),
       maxSolvencyCheckGasCost: 1e6,
       liqFraction: toWei(0.8),
       fractionalReserveLeverage: 9,
@@ -504,7 +508,7 @@ describe("DOS", () => {
       await expect(liquidateTx).to.revertedWith(`Insolvent`); // revertedWithCustomError(iDos, "Insolvent");
     });
 
-    it("when a dSafe trys to liquidate itself should revert", async () => {
+    it("when a dSafe tries to liquidate itself should revert", async () => {
       // prettier-ignore
       const {
         iDos,
@@ -665,7 +669,7 @@ describe("DOS", () => {
       const liquidatorBalance = await getBalances(liquidator);
       expect(liquidatorBalance.usdc).to.equal(toWeiUsdc(1_500 - liquidatableTotal * 0.8));
       // 1 - initial balance; -1 transferred debt; 0.8 - liqFactor defined in deployDOSFixture
-      expect(liquidatorBalance.weth).to.be.approximately(toWei(0), 130_000);
+      expect(liquidatorBalance.weth).to.be.approximately(toWei(0), 132_000);
       expect(liquidatorBalance.nfts).to.eql([[nft.address, tokenId]]);
     });
   });

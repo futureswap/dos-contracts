@@ -69,7 +69,11 @@ describe("DSafeProxy", () => {
     await versionManager.addVersion(2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
+    const treasurySafe = await createDSafe(iDos, owner);
+
     await iDos.setConfig({
+      treasurySafe: treasurySafe.address,
+      treasuryInterestFraction: toWei(0.05),
       maxSolvencyCheckGasCost: 1e6,
       liqFraction: toWei(0.8),
       fractionalReserveLeverage: 9,
