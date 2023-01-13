@@ -6,6 +6,7 @@ import "../lib/ImmutableGovernance.sol";
 
 contract MockERC20Oracle is IERC20ValueOracle, ImmutableGovernance {
     int256 public price;
+    int256 collateralFactor = 1 ether;
 
     constructor(address owner) ImmutableGovernance(owner) {}
 
@@ -17,9 +18,13 @@ contract MockERC20Oracle is IERC20ValueOracle, ImmutableGovernance {
         price = (_price * (int256(10) ** (18 + baseDecimals - decimals))) / 1 ether;
     }
 
+    function setCollateralFactor(int256 _collateralFactor) external onlyGovernance {
+        collateralFactor = _collateralFactor;
+    }
+
     function calcValue(int256 amount) external view override returns (int256, int256) {
         int256 value = (amount * price) / 1 ether;
-        int256 riskAdjustedValue;
+        int256 riskAdjustedValue = (value * collateralFactor) / 1 ether;
         return (value, riskAdjustedValue);
     }
 }

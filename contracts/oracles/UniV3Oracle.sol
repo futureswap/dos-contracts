@@ -68,6 +68,8 @@ contract UniV3Oracle is ImmutableGovernance, INFTValueOracle {
     INonfungiblePositionManager public immutable manager;
     IUniswapV3Factory public immutable factory;
 
+    int256 collateralFactor = 1 ether;
+
     mapping(address => IERC20ValueOracle) public erc20ValueOracle;
 
     int256 constant Q96 = int256(FixedPoint96.Q96);
@@ -79,6 +81,10 @@ contract UniV3Oracle is ImmutableGovernance, INFTValueOracle {
 
     function setERC20ValueOracle(address token, address oracle) external onlyGovernance {
         erc20ValueOracle[token] = IERC20ValueOracle(oracle);
+    }
+
+    function setCollateralFactor(int256 _collateralFactor) external onlyGovernance {
+        collateralFactor = _collateralFactor;
     }
 
     function calcValue(uint256 tokenId) external view override returns (int256, int256) {
@@ -141,6 +147,7 @@ contract UniV3Oracle is ImmutableGovernance, INFTValueOracle {
                 riskAdjustedValue += adjustedAssetValue;
             }
         }
+        riskAdjustedValue = (riskAdjustedValue * collateralFactor) / 1 ether;
         return (value, riskAdjustedValue);
     }
 }
