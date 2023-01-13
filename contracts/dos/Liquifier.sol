@@ -7,6 +7,11 @@ import "../external/interfaces/INonfungiblePositionManager.sol";
 import "../interfaces/IDOS.sol";
 import "./DSafeState.sol";
 
+struct SqrtPricePriceRangeX96 {
+    uint160 minSell;
+    uint160 maxBuy;
+}
+
 /// @title Logic for liquify functionality of dSafe
 /// @dev It is designed to be an extension for dSafeLogic contract.
 /// Functionally, it's a part of the dSafeLogic contract, but has been extracted into a separate
@@ -33,7 +38,7 @@ abstract contract Liquifier is DSafeState {
     ///     - for 3 WETH of debt on dAccount and 1 WETH on the balance of dSafe - buy 2 WETH
     ///     - for no debt on dAccount and 1 WETH on the balance of dSafe - sell 2 WETH
     ///     - for 1 WETH of debt on dAccount and no WETH on the balance of dSave - buy 1 WETH
-    ///   * deposit `erc20s` to cover the debt and `numeraire` if there is a debt on it
+    ///   * deposit `erc20s` and `numeraire` to cover debts
     ///
     /// !! IMPORTANT: because this function executes quite a lot of logic on top of DOS.liquidate(),
     /// there is a risk that for liquidatable position with a long list of NFTs it will run out
@@ -55,6 +60,9 @@ abstract contract Liquifier is DSafeState {
     ///   * if erc20s misses a token that would be obtained as the result of NFT termination - same
     ///     as previous, except of the token to be persisted on dSafe instead of dAccount of
     ///     liquidator
+    ///   Because no buy/sell would be done for prices from outside of the erc20sAllowedPriceRanges,
+    /// too narrow range may result in not having enough of some ERC20 to cover the debt. So the
+    /// eventual state would still include some debt
     /// @param dSafe - the address of a dSafe to liquidate
     /// @param swapRouter - the address of a Uniswap swap router to be used to buy/sell erc20s
     /// @param nftManager - the address of a Uniswap NonFungibleTokenManager to be used to terminate
@@ -64,22 +72,37 @@ abstract contract Liquifier is DSafeState {
     /// @param erc20s - the list of ERC20 that liquidated has debt, collateral or that would be
     /// obtained from termination of any ERC721 that he owns. Except of numeraire, that should
     /// never be included in erc20s array
+    /// @param erc20sAllowedPriceRanges - the list of root squares of allowed prices in Q96 for
+    /// `erc20s` swaps on Uniswap in `numeraire`. This is the protection against sandwich-attack -
+    /// if the price would be lower/higher for sell/buy
+    ///   It's up to liquidator to decide what range is acceptable. +/- 1% of price before liquify
+    /// call seems to be reasonable
+    ///   Zero minSell/maxBuy value for a specific ERC20 would disable the corresponding check
+    /// Uniswap docs - https://docs.uniswap.org/contracts/v3/guides/swaps/single-swaps
+    /// It doesn't explained in Uniswap docs, but this is how it actually works:
+    /// * if the price for each token would be below the specified limit
+    /// then full amount would be converted and no error would be thrown
+    /// * if at least some amount of tokens can be bought by the price that is below the limit
+    /// then only that amount of tokens would be bought and no error would be thrown
+    /// * if no tokens can be bought by the price below the limit
+    /// then error would be thrown with message "SPL"
     function liquify(
         address dSafe,
         address swapRouter,
         address nftManager,
         address numeraire,
-        IERC20[] calldata erc20s
+        IERC20[] calldata erc20s,
+        SqrtPricePriceRangeX96[] calldata erc20sAllowedPriceRanges
     ) external selfOrDSafeOwner {
         if (msg.sender != address(this)) {
-            return callOverBatchExecute(dSafe, swapRouter, nftManager, numeraire, erc20s);
+            /* prettier-ignore */ // list of liquify arguments as-is
+            return callOverBatchExecute(dSafe, swapRouter, nftManager, numeraire, erc20s, erc20sAllowedPriceRanges);
         }
 
         dos.liquidate(dSafe);
 
         (
             IERC20[] memory erc20sCollateral,
-            IERC20[] memory erc20sDebt,
             uint256[] memory erc20sDebtAmounts
         ) = analiseDAccountStructure(erc20s, numeraire);
 
@@ -90,10 +113,10 @@ abstract contract Liquifier is DSafeState {
             uint256[] memory erc20sToSellAmounts,
             uint256[] memory erc20sToBuyAmounts
         ) = calcSellAndBuyERC20Amounts(erc20s, erc20sDebtAmounts);
-        sellERC20s(swapRouter, erc20s, erc20sToSellAmounts, numeraire);
-        buyERC20s(swapRouter, erc20s, erc20sToBuyAmounts, numeraire);
+        sellERC20s(swapRouter, erc20s, erc20sToSellAmounts, numeraire, erc20sAllowedPriceRanges);
+        buyERC20s(swapRouter, erc20s, erc20sToBuyAmounts, numeraire, erc20sAllowedPriceRanges);
 
-        dos.depositFull(erc20sDebt);
+        deposit(erc20s, numeraire);
     }
 
     function callOverBatchExecute(
@@ -101,7 +124,8 @@ abstract contract Liquifier is DSafeState {
         address swapRouter,
         address nftManager,
         address numeraire,
-        IERC20[] calldata erc20s
+        IERC20[] calldata erc20s,
+        SqrtPricePriceRangeX96[] calldata erc20sAllowedPriceRanges
     ) private {
         Call[] memory calls = new Call[](1);
         calls[0] = Call({
@@ -112,7 +136,8 @@ abstract contract Liquifier is DSafeState {
                 swapRouter,
                 nftManager,
                 numeraire,
-                erc20s
+                erc20s,
+                erc20sAllowedPriceRanges
             ),
             value: 0
         });
@@ -122,17 +147,8 @@ abstract contract Liquifier is DSafeState {
     function analiseDAccountStructure(
         IERC20[] calldata erc20s,
         address numeraire
-    )
-        private
-        view
-        returns (
-            IERC20[] memory erc20sCollateral,
-            IERC20[] memory erc20sDebt,
-            uint256[] memory erc20sDebtAmounts
-        )
-    {
+    ) private view returns (IERC20[] memory erc20sCollateral, uint256[] memory erc20sDebtAmounts) {
         uint256 numOfERC20sCollateral = 0;
-        uint256 numOfERC20sDebt = 0;
         int256[] memory balances = new int256[](erc20s.length);
 
         for (uint256 i = 0; i < erc20s.length; i++) {
@@ -141,7 +157,6 @@ abstract contract Liquifier is DSafeState {
                 numOfERC20sCollateral++;
                 balances[i] = balance;
             } else if (balance < 0) {
-                numOfERC20sDebt++;
                 balances[i] = balance;
             }
         }
@@ -149,25 +164,19 @@ abstract contract Liquifier is DSafeState {
         int256 dAccountNumeraireBalance = dos.getDAccountERC20(address(this), IERC20(numeraire));
         if (dAccountNumeraireBalance > 0) {
             numOfERC20sCollateral++;
-        } else if (dAccountNumeraireBalance < 0) {
-            numOfERC20sDebt++;
         }
 
         erc20sCollateral = new IERC20[](numOfERC20sCollateral);
-        erc20sDebt = new IERC20[](numOfERC20sDebt);
         erc20sDebtAmounts = new uint256[](erc20s.length);
 
         if (dAccountNumeraireBalance > 0) {
             erc20sCollateral[0] = IERC20(numeraire);
-        } else if (dAccountNumeraireBalance < 0) {
-            erc20sDebt[0] = IERC20(numeraire);
         }
 
         for (uint256 i = 0; i < erc20s.length; i++) {
             if (balances[i] > 0) {
                 erc20sCollateral[--numOfERC20sCollateral] = erc20s[i];
             } else if (balances[i] < 0) {
-                erc20sDebt[--numOfERC20sDebt] = erc20s[i];
                 erc20sDebtAmounts[i] = uint256(-balances[i]);
             }
         }
@@ -229,7 +238,8 @@ abstract contract Liquifier is DSafeState {
         address swapRouter,
         IERC20[] memory erc20sToSell,
         uint256[] memory amountsToSell,
-        address erc20ToSellFor
+        address erc20ToSellFor,
+        SqrtPricePriceRangeX96[] calldata erc20sAllowedPriceRanges
     ) private {
         for (uint256 i = 0; i < erc20sToSell.length; i++) {
             if (amountsToSell[i] == 0) continue;
@@ -239,12 +249,25 @@ abstract contract Liquifier is DSafeState {
                 tokenOut: erc20ToSellFor,
                 fee: 500,
                 recipient: address(this),
-                deadline: type(uint256).max,
+                deadline: type(uint256).max, // ignore - total transaction type should be limited at DOS level
                 amountIn: amountsToSell[i],
                 amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
+                // see comments on `erc20sAllowedPriceRanges` parameter of `liquify`
+                sqrtPriceLimitX96: erc20sAllowedPriceRanges[i].minSell
             });
-            ISwapRouter(swapRouter).exactInputSingle(params);
+
+            try ISwapRouter(swapRouter).exactInputSingle(params) {} catch Error(
+                string memory reason
+            ) {
+                // "SPL" means that proposed sell price is too low. If so - silently skip conversion.
+                // For any other error - revert
+                // Consider emitting or logging
+                // Consider ignoring some other errors if it's appropriate
+                // Consider replacing with `Strings.equal` on OpenZeppelin next release
+                if (keccak256(abi.encodePacked(reason)) != keccak256(abi.encodePacked("SPL"))) {
+                    revert(reason);
+                }
+            }
         }
     }
 
@@ -252,7 +275,8 @@ abstract contract Liquifier is DSafeState {
         address swapRouter,
         IERC20[] memory erc20sToBuy,
         uint256[] memory amountsToBuy,
-        address erc20ToBuyFor
+        address erc20ToBuyFor,
+        SqrtPricePriceRangeX96[] calldata erc20sAllowedPriceRanges
     ) private {
         for (uint256 i = 0; i < erc20sToBuy.length; i++) {
             if (amountsToBuy[i] == 0) continue;
@@ -263,12 +287,32 @@ abstract contract Liquifier is DSafeState {
                     tokenOut: address(erc20sToBuy[i]),
                     fee: 500,
                     recipient: address(this),
-                    deadline: type(uint256).max, // recommend limiting this to block.time
+                    deadline: type(uint256).max, // ignore - total transaction type should be limited at DOS level
                     amountOut: amountsToBuy[i],
-                    amountInMaximum: type(uint256).max, // recommend limiting this
-                    sqrtPriceLimitX96: 0
+                    amountInMaximum: type(uint256).max,
+                    // see comments on `erc20sAllowedPriceRanges` parameter of `liquify`
+                    sqrtPriceLimitX96: erc20sAllowedPriceRanges[i].maxBuy
                 });
-            ISwapRouter(swapRouter).exactOutputSingle(params);
+
+            try ISwapRouter(swapRouter).exactOutputSingle(params) {} catch Error(
+                string memory reason
+            ) {
+                // "SPL" means that proposed buy price is too high. If so - silently skip conversion.
+                // For any other error - revert
+                // Consider emitting or logging
+                // Consider ignoring some other errors if it's appropriate
+                // Consider replacing with `Strings.equal` on OpenZeppelin next release
+                if (keccak256(abi.encodePacked(reason)) != keccak256(abi.encodePacked("SPL"))) {
+                    revert(reason);
+                }
+            }
         }
+    }
+
+    function deposit(IERC20[] memory erc20s, address numeraire) private {
+        dos.depositFull(erc20s);
+        IERC20[] memory numeraireArray = new IERC20[](1);
+        numeraireArray[0] = IERC20(numeraire);
+        dos.depositFull(numeraireArray);
     }
 }

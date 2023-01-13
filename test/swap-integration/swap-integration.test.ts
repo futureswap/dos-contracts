@@ -300,11 +300,10 @@ describe("DOS swap integration", () => {
             nonFungiblePositionManager.address,
             usdc.address,
             [weth.address],
+            [{maxBuy: 0, minSell: 0}],
           );
 
           const {usdcBalance, wethBalance} = await getBalances(liquidator);
-          expect(await usdc.balanceOf(liquidator.address)).to.be.equal(0);
-          expect(await weth.balanceOf(liquidator.address)).to.be.equal(0);
           expect(wethBalance).to.equal(0);
           // if there was no debt in USDC to pay then there is no need to transfer USDC from dSafe
           // to dAccount to pay it back. So all USDC remains on dSafe
@@ -361,15 +360,12 @@ describe("DOS swap integration", () => {
             nonFungiblePositionManager.address,
             usdc.address,
             [weth.address],
+            [{maxBuy: 0, minSell: 0}],
           );
 
           const {usdcBalance, wethBalance} = await getBalances(liquidator);
-          // because there was a debt in USDC, the USDC from dSafe has been transferred from dSafe
-          // to dAccount to pay it back
-          expect(await usdc.balanceOf(liquidator.address)).to.greaterThan(toWeiUsdc(1_000));
-          expect(await weth.balanceOf(liquidator.address)).to.be.equal(0);
-          expect(wethBalance).to.equal(0);
-          expect(usdcBalance).to.be.equal(0);
+          expect(wethBalance).to.be.equal(0);
+          expect(usdcBalance).to.be.greaterThan(toWeiUsdc(1_000));
         });
       });
 
@@ -432,13 +428,12 @@ describe("DOS swap integration", () => {
           nonFungiblePositionManager.address,
           usdc.address,
           [weth.address],
+          [{maxBuy: 0, minSell: 0}],
         );
 
         const {usdcBalance, wethBalance} = await getBalances(liquidator);
-        expect(await usdc.balanceOf(liquidator.address)).to.greaterThan(toWeiUsdc(100_000));
-        expect(await weth.balanceOf(liquidator.address)).to.be.equal(0);
         expect(wethBalance).to.equal(0);
-        expect(usdcBalance).to.be.equal(0);
+        expect(usdcBalance).to.be.greaterThan(toWeiUsdc(100_000));
       });
 
       it("when liquidatable dSafe has erc20 and erc721", async () => {
@@ -503,13 +498,177 @@ describe("DOS swap integration", () => {
           nonFungiblePositionManager.address,
           usdc.address,
           [weth.address],
+          [{maxBuy: 0, minSell: 0}],
         );
 
         const {usdcBalance, wethBalance} = await getBalances(liquidator);
-        expect(await usdc.balanceOf(liquidator.address)).to.greaterThan(toWeiUsdc(100_000));
-        expect(await weth.balanceOf(liquidator.address)).to.be.equal(0);
         expect(wethBalance).to.equal(0);
-        expect(usdcBalance).to.be.equal(0);
+        expect(usdcBalance).to.be.greaterThan(toWeiUsdc(100_000));
+      });
+
+      describe("when exchange price is outside of ERC20 buy/sell range", () => {
+        // todo - to write tests with reasonable values we need to have a precise control over
+        //   the Uniswap pools. As for now, we can create them only in a single state with hardcoded
+        //   values. There are two options:
+        //   * wrap them with some explicit interface, so we can control at least price and better -slippage
+        //   * mock Uniswap pools
+        it("when buy price is too high, should liquidate without conversion", async () => {
+          // prettier-ignore
+          const {
+            iDos,
+            user, user2, user3,
+            usdc, weth,
+            nonFungiblePositionManager, swapRouter, ethChainlink,
+            getBalances, addAllowances
+          } = await loadFixture(deployDOSFixture);
+
+          // provides assets both to DOS and to Uniswap pool
+          const initialAssetsProvider = await createDSafe(iDos, user);
+          await usdc.mint(initialAssetsProvider.address, toWeiUsdc(16_000));
+          const mintParams = {
+            token0: weth.address,
+            token1: usdc.address,
+            fee: 500,
+            tickLower: -210000,
+            tickUpper: -190000,
+            amount0Desired: toWei(10),
+            amount1Desired: toWeiUsdc(20_000),
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: initialAssetsProvider.address,
+            deadline: ethers.constants.MaxUint256,
+          };
+          await initialAssetsProvider.executeBatch(
+            leverageLP(iDos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+          );
+
+          const liquidatable = await createDSafe(iDos, user2);
+          await usdc.mint(liquidatable.address, toWeiUsdc(1_000));
+          await liquidatable.executeBatch(
+            leveragePos(liquidatable, iDos, usdc, weth, 500, swapRouter, toWeiUsdc(2_000)),
+          );
+
+          // make `liquidatable` liquidatable
+          await ethChainlink.setPrice(ETH_PRICE / 2);
+
+          const liquidator = await createDSafe(iDos, user3);
+          await usdc.mint(liquidator.address, toWeiUsdc(2_000));
+          await addAllowances(liquidator);
+
+          // constant used to represent float with bignumber used in Uniswap
+          const Q96 = 2 ** 96;
+          // if we would have a more precise control over the Uniswap pool, we would just change
+          // the price and the set this value to some expected value like 1.01. But without precise
+          // price control we are just setting it to something that will cause a revert of exchange
+          const multiply = 2;
+          // 10n ** 6n comes from `sqrt of (10 ** (weth decimals 18 - usdc decimals 6))`, so
+          // `sqrt(10 ** 12)`, that is `10 ** 6`, and then to bigint `10n ** 6n`.
+          const decimals = 10n ** 6n;
+          // unfortunately, after changing the price in ethChainlink in the code above, the price
+          // in the Uniswap pool remains the same. So at this point they are divert by about x2.
+          // This is why we are using `ETH_PRICE` here and not `ETH_PRICE / 2` that we kind-of
+          // set a few lines above
+          const minSellEthSqrtPriceX96 = BigInt(Math.sqrt(ETH_PRICE * multiply) * Q96) / decimals;
+          await liquidator.liquify(
+            liquidatable.address,
+            swapRouter.address,
+            nonFungiblePositionManager.address,
+            usdc.address,
+            [weth.address],
+            [{maxBuy: 0, minSell: minSellEthSqrtPriceX96}],
+          );
+
+          const {usdcBalance, wethBalance} = await getBalances(liquidator);
+          expect(wethBalance).to.greaterThan(toWei(0.9));
+          // initially there was 1_000 of initial 2_000 has been used to cover the 1_000 debt and
+          // so the 1_000 left
+          expect(usdcBalance).to.equal(toWeiUsdc(1_000));
+        });
+
+        it("when sell price is too low, should liquidate without conversion", async () => {
+          // prettier-ignore
+          const {
+            iDos,
+            user, user2, user3,
+            usdc, weth,
+            nonFungiblePositionManager, swapRouter, ethChainlink,
+            getBalances, addAllowances,
+          } = await loadFixture(deployDOSFixture);
+
+          const initialAssetsProvider = await createDSafe(iDos, user);
+          await usdc.mint(initialAssetsProvider.address, toWeiUsdc(160_000));
+          const initMintParams = {
+            token0: weth.address,
+            token1: usdc.address,
+            fee: 500,
+            tickLower: -210_000,
+            tickUpper: -190_000,
+            amount0Desired: toWei(5),
+            amount1Desired: toWeiUsdc(10_000),
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: initialAssetsProvider.address,
+            deadline: ethers.constants.MaxUint256,
+          };
+          await initialAssetsProvider.executeBatch(
+            leverageLP(iDos, weth, usdc, nonFungiblePositionManager, initMintParams, 1),
+          );
+
+          const liquidatable = await createDSafe(iDos, user2);
+          await usdc.mint(liquidatable.address, toWeiUsdc(5_000));
+          await liquidatable.executeBatch(
+            leveragePos(liquidatable, iDos, weth, usdc, 500, swapRouter, toWei(2.5)),
+          );
+          const mintParams = {
+            token0: weth.address,
+            token1: usdc.address,
+            fee: 500,
+            tickLower: -210_000,
+            tickUpper: -190_000,
+            amount0Desired: toWei(2.5),
+            amount1Desired: toWeiUsdc(5_000),
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: liquidatable.address,
+            deadline: ethers.constants.MaxUint256,
+          };
+          await liquidatable.executeBatch(
+            leverageLP(iDos, weth, usdc, nonFungiblePositionManager, mintParams, 2),
+          );
+
+          const liquidator = await createDSafe(iDos, user3);
+          await depositERC20(iDos, liquidator, usdc, toWeiUsdc(4_000));
+          await addAllowances(liquidator);
+
+          await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
+          // constant used to represent float with bignumber used in Uniswap
+          const Q96 = 2 ** 96;
+          // if we would have a more precise control over the Uniswap pool, we would just change
+          // the price and the set this value to some expected value like 1.01. But without precise
+          // price control we are just setting it to something that will cause a revert of exchange
+          const multiply = 2;
+          // 10n ** 6n comes from `sqrt of (10 ** (weth decimals 18 - usdc decimals 6))`, so
+          // `sqrt(10 ** 12)`, that is `10 ** 6`, and then to bigint `10n ** 6n`.
+          const decimals = 10n ** 6n;
+          // unfortunately, after changing the price in ethChainlink in the code above, the price
+          // in the Uniswap pool remains the same. So at this point they are divert by about x2.
+          // This is why we are using `ETH_PRICE` here and not `ETH_PRICE / 2` that we kind-of
+          // set a few lines above
+          const maxBuyEthSqrtPriceX96 = BigInt(Math.sqrt(ETH_PRICE / multiply) * Q96) / decimals;
+
+          await liquidator.liquify(
+            liquidatable.address,
+            swapRouter.address,
+            nonFungiblePositionManager.address,
+            usdc.address,
+            [weth.address],
+            [{maxBuy: maxBuyEthSqrtPriceX96, minSell: 0}],
+          );
+
+          const {usdcBalance, wethBalance} = await getBalances(liquidator);
+          expect(wethBalance).to.approximately(toWei(-2.5), 10 ** 3);
+          expect(usdcBalance).to.greaterThan(toWeiUsdc(4_000));
+        });
       });
     });
   });
