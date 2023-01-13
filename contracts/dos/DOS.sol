@@ -325,6 +325,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     using Address for address;
 
     address immutable dosConfigAddress;
+    address immutable treasurySafe;
 
     modifier onlyRegisteredNFT(address nftContract, uint256 tokenId) {
         // how can we be sure that Oracle would have a price for any possible tokenId?
@@ -347,6 +348,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     constructor(address _dosConfig, address _versionManager) {
         versionManager = IVersionManager(FsUtils.nonNull(_versionManager));
         dosConfigAddress = FsUtils.nonNull(_dosConfig);
+        treasury = createDSafe();
     }
 
     /// @notice top up the dAccount owned by dSafe `to` with `amount` of `erc20`
