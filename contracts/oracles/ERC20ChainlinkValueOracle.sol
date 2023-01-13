@@ -37,9 +37,9 @@ contract ERC20ChainlinkValueOracle is ImmutableGovernance, IERC20ValueOracle {
 
     function calcValue(
         int256 balance
-    ) external view override returns (int256, int256 riskAdjustedValue) {
+    ) external view override returns (int256 value, int256 riskAdjustedValue) {
         (, int256 price, , , ) = priceOracle.latestRoundData();
-        int256 value = (balance * price) / base;
+        value = (balance * price) / base;
         if (balance >= 0) {
             riskAdjustedValue = (value * collateralFactor) / 1 ether;
         } else {
