@@ -52,6 +52,9 @@ contract DSafeProxy is DSafeState, Proxy {
         }
     }
 
+    // Allow ETH transfers
+    receive() external payable override {}
+
     // Allow DOS to make arbitrary calls in lieu of this dSafe
     function executeBatch(Call[] calldata calls) external payable ifDos {
         // Function is payable to allow for ETH transfers to the logic
@@ -59,7 +62,6 @@ contract DSafeProxy is DSafeState, Proxy {
         // never contain eth / other than what's self-destructed into it)
         FsUtils.Assert(msg.value == 0);
         CallLib.executeBatch(calls);
-        forwardNFT = false;
     }
 
     // The implementation of the delegate is controlled by DOS
@@ -103,6 +105,7 @@ contract DSafeLogic is
 
     string private constant VERSION = "1.0.0";
 
+    bool internal forwardNFT;
     NonceMap private nonceMap;
 
     error InvalidData();
@@ -132,7 +135,10 @@ contract DSafeLogic is
     ///   * callData - encoded function name and it's arguments
     ///   * value - the amount of ETH to sent with the call
     function executeBatch(Call[] memory calls) external payable onlyOwner {
+        bool saveForwardNFT = forwardNFT;
+        forwardNFT = false;
         dos.executeBatch(calls);
+        forwardNFT = saveForwardNFT;
     }
 
     function executeSignedBatch(

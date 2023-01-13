@@ -10,8 +10,6 @@ abstract contract DSafeState {
     /// @dev DOS instance to be used by all other dSafe contracts
     IDOS public immutable dos;
 
-    bool internal forwardNFT;
-
     /// @param _dos - address of a deployed DOS contract
     constructor(address _dos) {
         // slither-disable-next-line missing-zero-check
