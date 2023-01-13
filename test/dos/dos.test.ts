@@ -63,6 +63,7 @@ describe("DOS", () => {
       USDC_DECIMALS,
       USDC_DECIMALS,
       toWei(0.9),
+      toWei(0.9),
       owner.address,
     );
     const ethChainlink = await Chainlink.deploy(
@@ -71,6 +72,7 @@ describe("DOS", () => {
       8,
       USDC_DECIMALS,
       WETH_DECIMALS,
+      toWei(0.9),
       toWei(0.9),
       owner.address,
     );
@@ -122,6 +124,7 @@ describe("DOS", () => {
     );
 
     await iDos.addERC721Info(nft.address, nftOracle.address, toWei(0.5));
+    await nftOracle.setCollateralFactor(toWei(0.5));
 
     const getBalances = async (
       dSafe: DSafeLogic,

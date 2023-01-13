@@ -55,6 +55,7 @@ describe("DSafeProxy", () => {
       USDC_DECIMALS,
       USDC_DECIMALS,
       toWei(0.9),
+      toWei(0.9),
       owner.address,
     );
     const ethChainlink = await Chainlink.deploy(
@@ -63,6 +64,7 @@ describe("DSafeProxy", () => {
       8,
       USDC_DECIMALS,
       WETH_DECIMALS,
+      toWei(0.9),
       toWei(0.9),
       owner.address,
     );

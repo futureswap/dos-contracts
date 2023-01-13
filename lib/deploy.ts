@@ -185,6 +185,7 @@ export class Chainlink {
     baseTokenDecimals: number,
     observedTokenDecimals: number,
     collateralFactor: number,
+    borrowFactor: number,
     owner: string,
   ): Promise<Chainlink> {
     const mockChainLink = await waffle.deployMockContract(
@@ -200,6 +201,7 @@ export class Chainlink {
       baseTokenDecimals,
       observedTokenDecimals,
       collateralFactor,
+      borrowFactor,
       owner,
     );
     const oracle = new Chainlink(mockChainLink, erc20Oracle, chainLinkDecimals);

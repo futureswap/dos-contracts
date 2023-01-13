@@ -52,7 +52,8 @@ describe("UniswapOracle", () => {
       8,
       18,
       18,
-      ethers.utils.parseEther("1"),
+      toWei(0.9),
+      toWei(0.9),
       owner.address,
     );
     const tok1Chainlink = await Chainlink.deploy(
@@ -61,7 +62,8 @@ describe("UniswapOracle", () => {
       8,
       18,
       18,
-      ethers.utils.parseEther("1"),
+      toWei(0.9),
+      toWei(0.9),
       owner.address,
     );
 

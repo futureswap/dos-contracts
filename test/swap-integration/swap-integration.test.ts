@@ -52,7 +52,8 @@ describe("DOS swap integration", () => {
       8,
       USDC_DECIMALS,
       USDC_DECIMALS,
-      ethers.utils.parseEther("1"),
+      toWei(0.9),
+      toWei(0.9),
       owner.address,
     );
     const ethChainlink = await Chainlink.deploy(
@@ -61,7 +62,8 @@ describe("DOS swap integration", () => {
       8,
       USDC_DECIMALS,
       WETH_DECIMALS,
-      ethers.utils.parseEther("1"),
+      toWei(0.9),
+      toWei(0.9),
       owner.address,
     );
 
