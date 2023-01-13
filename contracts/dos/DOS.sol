@@ -931,8 +931,12 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         int256 interestRate = computeInterestRate(erc20Idx);
         int256 interest = (debt * (FsMath.exp(interestRate * delta) - FsMath.FIXED_POINT_SCALE)) /
             FsMath.FIXED_POINT_SCALE; // Get the interest
+        int256 treasuryInterest = (interest * config.treasuryInterestFraction) / 1 ether; // Get the treasury interest
+        interest -= treasuryInterest; // subtract treasury interest from interest
         erc20Info.debt.tokens -= interest; // subtract interest from debt (increase)
         erc20Info.collateral.tokens += interest; // add interest to collateral (increase)
+        // add treasury interest to treasury
+
         // TODO(gerben) #103 add to treasury
     }
 
