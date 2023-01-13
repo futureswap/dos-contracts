@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // This address is in flux as long as the bytecode of this contract is not fixed. For now
 // we deploy it on local block chain on fixed address, when we go deploy this needs to change
 // to the permanent address.
-address constant TRANSFER_AND_CALL2 = address(0x812fa1460CF523b880Ac5106A9EB713543508E9a);
+address constant TRANSFER_AND_CALL2 = address(0x4e765952997a33893AfB4457A6A7f381909f3629);
 
 // Contracts that implement can receive multiple ERC20 transfers in a single transaction,
 // with backwards compatibility for legacy ERC20's not implementing ERC677.

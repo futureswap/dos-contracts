@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
+import "@openzeppelin/contracts/utils/structs/BitMaps.sol";
+
 struct NonceMap {
-    mapping(uint256 => uint256) nonceBitmap;
+    BitMaps.BitMap bitMap;
 }
 
 library NonceMapLib {
+    using BitMaps for BitMaps.BitMap;
+
     function validateAndUseNonce(NonceMap storage self, uint256 nonce) internal {
-        require(self.nonceBitmap[nonce >> 8] & (1 << (nonce & 0xff)) == 0, "Nonce already used");
-        self.nonceBitmap[nonce >> 8] |= (1 << (nonce & 0xff));
+        require(!self.bitMap.get(nonce), "Nonce already used");
+        self.bitMap.set(nonce);
     }
 
     function getNonce(NonceMap storage self, uint256 nonce) internal view returns (bool) {
-        return self.nonceBitmap[nonce >> 8] & (1 << (nonce & 0xff)) != 0;
+        return self.bitMap.get(nonce);
     }
 }
