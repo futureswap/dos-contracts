@@ -937,9 +937,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         interest -= treasuryInterest; // subtract treasury interest from interest
         erc20Info.debt.tokens -= interest; // subtract interest from debt (increase)
         erc20Info.collateral.tokens += interest; // add interest to collateral (increase)
-        // add treasury interest to treasury
 
-        // TODO(gerben) #103 add to treasury
+        _dAccountERC20ChangeBy(treasurySafe, erc20Idx, treasuryInterest); // add treasury interest to treasury
     }
 
     /// @notice Checks if the account's positions are overcollateralized
