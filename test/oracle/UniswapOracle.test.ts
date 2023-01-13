@@ -121,7 +121,7 @@ describe("UniswapOracle", () => {
         // having it otherwise probably means that there is an issue in ordering the tokens
         expect(token0IncreaseLiquidity > token1IncreaseLiquidity);
         const totalIncreaseLiquidityRaw = await uniswapOracle.calcValue(IncreaseLiquidity.tokenId);
-        const totalIncreaseLiquidity = BigInt(totalIncreaseLiquidityRaw[0]);
+        const totalIncreaseLiquidity = BigInt(String(totalIncreaseLiquidityRaw[0]));
         expect(totalIncreaseLiquidity).to.approximately(
           token0IncreaseLiquidity + token1IncreaseLiquidity,
           100,
@@ -166,7 +166,7 @@ describe("UniswapOracle", () => {
         expect(token0IncreaseLiquidity).to.approximately(100_000_000_000_000_000_000n, 100);
         expect(token1IncreaseLiquidity).to.equal(0n);
         const totalIncreaseLiquidityRaw = await uniswapOracle.calcValue(IncreaseLiquidity.tokenId);
-        const totalIncreaseLiquidity = BigInt(totalIncreaseLiquidityRaw[0]);
+        const totalIncreaseLiquidity = BigInt(String(totalIncreaseLiquidityRaw[0]));
         expect(totalIncreaseLiquidity).to.approximately(token0IncreaseLiquidity, 100);
       },
     );
@@ -209,7 +209,7 @@ describe("UniswapOracle", () => {
         // the exact value calculation dependents on the internal Uniswap logic
         expect(token1IncreaseLiquidity).to.approximately(100_000_000_000_000_000_000n, 100);
         const totalIncreaseLiquidityRaw = await uniswapOracle.calcValue(IncreaseLiquidity.tokenId);
-        const totalIncreaseLiquidity = BigInt(totalIncreaseLiquidityRaw[0]);
+        const totalIncreaseLiquidity = BigInt(String(totalIncreaseLiquidityRaw[0]));
         expect(totalIncreaseLiquidity).to.approximately(token1IncreaseLiquidity, 100);
       },
     );

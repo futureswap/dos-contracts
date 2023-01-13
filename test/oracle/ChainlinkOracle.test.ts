@@ -45,9 +45,6 @@ describe("ChainlinkOracle", () => {
     const {usdcChainlink} = await loadFixture(setupOracle);
     const value = await usdcChainlink.oracle.calcValue(toWei(1, usdcDecimals));
     expect(value[0]).to.equal(toWei(1, usdcDecimals));
-    // expect(await usdcChainlink.oracle.calcValue(toWei(1, usdcDecimals))).to.equal(
-    //   toWei(1, usdcDecimals),
-    // );
   });
 
   it("Returns right price for eth", async () => {
@@ -55,8 +52,5 @@ describe("ChainlinkOracle", () => {
 
     const value = await ethChainlink.oracle.calcValue(toWei(1, ethDecimals));
     expect(value[0]).to.equal(toWei(ethPrice, usdcDecimals));
-    // expect(await ethChainlink.oracle.calcValue(toWei(1, ethDecimals))).to.equal(
-    //   toWei(ethPrice, usdcDecimals),
-    // );
   });
 });

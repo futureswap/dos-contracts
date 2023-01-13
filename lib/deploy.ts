@@ -184,8 +184,8 @@ export class Chainlink {
     chainLinkDecimals: number,
     baseTokenDecimals: number,
     observedTokenDecimals: number,
-    collateralFactor: number,
-    borrowFactor: number,
+    collateralFactor: bigint,
+    borrowFactor: bigint,
     owner: string,
   ): Promise<Chainlink> {
     const mockChainLink = await waffle.deployMockContract(
