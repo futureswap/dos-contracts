@@ -502,8 +502,6 @@ export const setupDos = async (
       await usdc.symbol(),
       await usdc.decimals(),
       usdcOracle.address,
-      toWei(0.9),
-      toWei(0.9),
       0, // no interest which would include time sensitive calculations
       0,
       0,
@@ -515,8 +513,6 @@ export const setupDos = async (
       await weth.symbol(),
       await weth.decimals(),
       ethOracle.address,
-      toWei(0.9),
-      toWei(0.9),
       0, // no interest which would include time sensitive calculations
       0,
       0,
@@ -528,8 +524,6 @@ export const setupDos = async (
       await uni.symbol(),
       await uni.decimals(),
       uniOracle.address,
-      toWei(0.9),
-      toWei(0.9),
       0, // no interest which would include time sensitive calculations
       0,
       0,
@@ -538,11 +532,7 @@ export const setupDos = async (
     makeCall(uniV3Oracle).setERC20ValueOracle(usdc.address, usdcOracle.address),
     makeCall(uniV3Oracle).setERC20ValueOracle(weth.address, ethOracle.address),
     makeCall(uniV3Oracle).setERC20ValueOracle(uni.address, uniOracle.address),
-    makeCall(dos).addERC721Info(
-      uniAddresses.nonFungiblePositionManager,
-      uniV3Oracle.address,
-      toWei(0.5),
-    ),
+    makeCall(dos).addERC721Info(uniAddresses.nonFungiblePositionManager, uniV3Oracle.address),
   ]);
   return {usdcOracle, ethOracle, uniOracle, uniV3Oracle};
 };
