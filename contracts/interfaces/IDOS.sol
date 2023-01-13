@@ -15,6 +15,8 @@ interface IDOSERC20 is IERC20 {
 
 interface IDOSConfig {
     struct Config {
+        address treasurySafe; // The address of the treasury safe
+        uint256 treasuryInterestFraction; // Fraction of interest to send to treasury
         uint256 maxSolvencyCheckGasCost;
         int256 liqFraction; // Fraction for the user
         int256 fractionalReserveLeverage; // Ratio of debt to reserves
