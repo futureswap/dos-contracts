@@ -268,7 +268,6 @@ contract DOSState is Pausable {
     IDOSConfig.Config public config;
 
     modifier onlyDSafe() {
-        _requireNotPaused();
         if (dSafes[msg.sender].owner == address(0)) {
             revert OnlyDSafe();
         }
@@ -369,7 +368,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @notice deposit `amount` of `erc20` to dAccount from dSafe
     /// @param erc20 Address of the ERC20 token to be transferred
     /// @param amount The amount of `erc20` to be transferred
-    function depositERC20(IERC20 erc20, uint256 amount) external override onlyDSafe {
+    function depositERC20(IERC20 erc20, uint256 amount) external override onlyDSafe whenNotPaused {
         if (amount == 0) return;
         (, uint16 erc20Idx) = getERC20Info(erc20);
         int256 signedAmount = FsMath.safeCastToSigned(amount);
@@ -381,7 +380,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @notice deposit `amount` of `erc20` from dAccount tp dSafe
     /// @param erc20 Address of the ERC20 token to be transferred
     /// @param amount The amount of `erc20` to be transferred
-    function withdrawERC20(IERC20 erc20, uint256 amount) external override onlyDSafe {
+    function withdrawERC20(IERC20 erc20, uint256 amount) external override onlyDSafe whenNotPaused {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         int256 signedAmount = FsMath.safeCastToSigned(amount);
         _dAccountERC20ChangeBy(msg.sender, erc20Idx, -signedAmount);
@@ -391,7 +390,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
 
     /// @notice deposit all `erc20s` from dSafe to dAccount
     /// @param erc20s Array of addresses of ERC20 to be transferred
-    function depositFull(IERC20[] calldata erc20s) external override onlyDSafe {
+    function depositFull(IERC20[] calldata erc20s) external override onlyDSafe whenNotPaused {
         for (uint256 i = 0; i < erc20s.length; i++) {
             (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20s[i]);
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
@@ -405,7 +404,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
 
     /// @notice withdraw all `erc20s` from dAccount to dSafe
     /// @param erc20s Array of addresses of ERC20 to be transferred
-    function withdrawFull(IERC20[] calldata erc20s) external onlyDSafe {
+    function withdrawFull(IERC20[] calldata erc20s) external onlyDSafe whenNotPaused {
         for (uint256 i = 0; i < erc20s.length; i++) {
             (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20s[i]);
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
@@ -428,6 +427,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         external
         override
         onlyDSafe
+        whenNotPaused
         onlyRegisteredNFT(erc721Contract, tokenId)
         onlyNFTOwner(erc721Contract, tokenId)
     {
@@ -441,7 +441,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         );
     }
 
-    /*function depositDosERC20(uint16 erc20Idx, int256 amount) external onlyDSafe {
+    /*function depositDosERC20(uint16 erc20Idx, int256 amount) external onlyDSafe whenNotPaused {
         ERC20Info storage erc20Info = getERC20Info(erc20Idx);
         IDOSERC20 erc20 = IDOSERC20(erc20Info.dosContract);
         if (amount > 0) {
@@ -453,7 +453,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
     }
 
-    function claim(uint16 erc20Idx, uint256 amount) external onlyDSafe {
+    function claim(uint16 erc20Idx, uint256 amount) external onlyDSafe whenNotPaused {
         ERC20Info storage erc20Info = getERC20Info(erc20Idx);
         IDOSERC20(erc20Info.dosContract).burn(msg.sender, amount);
         IERC20(erc20Info.erc20Contract).safeTransfer(msg.sender, amount);
@@ -463,7 +463,10 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @notice withdraw ERC721 `nftContract` token `tokenId` from dAccount to dSafe
     /// @param erc721 The address of the ERC721 contract that the token belongs to
     /// @param tokenId The id of the token to be transferred
-    function withdrawERC721(address erc721, uint256 tokenId) external override onlyDSafe {
+    function withdrawERC721(
+        address erc721,
+        uint256 tokenId
+    ) external override onlyDSafe whenNotPaused {
         DSafeLib.NFTId nftId = _getNFTId(erc721, tokenId);
 
         dSafes[msg.sender].extractNFT(nftId, tokenDataByNFTId);
@@ -481,7 +484,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         IERC20 erc20,
         address to,
         uint256 amount
-    ) external override onlyDSafe dSafeExists(to) {
+    ) external override onlyDSafe whenNotPaused dSafeExists(to) {
         if (amount == 0) return;
         _transferERC20(erc20, msg.sender, to, FsMath.safeCastToSigned(amount));
     }
@@ -495,7 +498,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         address erc721,
         uint256 tokenId,
         address to
-    ) external override onlyDSafe dSafeExists(to) {
+    ) external override onlyDSafe whenNotPaused dSafeExists(to) {
         DSafeLib.NFTId nftId = _getNFTId(erc721, tokenId);
         _transferNFT(nftId, msg.sender, to);
     }
@@ -512,7 +515,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         address from,
         address to,
         uint256 amount
-    ) external override onlyDSafe dSafeExists(from) dSafeExists(to) whenNotPaused returns (bool) {
+    ) external override onlyDSafe whenNotPaused dSafeExists(from) dSafeExists(to) returns (bool) {
         address spender = msg.sender;
         _spendAllowance(erc20, from, spender, amount);
         _transferERC20(IERC20(erc20), from, to, FsMath.safeCastToSigned(amount));
@@ -529,7 +532,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         address from,
         address to,
         uint256 tokenId
-    ) external override onlyDSafe dSafeExists(to) {
+    ) external override onlyDSafe whenNotPaused dSafeExists(to) {
         DSafeLib.NFTId nftId = _getNFTId(collection, tokenId);
         if (!_isApprovedOrOwner(msg.sender, from, nftId)) {
             revert NotApprovedOrOwner();
@@ -548,7 +551,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// obtained assets to cover all created debt
     ///   If dAccount of `dSafe` has less debt then collateral then the transaction will be reverted
     /// @param dSafe The address of dSafe whose dAccount to be liquidate
-    function liquidate(address dSafe) external override onlyDSafe dSafeExists(dSafe) {
+    function liquidate(address dSafe) external override onlyDSafe whenNotPaused dSafeExists(dSafe) {
         (int256 totalValue, int256 collateral, int256 debt) = getRiskAdjustedPositionValues(dSafe);
         require(collateral < debt, "DSafe is not liquidatable");
         uint16[] memory dSafeERC20s = dSafes[dSafe].getERC20s();
@@ -580,7 +583,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// dAccount and DOS must be solvent, i.e. debt on dAccount cannot exceed collateral
     /// and DOS reserve/debt must be sufficient
     /// @param calls An array of transaction calls
-    function executeBatch(Call[] memory calls) external override onlyDSafe {
+    function executeBatch(Call[] memory calls) external override onlyDSafe whenNotPaused {
         DSafeProxy(payable(msg.sender)).executeBatch(calls);
         if (!isSolvent(msg.sender)) {
             revert Insolvent();
@@ -623,7 +626,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         Approval[] calldata approvals,
         address spender,
         bytes calldata data
-    ) external override onlyDSafe dSafeExists(spender) {
+    ) external override onlyDSafe whenNotPaused dSafeExists(spender) {
         uint256[] memory prev = new uint256[](approvals.length);
         for (uint256 i = 0; i < approvals.length; i++) {
             prev[i] = _approve(
@@ -1005,7 +1008,9 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
 
     /// @notice upgrades the version of dSafeLogic contract for the `dSafe`
     /// @param version The new target version of dSafeLogic contract
-    function upgradeDSafeImplementation(string calldata version) external override onlyDSafe {
+    function upgradeDSafeImplementation(
+        string calldata version
+    ) external override onlyDSafe whenNotPaused {
         (
             ,
             IVersionManager.Status status,
@@ -1022,7 +1027,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @notice transfers the ownership of the `dSafe` to the `newOwner`
     /// @param newOwner The new owner of the `dSafe`
     /// todo: should `dsafe` ownership follow ERC721?
-    function transferDSafeOwnership(address newOwner) external override onlyDSafe {
+    function transferDSafeOwnership(address newOwner) external override onlyDSafe whenNotPaused {
         dSafes[msg.sender].owner = newOwner;
         emit IDOSConfig.DSafeOwnershipTransferred(msg.sender, newOwner);
     }
