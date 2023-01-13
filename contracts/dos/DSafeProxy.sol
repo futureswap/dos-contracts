@@ -135,8 +135,10 @@ contract DSafeLogic is
     ///   * callData - encoded function name and it's arguments
     ///   * value - the amount of ETH to sent with the call
     function executeBatch(Call[] memory calls) external payable onlyOwner {
-        dos.executeBatch(calls);
+        bool saveForwardNFT = forwardNFT;
         forwardNFT = false;
+        dos.executeBatch(calls);
+        forwardNFT = saveForwardNFT;
     }
 
     function executeSignedBatch(
