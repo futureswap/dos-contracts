@@ -44,8 +44,6 @@ interface IDOSConfig {
     /// @param symbol The symbol of the ERC20
     /// @param decimals The decimals of the ERC20
     /// @param valueOracle The address of the value oracle for the ERC20
-    /// @param colFactor The collateral factor for the ERC20
-    /// @param borrowFactor The borrow factor for the ERC20
     /// @param baseRate The interest rate at 0% utilization
     /// @param slope1 The interest rate slope at 0% to target utilization
     /// @param slope2 The interest rate slope at target utilization to 100% utilization
@@ -58,8 +56,6 @@ interface IDOSConfig {
         string symbol,
         uint8 decimals,
         address valueOracle,
-        int256 colFactor,
-        int256 borrowFactor,
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
@@ -70,12 +66,10 @@ interface IDOSConfig {
     /// @param erc721Idx The index of the ERC721 in the protocol
     /// @param erc721Contract The address of the ERC721 contract
     /// @param valueOracleAddress The address of the value oracle for the ERC721
-    /// @param collateralFactor The collateral factor for the ERC721
     event ERC721Added(
         uint256 indexed erc721Idx,
         address indexed erc721Contract,
-        address valueOracleAddress,
-        int256 collateralFactor
+        address valueOracleAddress
     );
 
     /// @notice Emitted when the config is set
@@ -92,16 +86,12 @@ interface IDOSConfig {
     /// @param slope1 The new slope1
     /// @param slope2 The new slope2
     /// @param targetUtilization The new target utilization
-    /// @param borrowFactor The new borrow factor
-    /// @param collateralFactor The new collateral factor
     event ERC20DataSet(
         address indexed erc20,
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
-        uint256 targetUtilization,
-        int256 borrowFactor,
-        int256 collateralFactor
+        uint256 targetUtilization
     );
 
     /// @notice Emitted when a dSafe is created
@@ -119,24 +109,16 @@ interface IDOSConfig {
         string calldata symbol,
         uint8 decimals,
         address valueOracle,
-        int256 colFactor,
-        int256 borrowFactor,
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
         uint256 targetUtilization
     ) external returns (uint16);
 
-    function addERC721Info(
-        address nftContract,
-        address valueOracleAddress,
-        int256 collateralFactor
-    ) external;
+    function addERC721Info(address nftContract, address valueOracleAddress) external;
 
     function setERC20Data(
         address erc20,
-        int256 borrowFactor,
-        int256 collateralFactor,
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,

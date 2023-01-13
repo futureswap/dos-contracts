@@ -101,8 +101,6 @@ describe("DOS", () => {
       "USDC",
       USDC_DECIMALS,
       usdcChainlink.oracle.address,
-      toWei(0.9),
-      toWei(0.9),
       0, // 0%
       5, // 0.05 * 100
       480, // 4.8 * 100
@@ -115,15 +113,13 @@ describe("DOS", () => {
       "WETH",
       WETH_DECIMALS,
       ethChainlink.oracle.address,
-      toWei(0.9),
-      toWei(0.9),
       0, // 0%
       5, // 0.05 * 100
       480, // 4.8 * 100
       ethers.utils.parseEther("0.8"), // 0.80
     );
 
-    await iDos.addERC721Info(nft.address, nftOracle.address, toWei(0.5));
+    await iDos.addERC721Info(nft.address, nftOracle.address);
     await nftOracle.setCollateralFactor(toWei(0.5));
 
     const getBalances = async (
