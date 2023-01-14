@@ -17,6 +17,8 @@ import {ERC20ChainlinkValueOracle} from "../../contracts/oracles/ERC20ChainlinkV
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+
 import {TestERC20} from "../../contracts/testing/TestERC20.sol";
 import {IWETH9} from "../../contracts/external/interfaces/IWETH9.sol";
 
@@ -425,5 +427,33 @@ contract DuoswapV2Test is Test {
             0
         );
         return _pair;
+    }
+}
+
+contract DuoswapV2ConstructorTest is Test {
+    address public oracleAddress = 0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6;
+
+    function testBaseDecimalsValidation(uint8 baseDecimals) public {
+        vm.assume(baseDecimals < 3 || 18 < baseDecimals);
+
+        address owner = address(this);
+        string memory reason = string.concat(
+            "Invalid baseDecimals: must be within [3, 18] range while provided is ",
+            Strings.toString(baseDecimals)
+        );
+        vm.expectRevert(bytes(reason));
+        new ERC20ChainlinkValueOracle(address(oracleAddress), baseDecimals, 18, 0, 0, owner);
+    }
+
+    function testTokenDecimalsValidation(uint8 tokenDecimals) public {
+        vm.assume(tokenDecimals < 3 || 18 < tokenDecimals);
+
+        address owner = address(this);
+        string memory reason = string.concat(
+            "Invalid tokenDecimals: must be within [3, 18] range while provided is ",
+            Strings.toString(tokenDecimals)
+        );
+        vm.expectRevert(bytes(reason));
+        new ERC20ChainlinkValueOracle(address(oracleAddress), 18, tokenDecimals, 0, 0, owner);
     }
 }
