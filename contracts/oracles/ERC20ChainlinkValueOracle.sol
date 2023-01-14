@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 import "../lib/FsUtils.sol";
 import "../interfaces/IERC20ValueOracle.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 
@@ -13,6 +14,17 @@ contract ERC20ChainlinkValueOracle is ImmutableGovernance, IERC20ValueOracle {
     int256 collateralFactor = 1 ether;
     int256 borrowFactor = 1 ether;
 
+    modifier checkDecimals(string memory label, uint8 decimals) {
+        if (decimals < 3 || 18 < decimals) {
+            // prettier-ignore
+            revert(string.concat(
+                "Invalid ", label, ": must be within [3, 18] range while provided is ",
+                Strings.toString(decimals)
+            ));
+        }
+        _;
+    }
+
     constructor(
         address chainlink,
         uint8 baseDecimals,
@@ -20,7 +32,11 @@ contract ERC20ChainlinkValueOracle is ImmutableGovernance, IERC20ValueOracle {
         int256 _collateralFactor,
         int256 _borrowFactor,
         address _owner
-    ) ImmutableGovernance(_owner) {
+    )
+        ImmutableGovernance(_owner)
+        checkDecimals("baseDecimals", baseDecimals)
+        checkDecimals("tokenDecimals", tokenDecimals)
+    {
         priceOracle = AggregatorV3Interface(FsUtils.nonNull(chainlink));
         base = int256(10) ** (tokenDecimals + priceOracle.decimals() - baseDecimals);
         collateralFactor = _collateralFactor;
