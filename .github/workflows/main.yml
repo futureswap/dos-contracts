@@ -6,6 +6,11 @@ on:
   push:
     branches: [master]
 
+# Considering that we reached the maximum number of "Apps" on Alchemy, this is a re-used key
+# "Sandbox: Ethereum". As for the moment I've taken it, is had no activity
+env:
+  MAINNET_RPC_URL: "https://eth-mainnet.g.alchemy.com/v2/sgUiV5I9elh_W179HvTyS98e1pOOcQK4"
+
 jobs:
   ci:
     runs-on: "ubuntu-latest"
@@ -42,5 +47,11 @@ jobs:
 #      - name: "Test the contracts and generate the coverage report"
 #        run: "yarn coverage"
 
-      - name: "tests"
+      - name: "test with Hardhat"
         run: "yarn test"
+
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: "test with Forge"
+        run: "yarn test:forge"
