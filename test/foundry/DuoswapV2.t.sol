@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 
-import {Approval, IDOS, DOS, DOSConfig, IDOSConfig, DSafeLib, DOSState} from "../../contracts/dos/DOS.sol";
+import {IDOS, DOS, DOSConfig, IDOSConfig, DSafeLib, DOSState, IDOSCore} from "../../contracts/dos/DOS.sol";
 import {Call} from "../../contracts/lib/Call.sol";
 import {DSafeProxy, DSafeLogic} from "../../contracts/dos/DSafeProxy.sol";
 import {IVersionManager, VersionManager, ImmutableVersion} from "../../contracts/dos/VersionManager.sol";
@@ -53,12 +53,13 @@ contract DuoswapV2Test is Test {
         vm.selectFork(mainnetFork);
         token0 = new TestERC20("token0", "t0", 18);
         token1 = new TestERC20("token1", "t1", 18);
+        address owner = address(this);
 
-        token0Oracle = new ERC20ChainlinkValueOracle(address(oracleAddress), 18, 18);
-        token1Oracle = new ERC20ChainlinkValueOracle(address(oracleAddress), 18, 18);
+        token0Oracle = new ERC20ChainlinkValueOracle(address(oracleAddress), 18, 18, 0, 0, owner);
+        token1Oracle = new ERC20ChainlinkValueOracle(address(oracleAddress), 18, 18, 0, 0, owner);
 
-        versionManager = new VersionManager(address(this));
-        dosConfig = new DOSConfig(address(this));
+        versionManager = new VersionManager(owner);
+        dosConfig = new DOSConfig(owner);
         dos = new DOS(address(dosConfig), address(versionManager));
         logic = new DSafeLogic(address(dos));
 
@@ -73,8 +74,6 @@ contract DuoswapV2Test is Test {
             9e17,
             9e17,
             0,
-            0,
-            0,
             0
         );
         IDOSConfig(address(dos)).addERC20Info(
@@ -86,19 +85,23 @@ contract DuoswapV2Test is Test {
             9e17,
             9e17,
             0,
-            0,
-            0,
             0
         );
 
         IDOSConfig(address(dos)).setConfig(
-            IDOSConfig.Config({liqFraction: 8e17, fractionalReserveLeverage: 10})
+            IDOSConfig.Config({
+                treasurySafe: address(0),
+                treasuryInterestFraction: 0,
+                maxSolvencyCheckGasCost: 0,
+                liqFraction: 8e17,
+                fractionalReserveLeverage: 10
+            })
         );
 
         versionManager.addVersion(IVersionManager.Status.PRODUCTION, address(logic));
         versionManager.markRecommendedVersion(version);
 
-        factory = new DuoswapV2Factory(address(dos), address(this));
+        factory = new DuoswapV2Factory(address(dos), owner);
         router = new DuoswapV2Router(address(factory), address(weth), address(dos));
     }
 
@@ -144,9 +147,13 @@ contract DuoswapV2Test is Test {
             block.timestamp
         );
 
-        Approval[] memory approvals = new Approval[](2);
-        approvals[0] = (Approval({ercContract: address(tokens[0]), amountOrTokenId: amounts[0]}));
-        approvals[1] = (Approval({ercContract: address(tokens[1]), amountOrTokenId: amounts[1]}));
+        IDOSCore.Approval[] memory approvals = new IDOSCore.Approval[](2);
+        approvals[0] = (
+            IDOSCore.Approval({ercContract: address(tokens[0]), amountOrTokenId: amounts[0]})
+        );
+        approvals[1] = (
+            IDOSCore.Approval({ercContract: address(tokens[1]), amountOrTokenId: amounts[1]})
+        );
 
         calls[0] = (
             Call({
@@ -266,8 +273,10 @@ contract DuoswapV2Test is Test {
             block.timestamp
         );
 
-        Approval[] memory approvals = new Approval[](1);
-        approvals[0] = (Approval({ercContract: address(token0), amountOrTokenId: swapAmount}));
+        IDOSCore.Approval[] memory approvals = new IDOSCore.Approval[](1);
+        approvals[0] = (
+            IDOSCore.Approval({ercContract: address(token0), amountOrTokenId: swapAmount})
+        );
 
         bytes memory callData = abi.encodeWithSignature(
             "approveAndCall((address,uint256)[],address,bytes)",
@@ -317,9 +326,13 @@ contract DuoswapV2Test is Test {
             block.timestamp
         );
 
-        Approval[] memory approvals = new Approval[](2);
-        approvals[0] = (Approval({ercContract: address(token0), amountOrTokenId: _amount0}));
-        approvals[1] = (Approval({ercContract: address(token1), amountOrTokenId: _amount1}));
+        IDOSCore.Approval[] memory approvals = new IDOSCore.Approval[](2);
+        approvals[0] = (
+            IDOSCore.Approval({ercContract: address(token0), amountOrTokenId: _amount0})
+        );
+        approvals[1] = (
+            IDOSCore.Approval({ercContract: address(token1), amountOrTokenId: _amount1})
+        );
 
         Call[] memory calls = new Call[](1);
 
@@ -408,8 +421,6 @@ contract DuoswapV2Test is Test {
             address(pairOracle),
             9e17,
             9e17,
-            0,
-            0,
             0,
             0
         );
