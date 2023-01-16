@@ -104,7 +104,7 @@ abstract contract Liquifier is DSafeState {
         (
             IERC20[] memory erc20sCollateral,
             uint256[] memory erc20sDebtAmounts
-        ) = analiseDAccountStructure(erc20s, numeraire);
+        ) = analyseDAccountStructure(erc20s, numeraire);
 
         dos.withdrawFull(erc20sCollateral);
         terminateERC721s(nftManager);
@@ -144,7 +144,7 @@ abstract contract Liquifier is DSafeState {
         dos.executeBatch(calls);
     }
 
-    function analiseDAccountStructure(
+    function analyseDAccountStructure(
         IERC20[] calldata erc20s,
         address numeraire
     ) private view returns (IERC20[] memory erc20sCollateral, uint256[] memory erc20sDebtAmounts) {
