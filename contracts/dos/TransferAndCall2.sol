@@ -177,9 +177,6 @@ contract TransferAndCall2 is IERC1363Receiver, EIP712 {
         }
     }
 
-    // TODO: #108 ERC2612 permit transferAndCall2
-    // TODO: #109 permit2 transferAndCall
-
     function callOnTransferReceived2(
         address to,
         address operator,
