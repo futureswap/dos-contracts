@@ -65,11 +65,7 @@ library FsMath {
     }
 
     // Clip val into interval [lower, upper]
-    function clip(
-        int256 val,
-        int256 lower,
-        int256 upper
-    ) internal pure returns (int256) {
+    function clip(int256 val, int256 lower, int256 upper) internal pure returns (int256) {
         return min(max(val, lower), upper);
     }
 
