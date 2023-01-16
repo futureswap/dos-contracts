@@ -1084,6 +1084,9 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         address erc721Contract,
         address valueOracleAddress
     ) external override onlyGovernance {
+        if (IERC165(erc721Contract).supportsInterface(type(IERC721).interfaceId) == false) {
+            revert NotNFT(); // todo: create unit test
+        }
         INFTValueOracle valueOracle = INFTValueOracle(valueOracleAddress);
         uint256 erc721Idx = erc721Infos.length;
         erc721Infos.push(ERC721Info(erc721Contract, valueOracle));
