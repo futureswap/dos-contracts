@@ -15,9 +15,9 @@ import "../interfaces/IERC20ValueOracle.sol";
 import "../interfaces/INFTValueOracle.sol";
 import {PERMIT2, IPermit2} from "../external/interfaces/IPermit2.sol";
 import {DSafeProxy} from "./DSafeProxy.sol";
-import "../dosERC20/DOSERC20.sol";
 import {IVersionManager} from "../interfaces/IVersionManager.sol";
 import "../lib/Call.sol";
+import "../lib/ImmutableGovernance.sol";
 import {IERC1363SpenderExtended, IERC1363ReceiverExtended} from "../interfaces/IERC1363-extended.sol";
 
 /// @notice Sender is not approved to spend dSafe erc20
@@ -193,7 +193,6 @@ library DSafeLib {
 
 struct ERC20Info {
     address erc20Contract;
-    address dosContract;
     IERC20ValueOracle valueOracle;
     ERC20Pool collateral;
     ERC20Pool debt;
@@ -1044,11 +1043,9 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         uint256 targetUtilization
     ) external override onlyGovernance returns (uint16) {
         uint16 erc20Idx = uint16(erc20Infos.length);
-        DOSERC20 dosToken = new DOSERC20(name, symbol, decimals);
         erc20Infos.push(
             ERC20Info(
                 erc20Contract,
-                address(dosToken),
                 IERC20ValueOracle(valueOracle),
                 ERC20Pool(0, 0),
                 ERC20Pool(0, 0),
@@ -1063,7 +1060,6 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         emit IDOSConfig.ERC20Added(
             erc20Idx,
             erc20Contract,
-            address(dosToken),
             name,
             symbol,
             decimals,

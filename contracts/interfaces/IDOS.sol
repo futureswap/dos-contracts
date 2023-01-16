@@ -41,7 +41,6 @@ interface IDOSConfig {
     /// @notice Emitted when a new ERC20 is added to the protocol
     /// @param erc20Idx The index of the ERC20 in the protocol
     /// @param erc20 The address of the ERC20 contract
-    /// @param dosToken The address of the DOS token
     /// @param name The name of the ERC20
     /// @param symbol The symbol of the ERC20
     /// @param decimals The decimals of the ERC20
@@ -53,7 +52,6 @@ interface IDOSConfig {
     event ERC20Added(
         uint16 erc20Idx,
         address erc20,
-        address dosToken,
         string name,
         string symbol,
         uint8 decimals,
