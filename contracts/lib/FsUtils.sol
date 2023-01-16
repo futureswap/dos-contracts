@@ -56,8 +56,7 @@ library FsUtils {
     }
 
     function revertBytes(bytes memory b) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
+        assembly ("memory-safe") {
             revert(add(b, 0x20), mload(b))
         }
     }

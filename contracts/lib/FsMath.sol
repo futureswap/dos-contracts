@@ -24,8 +24,6 @@ library FsMath {
      * We chose `FIXED_POINT_SCALE` to be a power of 2 to make certain optimizations in the
      * calculation of `e^x` more efficient.  See `exp()` implementation for details.
      *
-     * TODO Clarify that the above is indeed true.
-     *
      * See https://en.wikipedia.org/wiki/Fixed-point_arithmetic
      */
     int256 constant FIXED_POINT_SCALE = int256(1) << uint256(FIXED_POINT_SCALE_BITS);

@@ -144,6 +144,37 @@ abstract contract Liquifier is DSafeState {
         dos.executeBatch(calls);
     }
 
+    /// @param nftManager - passed as-is from liquify function. The address of a Uniswap
+    ///   NonFungibleTokenManager to be used to terminate ERC721 (NFTs)
+    function terminateERC721s(address nftManager) private {
+        INonfungiblePositionManager manager = INonfungiblePositionManager(nftManager);
+        IDOS.NFTData[] memory nfts = dos.getDAccountERC721(address(this));
+        for (uint256 i = 0; i < nfts.length; i++) {
+            IDOS.NFTData memory nft = nfts[i];
+            dos.withdrawERC721(nft.erc721, nft.tokenId);
+            (, , , , , , , uint128 nftLiquidity, , , , ) = manager.positions(nft.tokenId);
+            manager.decreaseLiquidity(
+                INonfungiblePositionManager.DecreaseLiquidityParams({
+                    tokenId: nft.tokenId,
+                    liquidity: nftLiquidity,
+                    amount0Min: 0,
+                    amount1Min: 0,
+                    deadline: type(uint256).max
+                })
+            );
+            manager.collect(
+                INonfungiblePositionManager.CollectParams({
+                    tokenId: nft.tokenId,
+                    recipient: address(this),
+                    amount0Max: type(uint128).max,
+                    amount1Max: type(uint128).max
+                })
+            );
+
+            manager.burn(nft.tokenId);
+        }
+    }
+
     function analyseDAccountStructure(
         IERC20[] calldata erc20s,
         address numeraire
@@ -179,37 +210,6 @@ abstract contract Liquifier is DSafeState {
             } else if (balances[i] < 0) {
                 erc20sDebtAmounts[i] = uint256(-balances[i]);
             }
-        }
-    }
-
-    /// @param nftManager - passed as-is from liquify function. The address of a Uniswap
-    ///   NonFungibleTokenManager to be used to terminate ERC721 (NFTs)
-    function terminateERC721s(address nftManager) private {
-        INonfungiblePositionManager manager = INonfungiblePositionManager(nftManager);
-        IDOS.NFTData[] memory nfts = dos.getDAccountERC721(address(this));
-        for (uint256 i = 0; i < nfts.length; i++) {
-            IDOS.NFTData memory nft = nfts[i];
-            dos.withdrawERC721(nft.erc721, nft.tokenId);
-            (, , , , , , , uint128 nftLiquidity, , , , ) = manager.positions(nft.tokenId);
-            manager.decreaseLiquidity(
-                INonfungiblePositionManager.DecreaseLiquidityParams({
-                    tokenId: nft.tokenId,
-                    liquidity: nftLiquidity,
-                    amount0Min: 0,
-                    amount1Min: 0,
-                    deadline: type(uint256).max
-                })
-            );
-            manager.collect(
-                INonfungiblePositionManager.CollectParams({
-                    tokenId: nft.tokenId,
-                    recipient: address(this),
-                    amount0Max: type(uint128).max,
-                    amount1Max: type(uint128).max
-                })
-            );
-
-            manager.burn(nft.tokenId);
         }
     }
 

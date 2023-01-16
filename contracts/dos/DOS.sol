@@ -438,25 +438,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         );
     }
 
-    /*function depositDosERC20(uint16 erc20Idx, int256 amount) external onlyDSafe whenNotPaused {
-        ERC20Info storage erc20Info = getERC20Info(erc20Idx);
-        IDOSERC20 erc20 = IDOSERC20(erc20Info.dosContract);
-        if (amount > 0) {
-            erc20.burn(msg.sender, uint256(amount));
-            _dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
-        } else {
-            erc20.mint(msg.sender, uint256(-amount));
-            _dAccountERC20ChangeBy(msg.sender, erc20Idx, amount);
-        }
-    }
-
-    function claim(uint16 erc20Idx, uint256 amount) external onlyDSafe whenNotPaused {
-        ERC20Info storage erc20Info = getERC20Info(erc20Idx);
-        IDOSERC20(erc20Info.dosContract).burn(msg.sender, amount);
-        IERC20(erc20Info.erc20Contract).safeTransfer(msg.sender, amount);
-        // TODO: require appropriate reserve
-    }*/
-
     /// @notice withdraw ERC721 `nftContract` token `tokenId` from dAccount to dSafe
     /// @param erc721 The address of the ERC721 contract that the token belongs to
     /// @param tokenId The id of the token to be transferred
@@ -611,7 +592,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         require(dSafes[from].owner != address(0), "DSafe does not exist");
         tokenDataByNFTId[nftId].tokenId = uint240(tokenId);
         dSafes[from].insertNFT(nftId, tokenDataByNFTId);
-        // TODO(call dSafe?)
         return this.onERC721Received.selector;
     }
 
@@ -949,7 +929,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @param dSafe The address of a dSafe who performed the `executeBatch`
     /// @return Whether the position is solvent.
     function isSolvent(address dSafe) internal view returns (bool) {
-        // todo track each erc20 on-change instead of iterating over all DOS stuff
         uint gasBefore = gasleft();
         int256 leverage = config.fractionalReserveLeverage;
         for (uint256 i = 0; i < erc20Infos.length; i++) {
@@ -1026,7 +1005,6 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
 
     /// @notice transfers the ownership of the `dSafe` to the `newOwner`
     /// @param newOwner The new owner of the `dSafe`
-    /// todo: should `dsafe` ownership follow ERC721?
     function transferDSafeOwnership(address newOwner) external override onlyDSafe whenNotPaused {
         dSafes[msg.sender].owner = newOwner;
         emit IDOSConfig.DSafeOwnershipTransferred(msg.sender, newOwner);
@@ -1184,7 +1162,6 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         address dSafeAddr,
         IERC20 erc20
     ) external view override returns (int256) {
-        // TODO(gerben) #104 interest computation
         DSafeLib.DSafe storage dSafe = dSafes[dSafeAddr];
         (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20);
         ERC20Share erc20Share = dSafe.erc20Share[erc20Idx];
