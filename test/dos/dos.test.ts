@@ -271,8 +271,8 @@ describe("DOS", () => {
       const liquidatorBalances = await getBalances(liquidator);
       // 10_000 - balance in USDC; 9_000 - debt of 1 ETH; 0.8 - liqFraction
       let liquidationLeftover =
-        toWei((10_000 - 9_000) * 0.8, USDC_DECIMALS) * BigInt(percentUnderwater); // 800 USDC in ETH
-      liquidationLeftover /= BigInt(ethers.utils.parseEther("1"));
+        toWei((10_000 - 9_000) * 0.8, USDC_DECIMALS) * BigInt(percentUnderwater.toString()); // 800 USDC in ETH
+      liquidationLeftover /= BigInt(ethers.utils.parseEther("1").toString());
       expect(liquidatableBalances.weth).to.equal(0);
       expect(liquidatableBalances.usdc).to.be.approximately(liquidationLeftover, 1000);
       expect(liquidatorBalances.weth).to.be.approximately(-oneEth, 200_000); // own 10k + 10k of liquidatable
