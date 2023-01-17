@@ -89,6 +89,38 @@ struct ERC20Pool {
     int256 shares;
 }
 
+struct ERC20Info {
+    address erc20Contract;
+    IERC20ValueOracle valueOracle;
+    ERC20Pool collateral;
+    ERC20Pool debt;
+    uint256 baseRate;
+    uint256 slope1;
+    uint256 slope2;
+    uint256 targetUtilization;
+    uint256 timestamp;
+}
+
+struct ERC721Info {
+    address erc721Contract;
+    INFTValueOracle valueOracle;
+}
+
+struct ContractData {
+    uint16 idx;
+    ContractKind kind; // 0 invalid, 1 ERC20, 2 ERC721
+}
+
+enum ContractKind {
+    Invalid,
+    ERC20,
+    ERC721
+}
+
+// We will initialize the system so that 0 is the base currency
+// in which the system calculates value.
+uint16 constant K_NUMERAIRE_IDX = 0;
+
 library DSafeLib {
     type NFTId is uint256; // 16 bits (tokenId) + 224 bits (hash) + 16 bits (erc721 index)
 
@@ -190,38 +222,6 @@ library DSafeLib {
         return (pool.tokens * shares) / pool.shares;
     }
 }
-
-struct ERC20Info {
-    address erc20Contract;
-    IERC20ValueOracle valueOracle;
-    ERC20Pool collateral;
-    ERC20Pool debt;
-    uint256 baseRate;
-    uint256 slope1;
-    uint256 slope2;
-    uint256 targetUtilization;
-    uint256 timestamp;
-}
-
-struct ERC721Info {
-    address erc721Contract;
-    INFTValueOracle valueOracle;
-}
-
-enum ContractKind {
-    Invalid,
-    ERC20,
-    ERC721
-}
-
-struct ContractData {
-    uint16 idx;
-    ContractKind kind; // 0 invalid, 1 ERC20, 2 ERC721
-}
-
-// We will initialize the system so that 0 is the base currency
-// in which the system calculates value.
-uint16 constant K_NUMERAIRE_IDX = 0;
 
 /// @title DOS State
 /// @notice Contract holds the configuration state for DOS
