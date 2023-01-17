@@ -261,12 +261,18 @@ describe("DOS", () => {
       await (await tx).wait();
       // make liquidatable debt overcome collateral. Now it can be liquidated
       await ethChainlink.setPrice(9_000);
+      const {collateral, debt} = await iDos.getRiskAdjustedPositionValues(liquidatable.address);
+      const percentUnderwater = ethers.utils.parseEther(
+        (Number(collateral) / Number(debt)).toString(),
+      );
       await liquidator.executeBatch([makeCall(iDos).liquidate(liquidatable.address)]);
 
       const liquidatableBalances = await getBalances(liquidatable);
       const liquidatorBalances = await getBalances(liquidator);
       // 10_000 - balance in USDC; 9_000 - debt of 1 ETH; 0.8 - liqFraction
-      const liquidationLeftover = toWei((10_000 - 9_000) * 0.8, USDC_DECIMALS); // 800 USDC in ETH
+      let liquidationLeftover =
+        toWei((10_000 - 9_000) * 0.8, USDC_DECIMALS) * BigInt(percentUnderwater.toString()); // 800 USDC in ETH
+      liquidationLeftover /= BigInt(ethers.utils.parseEther("1").toString());
       expect(liquidatableBalances.weth).to.equal(0);
       expect(liquidatableBalances.usdc).to.be.approximately(liquidationLeftover, 1000);
       expect(liquidatorBalances.weth).to.be.approximately(-oneEth, 200_000); // own 10k + 10k of liquidatable
@@ -564,6 +570,8 @@ describe("DOS", () => {
       await (await tx).wait();
 
       await ethChainlink.setPrice(2_100); // 2_000 -> 2_100
+      const {collateral, debt} = await iDos.getRiskAdjustedPositionValues(liquidatable.address);
+      const percentUnderwater = Number(collateral) / Number(debt);
       const liquidateTx = await liquidator.executeBatch([
         makeCall(iDos).liquidate(liquidatable.address),
       ]);
@@ -573,13 +581,14 @@ describe("DOS", () => {
       // 10k - positive in USDC. 2_100 - current WETH price in USDC. 4 - debt
       const liquidatableTotal = 10_000 - 4 * 2_100;
       // 0.8 - liqFraction, defined in deployDOSFixture
-      const liquidationOddMoney = toWei(liquidatableTotal * 0.8, USDC_DECIMALS);
+      const liquidatableTotalAfterLiquidation = liquidatableTotal * 0.8 * percentUnderwater;
+      const liquidationOddMoney = toWei(liquidatableTotalAfterLiquidation, USDC_DECIMALS);
       expect(liquidatableBalance.weth).to.equal(0);
       expect(liquidatableBalance.usdc).to.be.approximately(liquidationOddMoney, 2000);
       const liquidatorBalance = await getBalances(liquidator);
       // 10k initial USDC, 10k liquidated USDC - returned money to liquidated account
       expect(liquidatorBalance.usdc).to.be.approximately(
-        toWei(10_000 + 10_000 - liquidatableTotal * 0.8, USDC_DECIMALS),
+        toWei(10_000 + 10_000 - liquidatableTotalAfterLiquidation, USDC_DECIMALS),
         2000,
       );
       expect(liquidatorBalance.weth).to.be.approximately(-toWei(4), 600_000);
@@ -606,6 +615,8 @@ describe("DOS", () => {
 
       // drop the price of the NFT from 2000 Eth to 1600 Eth. Now dSafe should become liquidatable
       await (await nftOracle.setPrice(tokenId, toWeiUsdc(1600))).wait();
+      const {collateral, debt} = await iDos.getRiskAdjustedPositionValues(liquidatable.address);
+      const percentUnderwater = Number(collateral) / Number(debt);
       const liquidateTx = await liquidator.executeBatch([
         makeCall(iDos).liquidate(liquidatable.address),
       ]);
@@ -614,8 +625,9 @@ describe("DOS", () => {
       const liquidatableBalance = await getBalances(liquidatable);
       // 1600 - current price of the owned NFT. 0.4 eth - debt
       const liquidatableTotal = 1600 - 0.4 * 2000;
+      const liquidatableTotalAfterLiquidation = liquidatableTotal * 0.8 * percentUnderwater;
       // 0.8 - liqFraction, defined in deployDOSFixture
-      const liquidationOddMoney = toWeiUsdc(liquidatableTotal * 0.8);
+      const liquidationOddMoney = toWeiUsdc(liquidatableTotalAfterLiquidation);
       expect(liquidatableBalance.usdc).to.be.approximately(liquidationOddMoney, 2000);
       expect(liquidatableBalance.weth).to.be.equal(0);
       expect(liquidatableBalance.nfts).to.eql([]);
@@ -660,6 +672,8 @@ describe("DOS", () => {
       // and the debt would become 2,500 / 0.9 = 2,777
       // So the debt would exceed the collateral and the dSafe becomes liquidatable
       await ethChainlink.setPrice(2_500);
+      const {collateral, debt} = await iDos.getRiskAdjustedPositionValues(liquidatable.address);
+      const percentUnderwater = Number(collateral) / Number(debt);
       const liquidateTx = await liquidator.executeBatch([
         makeCall(iDos).liquidate(liquidatable.address),
       ]);
@@ -667,16 +681,17 @@ describe("DOS", () => {
 
       // 2_500 - NFT; 1_500 - USDC; 2_500 - debt; 2_500 - ETH price, so the result is in ETH
       const liquidatableTotal = 2_000 + 1_500 - 2_500;
+      const liquidatableTotalAfterLiquidation = liquidatableTotal * 0.8 * percentUnderwater;
       const liquidatableBalance = await getBalances(liquidatable);
       expect(liquidatableBalance.weth).to.equal(0);
       // 0.8 - liqFraction, defined in deployDOSFixture
       expect(liquidatableBalance.usdc).to.be.approximately(
-        toWeiUsdc(liquidatableTotal * 0.8),
+        toWeiUsdc(liquidatableTotalAfterLiquidation),
         2000,
       );
       expect(liquidatableBalance.nfts).to.eql([]);
       const liquidatorBalance = await getBalances(liquidator);
-      expect(liquidatorBalance.usdc).to.equal(toWeiUsdc(1_500 - liquidatableTotal * 0.8));
+      expect(liquidatorBalance.usdc).to.equal(toWeiUsdc(1_500 - liquidatableTotalAfterLiquidation));
       // 1 - initial balance; -1 transferred debt; 0.8 - liqFactor defined in deployDOSFixture
       expect(liquidatorBalance.weth).to.be.approximately(toWei(0), 132_000);
       expect(liquidatorBalance.nfts).to.eql([[nft.address, tokenId]]);

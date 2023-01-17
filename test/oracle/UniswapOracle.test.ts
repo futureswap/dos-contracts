@@ -130,7 +130,7 @@ describe("UniswapOracle", () => {
     );
     it(
       "when minting in a price range that is above the current price " +
-        "then only liquidity of token0 get increased" +
+        "then only liquidity of token0 gets increased" +
         "and total liquidity is increased by the same amount",
       async () => {
         const {owner, nonFungiblePositionManager, tok0, tok1, uniswapOracle} = await loadFixture(

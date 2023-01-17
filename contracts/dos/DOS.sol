@@ -492,7 +492,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         address from,
         address to,
         uint256 amount
-    ) external override onlyDSafe whenNotPaused dSafeExists(from) dSafeExists(to) returns (bool) {
+    ) external override whenNotPaused dSafeExists(from) dSafeExists(to) returns (bool) {
         address spender = msg.sender;
         _spendAllowance(erc20, from, spender, amount);
         _transferERC20(IERC20(erc20), from, to, FsMath.safeCastToSigned(amount));
@@ -539,12 +539,13 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         while (dSafes[dSafe].nfts.length > 0) {
             _transferNFT(dSafes[dSafe].nfts[dSafes[dSafe].nfts.length - 1], dSafe, msg.sender);
         }
-        // TODO(gerben) #102 make formula dependent on risk
         if (totalValue > 0) {
             // totalValue of the liquidated dSafe is split between liquidatable and liquidator:
             // totalValue * (1 - liqFraction) - reward of the liquidator, and
             // totalValue * liqFraction - change, liquidator is sending back to liquidatable
-            int256 leftover = (totalValue * config.liqFraction) / 1 ether;
+            int256 percentUnderwater = (collateral * 1 ether) / debt;
+            int256 leftover = ((totalValue * config.liqFraction * percentUnderwater) / 1 ether) /
+                1 ether;
             _transferERC20(
                 IERC20(erc20Infos[K_NUMERAIRE_IDX].erc20Contract),
                 msg.sender,
@@ -602,7 +603,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         Approval[] calldata approvals,
         address spender,
         bytes calldata data
-    ) external override onlyDSafe whenNotPaused dSafeExists(spender) {
+    ) external override onlyDSafe whenNotPaused {
         uint256[] memory prev = new uint256[](approvals.length);
         for (uint256 i = 0; i < approvals.length; i++) {
             prev[i] = _approve(
@@ -1080,6 +1081,9 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         address erc721Contract,
         address valueOracleAddress
     ) external override onlyGovernance {
+        if (IERC165(erc721Contract).supportsInterface(type(IERC721).interfaceId) == false) {
+            revert NotNFT(); // todo: create unit test
+        }
         INFTValueOracle valueOracle = INFTValueOracle(valueOracleAddress);
         uint256 erc721Idx = erc721Infos.length;
         erc721Infos.push(ERC721Info(erc721Contract, valueOracle));
