@@ -94,7 +94,7 @@ contract DuoswapV2Test is Test {
             IDOSConfig.Config({
                 treasurySafe: address(0),
                 treasuryInterestFraction: 0,
-                maxSolvencyCheckGasCost: 0,
+                maxSolvencyCheckGasCost: 10_000_000,
                 liqFraction: 8e17,
                 fractionalReserveLeverage: 10
             })
@@ -115,7 +115,6 @@ contract DuoswapV2Test is Test {
         assertEq(factory.getPair(address(token1), address(token0)), address(pair));
     }
 
-    /* todo - fix this tests
     function testAddLiquidity(uint96 _amount0, uint96 _amount1) public {
         uint256 amount0 = uint256(_amount0) + 1e18;
         uint256 amount1 = uint256(_amount1) + 1e18;
@@ -309,7 +308,6 @@ contract DuoswapV2Test is Test {
         assert(userSafeBalance1Diff > 0);
         assert(userSafeBalance0Diff < 0);
     }
-    */
 
     function _addLiquidity(uint256 _amount0, uint256 _amount1) public {
         pair = _createPair(address(token0), address(token1));

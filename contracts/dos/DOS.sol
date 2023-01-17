@@ -492,7 +492,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         address from,
         address to,
         uint256 amount
-    ) external override onlyDSafe whenNotPaused dSafeExists(from) dSafeExists(to) returns (bool) {
+    ) external override whenNotPaused dSafeExists(from) dSafeExists(to) returns (bool) {
         address spender = msg.sender;
         _spendAllowance(erc20, from, spender, amount);
         _transferERC20(IERC20(erc20), from, to, FsMath.safeCastToSigned(amount));
@@ -602,7 +602,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         Approval[] calldata approvals,
         address spender,
         bytes calldata data
-    ) external override onlyDSafe whenNotPaused dSafeExists(spender) {
+    ) external override onlyDSafe whenNotPaused {
         uint256[] memory prev = new uint256[](approvals.length);
         for (uint256 i = 0; i < approvals.length; i++) {
             prev[i] = _approve(
