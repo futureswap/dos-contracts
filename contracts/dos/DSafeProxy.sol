@@ -221,8 +221,6 @@ contract DSafeLogic is
             // deposit in the dos dSafe
             for (uint256 i = 0; i < transfers.length; i++) {
                 ITransferReceiver2.Transfer memory transfer = transfers[i];
-
-                // TODO(gerben)
                 dos.depositERC20(IERC20(transfer.token), transfer.amount);
             }
         } else if (data[0] == 0x02) {
