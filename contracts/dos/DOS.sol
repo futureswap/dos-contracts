@@ -559,12 +559,13 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         while (dSafes[dSafe].nfts.length > 0) {
             _transferNFT(dSafes[dSafe].nfts[dSafes[dSafe].nfts.length - 1], dSafe, msg.sender);
         }
-        // TODO(gerben) #102 make formula dependent on risk
         if (totalValue > 0) {
             // totalValue of the liquidated dSafe is split between liquidatable and liquidator:
             // totalValue * (1 - liqFraction) - reward of the liquidator, and
             // totalValue * liqFraction - change, liquidator is sending back to liquidatable
-            int256 leftover = (totalValue * config.liqFraction) / 1 ether;
+            int256 percentUnderwater = (collateral * 1 ether) / debt;
+            int256 leftover = ((totalValue * config.liqFraction * percentUnderwater) / 1 ether) /
+                1 ether;
             _transferERC20(
                 IERC20(erc20Infos[K_NUMERAIRE_IDX].erc20Contract),
                 msg.sender,
