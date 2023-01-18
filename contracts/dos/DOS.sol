@@ -1096,7 +1096,13 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @param _config the Config of IDOSConfig. A struct with DOS parameters
     function setConfig(Config calldata _config) external override onlyGovernance {
         config = _config;
-        emit IDOSConfig.ConfigSet(_config);
+        emit IDOSConfig.ConfigSet(
+            _config.treasurySafe,
+            _config.treasuryInterestFraction,
+            _config.maxSolvencyCheckGasCost,
+            _config.liqFraction,
+            _config.fractionalReserveLeverage
+        );
     }
 
     /// @notice Set the address of Version Manager contract

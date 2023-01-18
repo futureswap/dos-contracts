@@ -73,8 +73,13 @@ interface IDOSConfig {
     );
 
     /// @notice Emitted when the config is set
-    /// @param config The new config
-    event ConfigSet(Config indexed config);
+    event ConfigSet(
+        address indexed treasurySafe,
+        uint256 treasuryInterestFraction,
+        uint256 maxSolvencyCheckGasCost,
+        int256 indexed liqFraction,
+        int256 indexed fractionalReserveLeverage
+    );
 
     /// @notice Emitted when the version manager address is set
     /// @param versionManager The version manager address
