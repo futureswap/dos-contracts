@@ -675,7 +675,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
     futureSwapProxy,
     transferAndCall2,
     governanceProxy,
-    iDos,
+    dos: iDos,
     versionManager,
     weth: env.weth,
     usdc: env.usdc,
