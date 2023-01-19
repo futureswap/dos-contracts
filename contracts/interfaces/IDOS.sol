@@ -74,7 +74,7 @@ interface IDOSConfig {
 
     /// @notice Emitted when the config is set
     /// @param config The new config
-    event ConfigSet(Config indexed config);
+    event ConfigSet(Config config);
 
     /// @notice Emitted when the version manager address is set
     /// @param versionManager The version manager address
