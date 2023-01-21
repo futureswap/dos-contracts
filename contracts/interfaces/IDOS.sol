@@ -138,30 +138,6 @@ interface IDOSConfig {
     function getDAccountERC20(address dSafe, IERC20 erc20) external view returns (int256);
 
     function getDAccountERC721(address dSafe) external view returns (NFTData[] memory);
-
-    function getERC20Info(address erc20)
-        external
-        view
-        returns (
-            uint16 erc20Idx,
-            string memory name,
-            string memory symbol,
-            uint8 decimals,
-            address valueOracle,
-            uint256 baseRate,
-            uint256 slope1,
-            uint256 slope2,
-            uint256 targetUtilization
-        );
-    
-    function getERC721Info(address erc721)
-        external
-        view
-        returns (
-            uint256 erc721Idx,
-            address valueOracle
-        );
-
 }
 
 interface IDOSCore {
@@ -178,7 +154,7 @@ interface IDOSCore {
     /// @param value The amount of tokens transferred
     event ERC20Transfer(
         address indexed erc20,
-        uint16 erc20idx
+        uint16 erc20idx,
         address indexed from,
         address indexed to,
         int256 value
@@ -189,7 +165,12 @@ interface IDOSCore {
     /// @param erc20idx The index of the ERC20 in the protocol
     /// @param to The address of the dSafe
     /// @param amount The amount of tokens deposited or withdrawn
-    event ERC20BalanceChanged(address indexed erc20, uint16 erc20idx, address indexed to, int256 amount);
+    event ERC20BalanceChanged(
+        address indexed erc20,
+        uint16 erc20idx,
+        address indexed to,
+        int256 amount
+    );
 
     /// @notice Emitted when a ERC721 is transferred between credit accounts
     /// @param nftId The nftId of the ERC721 token
@@ -249,7 +230,12 @@ interface IDOSCore {
     /// @notice Emitted when a dSafe is liquidated
     /// @param dSafe The address of the liquidated dSafe
     /// @param liquidator The address of the liquidator
-    event SafeLiquidated(address indexed dSafe, address indexed liquidator, int256 collateral, int256 debt);
+    event SafeLiquidated(
+        address indexed dSafe,
+        address indexed liquidator,
+        int256 collateral,
+        int256 debt
+    );
 
     /// @notice Error thrown if a dSafe accumulates too many assets
     error SolvencyCheckTooExpensive();
@@ -344,7 +330,6 @@ interface IDOSCore {
     function getImplementation(address dSafe) external view returns (address);
 
     function getDSafeOwner(address dSafe) external view returns (address);
-
- }
+}
 
 interface IDOS is IDOSCore, IDOSConfig {}
