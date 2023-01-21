@@ -357,7 +357,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         (, uint16 erc20Idx) = getERC20Info(IERC20(erc20));
         int256 signedAmount = FsMath.safeCastToSigned(amount);
         _dAccountERC20ChangeBy(to, erc20Idx, signedAmount);
-        emit IDOSCore.ERC20BalanceChanged(erc20, to, signedAmount);
+        emit IDOSCore.ERC20BalanceChanged(erc20, erc20Idx, to, signedAmount);
         IERC20(erc20).safeTransferFrom(msg.sender, address(this), amount);
     }
 
@@ -369,7 +369,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         int256 signedAmount = FsMath.safeCastToSigned(amount);
         _dAccountERC20ChangeBy(msg.sender, erc20Idx, signedAmount);
-        emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, signedAmount);
+        emit IDOSCore.ERC20BalanceChanged(address(erc20), erc20Idx, msg.sender, signedAmount);
         erc20.safeTransferFrom(msg.sender, address(this), amount);
     }
 
@@ -380,7 +380,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         int256 signedAmount = FsMath.safeCastToSigned(amount);
         _dAccountERC20ChangeBy(msg.sender, erc20Idx, -signedAmount);
-        emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, -signedAmount);
+        emit IDOSCore.ERC20BalanceChanged(address(erc20), erc20Idx, msg.sender, -signedAmount);
         erc20.safeTransfer(msg.sender, amount);
     }
 
@@ -393,7 +393,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             uint256 amount = erc20.balanceOf(msg.sender);
             int256 signedAmount = FsMath.safeCastToSigned(amount);
             _dAccountERC20ChangeBy(msg.sender, erc20Idx, signedAmount);
-            emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, signedAmount);
+            emit IDOSCore.ERC20BalanceChanged(address(erc20), erc20Idx, msg.sender, signedAmount);
             erc20.safeTransferFrom(msg.sender, address(this), amount);
         }
     }
@@ -406,7 +406,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
             int256 amount = _dAccountERC20Clear(msg.sender, erc20Idx);
             require(amount >= 0, "Can't withdraw debt");
-            emit IDOSCore.ERC20BalanceChanged(address(erc20), msg.sender, amount);
+            emit IDOSCore.ERC20BalanceChanged(address(erc20), erc20Idx, msg.sender, amount);
             erc20.safeTransfer(msg.sender, uint256(amount));
         }
     }
@@ -553,7 +553,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
                 leftover
             );
         }
-        emit IDOSCore.SafeLiquidated(dSafe, msg.sender);
+        emit IDOSCore.SafeLiquidated(dSafe, msg.sender, collateral, debt);
     }
 
     /// @notice Execute a batch of calls
@@ -838,7 +838,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         _dAccountERC20ChangeBy(from, erc20Idx, -amount);
         _dAccountERC20ChangeBy(to, erc20Idx, amount);
-        emit IDOSCore.ERC20Transfer(address(erc20), from, to, amount);
+        emit IDOSCore.ERC20Transfer(address(erc20), erc20Idx, from, to, amount);
     }
 
     /// @dev transfer ERC721 NFT ownership between dAccounts.
@@ -855,7 +855,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         int256 amount = _dAccountERC20Clear(from, erc20Idx);
         _dAccountERC20ChangeBy(to, erc20Idx, amount);
         address erc20 = erc20Infos[erc20Idx].erc20Contract;
-        emit IDOSCore.ERC20Transfer(erc20, from, to, amount);
+        emit IDOSCore.ERC20Transfer(erc20, erc20Idx, from, to, amount);
     }
 
     function _dAccountERC20ChangeBy(address dSafeAddress, uint16 erc20Idx, int256 amount) internal {
