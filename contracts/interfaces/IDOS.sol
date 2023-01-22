@@ -148,11 +148,13 @@ interface IDOSCore {
 
     /// @notice Emitted when ERC20 tokens are transferred between credit accounts
     /// @param erc20 The address of the ERC20 token
+    /// @param erc20idx The index of the ERC20 in the protocol
     /// @param from The address of the sender
     /// @param to The address of the receiver
     /// @param value The amount of tokens transferred
     event ERC20Transfer(
         address indexed erc20,
+        uint16 erc20idx,
         address indexed from,
         address indexed to,
         int256 value
@@ -160,9 +162,15 @@ interface IDOSCore {
 
     /// @notice Emitted when erc20 tokens are deposited or withdrawn from a credit account
     /// @param erc20 The address of the ERC20 token
+    /// @param erc20idx The index of the ERC20 in the protocol
     /// @param to The address of the dSafe
     /// @param amount The amount of tokens deposited or withdrawn
-    event ERC20BalanceChanged(address indexed erc20, address indexed to, int256 indexed amount);
+    event ERC20BalanceChanged(
+        address indexed erc20,
+        uint16 erc20idx,
+        address indexed to,
+        int256 amount
+    );
 
     /// @notice Emitted when a ERC721 is transferred between credit accounts
     /// @param nftId The nftId of the ERC721 token
@@ -189,6 +197,7 @@ interface IDOSCore {
     /// @param value The amount of tokens to approve
     event ERC20Approval(
         address indexed erc20,
+        uint16 erc20idx,
         address indexed owner,
         address indexed spender,
         uint256 value
@@ -221,7 +230,12 @@ interface IDOSCore {
     /// @notice Emitted when a dSafe is liquidated
     /// @param dSafe The address of the liquidated dSafe
     /// @param liquidator The address of the liquidator
-    event SafeLiquidated(address indexed dSafe, address indexed liquidator);
+    event SafeLiquidated(
+        address indexed dSafe,
+        address indexed liquidator,
+        int256 collateral,
+        int256 debt
+    );
 
     /// @notice Error thrown if a dSafe accumulates too many assets
     error SolvencyCheckTooExpensive();
