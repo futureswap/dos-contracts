@@ -82,12 +82,14 @@ interface IDOSConfig {
 
     /// @notice Emitted when ERC20 Data is set
     /// @param erc20 The address of the erc20 token
+    /// @param erc20Idx The index of the erc20 token
     /// @param baseRate The new base interest rate
     /// @param slope1 The new slope1
     /// @param slope2 The new slope2
     /// @param targetUtilization The new target utilization
     event ERC20DataSet(
         address indexed erc20,
+        uint16 indexed erc20Idx,
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
@@ -148,13 +150,13 @@ interface IDOSCore {
 
     /// @notice Emitted when ERC20 tokens are transferred between credit accounts
     /// @param erc20 The address of the ERC20 token
-    /// @param erc20idx The index of the ERC20 in the protocol
+    /// @param erc20Idx The index of the ERC20 in the protocol
     /// @param from The address of the sender
     /// @param to The address of the receiver
     /// @param value The amount of tokens transferred
     event ERC20Transfer(
         address indexed erc20,
-        uint16 erc20idx,
+        uint16 erc20Idx,
         address indexed from,
         address indexed to,
         int256 value
@@ -162,12 +164,12 @@ interface IDOSCore {
 
     /// @notice Emitted when erc20 tokens are deposited or withdrawn from a credit account
     /// @param erc20 The address of the ERC20 token
-    /// @param erc20idx The index of the ERC20 in the protocol
+    /// @param erc20Idx The index of the ERC20 in the protocol
     /// @param to The address of the dSafe
     /// @param amount The amount of tokens deposited or withdrawn
     event ERC20BalanceChanged(
         address indexed erc20,
-        uint16 erc20idx,
+        uint16 erc20Idx,
         address indexed to,
         int256 amount
     );
@@ -197,7 +199,7 @@ interface IDOSCore {
     /// @param value The amount of tokens to approve
     event ERC20Approval(
         address indexed erc20,
-        uint16 erc20idx,
+        uint16 erc20Idx,
         address indexed owner,
         address indexed spender,
         uint256 value
