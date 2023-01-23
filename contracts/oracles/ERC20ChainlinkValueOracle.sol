@@ -8,6 +8,9 @@ import "../interfaces/IERC20ValueOracle.sol";
 
 import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 
+/// @notice Borrow factor must be greater than zero
+error InvalidBorrowFactor();
+
 contract ERC20ChainlinkValueOracle is ImmutableGovernance, IERC20ValueOracle {
     AggregatorV3Interface priceOracle;
     int256 immutable base;
@@ -50,7 +53,7 @@ contract ERC20ChainlinkValueOracle is ImmutableGovernance, IERC20ValueOracle {
         int256 _borrowFactor
     ) external onlyGovernance {
         if (_borrowFactor == 0) {
-            revert(); // add custom error
+            revert InvalidBorrowFactor();
         }
         _setRiskFactors(_collateralFactor, _borrowFactor);
     }
