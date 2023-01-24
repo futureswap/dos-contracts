@@ -20,6 +20,7 @@ contract MockERC20Oracle is IERC20ValueOracle, ImmutableGovernance {
 
     function setCollateralFactor(int256 _collateralFactor) external onlyGovernance {
         collateralFactor = _collateralFactor;
+        emit RiskFactorsSet(_collateralFactor, 1 ether);
     }
 
     function calcValue(
