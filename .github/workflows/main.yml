@@ -16,22 +16,22 @@ jobs:
     runs-on: "ubuntu-latest"
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Run script
-      run: "yarn pairHashCode"
-      env:
+      - name: Run script
+        run: "yarn pairHashCode"
+        env:
           HASH_CODE: ${{steps.pairHashCode.outputs.stdout}}
-    
-    - name: overwrite-file
-      run: echo "$(cat script/DuoswapV2Library1.txt)$HASH_CODE$(cat script/DuoswapV2Library2.txt)" > contracts/duoswapV2/libraries/DuoswapV2Library.sol
 
-        - name: Commit and push changes
-      uses: stefanzweifel/git-auto-commit-action@v4.16.0
-      with:
-        commit_message: "Update file"
-        push: true
+      - name: overwrite-file
+        run: echo "$(cat script/DuoswapV2Library1.txt)$HASH_CODE$(cat script/DuoswapV2Library2.txt)" > contracts/duoswapV2/libraries/DuoswapV2Library.sol
+
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v4.16.0
+        with:
+          commit_message: "Update file"
+          push: true
   ci:
     runs-on: "ubuntu-latest"
     steps:
@@ -61,11 +61,11 @@ jobs:
       - name: "Lint code"
         run: "yarn lint"
 
-#     For some reason, compiled for coverage contracts producing an error:
-#      Error: Transaction reverted: trying to deploy a contract whose code is too large
-#     So disabling coverage until a fix would be found
-#      - name: "Test the contracts and generate the coverage report"
-#        run: "yarn coverage"
+      #     For some reason, compiled for coverage contracts producing an error:
+      #      Error: Transaction reverted: trying to deploy a contract whose code is too large
+      #     So disabling coverage until a fix would be found
+      #      - name: "Test the contracts and generate the coverage report"
+      #        run: "yarn coverage"
 
       - name: "test with Hardhat"
         run: "yarn test"
