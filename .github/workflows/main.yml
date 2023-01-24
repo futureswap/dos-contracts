@@ -59,7 +59,7 @@ jobs:
           HASH_CODE: ${{steps.pairHashCode.outputs.stdout}}
 
       - name: overwrite-file
-        run: echo "$(cat script/DuoswapV2Library1.txt)$HASH_CODE$(cat ./DuoswapV2Library2.txt)" > contracts/duoswapV2/libraries/DuoswapV2Library.sol
+        run: echo "$(cat script/DuoswapV2Library1.txt)$(cat script/DuoswapV2Library2.txt)" > contracts/duoswapV2/libraries/DuoswapV2Library.sol
 
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v4.16.0
