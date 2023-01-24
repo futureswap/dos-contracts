@@ -16,13 +16,13 @@ async function main() {
   const {versionManager, dos} = await deployDos(
     governanceProxy.address,
     anyswapCreate2Deployer,
-    (BigInt(fsSalt) + 1n).toString(),
+    (BigInt(fsSalt) + 4n).toString(),
     deployer,
   );
   const dSafeLogic = await deployAtFixedAddress(
     new DSafeLogic__factory(deployer),
     anyswapCreate2Deployer,
-    (BigInt(fsSalt) + 1n).toString(),
+    (BigInt(fsSalt) + 4n).toString(),
     dos.address,
   );
   await governanceProxy.executeBatch([

@@ -1129,7 +1129,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         erc20Infos[erc20Idx].slope1 = slope1;
         erc20Infos[erc20Idx].slope2 = slope2;
         erc20Infos[erc20Idx].targetUtilization = targetUtilization;
-        emit IDOSConfig.ERC20DataSet(erc20, baseRate, slope1, slope2, targetUtilization);
+        emit IDOSConfig.ERC20DataSet(erc20, erc20Idx, baseRate, slope1, slope2, targetUtilization);
     }
 
     /// @notice creates a new dSafe with sender as the owner and returns the dSafe address
