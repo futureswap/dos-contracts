@@ -11,11 +11,13 @@ contract PairHashCodeScript is Script {
         string memory hashString = getSlice(3, 66, toHex(hash));
 
         string memory path1 = "DuoswapV2Library1.txt";
-        string memory path2 = "DuoswapV2Library2.txt";
+        // string memory path2 = "DuoswapV2Library2.txt";
         string memory fileData1 = vm.readFile(path1);
-        string memory fileData2 = vm.readFile(path2);
+        // string memory fileData2 = vm.readFile(path2);
 
-        string memory newFile = string.concat(fileData1, hashString, fileData2);
+        string memory newFile = string.concat(fileData1, hashString);
+
+        // string memory newFile = string.concat(fileData1, hashString, fileData2);
 
         vm.writeFile("contracts/duoswapV2/libraries/DuoswapV2Library.sol", newFile);
         return hash;
