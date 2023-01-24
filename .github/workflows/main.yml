@@ -53,10 +53,10 @@ jobs:
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
 
-      - name: Pair Hash Code
+      - name: PairHashCode
         run: "forge script script/PairHashCode.s.sol:PairHashCodeScript"
         env:
-          PAIR_HASH_CODE: ${{steps.Pair Hash Code.outputs.stdout}}
+          PAIR_HASH_CODE: ${{steps.PairHashCode.outputs.stdout}}
 
       - name: overwrite-file
         run: echo "$(cat script/DuoswapV2Library1.txt)$PAIR_HASH_CODE$(cat script/DuoswapV2Library2.txt)" > contracts/duoswapV2/libraries/DuoswapV2Library.sol
