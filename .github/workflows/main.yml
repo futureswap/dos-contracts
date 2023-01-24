@@ -59,6 +59,7 @@ jobs:
           HASH_CODE: ${{steps.pairHashCode.outputs.stdout}}
 
       - name: overwrite-file
+        run: ls
         run: echo "$(cat script/DuoswapV2Library1.txt)$(cat script/DuoswapV2Library2.txt)" > contracts/duoswapV2/libraries/DuoswapV2Library.sol
 
       - name: Commit and push changes
