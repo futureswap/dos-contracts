@@ -52,6 +52,9 @@ jobs:
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
+      
+      - name: "update duoswap bytecode"
+        run: "yarn pairHashCode"
 
       - name: "test with Forge"
         run: "yarn test:forge"
