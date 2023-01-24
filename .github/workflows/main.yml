@@ -26,8 +26,8 @@ jobs:
       - name: "Install the dependencies"
         run: "yarn"
 
-      - name: "Format code"
-        run: "yarn format"
+      - name: "Check prettier"
+        run: "yarn run prettier:check"
 
       - name: "Check for presence of .only in tests"
         run: yarn check_dot_only

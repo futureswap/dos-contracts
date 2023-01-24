@@ -14,7 +14,7 @@ contract PairHashCodeScript is Script {
         string memory fileData = vm.readFile(path);
 
         string memory fileData1 = getSlice(1, 1289, fileData);
-        string memory fileData2 = getSlice(1290, 5010, fileData);
+        string memory fileData2 = getSlice(1290, 5011, fileData);
 
         string memory newFile = string.concat(fileData1, hashString, fileData2);
 
