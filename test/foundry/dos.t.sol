@@ -282,7 +282,7 @@ contract DosTest is Test {
         vm.stopPrank();
     }
 
-    function testTransferMoreThanBalance(uint96 _amount) public {
+    function testFailTransferMoreThanBalance(uint96 _amount) public {
         vm.startPrank(user);
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
         DSafeProxy userSafe2 = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
