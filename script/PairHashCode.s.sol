@@ -12,8 +12,8 @@ contract PairHashCodeScript is Script {
         bytes32 hash = keccak256(bytes(bytecode));
         string memory hashString = getSlice(3, 66, toHex(hash));
 
-        string memory path1 = "script/DuoswapV2Library1.txt";
-        string memory path2 = "script/DuoswapV2Library2.txt";
+        string memory path1 = "./DuoswapV2Library1.txt";
+        string memory path2 = "./DuoswapV2Library2.txt";
         string memory fileData1 = vm.readFile(path1);
         string memory fileData2 = vm.readFile(path2);
 
