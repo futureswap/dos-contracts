@@ -6,7 +6,7 @@ import {DuoswapV2Pair} from "../contracts/duoswapV2/DuoswapV2Pair.sol";
 contract PairHashCodeScript is Script {
     function setUp() public {}
 
-    function run() public returns (bytes32) {
+    function run() public view returns (bytes32) {
         // get bytecode for DuoswapV2Pair
         bytes memory bytecode = type(DuoswapV2Pair).creationCode;
         bytes32 hash = keccak256(bytes(bytecode));
@@ -22,7 +22,7 @@ contract PairHashCodeScript is Script {
         // string memory newFile = string.concat(fileData1, hashString, fileData2);
 
         // vm.writeFile("contracts/duoswapV2/libraries/DuoswapV2Library.sol", newFile);
-        // return hash;
+        return hash
     }
 
     function toHex16(bytes16 data) internal pure returns (bytes32 result) {

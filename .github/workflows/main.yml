@@ -53,7 +53,7 @@ jobs:
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
 
-      - name: Run script
+      - name: pairHashCode
         run: "yarn pairHashCode"
         env:
           HASH_CODE: ${{steps.pairHashCode.outputs.stdout}}
