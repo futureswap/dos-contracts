@@ -4,18 +4,17 @@ import "forge-std/Script.sol";
 import {DuoswapV2Pair} from "../contracts/duoswapV2/DuoswapV2Pair.sol";
 
 contract PairHashCodeScript is Script {
-    function setUp() public {}
-
     function run() public returns (bytes32) {
         // get bytecode for DuoswapV2Pair
         bytes memory bytecode = type(DuoswapV2Pair).creationCode;
         bytes32 hash = keccak256(bytes(bytecode));
         string memory hashString = getSlice(3, 66, toHex(hash));
 
-        string memory path1 = "script/DuoswapV2Library1.txt";
-        string memory path2 = "script/DuoswapV2Library2.txt";
-        string memory fileData1 = vm.readFile(path1);
-        string memory fileData2 = vm.readFile(path2);
+        string memory path = "DuoswapV2Library.txt";
+        string memory fileData = vm.readFile(path);
+
+        string memory fileData1 = getSlice(1, 1289, fileData);
+        string memory fileData2 = getSlice(1290, 5010, fileData);
 
         string memory newFile = string.concat(fileData1, hashString, fileData2);
 

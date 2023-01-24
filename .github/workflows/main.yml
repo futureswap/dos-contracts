@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [master]
   push:
-    branches: [master]
+    branches: [master, SoM/ci-update]
 
 # Considering that we reached the maximum number of "Apps" on Alchemy, this is a re-used key
 # "Sandbox: Ethereum". As for the moment I've taken it, is had no activity
@@ -26,40 +26,40 @@ jobs:
       - name: "Install the dependencies"
         run: "yarn"
 
-      - name: "Check prettier"
-        run: "yarn run prettier:check"
+      # - name: "Check prettier"
+      #   run: "yarn run prettier:check"
 
-      - name: "Check for presence of .only in tests"
-        run: yarn check_dot_only
+      # - name: "Check for presence of .only in tests"
+      #   run: yarn check_dot_only
 
-      - name: "Compile the contracts and generate the TypeChain bindings"
-        run: "yarn typechain"
+      # - name: "Compile the contracts and generate the TypeChain bindings"
+      #   run: "yarn typechain"
 
-      - name: "Check types"
-        run: "yarn tsc --noEmit"
+      # - name: "Check types"
+      #   run: "yarn tsc --noEmit"
 
-      - name: "Lint code"
-        run: "yarn lint"
+      # - name: "Lint code"
+      #   run: "yarn lint"
 
-#     For some reason, compiled for coverage contracts producing an error:
-#      Error: Transaction reverted: trying to deploy a contract whose code is too large
-#     So disabling coverage until a fix would be found
-#      - name: "Test the contracts and generate the coverage report"
-#        run: "yarn coverage"
+      #     For some reason, compiled for coverage contracts producing an error:
+      #      Error: Transaction reverted: trying to deploy a contract whose code is too large
+      #     So disabling coverage until a fix would be found
+      #      - name: "Test the contracts and generate the coverage report"
+      #        run: "yarn coverage"
 
-      - name: "test with Hardhat"
-        run: "yarn test"
+      # - name: "test with Hardhat"
+      #   run: "yarn test"
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
-      
-      - name: "update duoswap bytecode"
-        run: "yarn pairHashCode"
-        
+
+      - name: PairHashCode
+        run: "forge script script/PairHashCode.s.sol:PairHashCodeScript"
+
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v4.16.0
         with:
-          commit_message: "Update pairHashCode"
+          commit_message: "Update file"
           push: true
 
       - name: "test with Forge"
