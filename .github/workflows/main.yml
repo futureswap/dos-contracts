@@ -55,6 +55,12 @@ jobs:
       
       - name: "update duoswap bytecode"
         run: "yarn pairHashCode"
+        
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update pairHashCode"
+          push: true
 
       - name: "test with Forge"
         run: "yarn test:forge"
