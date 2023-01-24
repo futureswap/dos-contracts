@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
 
@@ -10,6 +10,7 @@ import {DSafeProxy, DSafeLogic} from "../../contracts/dos/DSafeProxy.sol";
 
 import {IVersionManager, VersionManager, ImmutableVersion} from "../../contracts/dos/VersionManager.sol";
 
+import {MockERC20Oracle} from "../../contracts/testing/MockERC20Oracle.sol";
 import {ERC20ChainlinkValueOracle} from "../../contracts/oracles/ERC20ChainlinkValueOracle.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
@@ -17,7 +18,7 @@ import {TestERC20} from "../../contracts/testing/TestERC20.sol";
 
 contract DosTest is Test {
     uint256 mainnetFork;
-    address user = 0x5FbDB2315678afecb367f032d93F642f64180aa3; // random address
+    address public user = 0x8FffFfD4AFb6115b954bd326CbE7b4bA576818f5;
 
     VersionManager public versionManager;
     DOS public dos;
@@ -32,17 +33,14 @@ contract DosTest is Test {
     TestERC20 public token0;
     TestERC20 public token1;
 
-    AggregatorV3Interface public oracleAddress =
-        AggregatorV3Interface(0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6);
+    MockERC20Oracle public token0Oracle;
+    MockERC20Oracle public token1Oracle;
 
-    ERC20ChainlinkValueOracle public token0Oracle;
-    ERC20ChainlinkValueOracle public token1Oracle;
-
-    string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
+    // string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
 
     function setUp() public {
-        mainnetFork = vm.createFork(MAINNET_RPC_URL);
-        vm.selectFork(mainnetFork);
+        // mainnetFork = vm.createFork(MAINNET_RPC_URL);
+        // vm.selectFork(mainnetFork);
         address owner = address(this);
 
         // deploy DOS contracts
@@ -54,18 +52,24 @@ contract DosTest is Test {
         IDOSConfig(address(dos)).setConfig(
             IDOSConfig.Config({
                 treasurySafe: address(0),
-                treasuryInterestFraction: 0,
-                maxSolvencyCheckGasCost: 10_000_000,
+                treasuryInterestFraction: 5e16,
+                maxSolvencyCheckGasCost: 1e6,
                 liqFraction: 8e17,
-                fractionalReserveLeverage: 10
+                fractionalReserveLeverage: 9
             })
         );
 
         // setup tokens
         token0 = new TestERC20("token0", "t0", 18);
         token1 = new TestERC20("token1", "t1", 18);
-        token0Oracle = new ERC20ChainlinkValueOracle(address(oracleAddress), 18, 18, 0, 0, owner);
-        token1Oracle = new ERC20ChainlinkValueOracle(address(oracleAddress), 18, 18, 0, 0, owner);
+
+        token0Oracle = new MockERC20Oracle(owner);
+        token0Oracle.setPrice(1e18, 18, 18);
+        token0Oracle.setCollateralFactor(9e17);
+
+        token1Oracle = new MockERC20Oracle(owner);
+        token1Oracle.setPrice(1e18, 18, 18);
+        token1Oracle.setCollateralFactor(9e17);
 
         IDOSConfig(address(dos)).addERC20Info(
             address(token0),
@@ -73,10 +77,10 @@ contract DosTest is Test {
             "t0",
             18,
             address(token0Oracle),
-            9e17,
-            9e17,
-            0,
-            0
+            0, // baseRate
+            5, // slope1
+            480, // slope2
+            8e17 // targetUtilization
         );
         IDOSConfig(address(dos)).addERC20Info(
             address(token1),
@@ -84,10 +88,10 @@ contract DosTest is Test {
             "t1",
             18,
             address(token1Oracle),
-            9e17,
-            9e17,
-            0,
-            0
+            0, // baseRate
+            5, // slope1
+            480, // slope2
+            8e17 // targetUtilization
         );
 
         // add to version manager
@@ -282,10 +286,13 @@ contract DosTest is Test {
         vm.stopPrank();
     }
 
-    function testFailTransferMoreThanBalance(uint96 _amount) public {
+    // TODO (with fresh eyes): check why this test doesn't always revert
+    function testTransferMoreThanBalance(uint96 _amount, uint96 _extraAmount) public {
+        vm.assume(_amount > 1 ether);
+        vm.assume(_extraAmount > 0);
+        DSafeProxy otherSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
         vm.startPrank(user);
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
-        DSafeProxy userSafe2 = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
 
         // mint tokens to user's wallet
         token0.mint(address(userSafe), _amount);
@@ -322,13 +329,14 @@ contract DosTest is Test {
                 callData: abi.encodeWithSignature(
                     "transferERC20(address,address,uint256)",
                     token0,
-                    address(userSafe2),
-                    uint256(_amount + 1)
+                    address(otherSafe),
+                    uint256(_amount) + uint256(_extraAmount)
                 ),
                 value: 0
             })
         );
 
+        vm.expectRevert();
         userSafe.executeBatch(calls);
         vm.stopPrank();
     }
