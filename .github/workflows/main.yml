@@ -53,8 +53,10 @@ jobs:
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
 
-      - name: Set environment variable
-        run: echo "::set-env name=PAIR_HASH_CODE::$(forge script script/PairHashCode.s.sol:PairHashCodeScript)"
+      - name: Pair Hash Code
+        run: "forge script script/PairHashCode.s.sol:PairHashCodeScript"
+        env:
+          PAIR_HASH_CODE: ${{steps.Pair Hash Code.outputs.stdout}}
 
       - name: overwrite-file
         run: echo "$(cat script/DuoswapV2Library1.txt)$PAIR_HASH_CODE$(cat script/DuoswapV2Library2.txt)" > contracts/duoswapV2/libraries/DuoswapV2Library.sol
