@@ -22,7 +22,7 @@ contract PairHashCodeScript is Script {
         // string memory newFile = string.concat(fileData1, hashString, fileData2);
 
         // vm.writeFile("contracts/duoswapV2/libraries/DuoswapV2Library.sol", newFile);
-        return hash
+        return hash;
     }
 
     function toHex16(bytes16 data) internal pure returns (bytes32 result) {
