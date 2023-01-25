@@ -112,6 +112,8 @@ contract DSafeLogic is
     error InvalidSignature();
     error NonceAlreadyUsed();
     error DeadlineExpired();
+    /// @notice Only DOS can call this function
+    error OnlyDOS();
 
     modifier onlyOwner() {
         require(dos.getDSafeOwner(address(this)) == msg.sender, "");
@@ -120,7 +122,7 @@ contract DSafeLogic is
 
     modifier onlyDOS() {
         if (msg.sender != address(dos)) {
-            revert();
+            revert OnlyDOS();
         }
         _;
     }
@@ -280,7 +282,7 @@ contract DSafeLogic is
         Call memory call
     ) external onlyDOS returns (bytes4) {
         if (call.callData.length == 0) {
-            revert("PL: INVALID_DATA");
+            revert InvalidData();
         }
         emit TokensApproved(sender, amount, call.callData);
 
