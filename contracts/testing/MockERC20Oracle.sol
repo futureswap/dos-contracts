@@ -31,7 +31,7 @@ contract MockERC20Oracle is IERC20ValueOracle, ImmutableGovernance {
     function calcValue(
         int256 amount
     ) external view override returns (int256 value, int256 riskAdjustedValue) {
-        if (balance >= 0) {
+        if (amount >= 0) {
             riskAdjustedValue = (value * collateralFactor) / 1 ether;
         } else {
             riskAdjustedValue = (value * 1 ether) / borrowFactor;
