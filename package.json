@@ -10,6 +10,7 @@
     "test": "yarn hardhat test",
     "test:forge": "forge test",
     "test:withTypesCheck": "yarn tsc --noEmit && yarn hardhat test",
+    "pairHashCode": "forge script script/PairHashCode.s.sol:PairHashCodeScript",
     "start": "yarn run pm2 start 'npx hardhat node' --name localhostNode",
     "setupLocalhost": "yarn run hardhat run scripts/setupLocalhost.ts --network localhost",
     "stop": "yarn run pm2 delete all",
@@ -29,7 +30,8 @@
     "graph-local-clean-stop": "docker-compose down -v && docker-compose rm -v && rm -rf data/ipfs data/postgres  yarn run stop yarn run clean-workspace",
     "create-local": "graph create --node http://127.0.0.1:8020 DOS",
     "deploy-local": "cd ./subgraph && graph deploy --ipfs http://127.0.0.1:5001 --node http://127.0.0.1:8020 DOS",
-    "clean-workspace": "yarn run hardhat run scripts/resetEtheralWorkspace.ts --network localhost"
+    "clean-workspace": "yarn run hardhat run scripts/resetEtheralWorkspace.ts --network localhost",
+    "prepare": "husky install"
   },
   "dependencies": {
     "@chainlink/contracts": "^0.5.1",
@@ -40,7 +42,8 @@
     "@trezor/connect": "^9.0.4",
     "@uniswap/v3-core": "^1.0.1",
     "@uniswap/v3-periphery": "^1.4.3",
-    "ethers": "^5.7.2"
+    "ethers": "^5.7.2",
+    "husky": "^8.0.3"
   },
   "devDependencies": {
     "@graphprotocol/graph-cli": "^0.37.1",
