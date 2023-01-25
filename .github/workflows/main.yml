@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [master]
   push:
-    branches: [master, SoM/ci-update]
+    branches: [master]
 
 # Considering that we reached the maximum number of "Apps" on Alchemy, this is a re-used key
 # "Sandbox: Ethereum". As for the moment I've taken it, is had no activity
