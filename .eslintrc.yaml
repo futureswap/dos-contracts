@@ -165,12 +165,14 @@ overrides:
     env:
       mocha: true
     rules:
+      no-underscore-dangle: off
       "@typescript-eslint/no-magic-numbers": off
       "@typescript-eslint/no-non-null-assertion": off
       "@typescript-eslint/naming-convention": off
       "@typescript-eslint/no-unsafe-assignment": off
       "@typescript-eslint/no-unsafe-call": off
       "@typescript-eslint/no-unsafe-argument": off
+      "@typescript-eslint/no-unused-vars": [error, {varsIgnorePattern: "^_"}]
       # consider disabling rules below as needed
       # "@typescript-eslint/no-unsafe-declaration-merging": off
       # "@typescript-eslint/no-unsafe-member-access": off
