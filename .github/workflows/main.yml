@@ -26,8 +26,8 @@ jobs:
       - name: "Install the dependencies"
         run: "yarn"
 
-      - name: "Format code"
-        run: "yarn format"
+      - name: "Check prettier"
+        run: "yarn run prettier:check"
 
       - name: "Check for presence of .only in tests"
         run: yarn check_dot_only
@@ -52,14 +52,6 @@ jobs:
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
-
-      - name: PairHashCode
-        run: "forge script script/PairHashCode.s.sol:PairHashCodeScript"
-
-      - name: Commit and push changes
-        uses: stefanzweifel/git-auto-commit-action@v4.16.0
-        with:
-          commit_message: "Update pairHashCode"
 
       - name: "test with Forge"
         run: "yarn test:forge"
