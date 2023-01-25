@@ -118,6 +118,13 @@ contract DSafeLogic is
         _;
     }
 
+    modifier onlyDOS() {
+        if (msg.sender != address(dos)) {
+            revert();
+        }
+        _;
+    }
+
     // Note EIP712 is implemented with immutable variables and is not using
     // storage and thus can be used in a proxy contract constructor.
     // Version number should be in sync with VersionManager version.
@@ -271,7 +278,7 @@ contract DSafeLogic is
         address sender,
         uint256 amount,
         Call memory call
-    ) external returns (bytes4) {
+    ) external onlyDOS returns (bytes4) {
         if (call.callData.length == 0) {
             revert("PL: INVALID_DATA");
         }
