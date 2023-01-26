@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-// NOTE: I had to comment out everything having to do with "console" in FsMath.sol in order for this to compile, TODO find a more permanent solution
 import "../lib/FsMath.sol";
 
-// echidna-test contracts/testing/Echidna.sol --test-mode assertion --contract Echidna
+import "../dos/DOS.sol";
+import "../dos/VersionManager.sol";
+
+// echidna-test . --config echidna.yaml --contract Echidna
 contract Echidna {
-  constructor() public {}
+  constructor() public {
+    initDos();
+  }
 
   function testExp(int256 xa, int256 xb) public {
     int256 x = xa*FsMath.FIXED_POINT_SCALE+xb;
@@ -39,17 +43,25 @@ contract Echidna {
       assert(FsMath.sign(result) == signExpected);
   }
 
-  // sqrt takes too long for this test to work
-  // function testSqrt(int256 xa, int256 xb) public {
-  //   int256 x = xa*FsMath.FIXED_POINT_SCALE+xb;
-  //   require(x >= 0, "Must be positive");
-  //   require(x <= 100*FsMath.FIXED_POINT_SCALE, "Too big");
-  //   int256 result = FsMath.sqrt(x);
+  function testSqrt(int256 xa, int256 xb) public {
+    int256 x = xa*FsMath.FIXED_POINT_SCALE+xb;
+    require(x >= 0, "Must be positive");
+    require(x <= 100*FsMath.FIXED_POINT_SCALE, "Too big");
+    int256 result = FsMath.sqrt(x);
 
-  //   assert(result >= 0);
-  //   if (x >= FsMath.FIXED_POINT_SCALE)
-  //     assert(result <= x);
-  //   else
-  //     assert(result >= x);
-  // }
+    assert(result >= 0);
+    if (x >= FsMath.FIXED_POINT_SCALE)
+      assert(result <= x);
+    else
+      assert(result >= x);
+  }
+
+  DOSConfig public dosConfig;
+  VersionManager public versionManager;
+  DOS public dos;
+  function initDos() internal {
+    dosConfig = new DOSConfig(address(this));
+    versionManager = new VersionManager(address(this));
+    dos = new DOS(address(dosConfig), address(versionManager));
+  }
 }
