@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [master]
   push:
-    branches: [master]
+    branches: [master, SoM/forge-docs-upload]
 
 # Considering that we reached the maximum number of "Apps" on Alchemy, this is a re-used key
 # "Sandbox: Ethereum". As for the moment I've taken it, is had no activity
@@ -55,3 +55,16 @@ jobs:
 
       - name: "test with Forge"
         run: "yarn test:forge"
+
+      - name: Generate docs
+        run: forge doc --build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          # Upload generated book directory
+          path: ./docs/book
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
