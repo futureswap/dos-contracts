@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "../lib/FsMath.sol";
-
 import "../dos/DOS.sol";
+import "../dos/DSafeProxy.sol";
 import "../dos/VersionManager.sol";
+import "../interfaces/IVersionManager.sol";
+import "../lib/FsMath.sol";
+import "../lib/FsUtils.sol";
+import "../lib/ImmutableVersion.sol";
 
 // echidna-test . --config echidna.yaml --contract Echidna
 contract Echidna {
@@ -56,12 +59,20 @@ contract Echidna {
       assert(result >= x);
   }
 
-  DOSConfig public dosConfig;
   VersionManager public versionManager;
+  DOSConfig public dosConfig;
   DOS public dos;
+  DSafeLogic public dSafeLogic;
   function initDos() internal {
-    dosConfig = new DOSConfig(address(this));
     versionManager = new VersionManager(address(this));
+    dosConfig = new DOSConfig(address(this));
     dos = new DOS(address(dosConfig), address(versionManager));
+    dSafeLogic = new DSafeLogic(address(dos));
+
+    dosConfig.setVersionManager(address(versionManager));
+
+    versionManager.addVersion(IVersionManager.Status.PRODUCTION, address(dSafeLogic));
+    string memory versionName = string(FsUtils.decodeFromBytes32(dSafeLogic.immutableVersion()));
+    versionManager.markRecommendedVersion(versionName);
   }
 }
