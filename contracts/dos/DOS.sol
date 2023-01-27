@@ -136,7 +136,7 @@ library DSafeLib {
         dSafe.dAccountErc20Idxs[erc20Idx >> 8] &= ~(1 << (erc20Idx & 255));
     }
 
-    function accERC20IdxToDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
+    function addERC20IdxToDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
         dSafe.dAccountErc20Idxs[erc20Idx >> 8] |= (1 << (erc20Idx & 255));
     }
 
@@ -896,7 +896,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         if (amount == 0) {
             dSafe.removeERC20IdxFromDAccount(erc20Idx);
         } else {
-            dSafe.accERC20IdxToDAccount(erc20Idx);
+            dSafe.addERC20IdxToDAccount(erc20Idx);
         }
         ERC20Info storage erc20Info = erc20Infos[erc20Idx];
         ERC20Pool storage pool = amount > 0 ? erc20Info.collateral : erc20Info.debt;
