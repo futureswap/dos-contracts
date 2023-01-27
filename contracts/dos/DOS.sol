@@ -1135,6 +1135,10 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @notice creates a new dSafe with sender as the owner and returns the dSafe address
     /// @return dSafe The address of the created dSafe
     function createDSafe() external override whenNotPaused returns (address dSafe) {
+        _createDSafe(msg.sender);
+   }
+
+    function _createDSafe(address sender) public returns (address dSafe) {
         address[] memory erc20s = new address[](erc20Infos.length);
         for (uint256 i = 0; i < erc20Infos.length; i++) {
             erc20s[i] = erc20Infos[i].erc20Contract;
@@ -1145,12 +1149,12 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         }
 
         dSafe = address(new DSafeProxy(address(this), erc20s, erc721s));
-        dSafes[dSafe].owner = msg.sender;
+        dSafes[dSafe].owner = sender;
 
         // add a version parameter if users should pick a specific version
         (, , , address implementation, ) = versionManager.getRecommendedVersion();
         dSafeLogic[dSafe] = implementation;
-        emit IDOSConfig.DSafeCreated(dSafe, msg.sender);
+        emit IDOSConfig.DSafeCreated(dSafe, sender);
     }
 
     /// @notice Returns the amount of `erc20` tokens on dAccount of dSafe

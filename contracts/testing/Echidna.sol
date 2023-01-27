@@ -63,6 +63,12 @@ contract Echidna {
   DOSConfig public dosConfig;
   DOS public dos;
   DSafeLogic public dSafeLogic;
+  DSafeProxy public proxy1_1;
+  DSafeProxy public proxy1_2;
+  DSafeProxy public proxy2_1;
+  DSafeProxy public proxy2_2;
+  DSafeProxy public proxy3_1;
+  DSafeProxy public proxy3_2;
   function initDos() internal {
     versionManager = new VersionManager(address(this));
     dosConfig = new DOSConfig(address(this));
@@ -74,5 +80,12 @@ contract Echidna {
     versionManager.addVersion(IVersionManager.Status.PRODUCTION, address(dSafeLogic));
     string memory versionName = string(FsUtils.decodeFromBytes32(dSafeLogic.immutableVersion()));
     versionManager.markRecommendedVersion(versionName);
+
+    proxy1_1 = DSafeProxy(payable(dosConfig._createDSafe(address(0x10000))));
+    proxy1_2 = DSafeProxy(payable(dosConfig._createDSafe(address(0x10000))));
+    proxy2_1 = DSafeProxy(payable(dosConfig._createDSafe(address(0x20000))));
+    proxy2_2 = DSafeProxy(payable(dosConfig._createDSafe(address(0x20000))));
+    proxy3_1 = DSafeProxy(payable(dosConfig._createDSafe(address(0x30000))));
+    proxy3_2 = DSafeProxy(payable(dosConfig._createDSafe(address(0x30000))));
   }
 }
