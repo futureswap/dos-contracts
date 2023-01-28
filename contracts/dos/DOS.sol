@@ -179,6 +179,7 @@ library DSafeLib {
         } else {
             NFTId lastNFTId = dSafe.nfts[dSafe.nfts.length - 1];
             map[lastNFTId].dSafeIdx = idx;
+            dSafe.nfts[idx] = lastNFTId;
             dSafe.nfts.pop();
         }
     }

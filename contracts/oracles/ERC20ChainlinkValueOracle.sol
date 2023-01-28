@@ -10,6 +10,8 @@ import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 
 /// @notice Borrow factor must be greater than zero
 error InvalidBorrowFactor();
+/// @notice Chainlink price oracle must return a valid price (>0)
+error InvalidPrice();
 
 contract ERC20ChainlinkValueOracle is ImmutableGovernance, IERC20ValueOracle {
     AggregatorV3Interface priceOracle;
@@ -66,6 +68,9 @@ contract ERC20ChainlinkValueOracle is ImmutableGovernance, IERC20ValueOracle {
         int256 balance
     ) external view override returns (int256 value, int256 riskAdjustedValue) {
         (, int256 price, , , ) = priceOracle.latestRoundData();
+        if (price <= 0) {
+            revert InvalidPrice();
+        }
         value = (balance * price) / base;
         if (balance >= 0) {
             riskAdjustedValue = (value * collateralFactor) / 1 ether;

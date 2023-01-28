@@ -50,6 +50,7 @@ export const saveAddressesForNetwork = async (
     content += "\n";
   }
   await writeFile(path, content, {encoding: "utf-8"});
+  console.log("write to json completed");
 };
 
 const getNetwork = () => {
