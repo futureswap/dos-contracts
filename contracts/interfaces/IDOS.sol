@@ -298,6 +298,10 @@ interface IDOSCore {
         bytes calldata data
     ) external;
 
+    function addOperator(address operator) external;
+
+    function removeOperator(address operator) external;
+
     /// @notice Returns the approved address for a token, or zero if no address set
     /// @param collection The address of the ERC721 token
     /// @param tokenId The id of the token to query
@@ -307,15 +311,10 @@ interface IDOSCore {
         address dSafeAddress
     ) external view returns (int256 totalValue, int256 collateral, int256 debt);
 
-    /// @notice Returns if the `operator` is allowed to manage all of the erc20s of `owner` on the `collection` contract
-    /// @param collection The address of the collection contract
+    /// @notice Returns if '_spender' is an operator of '_owner'
     /// @param _owner The address of the owner
-    /// @param spender The address of the spender
-    function isApprovedForAll(
-        address collection,
-        address _owner,
-        address spender
-    ) external view returns (bool);
+    /// @param _spender The address of the spender
+    function isOperator(address _owner, address _spender) external view returns (bool);
 
     /**
      * @dev Returns the remaining number of tokens that `spender` will be

@@ -247,10 +247,9 @@ contract DOSState is Pausable {
     /// corresponding tokens are owned by DOS
     mapping(address => mapping(address => mapping(address => uint256))) public allowances;
 
-    /// @notice Whether a spender is approved to operate a dSafe's NFTs for a specific collection
-    /// @dev Mapping from dSafe owner address => NFT address => spender address => bool
-    /// @dev erc721 & erc1155 operator approvals
-    mapping(address => mapping(address => mapping(address => bool))) public operatorApprovals;
+    /// @notice Whether a spender is approved to operate on behalf of an owner
+    /// @dev Mapping from dSafe owner address => spender address => bool
+    mapping(address => mapping(address => bool)) public operatorApprovals;
 
     mapping(DSafeLib.NFTId => NFTTokenData) public tokenDataByNFTId;
 
@@ -512,7 +511,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         uint256 tokenId
     ) external override onlyDSafe whenNotPaused dSafeExists(to) {
         DSafeLib.NFTId nftId = _getNFTId(collection, tokenId);
-        if (!_isApprovedOrOwner(msg.sender, from, nftId)) {
+        if (!_isApprovedOrOwner(msg.sender, nftId)) {
             revert NotApprovedOrOwner();
         }
         _transferNFT(nftId, from, to);
@@ -555,6 +554,20 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             );
         }
         emit IDOSCore.SafeLiquidated(dSafe, msg.sender, collateral, debt);
+    }
+
+    /// @notice Add an operator for dSafe
+    /// @param operator The address of the operator to add
+    /// @dev Operator can execute batch of transactions on behalf of dSafe owner
+    function addOperator(address operator) external override onlyDSafe {
+        operatorApprovals[msg.sender][operator] = true;
+    }
+
+    /// @notice Remove an operator for dSafe
+    /// @param operator The address of the operator to remove
+    /// @dev Operator can execute batch of transactions on behalf of dSafe owner
+    function removeOperator(address operator) external override onlyDSafe {
+        operatorApprovals[msg.sender][operator] = false;
     }
 
     /// @notice Execute a batch of calls
@@ -696,17 +709,9 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return tokenDataByNFTId[nftId].approvedSpender;
     }
 
-    /// @notice Returns if the `operator` is allowed to manage all of the erc721s of `owner` on the `collection` contract
-    /// @param collection The address of the collection contract
-    /// @param _owner The address of the dSafe owner
-    /// @param spender The address of the dSafe spender
-    /// @return if the `spender` is allowed to operate the assets of `collection` of `_owner`
-    function isApprovedForAll(
-        address collection,
-        address _owner,
-        address spender
-    ) public view override returns (bool) {
-        return operatorApprovals[collection][_owner][spender];
+    /// @notice Returns if the 'spender' is an operator for the 'owner'
+    function isOperator(address _owner, address _spender) public view override returns (bool) {
+        return operatorApprovals[_owner][_spender];
     }
 
     /// @notice Returns the remaining amount of tokens that `spender` will be allowed to spend on
@@ -957,7 +962,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
 
     function _isApprovedOrOwner(
         address spender,
-        address _owner,
         DSafeLib.NFTId nftId
     ) internal view returns (bool) {
         DSafeLib.DSafe storage p = dSafes[msg.sender];
@@ -966,9 +970,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         uint16 idx = tokenDataByNFTId[nftId].dSafeIdx;
         bool isdepositERC721Owner = idx < p.nfts.length &&
             DSafeLib.NFTId.unwrap(p.nfts[idx]) == DSafeLib.NFTId.unwrap(nftId);
-        return (isdepositERC721Owner ||
-            getApproved(collection, tokenId) == spender ||
-            isApprovedForAll(collection, _owner, spender));
+        return (isdepositERC721Owner || getApproved(collection, tokenId) == spender);
     }
 
     // Config functions are handled by DOSConfig
