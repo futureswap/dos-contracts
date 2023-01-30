@@ -114,9 +114,21 @@ contract DSafeLogic is
     error DeadlineExpired();
     /// @notice Only DOS can call this function
     error OnlyDOS();
+    /// @notice Only the owner or operator can call this function
+    error NotOwnerOrOperator();
 
     modifier onlyOwner() {
         require(dos.getDSafeOwner(address(this)) == msg.sender, "");
+        _;
+    }
+
+    modifier onlyOwnerOrOperator() {
+        if (
+            dos.getDSafeOwner(address(this)) != msg.sender &&
+            !dos.isOperator(address(this), msg.sender)
+        ) {
+            revert NotOwnerOrOperator();
+        }
         _;
     }
 
@@ -143,7 +155,7 @@ contract DSafeLogic is
     ///   * to - is the address of the contract whose function should be called
     ///   * callData - encoded function name and it's arguments
     ///   * value - the amount of ETH to sent with the call
-    function executeBatch(Call[] memory calls) external payable onlyOwner {
+    function executeBatch(Call[] memory calls) external payable onlyOwnerOrOperator {
         bool saveForwardNFT = forwardNFT;
         forwardNFT = false;
         dos.executeBatch(calls);
