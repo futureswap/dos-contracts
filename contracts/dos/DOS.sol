@@ -1111,12 +1111,14 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @notice Updates some of ERC20 config parameters
     /// @dev for governance only.
     /// @param erc20 The address of ERC20 contract for which DOS config parameters should be updated
+    /// @param valueOracle The address of the erc20 value oracle
     /// @param baseRate The interest rate when utilization is 0
     /// @param slope1 The interest rate slope when utilization is less than the targetUtilization
     /// @param slope2 The interest rate slope when utilization is more than the targetUtilization
     /// @param targetUtilization The target utilization for the asset
     function setERC20Data(
         address erc20,
+        address valueOracle,
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
@@ -1126,11 +1128,20 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         if (infoIdx[erc20].kind != ContractKind.ERC20) {
             revert NotERC20();
         }
+        erc20Infos[erc20Idx].valueOracle = IERC20ValueOracle(valueOracle);
         erc20Infos[erc20Idx].baseRate = baseRate;
         erc20Infos[erc20Idx].slope1 = slope1;
         erc20Infos[erc20Idx].slope2 = slope2;
         erc20Infos[erc20Idx].targetUtilization = targetUtilization;
-        emit IDOSConfig.ERC20DataSet(erc20, erc20Idx, baseRate, slope1, slope2, targetUtilization);
+        emit IDOSConfig.ERC20DataSet(
+            erc20,
+            erc20Idx,
+            valueOracle,
+            baseRate,
+            slope1,
+            slope2,
+            targetUtilization
+        );
     }
 
     /// @notice creates a new dSafe with sender as the owner and returns the dSafe address
