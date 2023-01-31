@@ -241,7 +241,8 @@ describe("DSafeProxy", () => {
     const {iDos, dSafe, versionManager} = await loadFixture(deployDOSFixture);
     const recommendedVersion = await versionManager.getRecommendedVersion();
     const recommendedImplementation = recommendedVersion.implementation;
-    await expect(upgradeDSafeImplementation(iDos, dSafe, recommendedVersion)).to.not.be.reverted;
+    await expect(upgradeDSafeImplementation(iDos, dSafe, recommendedVersion.versionName)).to.not.be
+      .reverted;
     // get the new implementation address
     const newImplementation = await iDos.getImplementation(dSafe.address);
     // check that the new implementation is the recommended version
