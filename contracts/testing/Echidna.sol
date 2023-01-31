@@ -61,19 +61,28 @@ contract Echidna {
 
   VersionManager public versionManager;
   DOSConfig public dosConfig;
-  DOS public dos;
+  EchidnaDOS public dos;
   DSafeLogic public dSafeLogic;
-  DSafeProxy public proxy1_1;
-  DSafeProxy public proxy1_2;
-  DSafeProxy public proxy2_1;
-  DSafeProxy public proxy2_2;
-  DSafeProxy public proxy3_1;
-  DSafeProxy public proxy3_2;
+
+  // some proxies for echidna to work with; more can be created at will with addProxy, but echidna seems to have a hard time calling those directly, since they're in a list instead of a member variable
+  DSafeProxy public proxy1;
+  DSafeProxy public proxy2;
+  DSafeProxy public proxy3;
+  DSafeProxy public proxy4;
+
   function initDos() internal {
     versionManager = new VersionManager(address(this));
     dosConfig = new DOSConfig(address(this));
-    dos = new DOS(address(dosConfig), address(versionManager));
+    dos = new EchidnaDOS(address(dosConfig), address(versionManager));
     dSafeLogic = new DSafeLogic(address(dos));
+
+    IDOS(address(dos)).setConfig(IDOSConfig.Config(
+      /* treasurySafe: */ address(this), // todo: update to a dWallet address
+      /* treasuryInterestFraction: */ 5e16, // toWei(0.05),
+      /* maxSolvencyCheckGasCost: */ 1e6,
+      /* liqFraction: */ 8e17, // toWei(0.8),
+      /* fractionalReserveLeverage: */ 9
+    ));
 
     dosConfig.setVersionManager(address(versionManager));
 
@@ -81,11 +90,55 @@ contract Echidna {
     string memory versionName = string(FsUtils.decodeFromBytes32(dSafeLogic.immutableVersion()));
     versionManager.markRecommendedVersion(versionName);
 
-    proxy1_1 = DSafeProxy(payable(dosConfig._createDSafe(address(0x10000))));
-    proxy1_2 = DSafeProxy(payable(dosConfig._createDSafe(address(0x10000))));
-    proxy2_1 = DSafeProxy(payable(dosConfig._createDSafe(address(0x20000))));
-    proxy2_2 = DSafeProxy(payable(dosConfig._createDSafe(address(0x20000))));
-    proxy3_1 = DSafeProxy(payable(dosConfig._createDSafe(address(0x30000))));
-    proxy3_2 = DSafeProxy(payable(dosConfig._createDSafe(address(0x30000))));
+    proxy1 = genProxy();
+    proxy2 = genProxy();
+    proxy3 = genProxy();
+    proxy4 = genProxy();
+
+    selectedProxy = proxy1;
+    proxies.push(proxy1);
+    proxies.push(proxy2);
+    proxies.push(proxy3);
+    proxies.push(proxy4);
+  }
+
+  function genProxy() public returns (DSafeProxy) {
+    return DSafeProxy(payable(IDOS(address(dos)).createDSafe()));
+  }
+
+  function verifyDOS() public {
+    assert(dos.invariant());
+  }
+
+  // setup to make it easier for echidna to call executeBatch
+  // function calls to make and select proxies, to add calls to a list, and then call executeBatch with those calls
+  // eventually we'll add functions to add deposit and withdraw calls to the list
+
+  DSafeProxy[] public proxies; // proxies we've made
+  DSafeProxy public selectedProxy; // which one we want to call executeBatch with
+  Call[] public calls; // calls to feed to executeBatch
+
+  function addProxy() public {
+    proxies.push(genProxy());
+  }
+  function selectProxy(uint256 n) public {
+    selectedProxy = proxies[n % proxies.length];
+  }
+  function addCall(Call calldata call) public {
+    calls.push(call);
+  }
+  // TODO addDepositCall, addWithdrawCall, etc would go here
+  function execCalls() public {
+    selectedProxy.executeBatch(calls);
+    calls = new Call[](0); // reset call list afterwards
   }
 }
+
+contract EchidnaDOS is DOS {
+  constructor(address _dosConfig, address _versionManager) DOS(_dosConfig, _versionManager) {}
+  function invariant() public returns (bool) {
+    return true; // edit this to add rules
+  }
+}
+
+// can add more of these contracts if you want invariants on more contracts
