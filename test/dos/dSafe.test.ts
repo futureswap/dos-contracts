@@ -15,7 +15,7 @@ import {
 import {toWei, toWeiUsdc} from "../../lib/numbers";
 import {getFixedGasSigners} from "../../lib/hardhat/fixedGasSigners";
 import {signExecuteBatch, signOnTransferReceived2Call} from "../../lib/signers";
-import {makeCall, createDSafe, sortTransfers} from "../../lib/calls";
+import {makeCall, createDSafe, sortTransfers, upgradeDSafeImplementation} from "../../lib/calls";
 import {Chainlink, deployDos, deployFixedAddressForTests} from "../../lib/deploy";
 
 const USDC_PRICE = 1;
@@ -156,6 +156,7 @@ describe("DSafeProxy", () => {
       getBalances,
       dSafe,
       transferAndCall2,
+      versionManager,
     };
   }
 
@@ -234,5 +235,107 @@ describe("DSafeProxy", () => {
 
     expect(await usdc.balanceOf(user.address)).to.equal(tenThousandUsdc);
     expect(await weth.balanceOf(dSafe2.address)).to.equal(oneEth);
+  });
+
+  it("should be able to upgrade to a new version", async () => {
+    const {iDos, dSafe, versionManager} = await loadFixture(deployDOSFixture);
+    const recommendedVersion = await versionManager.getRecommendedVersion();
+    const recommendedImplementation = recommendedVersion.implementation;
+    await expect(upgradeDSafeImplementation(iDos, dSafe, recommendedVersion)).to.not.be.reverted;
+    // get the new implementation address
+    const newImplementation = await iDos.getImplementation(dSafe.address);
+    // check that the new implementation is the recommended version
+    expect(newImplementation).to.equal(recommendedImplementation);
+  });
+
+  it("should not be able to upgrade to an invalid version", async () => {
+    const {iDos, dSafe} = await loadFixture(deployDOSFixture);
+
+    const oldImplementation = await iDos.getImplementation(dSafe.address);
+    const version = "1,0.0";
+    await expect(upgradeDSafeImplementation(iDos, dSafe, version)).to.be.revertedWith(
+      "InvalidImplementation",
+    );
+    const newImplementation = await iDos.getImplementation(dSafe.address);
+    expect(newImplementation).to.equal(oldImplementation);
+  });
+
+  it("should not be able to upgrade to a deprecated version", async () => {
+    const {owner, iDos, dSafe, versionManager} = await loadFixture(deployDOSFixture);
+    const oldImplementation = await iDos.getImplementation(dSafe.address);
+    const recommendedVersion = await versionManager.getRecommendedVersion();
+    const version = recommendedVersion.versionName;
+    // set a deprecated version
+    const DEPRECATED = 3;
+    await versionManager.connect(owner).updateVersion(version, DEPRECATED, 0);
+    await expect(upgradeDSafeImplementation(iDos, dSafe, version)).to.be.revertedWith(
+      "DeprecatedVersion",
+    );
+    const newImplementation = await iDos.getImplementation(dSafe.address);
+    expect(newImplementation).to.equal(oldImplementation);
+  });
+
+  it("should not be able to upgrade to a version with a low bug", async () => {
+    const {owner, iDos, dSafe, versionManager} = await loadFixture(deployDOSFixture);
+    const oldImplementation = await iDos.getImplementation(dSafe.address);
+    const recommendedVersion = await versionManager.getRecommendedVersion();
+    const version = recommendedVersion.versionName;
+    // set a bug level version
+    const PRODUCTION = 2;
+    const BUG = 1;
+    await versionManager.connect(owner).updateVersion(version, PRODUCTION, BUG);
+    await expect(upgradeDSafeImplementation(iDos, dSafe, version)).to.be.revertedWith(
+      "BugLevelTooHigh",
+    );
+    const newImplementation = await iDos.getImplementation(dSafe.address);
+    expect(newImplementation).to.equal(oldImplementation);
+  });
+
+  it("should not be able to upgrade to a version with a medium bug", async () => {
+    const {owner, iDos, dSafe, versionManager} = await loadFixture(deployDOSFixture);
+    const oldImplementation = await iDos.getImplementation(dSafe.address);
+    const recommendedVersion = await versionManager.getRecommendedVersion();
+    const version = recommendedVersion.versionName;
+    // set a bug level version
+    const PRODUCTION = 2;
+    const BUG = 2;
+    await versionManager.connect(owner).updateVersion(version, PRODUCTION, BUG);
+    await expect(upgradeDSafeImplementation(iDos, dSafe, version)).to.be.revertedWith(
+      "BugLevelTooHigh",
+    );
+    const newImplementation = await iDos.getImplementation(dSafe.address);
+    expect(newImplementation).to.equal(oldImplementation);
+  });
+
+  it("should not be able to upgrade to a version with a high bug", async () => {
+    const {owner, iDos, dSafe, versionManager} = await loadFixture(deployDOSFixture);
+    const oldImplementation = await iDos.getImplementation(dSafe.address);
+    const recommendedVersion = await versionManager.getRecommendedVersion();
+    const version = recommendedVersion.versionName;
+    // set a bug level version
+    const PRODUCTION = 2;
+    const BUG = 3;
+    await versionManager.connect(owner).updateVersion(version, PRODUCTION, BUG);
+    await expect(upgradeDSafeImplementation(iDos, dSafe, version)).to.be.revertedWith(
+      "BugLevelTooHigh",
+    );
+    const newImplementation = await iDos.getImplementation(dSafe.address);
+    expect(newImplementation).to.equal(oldImplementation);
+  });
+
+  it("should not be able to upgrade to a version with a critical bug", async () => {
+    const {owner, iDos, dSafe, versionManager} = await loadFixture(deployDOSFixture);
+    const oldImplementation = await iDos.getImplementation(dSafe.address);
+    const recommendedVersion = await versionManager.getRecommendedVersion();
+    const version = recommendedVersion.versionName;
+    // set a bug level version
+    const PRODUCTION = 2;
+    const BUG = 4;
+    await versionManager.connect(owner).updateVersion(version, PRODUCTION, BUG);
+    await expect(upgradeDSafeImplementation(iDos, dSafe, version)).to.be.revertedWith(
+      "BugLevelTooHigh",
+    );
+    const newImplementation = await iDos.getImplementation(dSafe.address);
+    expect(newImplementation).to.equal(oldImplementation);
   });
 });
