@@ -75,6 +75,7 @@ contract Governance is AccessControl, ERC1155Receiver {
 
     event ExecutionFailed(uint256 indexed messageId, string reason);
     event ExecutionSucceeded(uint256 indexed messageId);
+    event MaxSupportedGasCostSet(uint256 indexed newMaxSupportedGasCost);
 
     error AccessDenied(address account, uint8 accessLevel);
     error InvalidCall(address to, bytes callData);
@@ -163,6 +164,7 @@ contract Governance is AccessControl, ERC1155Receiver {
     function setMaxSupportedGasCost(uint256 _maxSupportedGasCost) external onlyGovernance {
         require(_maxSupportedGasCost > 0, "Governance: invalid gas cost");
         maxSupportedGasCost = _maxSupportedGasCost;
+        emit MaxSupportedGasCostSet(_maxSupportedGasCost);
     }
 
     function onERC1155Received(
