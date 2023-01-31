@@ -83,6 +83,7 @@ interface IDOSConfig {
     /// @notice Emitted when ERC20 Data is set
     /// @param erc20 The address of the erc20 token
     /// @param erc20Idx The index of the erc20 token
+    /// @param valueOracle The new value oracle
     /// @param baseRate The new base interest rate
     /// @param slope1 The new slope1
     /// @param slope2 The new slope2
@@ -90,6 +91,7 @@ interface IDOSConfig {
     event ERC20DataSet(
         address indexed erc20,
         uint16 indexed erc20Idx,
+        address valueOracle,
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
@@ -121,6 +123,7 @@ interface IDOSConfig {
 
     function setERC20Data(
         address erc20,
+        address valueOracle,
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
