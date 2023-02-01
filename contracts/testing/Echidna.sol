@@ -10,6 +10,7 @@ import "../lib/FsUtils.sol";
 import "../lib/ImmutableVersion.sol";
 import "../testing/MockERC20Oracle.sol";
 import "../testing/TestERC20.sol";
+import "../testing/external/WETH9.sol";
 
 // echidna-test . --config echidna.yaml --contract EchidnaMath
 // echidna-test . --config echidna.yaml --contract EchidnaDOSTests
@@ -61,6 +62,8 @@ contract EchidnaMathTests {
 }
 
 contract EchidnaDOSTests {
+  // most of the setup here copied from deploy.ts
+
   VersionManager public versionManager;
   DOSConfig public dosConfig;
   EchidnaDOS public dos;
@@ -68,8 +71,10 @@ contract EchidnaDOSTests {
 
   TestERC20 public usdc;
   TestERC20 public uni;
+  WETH9 public weth;
   MockERC20Oracle public usdcOracle;
   MockERC20Oracle public uniOracle;
+  MockERC20Oracle public wethOracle;
 
   // some proxies for echidna to work with; more can be created at will with addProxy, but echidna seems to have a hard time calling those directly, since they're in a list instead of a member variable
   DSafeProxy public proxy1;
@@ -85,25 +90,14 @@ contract EchidnaDOSTests {
 
     usdc = new TestERC20("USDC", "USDC", 6);
     uni = new TestERC20("UNI", "UNI", 18);
+    weth = new WETH9();
     usdcOracle = new MockERC20Oracle(address(this));
     uniOracle = new MockERC20Oracle(address(this));
+    wethOracle = new MockERC20Oracle(address(this));
 
     usdcOracle.setPrice(1e18, 6, 6);
     uniOracle.setPrice(840e18, 6, 18);
-
-    IDOS(address(dos)).setConfig(IDOSConfig.Config(
-      /* treasurySafe: */ address(this), // todo: update to a dWallet address
-      /* treasuryInterestFraction: */ 5e16, // toWei(0.05),
-      /* maxSolvencyCheckGasCost: */ 1e6,
-      /* liqFraction: */ 8e17, // toWei(0.8),
-      /* fractionalReserveLeverage: */ 9
-    ));
-
-    dosConfig.setVersionManager(address(versionManager));
-
-    versionManager.addVersion(IVersionManager.Status.PRODUCTION, address(dSafeLogic));
-    string memory versionName = string(FsUtils.decodeFromBytes32(dSafeLogic.immutableVersion()));
-    versionManager.markRecommendedVersion(versionName);
+    wethOracle.setPrice(1200e18, 6, 18);
 
     IDOS(address(dos)).addERC20Info(
       address(usdc),
@@ -128,6 +122,32 @@ contract EchidnaDOSTests {
       0,
       0
     );
+
+    IDOS(address(dos)).addERC20Info(
+      address(weth),
+      weth.name(),
+      weth.symbol(),
+      weth.decimals(),
+      address(wethOracle),
+      0,
+      0,
+      0,
+      0
+    );
+
+    IDOS(address(dos)).setConfig(IDOSConfig.Config(
+      /* treasurySafe: */ address(this), // todo: update to a dWallet address
+      /* treasuryInterestFraction: */ 5e16, // toWei(0.05),
+      /* maxSolvencyCheckGasCost: */ 1e6,
+      /* liqFraction: */ 8e17, // toWei(0.8),
+      /* fractionalReserveLeverage: */ 9
+    ));
+
+    dosConfig.setVersionManager(address(versionManager));
+
+    versionManager.addVersion(IVersionManager.Status.PRODUCTION, address(dSafeLogic));
+    string memory versionName = string(FsUtils.decodeFromBytes32(dSafeLogic.immutableVersion()));
+    versionManager.markRecommendedVersion(versionName);
 
     proxy1 = genProxy();
     proxy2 = genProxy();
