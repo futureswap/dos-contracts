@@ -84,6 +84,12 @@ describe("FSMath", () => {
     }
   });
 
+  it("exp reverts", async () => {
+    const {fsMath} = await loadFixture(setupFsMath);
+    const FB = 2 ** 64;
+    await expect(fsMath.exp(BigInt(133 * FB))).to.be.reverted;
+  });
+
   it("sqrt", async () => {
     const {fsMath} = await loadFixture(setupFsMath);
     const FB = 2 ** 64;
