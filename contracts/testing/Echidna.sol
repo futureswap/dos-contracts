@@ -127,8 +127,29 @@ contract Echidna {
   function addCall(Call calldata call) public {
     calls.push(call);
   }
-  // TODO addDepositCall, addWithdrawCall, etc would go here
-  function execCalls() public {
+  function addDepositERC20Call(address erc20, uint256 amount) public {
+    calls.push(Call(address(dos), bytes.concat(bytes4(keccak256("depositERC20(address,uint256)")),bytes32(uint256(uint160(erc20))),bytes32(amount)), 0));
+  }
+  function addDepositERC721Call(address erc721, uint256 tokenId) public {
+    calls.push(Call(address(dos), bytes.concat(bytes4(keccak256("depositERC721(address,uint256)")),bytes32(uint256(uint160(erc721))),bytes32(tokenId)), 0));
+  }
+  function addWithdrawERC20Call(address erc20, uint256 amount) public {
+    calls.push(Call(address(dos), bytes.concat(bytes4(keccak256("withdrawERC20(address,uint256)")),bytes32(uint256(uint160(erc20))),bytes32(amount)), 0));
+  }
+  function addWithdrawERC721Call(address erc721, uint256 tokenId) public {
+    calls.push(Call(address(dos), bytes.concat(bytes4(keccak256("withdrawERC721(address,uint256)")),bytes32(uint256(uint160(erc721))),bytes32(tokenId)), 0));
+  }
+  function addTransferERC20Call(address erc20, address to, uint256 tokenId) public {
+    calls.push(Call(address(dos), bytes.concat(bytes4(keccak256("transferERC20(address,address,uint256)")),bytes32(uint256(uint160(erc20))),bytes32(uint256(uint160(to))),bytes32(tokenId)), 0));
+  }
+  function addTransferERC721Call(address erc721, uint256 tokenId, address to) public {
+    calls.push(Call(address(dos), bytes.concat(bytes4(keccak256("transferERC721(address,uint256,address)")),bytes32(uint256(uint160(erc721))),bytes32(tokenId),bytes32(uint256(uint160(to)))), 0));
+  }
+  function addLiquidateCall(address dSafe) public {
+    calls.push(Call(address(dos), bytes.concat(bytes4(keccak256("liquidate(address)")),bytes32(uint256(uint160(dSafe)))), 0));
+  }
+  // TODO there's some others too
+  function execCalls() private {
     selectedProxy.executeBatch(calls);
     calls = new Call[](0); // reset call list afterwards
   }
