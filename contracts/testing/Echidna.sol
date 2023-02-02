@@ -11,6 +11,8 @@ import "../lib/ImmutableVersion.sol";
 import "../testing/MockERC20Oracle.sol";
 import "../testing/TestERC20.sol";
 import "../testing/external/WETH9.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 // echidna-test . --config echidna.yaml --contract EchidnaMath
 // echidna-test . --config echidna.yaml --contract EchidnaDOSTests
@@ -76,11 +78,16 @@ contract EchidnaDOSTests {
   MockERC20Oracle public uniOracle;
   MockERC20Oracle public wethOracle;
 
-  // some proxies for echidna to work with; more can be created at will with addProxy, but echidna seems to have a hard time calling those directly, since they're in a list instead of a member variable
-  DSafeProxy public proxy1;
-  DSafeProxy public proxy2;
-  DSafeProxy public proxy3;
-  DSafeProxy public proxy4;
+  IERC20[] public erc20s;
+  IERC721[] public erc721s;
+
+  // some dSafes for echidna to work with; more can be created at will with addProxy, but echidna seems to have a hard time calling those directly, since they're in a list instead of a member variable
+  DSafeProxy public dSafe1;
+  DSafeProxy public dSafe2;
+  DSafeProxy public dSafe3;
+  DSafeProxy public dSafe4;
+
+  // TODO give users some erc20s to work with
 
   constructor() public {
     versionManager = new VersionManager(address(this));
@@ -94,6 +101,10 @@ contract EchidnaDOSTests {
     usdcOracle = new MockERC20Oracle(address(this));
     uniOracle = new MockERC20Oracle(address(this));
     wethOracle = new MockERC20Oracle(address(this));
+
+    erc20s.push(usdc);
+    erc20s.push(uni);
+    erc20s.push(weth);
 
     usdcOracle.setPrice(1e18, 6, 6);
     uniOracle.setPrice(840e18, 6, 18);
@@ -149,19 +160,19 @@ contract EchidnaDOSTests {
     string memory versionName = string(FsUtils.decodeFromBytes32(dSafeLogic.immutableVersion()));
     versionManager.markRecommendedVersion(versionName);
 
-    proxy1 = genProxy();
-    proxy2 = genProxy();
-    proxy3 = genProxy();
-    proxy4 = genProxy();
+    dSafe1 = genDSafeProxy();
+    dSafe2 = genDSafeProxy();
+    dSafe3 = genDSafeProxy();
+    dSafe4 = genDSafeProxy();
 
-    selectedProxy = proxy1;
-    proxies.push(proxy1);
-    proxies.push(proxy2);
-    proxies.push(proxy3);
-    proxies.push(proxy4);
+    selectedProxy = dSafe1;
+    dSafes.push(dSafe1);
+    dSafes.push(dSafe2);
+    dSafes.push(dSafe3);
+    dSafes.push(dSafe4);
   }
 
-  function genProxy() public returns (DSafeProxy) {
+  function genDSafeProxy() public returns (DSafeProxy) {
     return DSafeProxy(payable(IDOS(address(dos)).createDSafe()));
   }
 
@@ -170,19 +181,19 @@ contract EchidnaDOSTests {
   }
 
   // setup to make it easier for echidna to call executeBatch
-  // function calls to make and select proxies, to add calls to a list, and then call executeBatch with those calls
+  // function calls to make and select dSafes, to add calls to a list, and then call executeBatch with those calls
   // eventually we'll add functions to add deposit and withdraw calls to the list
 
-  DSafeProxy[] public proxies; // proxies we've made
+  DSafeProxy[] public dSafes; // dSafes we've made
   DSafeProxy public selectedProxy; // which one we want to call executeBatch with
   Call[] public calls; // calls to feed to executeBatch
 
   function addProxy() public {
-    proxies.push(genProxy());
+    dSafes.push(genProxy());
   }
 
   function selectProxy(uint256 n) public {
-    selectedProxy = proxies[n % proxies.length];
+    selectedProxy = dSafes[n % dSafes.length];
   }
 
   function execCalls() public {
@@ -200,29 +211,65 @@ contract EchidnaDOSTests {
   function addrToBytes(address addr) internal returns (bytes32) {
     return bytes32(uint256(uint160(addr)));
   }
+  function dSafeNumToBytes(uint256 dSafeNum) internal returns (bytes32) {
+    return addrToBytes(address(dSafes[dSafeNum % dSafes.length]));
+  }
+  function erc20NumToBytes(uint256 erc20Num) internal returns (bytes32) {
+    return addrToBytes(address(erc20s[erc20Num % erc20s.length]));
+  }
+  function erc721NumToBytes(uint256 erc721Num) internal returns (bytes32) {
+    return addrToBytes(address(erc721s[erc721Num % erc721s.length]));
+  }
 
-  // TODO make these use preset erc20 addresses instead of arbitrary addresses
   function addDepositERC20Call(address erc20, uint256 amount) public {
     calls.push(Call(address(dos), bytes.concat(methodSigBytes("depositERC20(address,uint256)"),addrToBytes(erc20),bytes32(amount)), 0));
   }
+  function addDepositERC20CallLimited(uint256 erc20Num, uint256 amount) public {
+    calls.push(Call(address(dos), bytes.concat(methodSigBytes("depositERC20(address,uint256)"),erc20NumToBytes(erc20Num),bytes32(amount)), 0));
+  }
+
   function addDepositERC721Call(address erc721, uint256 tokenId) public {
     calls.push(Call(address(dos), bytes.concat(methodSigBytes("depositERC721(address,uint256)"),addrToBytes(erc721),bytes32(tokenId)), 0));
   }
+  function addDepositERC721CallLimited(uint256 erc721Num, uint256 tokenId) public {
+    calls.push(Call(address(dos), bytes.concat(methodSigBytes("depositERC721(address,uint256)"),erc721NumToBytes(erc721Num),bytes32(tokenId)), 0));
+  }
+
   function addWithdrawERC20Call(address erc20, uint256 amount) public {
     calls.push(Call(address(dos), bytes.concat(methodSigBytes("withdrawERC20(address,uint256)"),addrToBytes(erc20),bytes32(amount)), 0));
   }
+  function addWithdrawERC20CallLimited(uint256 erc20Num, uint256 amount) public {
+    calls.push(Call(address(dos), bytes.concat(methodSigBytes("withdrawERC20(address,uint256)"),erc20NumToBytes(erc20Num),bytes32(amount)), 0));
+  }
+
   function addWithdrawERC721Call(address erc721, uint256 tokenId) public {
     calls.push(Call(address(dos), bytes.concat(methodSigBytes("withdrawERC721(address,uint256)"),addrToBytes(erc721),bytes32(tokenId)), 0));
   }
+  function addWithdrawERC721CallLimited(uint256 erc721Num, uint256 tokenId) public {
+    calls.push(Call(address(dos), bytes.concat(methodSigBytes("withdrawERC721(address,uint256)"),erc721NumToBytes(erc721Num),bytes32(tokenId)), 0));
+  }
+
   function addTransferERC20Call(address erc20, address to, uint256 tokenId) public {
     calls.push(Call(address(dos), bytes.concat(methodSigBytes("transferERC20(address,address,uint256)"),addrToBytes(erc20),addrToBytes(to),bytes32(tokenId)), 0));
   }
+  function addTransferERC20CallLimited(uint256 erc20Num, uint256 toNum, uint256 tokenId) public {
+    calls.push(Call(address(dos), bytes.concat(methodSigBytes("transferERC20(address,address,uint256)"),erc20NumToBytes(erc20Num),dSafeNumToBytes(toNum),bytes32(tokenId)), 0));
+  }
+
   function addTransferERC721Call(address erc721, uint256 tokenId, address to) public {
     calls.push(Call(address(dos), bytes.concat(methodSigBytes("transferERC721(address,uint256,address)"),addrToBytes(erc721),bytes32(tokenId),addrToBytes(to)), 0));
   }
-  function addLiquidateCall(address dSafe) public {
-    calls.push(Call(address(dos), bytes.concat(methodSigBytes("liquidate(address)"),bytes32(uint256(uint160(dSafe)))), 0));
+  function addTransferERC721CallLimited(uint256 erc721Num, uint256 tokenId, uint256 toNum) public {
+    calls.push(Call(address(dos), bytes.concat(methodSigBytes("transferERC721(address,uint256,address)"),erc721NumToBytes(erc721Num),bytes32(tokenId),dSafeNumToBytes(toNum)), 0));
   }
+
+  function addLiquidateCall(address dSafe) public {
+    calls.push(Call(address(dos), bytes.concat(methodSigBytes("liquidate(address)"),addrToBytes(dSafe)), 0));
+  }
+  function addLiquidateCallLimited(uint256 dSafeNum) public {
+    calls.push(Call(address(dos), bytes.concat(methodSigBytes("liquidate(address)"),dSafeNumToBytes(dSafeNum)), 0));
+  }
+
   // TODO there's some others too
 }
 
