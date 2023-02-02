@@ -278,12 +278,10 @@ contract EchidnaDOSTests {
   }
 
   function addOnERC721ReceivedCall(address operator, address from, uint256 tokenId, bytes calldata data) public {
-    calls.push(Call(address(dos), bytes.concat(methodSigBytes("onERC721Received(address,address,uint256,bytes calldata)"),addrToBytes(operator),addrToBytes(from),bytes32(tokenId),data), 0));
-    // TODO "bytes calldata" in signature?
+    calls.push(Call(address(dos), bytes.concat(methodSigBytes("onERC721Received(address,address,uint256,bytes)"),addrToBytes(operator),addrToBytes(from),bytes32(tokenId),bytes32(uint256(32*4)),bytes32(data.length),data), 0));
   }
   function addOnERC721ReceivedCallLimited(address operator, uint256 fromNum, uint256 tokenId, bytes calldata data) public {
-    calls.push(Call(address(dos), bytes.concat(methodSigBytes("onERC721Received(address,address,uint256,bytes calldata)"),addrToBytes(operator),dSafeNumToBytes(fromNum),bytes32(tokenId),data), 0));
-    // TODO "bytes calldata" in signature?
+    calls.push(Call(address(dos), bytes.concat(methodSigBytes("onERC721Received(address,address,uint256,bytes)"),addrToBytes(operator),dSafeNumToBytes(fromNum),bytes32(tokenId),bytes32(uint256(32*4)),bytes32(data.length),data), 0));
   }
 
   function addDepositERC20ForSafeCall(address erc20, address to, uint256 amount) public {
@@ -301,8 +299,9 @@ contract EchidnaDOSTests {
   }
 
   function addUpgradeDSafeImplementationCall(string calldata version) public {
-    calls.push(Call(address(dos), bytes.concat(methodSigBytes("upgradeDSafeImplementation(string calldata)"),bytes(version)), 0));
-    // TODO "string calldata" in signature?
+    uint256 numPaddingBytes = 32 - (bytes(version).length % 32);
+    if (numPaddingBytes == 32) numPaddingBytes = 0;
+    calls.push(Call(address(dos), bytes.concat(methodSigBytes("upgradeDSafeImplementation(string)"),bytes32(uint256(32)),bytes32(bytes(version).length),bytes(version),new bytes(numPaddingBytes)), 0));
   }
 
   function addTransferDSafeOwnershipCall(address newOwner) public {
