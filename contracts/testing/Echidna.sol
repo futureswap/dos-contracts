@@ -349,13 +349,40 @@ contract EchidnaDOSTests {
   // TODO depositFull, withdrawFull, executeBatch, approveAndCall
   // TODO maybe add uni
   // TODO make it so new erc20s and erc721s can be created at runtime
+  // TODO ability to change the price of an erc20 or erc721
 }
 
 contract EchidnaDOS is DOS {
   constructor(address _dosConfig, address _versionManager) DOS(_dosConfig, _versionManager) {}
   function invariant() public returns (bool) {
-    if (DOSConfig(address(this)).immutableGovernance() != msg.sender) return false; // msg.sender will always be EchidnaDOSTests
-    // edit this to add rules
+
+    // check 1: governance hasn't changed
+    if (DOSConfig(address(this)).immutableGovernance() != msg.sender)
+      return false; // msg.sender will always be EchidnaDOSTests
+
+    // check 2: global solvency checks
+    // largely copied from isSolvent
+    uint256 gasBefore = gasleft();
+    int256 leverage = config.fractionalReserveLeverage;
+    for (uint256 i = 0; i < erc20Infos.length; i++) {
+      int256 totalDebt = erc20Infos[i].debt.tokens;
+      int256 totalCollateral = erc20Infos[i].collateral.tokens;
+
+      if (totalDebt > 0) return false;
+      if (totalCollateral < 0) return false;
+
+      int256 reserve = totalCollateral + totalDebt;
+
+      if (
+        IERC20(erc20Infos[i].erc20Contract).balanceOf(address(this)) < uint256(reserve)
+      ) return false;
+
+      if (reserve < -totalDebt / leverage) return false;
+    }
+    if (gasBefore - gasleft() > config.maxSolvencyCheckGasCost) return false;
+
+    // more rules can be added here
+
     return true;
   }
 }
