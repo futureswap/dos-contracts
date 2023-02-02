@@ -11,6 +11,8 @@ import "../lib/ImmutableVersion.sol";
 import "../testing/MockERC20Oracle.sol";
 import "../testing/TestERC20.sol";
 import "../testing/external/WETH9.sol";
+import "../testing/TestNFT.sol";
+import "../testing/MockNFTOracle.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
@@ -78,6 +80,11 @@ contract EchidnaDOSTests {
   MockERC20Oracle public uniOracle;
   MockERC20Oracle public wethOracle;
 
+  TestNFT public nft1;
+  TestNFT public nft2;
+  TestNFT public nft3;
+  MockNFTOracle public nftOracle;
+
   IERC20[] public erc20s;
   IERC721[] public erc721s;
 
@@ -102,13 +109,24 @@ contract EchidnaDOSTests {
     uniOracle = new MockERC20Oracle(address(this));
     wethOracle = new MockERC20Oracle(address(this));
 
+    nft1 = new TestNFT("Example NFT 1", "NFT1", 0);
+    nft2 = new TestNFT("Example NFT 2", "NFT2", 0);
+    nft3 = new TestNFT("Example NFT 3", "NFT3", 3000);
+    nftOracle = new MockNFTOracle();
+
     erc20s.push(usdc);
     erc20s.push(uni);
     erc20s.push(weth);
 
+    erc721s.push(nft1);
+    erc721s.push(nft2);
+    erc721s.push(nft3);
+
     usdcOracle.setPrice(1e18, 6, 6);
     uniOracle.setPrice(840e18, 6, 18);
     wethOracle.setPrice(1200e18, 6, 18);
+
+    nftOracle.setCollateralFactor(5e17); // toWei(.5)
 
     IDOS(address(dos)).addERC20Info(
       address(usdc),
@@ -146,6 +164,10 @@ contract EchidnaDOSTests {
       0
     );
 
+    IDOS(address(dos)).addERC721Info(address(nft1), address(nftOracle));
+    IDOS(address(dos)).addERC721Info(address(nft2), address(nftOracle));
+    IDOS(address(dos)).addERC721Info(address(nft3), address(nftOracle));
+
     IDOS(address(dos)).setConfig(IDOSConfig.Config(
       /* treasurySafe: */ address(this), // todo: update to a dWallet address
       /* treasuryInterestFraction: */ 5e16, // toWei(0.05),
@@ -178,6 +200,19 @@ contract EchidnaDOSTests {
 
   function verifyDOS() public {
     assert(dos.invariant());
+  }
+
+  function mintERC20(uint256 dSafeNum, uint256 erc20Num, uint256 amount) public {
+    TestERC20(address(erc20s[erc20Num % erc20s.length])).mint(address(dSafes[dSafeNum % dSafes.length]), amount);
+    // this cast works even for weth since weth also has a mint function with the same signature
+  }
+
+  function mintERC721(uint256 dSafeNum, uint256 erc721Num, int256 price) public returns (uint256 tokenId) {
+    TestNFT nft = TestNFT(address(erc721s[erc721Num % erc721s.length]));
+    tokenId = nft.mint(address(dSafes[dSafeNum % dSafes.length]));
+    nftOracle.setPrice(tokenId, price);
+    nft.approve(address(dos), tokenId);
+    dos.depositERC721(address(nft), tokenId);
   }
 
   // setup to make it easier for echidna to call executeBatch
@@ -312,6 +347,8 @@ contract EchidnaDOSTests {
   // and we check that immutableGovernance hasn't changed in EchidnaDOS.invariant()
 
   // TODO depositFull, withdrawFull, executeBatch, approveAndCall
+  // TODO maybe add uni
+  // TODO make it so new erc20s and erc721s can be created at runtime
 }
 
 contract EchidnaDOS is DOS {
