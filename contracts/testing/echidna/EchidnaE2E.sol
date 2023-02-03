@@ -13,12 +13,14 @@ import "../../testing/TestERC20.sol";
 import "../../testing/external/WETH9.sol";
 import "../../testing/TestNFT.sol";
 import "../../testing/MockNFTOracle.sol";
+import "./Helpers.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 // echidna-test . --config echidna.yaml --contract EchidnaE2E
 
 contract EchidnaE2E {
+  using Helpers for address;
   // most of the setup here copied from deploy.ts
 
   VersionManager versionManager;
@@ -123,25 +125,6 @@ contract EchidnaE2E {
     calls.push(call);
   }
 
-  // ******************** Helpers ********************
-
-
-  function methodSigBytes(bytes memory methodSig) internal returns (bytes4) {
-    return bytes4(keccak256(methodSig));
-  }
-  function addrToBytes(address addr) internal returns (bytes32) {
-    return bytes32(uint256(uint160(addr)));
-  }
-  function dSafeNumToBytes(uint256 dSafeNum) internal returns (bytes32) {
-    return addrToBytes(address(dSafes[dSafeNum % dSafes.length]));
-  }
-  function erc20NumToBytes(uint256 erc20Num) internal returns (bytes32) {
-    return addrToBytes(address(erc20s[erc20Num % erc20s.length]));
-  }
-  function erc721NumToBytes(uint256 erc721Num) internal returns (bytes32) {
-    return addrToBytes(address(erc721s[erc721Num % erc721s.length]));
-  }
-
   function erc20NumToAddress(uint256 erc20Num) internal returns (address) {
     return address(erc20s[erc20Num % erc20s.length]);
   }
@@ -154,94 +137,104 @@ contract EchidnaE2E {
     return address(dSafes[dSafeNum % dSafes.length]);
   }
 
+
   // ******************** Adding Calls ********************
 
-
   function addDepositERC20Call(address erc20, uint256 amount) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("depositERC20(address,uint256)", erc20, amount), 0));
+    calls.push(address(dos).getDepositERC20Call(erc20, amount));
   }
+
   function addDepositERC20CallLimited(uint256 erc20Num, uint256 amount) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("depositERC20(address,uint256)", erc20NumToAddress(erc20Num), amount), 0));
+    calls.push(address(dos).getDepositERC20Call(erc20NumToAddress(erc20Num), amount));
   }
 
   function addDepositERC721Call(address erc721, uint256 tokenId) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("depositERC721(address,uint256)", erc721, tokenId), 0));
+    calls.push(address(dos).getDepositERC721Call(erc721, tokenId));
   }
+
   function addDepositERC721CallLimited(uint256 erc721Num, uint256 tokenId) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("depositERC721(address,uint256)", erc721NumToAddress(erc721Num), tokenId), 0));
+    calls.push(address(dos).getDepositERC721Call(erc721NumToAddress(erc721Num), tokenId));
   }
 
   function addWithdrawERC20Call(address erc20, uint256 amount) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("withdrawERC20(address,uint256)", erc20, amount), 0));
+    calls.push(address(dos).getWithdrawERC20Call(erc20, amount));
   }
+
   function addWithdrawERC20CallLimited(uint256 erc20Num, uint256 amount) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("withdrawERC20(address,uint256)", erc20NumToAddress(erc20Num), amount), 0));
+    calls.push(address(dos).getWithdrawERC20Call(erc20NumToAddress(erc20Num), amount));
   }
 
   function addWithdrawERC721Call(address erc721, uint256 tokenId) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("withdrawERC721(address,uint256)", erc721, tokenId), 0));
+    calls.push(address(dos).getWithdrawERC721Call(erc721, tokenId));
   }
+
   function addWithdrawERC721CallLimited(uint256 erc721Num, uint256 tokenId) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("withdrawERC721(address,uint256)", erc721NumToAddress(erc721Num), tokenId), 0));
+    calls.push(address(dos).getWithdrawERC721Call(erc721NumToAddress(erc721Num), tokenId));
   }
 
   function addTransferERC20Call(address erc20, address to, uint256 amount) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("transferERC20(address,address,uint256)", erc20, to, amount), 0));
+    calls.push(address(dos).getTransferERC20Call(erc20, to, amount));
   }
+
   function addTransferERC20CallLimited(uint256 erc20Num, uint256 toNum, uint256 amount) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("transferERC20(address,address,uint256)", erc20NumToAddress(erc20Num), dSafeNumToAddress(toNum), amount), 0));
+    calls.push(address(dos).getTransferERC20Call(erc20NumToAddress(erc20Num), dSafeNumToAddress(toNum), amount));
   }
 
   function addTransferERC721Call(address erc721, uint256 tokenId, address to) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("transferERC721(address,uint256,address)", erc721, tokenId, to), 0));
+    calls.push(address(dos).getTransferERC721Call(erc721, tokenId, to));
   }
+
   function addTransferERC721CallLimited(uint256 erc721Num, uint256 tokenId, uint256 toNum) public {
-    calls.push(Call(address(dos),  abi.encodeWithSignature("transferERC721(address,uint256,address)", erc721NumToAddress(erc721Num), tokenId, dSafeNumToAddress(toNum)), 0));
+    calls.push(address(dos).getTransferERC721Call(erc721NumToAddress(erc721Num), tokenId, dSafeNumToAddress(toNum)));
   }
 
   function addTransferFromERC20Call(address erc20, address from, address to, uint256 amount) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("transferFromERC20(address,address,address,uint256)", erc20, from, to, amount), 0));
+    calls.push(address(dos).getTransferFromERC20Call(erc20, from, to, amount));
   }
+
   function addTransferFromERC20CallLimited(uint256 erc20Num, uint256 fromNum, uint256 toNum, uint256 amount) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("transferFromERC20(address,address,address,uint256)", erc20NumToAddress(erc20Num), dSafeNumToAddress(fromNum), dSafeNumToAddress(toNum), amount), 0));
+    calls.push(address(dos).getTransferFromERC20Call(erc20NumToAddress(erc20Num), dSafeNumToAddress(fromNum), dSafeNumToAddress(toNum), amount));
   }
 
   function addTransferFromERC721Call(address erc721, address from, address to, uint256 tokenId) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("transferFromERC721(address,address,address,uint256)", erc721, from, to, tokenId), 0));
+    calls.push(address(dos).getTransferFromERC721Call(erc721, from, to, tokenId));
   }
+
   function addTransferFromERC721CallLimited(uint256 erc721Num, uint256 fromNum, uint256 toNum, uint256 tokenId) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("transferFromERC721(address,address,address,uint256)", erc721NumToAddress(erc721Num), dSafeNumToAddress(fromNum), dSafeNumToAddress(toNum), tokenId), 0));
+    calls.push(address(dos).getTransferFromERC721Call(erc721NumToAddress(erc721Num), dSafeNumToAddress(fromNum), dSafeNumToAddress(toNum), tokenId));
+  
   }
 
   function addOnERC721ReceivedCall(address operator, address from, uint256 tokenId, bytes calldata data) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("onERC721Received(address,address,uint256,bytes)", operator, from, tokenId, data), 0));
+    calls.push(address(dos).getOnERC721ReceivedCall(operator, from, tokenId, data));
   }
+
   function addOnERC721ReceivedCallLimited(address operator, uint256 fromNum, uint256 tokenId, bytes calldata data) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("onERC721Received(address,address,uint256,bytes)", operator, dSafeNumToAddress(fromNum), tokenId, data), 0));
+    calls.push(address(dos).getOnERC721ReceivedCall(operator, dSafeNumToAddress(fromNum), tokenId, data));
   }
 
   function addDepositERC20ForSafeCall(address erc20, address to, uint256 amount) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("depositERC20ForSafe(address,address,uint256)", erc20, to, amount), 0));
+    calls.push(address(dos).getDepositERC20ForSafeCall(erc20, to, amount));
   }
+
   function addDepositERC20ForSafeCallLimited(uint256 erc20Num, uint256 toNum, uint256 amount) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("depositERC20ForSafe(address,address,uint256)", erc20NumToAddress(erc20Num), dSafeNumToAddress(toNum), amount), 0));
+    calls.push(address(dos).getDepositERC20ForSafeCall(erc20NumToAddress(erc20Num), dSafeNumToAddress(toNum), amount));
   }
 
   function addLiquidateCall(address dSafe) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("liquidate(address)", dSafe), 0));
+    calls.push(address(dos).getLiquidateCall(dSafe));
   }
+
   function addLiquidateCallLimited(uint256 dSafeNum) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("liquidate(address)", dSafeNumToAddress(dSafeNum)), 0));
+    calls.push(address(dos).getLiquidateCall(dSafeNumToAddress(dSafeNum)));
   }
 
   function addUpgradeDSafeImplementationCall(string calldata version) public {
-    uint256 numPaddingBytes = 32 - (bytes(version).length % 32);
-    if (numPaddingBytes == 32) numPaddingBytes = 0;
-    calls.push(Call(address(dos), abi.encodeWithSignature("upgradeDSafeImplementation(string)", version), 0));
+    calls.push(address(dos).getUpgradeDSafeImplementationCall(version));
   }
 
   function addTransferDSafeOwnershipCall(address newOwner) public {
-    calls.push(Call(address(dos), abi.encodeWithSignature("transferDSafeOwnership(address)", newOwner), 0));
+    calls.push(address(dos).getTransferDSafeOwnershipCall(newOwner));
   }
 
    function create_erc20(bool _weth, string memory name, string memory symbol, uint8 decimals, int256 price, uint256 baseRate, uint256 slope1, uint256 slope2, uint256 targetUtilization) internal returns (address token, MockERC20Oracle oracle) {
@@ -316,9 +309,9 @@ contract EchidnaE2E {
   function depositERC20_never_reverts(uint256 erc20Index, uint256 amount) public {
     uint256 index = erc20Index % erc20s.length;
     IERC20 erc20 = erc20s[index];
-    Call[] memory approveAndDeposit = new Call[](1);
-    approveAndDeposit[0] = Call(address(erc20), abi.encodeWithSignature("approve(address,uint256)", address(dos), amount),0);
-    approveAndDeposit[1] = Call(address(dos), bytes.concat(methodSigBytes("depositERC20(address,uint256)"),addrToBytes(address(erc20)),bytes32(amount)), 0);
+    Call[] memory approveAndDeposit = new Call[](2);
+    approveAndDeposit[0] = address(erc20).getApproveCall(address(dos), amount);
+    approveAndDeposit[1] = address(dos).getDepositERC20Call(address(erc20), amount);
 
     if (erc20.balanceOf(address(selectedProxy)) >= amount && amount > 0 && int256(amount) > 0) {
       try selectedProxy.executeBatch(approveAndDeposit) {} catch {
@@ -329,6 +322,24 @@ contract EchidnaE2E {
       assert(uint256(balance) == amount);
     }
   }
+
+  /* function depositERC20_withdrawERC20_never_reverts(uint256 erc20Index, uint256 amount) public {
+    uint256 index = erc20Index % erc20s.length;
+    IERC20 erc20 = erc20s[index];
+    Call[] memory depositAndWithdraw = new Call[](3);
+    depositAndWithdraw[0] = Call(address(erc20), abi.encodeWithSignature("approve(address,uint256)", address(dos), amount),0);
+    depositAndWithdraw[1] = address(dos).getDepositERC20Call(address(erc20), amount);
+    depositAndWithdraw[2] = address(dos).getWithdrawERC20Call(address(erc20), amount);
+
+    if (erc20.balanceOf(address(selectedProxy)) >= amount && amount > 0 && int256(amount) > 0) {
+      try selectedProxy.executeBatch(depositAndWithdraw) {} catch {
+        assert(false);
+      }
+      int256 balance = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
+      assert(balance > 0);
+      assert(uint256(balance) == amount);
+    }
+  } */
 
 }
 
