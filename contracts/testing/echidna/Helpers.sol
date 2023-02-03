@@ -2,6 +2,7 @@ pragma solidity ^0.8.17;
 
 import {DSafeProxy} from "../../dos/DSafeProxy.sol";
 import "../../lib/Call.sol";
+import "../../interfaces/IDOS.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
@@ -61,5 +62,21 @@ library Helpers {
 
   function getApproveCall(address receiver, address to, uint256 amount) internal pure returns (Call memory) {
     return Call(receiver, abi.encodeWithSignature("approve(address,uint256)", to, amount), 0);
+  }
+
+  function getDepositFullCall(address receiver, address[] memory erc20s) internal pure returns (Call memory) {
+    return Call(receiver, abi.encodeWithSignature("depositFull(address[])", erc20s), 0);
+  }
+
+  function getWithdrawFullCall(address receiver, address[] memory erc20s) internal pure returns (Call memory) {
+    return Call(receiver, abi.encodeWithSignature("withdrawFull(address[])", erc20s), 0);
+  }
+
+  function getApproveAndCallCall(address receiver, IDOSCore.Approval[] memory approvals, address spender, bytes calldata data) internal pure returns (Call memory) {
+    return Call(receiver, abi.encodeWithSignature("approveAndCall((address,uint256)[],address,bytes)", approvals, spender, data), 0);
+  }
+
+  function getExecuteBatchCall(address receiver, Call[] calldata calls) internal pure returns (Call memory) {
+    return Call(receiver, abi.encodeWithSignature("executeBatch((address,bytes,uint256)[])", calls), 0);
   }
 }

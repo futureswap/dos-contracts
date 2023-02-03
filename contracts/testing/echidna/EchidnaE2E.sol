@@ -38,8 +38,6 @@ contract EchidnaE2E {
   DSafeProxy  dSafe3;
   DSafeProxy  dSafe4;
 
-  // TODO give users some erc20s to work with
-
   constructor() public {
     versionManager = new VersionManager(address(this));
     dosConfig = new DOSConfig(address(this));
@@ -133,8 +131,25 @@ contract EchidnaE2E {
     return address(erc721s[erc721Num % erc721s.length]);
   }
 
+  function ercNumToAddress(uint256 ercNum) internal returns (address) {
+    uint256 modded = ercNum % (erc20s.length + erc721s.length);
+    if (modded < erc20s.length)
+      return erc20NumToAddress(modded);
+    else
+      return erc721NumToAddress(modded - erc20s.length);
+  }
+
   function dSafeNumToAddress(uint256 dSafeNum) internal returns (address) {
     return address(dSafes[dSafeNum % dSafes.length]);
+  }
+
+  struct LimitedApproval {
+    uint256 ercNum;
+    uint256 amountOrTokenId;
+  }
+
+  function limitedApprovalToApproval(LimitedApproval calldata limApproval) internal returns (IDOSCore.Approval memory approval) {
+    return IDOSCore.Approval(ercNumToAddress(limApproval.ercNum), limApproval.amountOrTokenId);
   }
 
 
@@ -237,15 +252,50 @@ contract EchidnaE2E {
     calls.push(address(dos).getTransferDSafeOwnershipCall(newOwner));
   }
 
-   function create_erc20(bool _weth, string memory name, string memory symbol, uint8 decimals, int256 price, uint256 baseRate, uint256 slope1, uint256 slope2, uint256 targetUtilization) internal returns (address token, MockERC20Oracle oracle) {
-      address token;
+  function addDepositFullCall(address[] calldata erc20Args) public {
+    calls.push(address(dos).getDepositFullCall(erc20Args));
+  }
 
+  function addDepositFullCallLimited(uint256[] calldata erc20Nums) public {
+    address[] memory erc20Args = new address[](erc20Nums.length);
+    for (uint256 i = 0; i < erc20Nums.length; i++)
+      erc20Args[i] = erc20NumToAddress(erc20Nums[i]);
+    calls.push(address(dos).getDepositFullCall(erc20Args));
+  }
+
+  function addWithdrawFullCall(address[] calldata erc20Args) public {
+    calls.push(address(dos).getWithdrawFullCall(erc20Args));
+  }
+
+  function addWithdrawFullCallLimited(uint256[] calldata erc20Nums) public {
+    address[] memory erc20Args = new address[](erc20Nums.length);
+    for (uint256 i = 0; i < erc20Nums.length; i++)
+      erc20Args[i] = erc20NumToAddress(erc20Nums[i]);
+    calls.push(address(dos).getWithdrawFullCall(erc20Args));
+  }
+
+  function addApproveAndCallCall(IDOSCore.Approval[] calldata approvals, address spender, bytes calldata data) public {
+    calls.push(address(dos).getApproveAndCallCall(approvals, spender, data));
+  }
+
+  function addApproveAndCallCallLimited(LimitedApproval[] calldata limApprovals, uint256 spenderNum, bytes calldata data) public {
+    IDOSCore.Approval[] memory approvals = new IDOSCore.Approval[](limApprovals.length);
+    for (uint256 i = 0; i < limApprovals.length; i++)
+      approvals[i] = limitedApprovalToApproval(limApprovals[i]);
+    calls.push(address(dos).getApproveAndCallCall(approvals, dSafeNumToAddress(spenderNum), data));
+  }
+
+  function addExecuteBatchCall(Call[] calldata callsArg) public {
+    calls.push(address(dos).getExecuteBatchCall(callsArg));
+  }
+
+  function create_erc20(bool _weth, string memory name, string memory symbol, uint8 decimals, int256 price, uint256 baseRate, uint256 slope1, uint256 slope2, uint256 targetUtilization) internal returns (address token, MockERC20Oracle oracle) {
       if (_weth) {
         token = address(new WETH9());
       } else {
         token = address(new TestERC20(name, symbol, decimals));
       }
-      MockERC20Oracle oracle = new MockERC20Oracle(address(this));
+      oracle = new MockERC20Oracle(address(this));
 
       oracle.setPrice(price, 6, uint256(decimals));
 
@@ -265,7 +315,7 @@ contract EchidnaE2E {
   }
 
   function create_erc721(string memory name, string memory symbol, uint256 startId, address oracle) internal returns (TestNFT nft) {
-    TestNFT nft = new TestNFT(name, symbol, startId);
+    nft = new TestNFT(name, symbol, startId);
 
     erc721s.push(nft);
     IDOS(address(dos)).addERC721Info(address(nft), oracle);
@@ -274,9 +324,7 @@ contract EchidnaE2E {
   // we leave out the onlyGovernance functions, since modifer onlyGovernance() is pretty airtight
   // and we check that immutableGovernance hasn't changed in EchidnaDOS.invariant()
 
-  // TODO depositFull, withdrawFull, executeBatch, approveAndCall
-  // TODO maybe add uni
-  // TODO make it so new erc20s and erc721s can be created at runtime
+  // TODO maybe add univ3
   // TODO ability to change the price of an erc20 or erc721
 
 
