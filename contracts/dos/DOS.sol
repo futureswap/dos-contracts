@@ -53,6 +53,12 @@ error DSafeNonExistent();
 error Insolvent();
 /// @notice The address is not a registered ERC20
 error NotERC20();
+/// @notice The implementation is not a contract
+error InvalidImplementation();
+/// @notice The version is deprecated
+error DeprecatedVersion();
+/// @notice The bug level is too high
+error BugLevelTooHigh();
 
 // ERC20 standard token
 // ERC721 single non-fungible token support
@@ -1002,8 +1008,15 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
             address implementation,
 
         ) = versionManager.getVersionDetails(version);
-        require(status != IVersionManager.Status.DEPRECATED, "Version is deprecated");
-        require(bugLevel == IVersionManager.BugLevel.NONE, "Version has bugs");
+        if (implementation == address(0) || !implementation.isContract()) {
+            revert InvalidImplementation();
+        }
+        if (status == IVersionManager.Status.DEPRECATED) {
+            revert DeprecatedVersion();
+        }
+        if (bugLevel != IVersionManager.BugLevel.NONE) {
+            revert BugLevelTooHigh();
+        }
         dSafeLogic[msg.sender] = implementation;
         emit IDOSConfig.DSafeImplementationUpgraded(msg.sender, version, implementation);
     }
