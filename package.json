@@ -31,7 +31,7 @@
     "deploy-local": "cd ./subgraph && graph deploy --ipfs http://127.0.0.1:5001 --node http://127.0.0.1:8020 DOS",
     "clean-workspace": "yarn run hardhat run scripts/resetEtheralWorkspace.ts --network localhost",
     "echidna-e2e": "echidna-test . --contract EchidnaE2E --config echidna.yaml",
-    "echidna-math": "echidna-test . --contract EchidnaMathTest --config echidna-math.yaml"
+    "echidna-math": "echidna-test . --contract EchidnaMathTests --config echidna-math.yaml"
   },
   "dependencies": {
     "@chainlink/contracts": "^0.5.1",
