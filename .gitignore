@@ -17,6 +17,12 @@ yarn-error.log
 forge-cache
 out/
 
+# macOS
+.DS_Store
+
+# VScode
+.vscode
+
 # Ignores development broadcast logs
 !/broadcast
 /broadcast/*/31337/
@@ -26,3 +32,7 @@ out/
 .env
 # Matchstick
 ./path/to/subgraph/tests/.*
+
+# Echidna
+corpus/
+crytic-export/

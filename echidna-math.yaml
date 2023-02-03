@@ -1,0 +1,9 @@
+testMode: "assertion"
+corpusDir: "corpus"
+# codeSize: 0x600000 # = 6,291,456
+
+propMaxGas: 12500000
+testMaxGas: 12500000
+
+multi-abi: false
+testLimit: 500000
