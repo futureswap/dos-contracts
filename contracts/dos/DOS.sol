@@ -136,7 +136,7 @@ library DSafeLib {
         dSafe.dAccountErc20Idxs[erc20Idx >> 8] &= ~(1 << (erc20Idx & 255));
     }
 
-    function accERC20IdxToDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
+    function addERC20IdxToDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
         dSafe.dAccountErc20Idxs[erc20Idx >> 8] |= (1 << (erc20Idx & 255));
     }
 
@@ -318,6 +318,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     using DSafeLib for ERC20Pool;
     using SafeERC20 for IERC20;
     using Address for address;
+
+    uint256 constant POOL_ASSETS_CUTOFF = 100; // Wei amounts to prevent division by zero
 
     address immutable dosConfigAddress;
 
@@ -743,7 +745,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
 
         uint256 ir = erc20Info.baseRate;
         uint256 utilization; // utilization of the pool
-        if (poolAssets == 0)
+        if (poolAssets <= POOL_ASSETS_CUTOFF)
             utilization = 0; // if there are no assets, utilization is 0
         else utilization = uint256((debt * 1e18) / ((collateral - debt) / leverage));
 
@@ -901,7 +903,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         if (amount == 0) {
             dSafe.removeERC20IdxFromDAccount(erc20Idx);
         } else {
-            dSafe.accERC20IdxToDAccount(erc20Idx);
+            dSafe.addERC20IdxToDAccount(erc20Idx);
         }
         ERC20Info storage erc20Info = erc20Infos[erc20Idx];
         ERC20Pool storage pool = amount > 0 ? erc20Info.collateral : erc20Info.debt;
