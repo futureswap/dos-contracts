@@ -39,7 +39,7 @@ contract EchidnaMathTests {
     function testSqrt(int256 xa, int256 xb) public {
         int256 x = xa*FsMath.FIXED_POINT_SCALE+xb;
         require(x >= 0, "Must be positive");
-        require(x <= 100*FsMath.FIXED_POINT_SCALE, "Too big");
+        require(x <= 100*FsMath.FIXED_POINT_SCALE, "Too big (will loop for too long)");
         int256 result = FsMath.sqrt(x);
 
         assert(result >= 0);
