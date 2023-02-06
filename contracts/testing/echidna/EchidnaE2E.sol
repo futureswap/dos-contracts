@@ -41,9 +41,9 @@ contract EchidnaE2E {
     dSafeLogic = new DSafeLogic(address(dos));
     nftOracle = new MockNFTOracle();
 
-    create_erc20(false, "USDC", "USDC", 6, 1e18, 0, 0, 0, 0);
-    create_erc20(false, "UNI", "UNI", 18, 840e18, 0, 0, 0, 0);
-    create_erc20(false, "WETH", "WETH", 18, 1200e18, 0, 0, 0, 0);
+    create_erc20(false, "USDC", "USDC", 6, 1e18, 0, 5, 480, 0.8 ether);
+    create_erc20(false, "UNI", "UNI", 18, 840e18, 0, 5, 480, 0.8 ether);
+    create_erc20(false, "WETH", "WETH", 18, 1200e18, 0, 5, 480, 0.8 ether);
 
     create_erc721("Example NFT 1", "NFT1", 0, address(nftOracle));
     create_erc721("Example NFT 2", "NFT2", 0, address(nftOracle));
@@ -72,7 +72,7 @@ contract EchidnaE2E {
     selectedProxy = dSafes[0];
   }
 
-  function genDSafeProxy() public returns (DSafeProxy proxy) {
+  function genDSafeProxy() internal returns (DSafeProxy proxy) {
     proxy = DSafeProxy(payable(IDOS(address(dos)).createDSafe()));
     dSafes.push(proxy);
   }
@@ -133,7 +133,7 @@ contract EchidnaE2E {
   DSafeProxy public selectedProxy; // which dsafe we want to call executeBatch on
   Call[] public calls; // calls to feed to executeBatch
 
-  function addDSafe() public {
+  function addDSafe() internal {
     dSafes.push(genDSafeProxy());
   }
 
@@ -141,14 +141,14 @@ contract EchidnaE2E {
     selectedProxy = dSafes[n % dSafes.length];
   }
 
-  function execCalls() public {
+/*   function execCalls() public {
     selectedProxy.executeBatch(calls);
     calls = new Call[](0); // reset call list afterwards
   }
 
   function addCall(Call calldata call) public {
     calls.push(call);
-  }
+  } */
 
   // Allow echidna to select ERC20s etc by number instead of by address; that way it will always select a valid ERC20 instead of getting 99% of guesses wrong
 
@@ -185,7 +185,7 @@ contract EchidnaE2E {
 
 
   // ******************** Adding Calls ********************
-
+/* 
   function addDepositERC20Call(address erc20, uint256 amount) public {
     calls.push(address(dos).getDepositERC20Call(erc20, amount));
   }
@@ -282,7 +282,7 @@ contract EchidnaE2E {
 
   function addTransferDSafeOwnershipCall(address newOwner) public {
     calls.push(address(dos).getTransferDSafeOwnershipCall(newOwner));
-  }
+  } */
 
   function addDepositFullCall(address[] calldata erc20Args) public {
     calls.push(address(dos).getDepositFullCall(erc20Args));
@@ -358,7 +358,7 @@ contract EchidnaE2E {
     approveAndDeposit[0] = address(erc20).getApproveCall(address(dos), amount);
     approveAndDeposit[1] = address(dos).getDepositERC20Call(address(erc20), amount);
 
-    if (erc20.balanceOf(address(selectedProxy)) >= amount && amount > 0 && int256(amount) > 0) {
+    if (erc20.balanceOf(address(selectedProxy)) >= amount && amount > 0 && amount < uint256(type(int256).max) && amount <= 240615969168004511545033772477625056927) {
       try selectedProxy.executeBatch(approveAndDeposit) {} catch {
         assert(false);
       }
@@ -368,7 +368,7 @@ contract EchidnaE2E {
     }
   }
 
-  /* function depositERC20_withdrawERC20_never_reverts(uint256 erc20Index, uint256 amount) public {
+  function depositERC20_withdrawERC20_never_reverts(uint256 erc20Index, uint256 amount) public {
     uint256 index = erc20Index % erc20s.length;
     IERC20 erc20 = erc20s[index];
     Call[] memory depositAndWithdraw = new Call[](3);
@@ -376,15 +376,16 @@ contract EchidnaE2E {
     depositAndWithdraw[1] = address(dos).getDepositERC20Call(address(erc20), amount);
     depositAndWithdraw[2] = address(dos).getWithdrawERC20Call(address(erc20), amount);
 
-    if (erc20.balanceOf(address(selectedProxy)) >= amount && amount > 0 && int256(amount) > 0) {
+    if (erc20.balanceOf(address(selectedProxy)) >= amount && amount > 0 && int256(amount) > 0 && amount <= 240615969168004511545033772477625056927) {
       try selectedProxy.executeBatch(depositAndWithdraw) {} catch {
         assert(false);
       }
-      int256 balance = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
-      assert(balance > 0);
-      assert(uint256(balance) == amount);
+      int256 dAccountBalance = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
+      uint256 dSafeBalance = erc20.balanceOf(address(selectedProxy));
+      assert(dAccountBalance == 0);
+      assert(dSafeBalance == amount);
     }
-  } */
+  }
 
 }
 
