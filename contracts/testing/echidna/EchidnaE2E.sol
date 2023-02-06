@@ -21,7 +21,6 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract EchidnaE2E {
   using Helpers for address;
-  // most of the setup here copied from deploy.ts
 
   VersionManager versionManager;
   DOSConfig dosConfig;
@@ -29,15 +28,12 @@ contract EchidnaE2E {
   DSafeLogic dSafeLogic;
   MockNFTOracle nftOracle;
 
+  DSafeProxy[] dSafes;
   IERC20[] erc20s;
   IERC721[] erc721s;
 
-  // some dSafes for echidna to work with; more can be created at will with addProxy, but echidna seems to have a hard time calling those directly, since they're in a list instead of a member variable
-  DSafeProxy  dSafe1;
-  DSafeProxy  dSafe2;
-  DSafeProxy  dSafe3;
-  DSafeProxy  dSafe4;
-
+  // Set up a DOS contracts and some dsafes and erc20s/erc721s for echidna to work with
+  // Most of the setup here copied from /lib/deploy.ts
   constructor() public {
     versionManager = new VersionManager(address(this));
     dosConfig = new DOSConfig(address(this));
@@ -56,7 +52,7 @@ contract EchidnaE2E {
     nftOracle.setCollateralFactor(5e17); // toWei(.5)
 
     IDOS(address(dos)).setConfig(IDOSConfig.Config(
-      /* treasurySafe: */ address(this), // todo: update to a dWallet address
+      /* treasurySafe: */ address(this),
       /* treasuryInterestFraction: */ 5e16, // toWei(0.05),
       /* maxSolvencyCheckGasCost: */ 1e6,
       /* liqFraction: */ 8e17, // toWei(0.8),
@@ -81,6 +77,39 @@ contract EchidnaE2E {
     dSafes.push(proxy);
   }
 
+  function create_erc20(bool _weth, string memory name, string memory symbol, uint8 decimals, int256 price, uint256 baseRate, uint256 slope1, uint256 slope2, uint256 targetUtilization) internal returns (address token, MockERC20Oracle oracle) {
+      if (_weth) {
+        token = address(new WETH9());
+      } else {
+        token = address(new TestERC20(name, symbol, decimals));
+      }
+      oracle = new MockERC20Oracle(address(this));
+
+      oracle.setPrice(price, 6, uint256(decimals));
+
+      erc20s.push(IERC20(token));
+
+      IDOS(address(dos)).addERC20Info(
+      token,
+      name,
+      symbol,
+      decimals,
+      address(oracle),
+      baseRate,
+      slope1,
+      slope2,
+      targetUtilization
+    );
+  }
+
+  function create_erc721(string memory name, string memory symbol, uint256 startId, address oracle) internal returns (TestNFT nft) {
+    nft = new TestNFT(name, symbol, startId);
+
+    erc721s.push(nft);
+    IDOS(address(dos)).addERC721Info(address(nft), oracle);
+  }
+
+  // echidna can call this any time to try to get this assert to fail
   function verifyDOS() public {
     assert(dos.invariant());
   }
@@ -98,12 +127,10 @@ contract EchidnaE2E {
     dos.depositERC721(address(nft), tokenId);
   }
 
-  // setup to make it easier for echidna to call executeBatch
-  // function calls to make and select dSafes, to add calls to a list, and then call executeBatch with those calls
-  // eventually we'll add functions to add deposit and withdraw calls to the list
+  // Setup to make it easier for echidna to call DSafeProxy.executeBatch
+  // There are function calls to make and select dSafes, to add calls to a list, and then call executeBatch with those calls
 
-  DSafeProxy[] public dSafes; // dSafes we've made
-  DSafeProxy public selectedProxy; // which one we want to call executeBatch with
+  DSafeProxy public selectedProxy; // which dsafe we want to call executeBatch on
   Call[] public calls; // calls to feed to executeBatch
 
   function addDSafe() public {
@@ -123,6 +150,8 @@ contract EchidnaE2E {
     calls.push(call);
   }
 
+  // Allow echidna to select ERC20s etc by number instead of by address; that way it will always select a valid ERC20 instead of getting 99% of guesses wrong
+
   function erc20NumToAddress(uint256 erc20Num) internal returns (address) {
     return address(erc20s[erc20Num % erc20s.length]);
   }
@@ -131,6 +160,7 @@ contract EchidnaE2E {
     return address(erc721s[erc721Num % erc721s.length]);
   }
 
+  // erc20 or erc721
   function ercNumToAddress(uint256 ercNum) internal returns (address) {
     uint256 modded = ercNum % (erc20s.length + erc721s.length);
     if (modded < erc20s.length)
@@ -143,6 +173,7 @@ contract EchidnaE2E {
     return address(dSafes[dSafeNum % dSafes.length]);
   }
 
+  // struct Approval but ercNum instead of erc address
   struct LimitedApproval {
     uint256 ercNum;
     uint256 amountOrTokenId;
@@ -159,6 +190,7 @@ contract EchidnaE2E {
     calls.push(address(dos).getDepositERC20Call(erc20, amount));
   }
 
+  // "limited": select erc20 by number instead of address; can only pick from the list of existing erc20s instead of any arbitrary address
   function addDepositERC20CallLimited(uint256 erc20Num, uint256 amount) public {
     calls.push(address(dos).getDepositERC20Call(erc20NumToAddress(erc20Num), amount));
   }
@@ -289,43 +321,8 @@ contract EchidnaE2E {
     calls.push(address(dos).getExecuteBatchCall(callsArg));
   }
 
-  function create_erc20(bool _weth, string memory name, string memory symbol, uint8 decimals, int256 price, uint256 baseRate, uint256 slope1, uint256 slope2, uint256 targetUtilization) internal returns (address token, MockERC20Oracle oracle) {
-      if (_weth) {
-        token = address(new WETH9());
-      } else {
-        token = address(new TestERC20(name, symbol, decimals));
-      }
-      oracle = new MockERC20Oracle(address(this));
-
-      oracle.setPrice(price, 6, uint256(decimals));
-
-      erc20s.push(IERC20(token));
-
-      IDOS(address(dos)).addERC20Info(
-      token,
-      name,
-      symbol,
-      decimals,
-      address(oracle),
-      baseRate,
-      slope1,
-      slope2,
-      targetUtilization
-    );
-  }
-
-  function create_erc721(string memory name, string memory symbol, uint256 startId, address oracle) internal returns (TestNFT nft) {
-    nft = new TestNFT(name, symbol, startId);
-
-    erc721s.push(nft);
-    IDOS(address(dos)).addERC721Info(address(nft), oracle);
-  }
-
   // we leave out the onlyGovernance functions, since modifer onlyGovernance() is pretty airtight
   // and we check that immutableGovernance hasn't changed in EchidnaDOS.invariant()
-
-  // TODO maybe add univ3
-  // TODO ability to change the price of an erc20 or erc721
 
 
   // ******************** Check Proper System Deployment ********************
@@ -391,8 +388,13 @@ contract EchidnaE2E {
 
 }
 
+// We make our own subclass of DOS so that we can
+// look at private variables while checking invariants.
+// This contract is used instead of DOS in EchidnaE2E.
+// Aside from the invariant check, EchidnaDOS behaves the same as DOS.
 contract EchidnaDOS is DOS {
   constructor(address _dosConfig, address _versionManager) DOS(_dosConfig, _versionManager) {}
+
   function invariant() public returns (bool) {
 
     // check 1: governance hasn't changed
@@ -426,4 +428,4 @@ contract EchidnaDOS is DOS {
   }
 }
 
-// can add more of these contracts if you want invariants on more contracts
+// can add more of these subclass contracts if you want invariants on other contracts
