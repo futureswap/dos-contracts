@@ -141,6 +141,8 @@ contract EchidnaE2E {
     }
 
     function depositERC20_never_reverts(uint256 erc20Index, uint256 amount) public {
+        require(dos.getDSafeOwner(address(selectedProxy)) == address(this), "Ownership has already been transferred, so we expect it to revert");
+
         uint256 index = erc20Index % erc20s.length;
         IERC20 erc20 = erc20s[index];
         Call[] memory approveAndDeposit = new Call[](2);
@@ -148,16 +150,19 @@ contract EchidnaE2E {
         approveAndDeposit[1] = address(dos).getDepositERC20Call(address(erc20), amount);
 
         if (erc20.balanceOf(address(selectedProxy)) >= amount && amount > 0 && amount < uint256(type(int256).max) && amount <= 240615969168004511545033772477625056927) {
+            int256 balanceBefore = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
             try selectedProxy.executeBatch(approveAndDeposit) {} catch {
                 assert(false);
             }
-            int256 balance = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
-            assert(balance > 0);
-            assert(uint256(balance) == amount);
+            int256 balanceAfter = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
+            assert(balanceAfter - balanceBefore > 0);
+            assert(uint256(balanceAfter - balanceBefore) == amount);
         }
     }
 
     function depositERC20_withdrawERC20_never_reverts(uint256 erc20Index, uint256 amount) public {
+        require(dos.getDSafeOwner(address(selectedProxy)) == address(this), "Ownership has already been transferred, so we expect it to revert");
+
         uint256 index = erc20Index % erc20s.length;
         IERC20 erc20 = erc20s[index];
         Call[] memory depositAndWithdraw = new Call[](3);
@@ -166,13 +171,15 @@ contract EchidnaE2E {
         depositAndWithdraw[2] = address(dos).getWithdrawERC20Call(address(erc20), amount);
 
         if (erc20.balanceOf(address(selectedProxy)) >= amount && amount > 0 && int256(amount) > 0 && amount <= 240615969168004511545033772477625056927) {
+            int256 dAccountBalanceBefore = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
+            uint256 dSafeBalanceBefore = erc20.balanceOf(address(selectedProxy));
             try selectedProxy.executeBatch(depositAndWithdraw) {} catch {
                 assert(false);
             }
-            int256 dAccountBalance = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
-            uint256 dSafeBalance = erc20.balanceOf(address(selectedProxy));
-            assert(dAccountBalance == 0);
-            assert(dSafeBalance == amount);
+            int256 dAccountBalanceAfter = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
+            uint256 dSafeBalanceAfter = erc20.balanceOf(address(selectedProxy));
+            assert(dAccountBalanceAfter - dAccountBalanceBefore == 0);
+            assert(dSafeBalanceAfter - dSafeBalanceBefore == 0);
         }
     }
 
@@ -205,6 +212,7 @@ contract EchidnaE2E {
         selectedProxy = dSafes[n % dSafes.length];
     }
 
+    // Sometimes fails echidna tests; this is because asserts are sometimes used for input validation in DOS
     function execCalls() public {
         selectedProxy.executeBatch(calls);
         calls = new Call[](0); // reset call list afterwards
