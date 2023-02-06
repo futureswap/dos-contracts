@@ -109,10 +109,74 @@ contract EchidnaE2E {
         IDOS(address(dos)).addERC721Info(address(nft), oracle);
     }
 
+    // ******************** Check Proper System Deployment ********************
+
+    function check_proper_deployment() public {
+        for(uint256 i; i < erc20s.length; i++) {
+            (address tokenAddress,,,,,,,,) = dos.erc20Infos(i);
+
+            assert(address(erc20s[i]) != address(0));
+            assert(address(erc20s[i]) == tokenAddress);
+        }
+
+        for(uint256 i; i < erc721s.length; i++) {
+            (address tokenAddress,) = dos.erc721Infos(i);
+
+            assert(address(erc721s[i]) != address(0));
+            assert(address(erc721s[i]) == tokenAddress);
+        }
+
+        for (uint256 i; i < dSafes.length; i++) {
+            assert(address(dSafes[i]) != address(0));
+        }
+
+        assert(address(dos) != address(0));
+    }
+
+    // ******************** Simple invariants ********************
+
     // echidna can call this any time to try to get this assert to fail
     function verifyDOS() public {
         assert(dos.invariant());
     }
+
+    function depositERC20_never_reverts(uint256 erc20Index, uint256 amount) public {
+        uint256 index = erc20Index % erc20s.length;
+        IERC20 erc20 = erc20s[index];
+        Call[] memory approveAndDeposit = new Call[](2);
+        approveAndDeposit[0] = address(erc20).getApproveCall(address(dos), amount);
+        approveAndDeposit[1] = address(dos).getDepositERC20Call(address(erc20), amount);
+
+        if (erc20.balanceOf(address(selectedProxy)) >= amount && amount > 0 && amount < uint256(type(int256).max) && amount <= 240615969168004511545033772477625056927) {
+            try selectedProxy.executeBatch(approveAndDeposit) {} catch {
+                assert(false);
+            }
+            int256 balance = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
+            assert(balance > 0);
+            assert(uint256(balance) == amount);
+        }
+    }
+
+    function depositERC20_withdrawERC20_never_reverts(uint256 erc20Index, uint256 amount) public {
+        uint256 index = erc20Index % erc20s.length;
+        IERC20 erc20 = erc20s[index];
+        Call[] memory depositAndWithdraw = new Call[](3);
+        depositAndWithdraw[0] = Call(address(erc20), abi.encodeWithSignature("approve(address,uint256)", address(dos), amount),0);
+        depositAndWithdraw[1] = address(dos).getDepositERC20Call(address(erc20), amount);
+        depositAndWithdraw[2] = address(dos).getWithdrawERC20Call(address(erc20), amount);
+
+        if (erc20.balanceOf(address(selectedProxy)) >= amount && amount > 0 && int256(amount) > 0 && amount <= 240615969168004511545033772477625056927) {
+            try selectedProxy.executeBatch(depositAndWithdraw) {} catch {
+                assert(false);
+            }
+            int256 dAccountBalance = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
+            uint256 dSafeBalance = erc20.balanceOf(address(selectedProxy));
+            assert(dAccountBalance == 0);
+            assert(dSafeBalance == amount);
+        }
+    }
+
+    // **************** Echidna-friendly calls *********************
 
     function mintERC20(uint256 dSafeNum, uint256 erc20Num, uint256 amount) public {
         TestERC20(address(erc20s[erc20Num % erc20s.length])).mint(address(dSafes[dSafeNum % dSafes.length]), amount);
@@ -141,14 +205,14 @@ contract EchidnaE2E {
         selectedProxy = dSafes[n % dSafes.length];
     }
 
-/*   function execCalls() public {
+    function execCalls() public {
         selectedProxy.executeBatch(calls);
         calls = new Call[](0); // reset call list afterwards
     }
 
     function addCall(Call calldata call) public {
         calls.push(call);
-    } */
+    }
 
     // Allow echidna to select ERC20s etc by number instead of by address; that way it will always select a valid ERC20 instead of getting 99% of guesses wrong
 
@@ -185,7 +249,7 @@ contract EchidnaE2E {
 
 
     // ******************** Adding Calls ********************
-/*
+
     function addDepositERC20Call(address erc20, uint256 amount) public {
         calls.push(address(dos).getDepositERC20Call(erc20, amount));
     }
@@ -282,7 +346,7 @@ contract EchidnaE2E {
 
     function addTransferDSafeOwnershipCall(address newOwner) public {
         calls.push(address(dos).getTransferDSafeOwnershipCall(newOwner));
-    } */
+    }
 
     function addDepositFullCall(address[] calldata erc20Args) public {
         calls.push(address(dos).getDepositFullCall(erc20Args));
@@ -323,69 +387,6 @@ contract EchidnaE2E {
 
     // we leave out the onlyGovernance functions, since modifer onlyGovernance() is pretty airtight
     // and we check that immutableGovernance hasn't changed in EchidnaDOS.invariant()
-
-
-    // ******************** Check Proper System Deployment ********************
-
-    function check_proper_deployment() public {
-        for(uint256 i; i < erc20s.length; i++) {
-            (address tokenAddress,,,,,,,,) = dos.erc20Infos(i);
-
-            assert(address(erc20s[i]) != address(0));
-            assert(address(erc20s[i]) == tokenAddress);
-        }
-
-        for(uint256 i; i < erc721s.length; i++) {
-            (address tokenAddress,) = dos.erc721Infos(i);
-
-            assert(address(erc721s[i]) != address(0));
-            assert(address(erc721s[i]) == tokenAddress);
-        }
-
-        for (uint256 i; i < dSafes.length; i++) {
-            assert(address(dSafes[i]) != address(0));
-        }
-
-        assert(address(dos) != address(0));
-    }
-
-    // ******************** Simple invariants ********************
-
-    function depositERC20_never_reverts(uint256 erc20Index, uint256 amount) public {
-        uint256 index = erc20Index % erc20s.length;
-        IERC20 erc20 = erc20s[index];
-        Call[] memory approveAndDeposit = new Call[](2);
-        approveAndDeposit[0] = address(erc20).getApproveCall(address(dos), amount);
-        approveAndDeposit[1] = address(dos).getDepositERC20Call(address(erc20), amount);
-
-        if (erc20.balanceOf(address(selectedProxy)) >= amount && amount > 0 && amount < uint256(type(int256).max) && amount <= 240615969168004511545033772477625056927) {
-            try selectedProxy.executeBatch(approveAndDeposit) {} catch {
-                assert(false);
-            }
-            int256 balance = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
-            assert(balance > 0);
-            assert(uint256(balance) == amount);
-        }
-    }
-
-    function depositERC20_withdrawERC20_never_reverts(uint256 erc20Index, uint256 amount) public {
-        uint256 index = erc20Index % erc20s.length;
-        IERC20 erc20 = erc20s[index];
-        Call[] memory depositAndWithdraw = new Call[](3);
-        depositAndWithdraw[0] = Call(address(erc20), abi.encodeWithSignature("approve(address,uint256)", address(dos), amount),0);
-        depositAndWithdraw[1] = address(dos).getDepositERC20Call(address(erc20), amount);
-        depositAndWithdraw[2] = address(dos).getWithdrawERC20Call(address(erc20), amount);
-
-        if (erc20.balanceOf(address(selectedProxy)) >= amount && amount > 0 && int256(amount) > 0 && amount <= 240615969168004511545033772477625056927) {
-            try selectedProxy.executeBatch(depositAndWithdraw) {} catch {
-                assert(false);
-            }
-            int256 dAccountBalance = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
-            uint256 dSafeBalance = erc20.balanceOf(address(selectedProxy));
-            assert(dAccountBalance == 0);
-            assert(dSafeBalance == amount);
-        }
-    }
 
 }
 
