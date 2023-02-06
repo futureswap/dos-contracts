@@ -20,6 +20,8 @@ import "../lib/Call.sol";
 import "../lib/ImmutableGovernance.sol";
 import {IERC1363SpenderExtended, IERC1363ReceiverExtended} from "../interfaces/IERC1363-extended.sol";
 
+import "hardhat/console.sol";
+
 /// @notice Sender is not approved to spend dSafe erc20
 error NotApprovedOrOwner();
 /// @notice Sender is not the owner of the dSafe;
@@ -219,6 +221,15 @@ library DSafeLib {
         int256 shares = ERC20Share.unwrap(sharesWrapped);
         if (shares == 0) return 0;
         FsUtils.Assert(pool.shares != 0);
+        console.log("computeERC20");
+        console.log("pool.tokens");
+        console.logInt(pool.tokens);
+        console.log("shares");
+        console.logInt(shares);
+        console.log("pool.shares");
+        console.logInt(pool.shares);
+        console.log("pool.tokens * shares / pool.shares");
+        console.logInt((pool.tokens * shares) / pool.shares);
         return (pool.tokens * shares) / pool.shares;
     }
 }
@@ -813,7 +824,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
 
         try IERC1363SpenderExtended(spender).onApprovalReceived(msg.sender, amount, call) returns (
             bytes4 retval
-        ) {
+        ) {/*  */
             return retval == IERC1363SpenderExtended.onApprovalReceived.selector;
         } catch (bytes memory reason) {
             if (reason.length == 0) {
