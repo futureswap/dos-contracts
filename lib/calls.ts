@@ -591,3 +591,11 @@ export async function getMaximumWithdrawableOfERC20(dos: DOS, erc20: string): Pr
   const remainingERC20ToBorrow = borrowable.add(totalDebt);
   return remainingERC20ToBorrow;
 }
+
+export async function proposeTransferDSafeOwnership(
+  dos: IDOS,
+  dSafe: DSafeLogic,
+  newOwner: string,
+): Promise<ContractTransaction> {
+  return await dSafe.executeBatch([makeCall(dos).proposeTransferDSafeOwnership(newOwner)]);
+}

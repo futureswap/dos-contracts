@@ -53,6 +53,10 @@ error DSafeNonExistent();
 error Insolvent();
 /// @notice The address is not a registered ERC20
 error NotERC20();
+/// @notice `newOwner` is not the proposed new owner
+/// @param proposedOwner The address of the proposed new owner
+/// @param newOwner The address of the attempted new owner
+error InvalidNewOwner(address proposedOwner, address newOwner);
 
 // ERC20 standard token
 // ERC721 single non-fungible token support
@@ -232,6 +236,10 @@ contract DOSState is Pausable {
     IVersionManager public versionManager;
     /// @notice mapping between dSafe address and DOS-specific dSafe data
     mapping(address => DSafeLib.DSafe) public dSafes;
+
+    /// @notice mapping between dSafe address and the proposed new owner
+    /// @dev `proposedNewOwner` is address(0) when there is no pending change
+    mapping(address => address) public dSafeProposedNewOwner;
 
     /// @notice mapping between dSafe address and an instance of deployed dSafeLogic contract.
     /// It means that this specific dSafeLogic version is setup to operate the dSafe.
@@ -1006,11 +1014,28 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         emit IDOSConfig.DSafeImplementationUpgraded(msg.sender, version, implementation);
     }
 
-    /// @notice transfers the ownership of the `dSafe` to the `newOwner`
+    /// @notice Proposes the ownership transfer of `dSafe` to the `newOwner`
+    /// @dev The ownership transfer must be executed by the `newOwner` to complete the transfer
+    /// @dev emits `DSafeOwnershipTransferProposed` event
     /// @param newOwner The new owner of the `dSafe`
-    function transferDSafeOwnership(address newOwner) external override onlyDSafe whenNotPaused {
-        dSafes[msg.sender].owner = newOwner;
-        emit IDOSConfig.DSafeOwnershipTransferred(msg.sender, newOwner);
+    function proposeTransferDSafeOwnership(
+        address newOwner
+    ) external override onlyDSafe whenNotPaused {
+        dSafeProposedNewOwner[msg.sender] = newOwner;
+        emit IDOSConfig.DSafeOwnershipTransferProposed(msg.sender, newOwner);
+    }
+
+    /// @notice Executes the ownership transfer of `dSafe` to the `newOwner`
+    /// @dev The caller must be the `newOwner` and the `newOwner` must be the proposed new owner
+    /// @dev emits `DSafeOwnershipTransferred` event
+    /// @param dSafe The address of the dSafe
+    function executeTransferDSafeOwnership(address dSafe) external override whenNotPaused {
+        if (msg.sender != dSafeProposedNewOwner[dSafe]) {
+            revert InvalidNewOwner(dSafeProposedNewOwner[dSafe], msg.sender);
+        }
+        dSafes[dSafe].owner = msg.sender;
+        delete dSafeProposedNewOwner[dSafe];
+        emit IDOSConfig.DSafeOwnershipTransferred(dSafe, msg.sender);
     }
 
     /// @notice Pause the contract
