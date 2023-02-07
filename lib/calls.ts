@@ -592,6 +592,15 @@ export async function getMaximumWithdrawableOfERC20(dos: DOS, erc20: string): Pr
   return remainingERC20ToBorrow;
 }
 
+export async function upgradeDSafeImplementation(
+  dos: IDOS,
+  dSafe: DSafeLogic,
+  version: string,
+): Promise<void> {
+  const upgradeTx = await dSafe.executeBatch([makeCall(dos).upgradeDSafeImplementation(version)]);
+  await upgradeTx.wait();
+}
+
 export async function proposeTransferDSafeOwnership(
   dos: IDOS,
   dSafe: DSafeLogic,
