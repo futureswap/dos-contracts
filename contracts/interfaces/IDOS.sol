@@ -36,6 +36,14 @@ interface IDOSConfig {
         address implementation
     );
 
+    /// @notice Emitted when the ownership of a dSafe is proposed to be transferred
+    /// @param dSafe The address of the dSafe
+    /// @param newOwner The address of the new owner
+    event DSafeOwnershipTransferProposed(address indexed dSafe, address indexed newOwner);
+
+    /// @notice Emitted when the ownership of a dSafe is transferred
+    /// @param dSafe The address of the dSafe
+    /// @param newOwner The address of the new owner
     event DSafeOwnershipTransferred(address indexed dSafe, address indexed newOwner);
 
     /// @notice Emitted when a new ERC20 is added to the protocol
@@ -105,7 +113,9 @@ interface IDOSConfig {
 
     function upgradeDSafeImplementation(string calldata version) external;
 
-    function transferDSafeOwnership(address newOwner) external;
+    function proposeTransferDSafeOwnership(address newOwner) external;
+
+    function executeTransferDSafeOwnership(address dSafe) external;
 
     function addERC20Info(
         address erc20Contract,

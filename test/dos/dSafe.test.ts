@@ -15,7 +15,7 @@ import {
 import {toWei, toWeiUsdc} from "../../lib/numbers";
 import {getFixedGasSigners} from "../../lib/hardhat/fixedGasSigners";
 import {signExecuteBatch, signOnTransferReceived2Call} from "../../lib/signers";
-import {makeCall, createDSafe, sortTransfers, upgradeDSafeImplementation} from "../../lib/calls";
+import {makeCall, createDSafe, sortTransfers, upgradeDSafeImplementation, proposeTransferDSafeOwnership} from "../../lib/calls";
 import {Chainlink, deployDos, deployFixedAddressForTests} from "../../lib/deploy";
 
 const USDC_PRICE = 1;
@@ -71,7 +71,7 @@ describe("DSafeProxy", () => {
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();
 
-    const {iDos, versionManager} = await deployDos(
+    const {dos, iDos, versionManager} = await deployDos(
       owner.address,
       anyswapCreate2Deployer,
       "0x04",
@@ -152,6 +152,7 @@ describe("DSafeProxy", () => {
       nftOracle, // some registered nft
       unregisteredNft, // some unregistered nft
       iDos,
+      dos,
       permit2,
       getBalances,
       dSafe,
@@ -338,5 +339,36 @@ describe("DSafeProxy", () => {
     );
     const newImplementation = await iDos.getImplementation(dSafe.address);
     expect(newImplementation).to.equal(oldImplementation);
+
+  it("should be able to propose dSafe ownership transfer", async () => {
+    const {user2, dSafe, iDos, dos} = await loadFixture(deployDOSFixture);
+
+    await expect(proposeTransferDSafeOwnership(iDos, dSafe, user2.address)).to.not.be.reverted;
+
+    expect(await dos.dSafeProposedNewOwner(dSafe.address)).to.equal(user2.address);
+  });
+
+  it("should be able to execute dSafe ownership transfer after proposal", async () => {
+    const {user2, dSafe, iDos, dos} = await loadFixture(deployDOSFixture);
+
+    await proposeTransferDSafeOwnership(iDos, dSafe, user2.address);
+
+    expect(await dos.dSafeProposedNewOwner(dSafe.address)).to.equal(user2.address);
+
+    await expect(iDos.connect(user2).executeTransferDSafeOwnership(dSafe.address)).to.not.be
+      .reverted;
+
+    expect(await dos.getDSafeOwner(dSafe.address)).to.equal(user2.address);
+    expect(await dos.dSafeProposedNewOwner(dSafe.address)).to.equal(ethers.constants.AddressZero);
+  });
+
+  it("should be not able to execute dSafe ownership transfer without proposal", async () => {
+    const {user, user2, dSafe, iDos, dos} = await loadFixture(deployDOSFixture);
+
+    expect(await dos.dSafeProposedNewOwner(dSafe.address)).to.equal(ethers.constants.AddressZero);
+
+    await expect(iDos.connect(user2).executeTransferDSafeOwnership(dSafe.address)).to.be.reverted;
+
+    expect(await dos.getDSafeOwner(dSafe.address)).to.equal(user.address);
   });
 });

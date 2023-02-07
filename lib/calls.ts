@@ -600,3 +600,11 @@ export async function upgradeDSafeImplementation(
   const upgradeTx = await dSafe.executeBatch([makeCall(dos).upgradeDSafeImplementation(version)]);
   await upgradeTx.wait();
 }
+
+export async function proposeTransferDSafeOwnership(
+  dos: IDOS,
+  dSafe: DSafeLogic,
+  newOwner: string,
+): Promise<ContractTransaction> {
+  return await dSafe.executeBatch([makeCall(dos).proposeTransferDSafeOwnership(newOwner)]);
+}
