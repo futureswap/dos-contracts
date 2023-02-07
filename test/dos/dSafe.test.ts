@@ -15,7 +15,13 @@ import {
 import {toWei, toWeiUsdc} from "../../lib/numbers";
 import {getFixedGasSigners} from "../../lib/hardhat/fixedGasSigners";
 import {signExecuteBatch, signOnTransferReceived2Call} from "../../lib/signers";
-import {makeCall, createDSafe, sortTransfers, upgradeDSafeImplementation, proposeTransferDSafeOwnership} from "../../lib/calls";
+import {
+  makeCall,
+  createDSafe,
+  sortTransfers,
+  upgradeDSafeImplementation,
+  proposeTransferDSafeOwnership,
+} from "../../lib/calls";
 import {Chainlink, deployDos, deployFixedAddressForTests} from "../../lib/deploy";
 
 const USDC_PRICE = 1;
@@ -339,6 +345,7 @@ describe("DSafeProxy", () => {
     );
     const newImplementation = await iDos.getImplementation(dSafe.address);
     expect(newImplementation).to.equal(oldImplementation);
+  });
 
   it("should be able to propose dSafe ownership transfer", async () => {
     const {user2, dSafe, iDos, dos} = await loadFixture(deployDOSFixture);
