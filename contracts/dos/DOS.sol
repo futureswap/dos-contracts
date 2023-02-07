@@ -617,9 +617,9 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return this.onERC721Received.selector;
     }
 
-    /// @notice Approve an array of tokens and then call `onApprovalReceived` on spender
+    /// @notice Approve an array of tokens and then call `onApprovalReceived` on msg.sender
     /// @param approvals An array of ERC20 tokens with amounts, or ERC721 contracts with tokenIds
-    /// @param spender The address of the spender dSafe
+    /// @param spender The address of the spender
     /// @param data Additional data with no specified format, sent in call to `spender`
     function approveAndCall(
         Approval[] calldata approvals,
