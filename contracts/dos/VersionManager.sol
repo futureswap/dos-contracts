@@ -7,10 +7,27 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import {FsUtils} from "../lib/FsUtils.sol";
 import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 import {ImmutableVersion} from "../lib/ImmutableVersion.sol";
-import "../interfaces/IVersionManager.sol";
+import {IVersionManager} from "../interfaces/IVersionManager.sol";
 
 /// @title DOS Version Manager
 contract VersionManager is IVersionManager, ImmutableGovernance {
+    /// @notice Recommended Version does not exist
+    error NoRecommendedVersion();
+    /// @notice version is not registered
+    error VersionNotRegistered();
+    /// @notice Specified status is out of range
+    error InvalidStatus();
+    /// @notice Specified bug level is out of range
+    error InvalidBugLevel();
+    /// @notice version name cannot be the empty string
+    error InvalidVersionName();
+    /// @notice version is deprecated or has a bug
+    error InvalidVersion();
+    /// @notice implementation must be a contract
+    error InvalidImplementation();
+    /// @notice version is already registered
+    error VersionAlreadyRegistered();
+
     /// @notice Array of all version names
     string[] internal _versionString;
 
@@ -28,12 +45,16 @@ contract VersionManager is IVersionManager, ImmutableGovernance {
     }
 
     modifier validStatus(Status status) {
-        require(uint8(status) <= uint8(Status.DEPRECATED), "Invalid status");
+        if (uint8(status) > uint8(Status.DEPRECATED)) {
+            revert InvalidStatus();
+        }
         _;
     }
 
     modifier validBugLevel(BugLevel bugLevel) {
-        require(uint8(bugLevel) <= uint8(BugLevel.CRITICAL), "Invalid bug level");
+        if (uint8(bugLevel) > uint8(BugLevel.CRITICAL)) {
+            revert InvalidBugLevel();
+        }
         _;
     }
 
@@ -107,11 +128,12 @@ contract VersionManager is IVersionManager, ImmutableGovernance {
     function markRecommendedVersion(
         string calldata versionName
     ) external onlyGovernance versionExists(versionName) {
-        require(
-            _versions[versionName].status != IVersionManager.Status.DEPRECATED &&
-                _versions[versionName].bugLevel == IVersionManager.BugLevel.NONE,
-            "Version not valid"
-        );
+        if (
+            _versions[versionName].status == IVersionManager.Status.DEPRECATED ||
+            _versions[versionName].bugLevel != IVersionManager.BugLevel.NONE
+        ) {
+            revert InvalidVersion();
+        }
         // set the version name as the recommended version
         _recommendedVersion = versionName;
 
@@ -143,7 +165,9 @@ contract VersionManager is IVersionManager, ImmutableGovernance {
             uint256 dateAdded
         )
     {
-        require(bytes(_recommendedVersion).length != 0, "Recommended version is not specified");
+        if (bytes(_recommendedVersion).length == 0) {
+            revert NoRecommendedVersion();
+        }
         versionName = _recommendedVersion;
 
         Version storage recommendedVersion = _versions[versionName];

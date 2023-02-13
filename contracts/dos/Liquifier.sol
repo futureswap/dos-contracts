@@ -19,11 +19,13 @@ struct SqrtPricePriceRangeX96 {
 ///   The only function it exports is `liquify`. The rest are private function that are parts of
 /// `liquify`
 abstract contract Liquifier is DSafeState {
+    /// @notice Only this address or the DSafe owner can call this function
+    error OnlySelfOrOwner();
+
     modifier selfOrDSafeOwner() {
-        require(
-            msg.sender == address(this) || msg.sender == dos.getDSafeOwner(address(this)),
-            "only self or owner"
-        );
+        if (msg.sender != address(this) && msg.sender != dos.getDSafeOwner(address(this))) {
+            revert OnlySelfOrOwner();
+        }
         _;
     }
 

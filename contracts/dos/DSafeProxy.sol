@@ -108,17 +108,27 @@ contract DSafeLogic is
     bool internal forwardNFT;
     NonceMap private nonceMap;
 
+    /// @notice Data does not match the expected format
     error InvalidData();
+    /// @notice Signature is invalid
     error InvalidSignature();
+    /// @notice Nonce has already been used
     error NonceAlreadyUsed();
+    /// @notice Deadline has expired
     error DeadlineExpired();
     /// @notice Only DOS can call this function
     error OnlyDOS();
     /// @notice Only the owner or operator can call this function
     error NotOwnerOrOperator();
+    /// @notice Only the owner can call this function
+    error OnlyOwner();
+    /// @notice Only this address can call this function
+    error OnlyThisAddress();
 
     modifier onlyOwner() {
-        require(dos.getDSafeOwner(address(this)) == msg.sender, "");
+        if (dos.getDSafeOwner(address(this)) != msg.sender) {
+            revert OnlyOwner();
+        }
         _;
     }
 
@@ -187,7 +197,9 @@ contract DSafeLogic is
     }
 
     function forwardNFTs(bool _forwardNFT) external {
-        require(msg.sender == address(this), "only this");
+        if (msg.sender != address(this)) {
+            revert OnlyThisAddress();
+        }
         forwardNFT = _forwardNFT;
     }
 
@@ -234,11 +246,13 @@ contract DSafeLogic is
             /* just deposit in the proxy, nothing to do */
         } else if (data[0] == 0x00) {
             // execute batch
-            require(msg.sender == dos.getDSafeOwner(address(this)), "Not owner");
+            if (msg.sender != dos.getDSafeOwner(address(this))) {
+                revert OnlyOwner();
+            }
             Call[] memory calls = abi.decode(data[1:], (Call[]));
             dos.executeBatch(calls);
         } else if (data[0] == 0x01) {
-            require(data.length == 1, "Invalid data - allowed are [], [0...], [1] and [2]");
+            if (data.length != 1) revert InvalidData();
             // deposit in the dos dSafe
             for (uint256 i = 0; i < transfers.length; i++) {
                 ITransferReceiver2.Transfer memory transfer = transfers[i];

@@ -63,6 +63,12 @@ error BugLevelTooHigh();
 /// @param proposedOwner The address of the proposed new owner
 /// @param newOwner The address of the attempted new owner
 error InvalidNewOwner(address proposedOwner, address newOwner);
+/// @notice Cannot withdraw debt
+error CannotWithdrawDebt();
+/// @notice DSafe is not liquidatable
+error NotLiquidatable();
+/// @notice There are insufficient reserves in the protocol for the debt
+error InsufficientReserves();
 
 // ERC20 standard token
 // ERC721 single non-fungible token support
@@ -421,7 +427,9 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20s[i]);
             IERC20 erc20 = IERC20(erc20Info.erc20Contract);
             int256 amount = _dAccountERC20Clear(msg.sender, erc20Idx);
-            require(amount >= 0, "Can't withdraw debt");
+            if (amount < 0) {
+                revert CannotWithdrawDebt();
+            }
             emit IDOSCore.ERC20BalanceChanged(address(erc20), erc20Idx, msg.sender, amount);
             erc20.safeTransfer(msg.sender, uint256(amount));
         }
@@ -546,7 +554,9 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @param dSafe The address of dSafe whose dAccount to be liquidate
     function liquidate(address dSafe) external override onlyDSafe whenNotPaused dSafeExists(dSafe) {
         (int256 totalValue, int256 collateral, int256 debt) = getRiskAdjustedPositionValues(dSafe);
-        require(collateral < debt, "DSafe is not liquidatable");
+        if (collateral >= debt) {
+            revert NotLiquidatable();
+        }
         uint16[] memory dSafeERC20s = dSafes[dSafe].getERC20s();
         for (uint256 i = 0; i < dSafeERC20s.length; i++) {
             uint16 erc20Idx = dSafeERC20s[i];
@@ -619,7 +629,9 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         if (data.length != 0) {
             from = abi.decode(data, (address));
         }
-        require(dSafes[from].owner != address(0), "DSafe does not exist");
+        if (dSafes[from].owner == address(0)) {
+            revert DSafeNonExistent();
+        }
         tokenDataByNFTId[nftId].tokenId = uint240(tokenId);
         dSafes[from].insertNFT(nftId, tokenDataByNFTId);
         return this.onERC721Received.selector;
@@ -959,7 +971,9 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             FsUtils.Assert(
                 IERC20(erc20Infos[i].erc20Contract).balanceOf(address(this)) >= uint256(reserve)
             );
-            require(reserve >= -totalDebt / leverage, "Not enough reserve for debt");
+            if (reserve < -totalDebt / leverage) {
+                revert InsufficientReserves();
+            }
         }
         (, int256 collateral, int256 debt) = getRiskAdjustedPositionValues(dSafe);
         if (gasBefore - gasleft() > config.maxSolvencyCheckGasCost)

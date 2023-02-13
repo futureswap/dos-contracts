@@ -44,6 +44,10 @@ contract TransferAndCall2 is IERC1363Receiver, EIP712 {
 
     error UnauthorizedOperator(address operator, address from);
 
+    error ExpiredPermit();
+
+    error InvalidSignature();
+
     constructor() EIP712("TransferAndCall2", "1") {}
 
     /// @dev Set approval for all token transfers from msg.sender to a particular operator
@@ -104,7 +108,9 @@ contract TransferAndCall2 is IERC1363Receiver, EIP712 {
         bytes calldata signature
     ) external {
         nonceMap[from].validateAndUseNonce(nonce);
-        require(block.timestamp <= deadline, "Expired permit");
+        if (block.timestamp > deadline) {
+            revert ExpiredPermit();
+        }
         bytes32[] memory transferHashes = new bytes32[](transfers.length);
         for (uint256 i = 0; i < transfers.length; i++) {
             transferHashes[i] = keccak256(
@@ -123,7 +129,9 @@ contract TransferAndCall2 is IERC1363Receiver, EIP712 {
                 )
             )
         );
-        require(SignatureChecker.isValidSignatureNow(from, digest, signature), "Invalid signature");
+        if (!SignatureChecker.isValidSignatureNow(from, digest, signature)) {
+            revert InvalidSignature();
+        }
         return transferFromAndCall2Impl(from, receiver, address(0), transfers, data);
     }
 
