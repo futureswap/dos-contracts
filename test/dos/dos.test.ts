@@ -305,7 +305,7 @@ describe("DOS", () => {
         makeCall(iDos).liquidate(nonLiquidatable.address),
       ]);
 
-      await expect(liquidationTx).to.be.revertedWith("DSafe is not liquidatable");
+      await expect(liquidationTx).to.be.revertedWith("NotLiquidatable");
     });
   });
 
@@ -455,7 +455,7 @@ describe("DOS", () => {
 
       const liquidateTx = liquidator.executeBatch([makeCall(iDos).liquidate(emptyDSafe.address)]);
 
-      await expect(liquidateTx).to.be.revertedWith("DSafe is not liquidatable");
+      await expect(liquidateTx).to.be.revertedWith("NotLiquidatable");
     });
 
     it("when debt is zero should revert", async () => {
@@ -469,7 +469,7 @@ describe("DOS", () => {
         makeCall(iDos).liquidate(nonLiquidatable.address),
       ]);
 
-      await expect(liquidateTx).to.be.revertedWith("DSafe is not liquidatable");
+      await expect(liquidateTx).to.be.revertedWith("NotLiquidatable");
     });
 
     it("when collateral is above some debt should revert", async () => {
@@ -495,7 +495,7 @@ describe("DOS", () => {
         makeCall(iDos).liquidate(nonLiquidatable.address),
       ]);
 
-      await expect(liquidateTx).to.be.revertedWith("DSafe is not liquidatable");
+      await expect(liquidateTx).to.be.revertedWith("NotLiquidatable");
     });
 
     it("when liquidator doesn't have enough collateral to cover the debt difference should revert", async () => {

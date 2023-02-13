@@ -81,7 +81,7 @@ describe("VersionManager", () => {
       await versionManager.connect(owner).removeRecommendedVersion();
 
       await expect(versionManager.getRecommendedVersion()).to.be.revertedWith(
-        "Recommended version is not specified",
+        "NoRecommendedVersion",
       );
     });
 
