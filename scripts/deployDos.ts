@@ -16,19 +16,26 @@ async function main() {
   const {versionManager, dos} = await deployDos(
     governanceProxy.address,
     anyswapCreate2Deployer,
-    (BigInt(fsSalt) + 1n).toString(),
+    (BigInt(fsSalt) + 9n).toString(),
     deployer,
   );
+  console.log("DeployDOS Finished");
+
   const dSafeLogic = await deployAtFixedAddress(
     new DSafeLogic__factory(deployer),
     anyswapCreate2Deployer,
-    (BigInt(fsSalt) + 1n).toString(),
+    (BigInt(fsSalt) + 9n).toString(),
     dos.address,
   );
+  console.log("dSafeLogic:", dSafeLogic.address);
+  console.log("dSafeLogic Finished");
+
   await governanceProxy.executeBatch([
     makeCall(versionManager).addVersion(2, dSafeLogic.address),
     makeCall(versionManager).markRecommendedVersion("1.0.0"),
   ]);
+
+  console.log("governanceProxy setup Finished");
   await saveAddressesForNetwork({versionManager, dos});
 }
 

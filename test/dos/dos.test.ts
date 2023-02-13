@@ -810,6 +810,23 @@ describe("DOS", () => {
         expect(await iDos.getDAccountERC721(dSafe.address)).to.eql([]);
       },
     );
+
+    it(
+      "[regression] when user owns two deposited NFT " +
+        "should be able to withdraw the first deposited and then the second deposited",
+      async () => {
+        const {user, iDos, nft, nftOracle} = await loadFixture(deployDOSFixture);
+        const dSafe = await createDSafe(iDos, user);
+        const _tokenId1 = await depositERC721(iDos, dSafe, nft, nftOracle, NFT_PRICE);
+        const tokenId2 = await depositERC721(iDos, dSafe, nft, nftOracle, NFT_PRICE);
+        const _tokenId3 = await depositERC721(iDos, dSafe, nft, nftOracle, NFT_PRICE);
+
+        const withdrawERC721Tx = await dSafe.executeBatch([
+          makeCall(iDos).withdrawERC721(nft.address, tokenId2),
+        ]);
+        await expect(withdrawERC721Tx.wait()).not.to.be.reverted;
+      },
+    );
   });
 
   describe("#transferERC721", () => {

@@ -53,6 +53,16 @@ error DSafeNonExistent();
 error Insolvent();
 /// @notice The address is not a registered ERC20
 error NotERC20();
+/// @notice The implementation is not a contract
+error InvalidImplementation();
+/// @notice The version is deprecated
+error DeprecatedVersion();
+/// @notice The bug level is too high
+error BugLevelTooHigh();
+/// @notice `newOwner` is not the proposed new owner
+/// @param proposedOwner The address of the proposed new owner
+/// @param newOwner The address of the attempted new owner
+error InvalidNewOwner(address proposedOwner, address newOwner);
 
 // ERC20 standard token
 // ERC721 single non-fungible token support
@@ -136,7 +146,7 @@ library DSafeLib {
         dSafe.dAccountErc20Idxs[erc20Idx >> 8] &= ~(1 << (erc20Idx & 255));
     }
 
-    function accERC20IdxToDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
+    function addERC20IdxToDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
         dSafe.dAccountErc20Idxs[erc20Idx >> 8] |= (1 << (erc20Idx & 255));
     }
 
@@ -179,6 +189,7 @@ library DSafeLib {
         } else {
             NFTId lastNFTId = dSafe.nfts[dSafe.nfts.length - 1];
             map[lastNFTId].dSafeIdx = idx;
+            dSafe.nfts[idx] = lastNFTId;
             dSafe.nfts.pop();
         }
     }
@@ -232,6 +243,10 @@ contract DOSState is Pausable {
     /// @notice mapping between dSafe address and DOS-specific dSafe data
     mapping(address => DSafeLib.DSafe) public dSafes;
 
+    /// @notice mapping between dSafe address and the proposed new owner
+    /// @dev `proposedNewOwner` is address(0) when there is no pending change
+    mapping(address => address) public dSafeProposedNewOwner;
+
     /// @notice mapping between dSafe address and an instance of deployed dSafeLogic contract.
     /// It means that this specific dSafeLogic version is setup to operate the dSafe.
     // @dev this could be a mapping to a version index instead of the implementation address
@@ -246,10 +261,9 @@ contract DOSState is Pausable {
     /// corresponding tokens are owned by DOS
     mapping(address => mapping(address => mapping(address => uint256))) public allowances;
 
-    /// @notice Whether a spender is approved to operate a dSafe's NFTs for a specific collection
-    /// @dev Mapping from dSafe owner address => NFT address => spender address => bool
-    /// @dev erc721 & erc1155 operator approvals
-    mapping(address => mapping(address => mapping(address => bool))) public operatorApprovals;
+    /// @notice Whether a spender is approved to operate on behalf of an owner
+    /// @dev Mapping from dSafe owner address => spender address => bool
+    mapping(address => mapping(address => bool)) public operatorApprovals;
 
     mapping(DSafeLib.NFTId => NFTTokenData) public tokenDataByNFTId;
 
@@ -318,6 +332,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     using DSafeLib for ERC20Pool;
     using SafeERC20 for IERC20;
     using Address for address;
+
+    uint256 constant POOL_ASSETS_CUTOFF = 100; // Wei amounts to prevent division by zero
 
     address immutable dosConfigAddress;
 
@@ -511,7 +527,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         uint256 tokenId
     ) external override onlyDSafe whenNotPaused dSafeExists(to) {
         DSafeLib.NFTId nftId = _getNFTId(collection, tokenId);
-        if (!_isApprovedOrOwner(msg.sender, from, nftId)) {
+        if (!_isApprovedOrOwner(msg.sender, nftId)) {
             revert NotApprovedOrOwner();
         }
         _transferNFT(nftId, from, to);
@@ -556,6 +572,20 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         emit IDOSCore.SafeLiquidated(dSafe, msg.sender, collateral, debt);
     }
 
+    /// @notice Add an operator for dSafe
+    /// @param operator The address of the operator to add
+    /// @dev Operator can execute batch of transactions on behalf of dSafe owner
+    function addOperator(address operator) external override onlyDSafe {
+        operatorApprovals[msg.sender][operator] = true;
+    }
+
+    /// @notice Remove an operator for dSafe
+    /// @param operator The address of the operator to remove
+    /// @dev Operator can execute batch of transactions on behalf of dSafe owner
+    function removeOperator(address operator) external override onlyDSafe {
+        operatorApprovals[msg.sender][operator] = false;
+    }
+
     /// @notice Execute a batch of calls
     /// @dev execute a batch of commands on DOS from the name of dSafe owner. Eventual state of
     /// dAccount and DOS must be solvent, i.e. debt on dAccount cannot exceed collateral
@@ -595,9 +625,9 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return this.onERC721Received.selector;
     }
 
-    /// @notice Approve an array of tokens and then call `onApprovalReceived` on spender
+    /// @notice Approve an array of tokens and then call `onApprovalReceived` on msg.sender
     /// @param approvals An array of ERC20 tokens with amounts, or ERC721 contracts with tokenIds
-    /// @param spender The address of the spender dSafe
+    /// @param spender The address of the spender
     /// @param data Additional data with no specified format, sent in call to `spender`
     function approveAndCall(
         Approval[] calldata approvals,
@@ -695,17 +725,9 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return tokenDataByNFTId[nftId].approvedSpender;
     }
 
-    /// @notice Returns if the `operator` is allowed to manage all of the erc721s of `owner` on the `collection` contract
-    /// @param collection The address of the collection contract
-    /// @param _owner The address of the dSafe owner
-    /// @param spender The address of the dSafe spender
-    /// @return if the `spender` is allowed to operate the assets of `collection` of `_owner`
-    function isApprovedForAll(
-        address collection,
-        address _owner,
-        address spender
-    ) public view override returns (bool) {
-        return operatorApprovals[collection][_owner][spender];
+    /// @notice Returns if the 'spender' is an operator for the 'owner'
+    function isOperator(address _owner, address _spender) public view override returns (bool) {
+        return operatorApprovals[_owner][_spender];
     }
 
     /// @notice Returns the remaining amount of tokens that `spender` will be allowed to spend on
@@ -737,7 +759,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
 
         uint256 ir = erc20Info.baseRate;
         uint256 utilization; // utilization of the pool
-        if (poolAssets == 0)
+        if (poolAssets <= POOL_ASSETS_CUTOFF)
             utilization = 0; // if there are no assets, utilization is 0
         else utilization = uint256((debt * 1e18) / ((collateral - debt) / leverage));
 
@@ -895,7 +917,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         if (amount == 0) {
             dSafe.removeERC20IdxFromDAccount(erc20Idx);
         } else {
-            dSafe.accERC20IdxToDAccount(erc20Idx);
+            dSafe.addERC20IdxToDAccount(erc20Idx);
         }
         ERC20Info storage erc20Info = erc20Infos[erc20Idx];
         ERC20Pool storage pool = amount > 0 ? erc20Info.collateral : erc20Info.debt;
@@ -956,7 +978,6 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
 
     function _isApprovedOrOwner(
         address spender,
-        address _owner,
         DSafeLib.NFTId nftId
     ) internal view returns (bool) {
         DSafeLib.DSafe storage p = dSafes[msg.sender];
@@ -965,9 +986,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         uint16 idx = tokenDataByNFTId[nftId].dSafeIdx;
         bool isdepositERC721Owner = idx < p.nfts.length &&
             DSafeLib.NFTId.unwrap(p.nfts[idx]) == DSafeLib.NFTId.unwrap(nftId);
-        return (isdepositERC721Owner ||
-            getApproved(collection, tokenId) == spender ||
-            isApprovedForAll(collection, _owner, spender));
+        return (isdepositERC721Owner || getApproved(collection, tokenId) == spender);
     }
 
     // Config functions are handled by DOSConfig
@@ -997,17 +1016,41 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
             address implementation,
 
         ) = versionManager.getVersionDetails(version);
-        require(status != IVersionManager.Status.DEPRECATED, "Version is deprecated");
-        require(bugLevel == IVersionManager.BugLevel.NONE, "Version has bugs");
+        if (implementation == address(0) || !implementation.isContract()) {
+            revert InvalidImplementation();
+        }
+        if (status == IVersionManager.Status.DEPRECATED) {
+            revert DeprecatedVersion();
+        }
+        if (bugLevel != IVersionManager.BugLevel.NONE) {
+            revert BugLevelTooHigh();
+        }
         dSafeLogic[msg.sender] = implementation;
         emit IDOSConfig.DSafeImplementationUpgraded(msg.sender, version, implementation);
     }
 
-    /// @notice transfers the ownership of the `dSafe` to the `newOwner`
+    /// @notice Proposes the ownership transfer of `dSafe` to the `newOwner`
+    /// @dev The ownership transfer must be executed by the `newOwner` to complete the transfer
+    /// @dev emits `DSafeOwnershipTransferProposed` event
     /// @param newOwner The new owner of the `dSafe`
-    function transferDSafeOwnership(address newOwner) external override onlyDSafe whenNotPaused {
-        dSafes[msg.sender].owner = newOwner;
-        emit IDOSConfig.DSafeOwnershipTransferred(msg.sender, newOwner);
+    function proposeTransferDSafeOwnership(
+        address newOwner
+    ) external override onlyDSafe whenNotPaused {
+        dSafeProposedNewOwner[msg.sender] = newOwner;
+        emit IDOSConfig.DSafeOwnershipTransferProposed(msg.sender, newOwner);
+    }
+
+    /// @notice Executes the ownership transfer of `dSafe` to the `newOwner`
+    /// @dev The caller must be the `newOwner` and the `newOwner` must be the proposed new owner
+    /// @dev emits `DSafeOwnershipTransferred` event
+    /// @param dSafe The address of the dSafe
+    function executeTransferDSafeOwnership(address dSafe) external override whenNotPaused {
+        if (msg.sender != dSafeProposedNewOwner[dSafe]) {
+            revert InvalidNewOwner(dSafeProposedNewOwner[dSafe], msg.sender);
+        }
+        dSafes[dSafe].owner = msg.sender;
+        delete dSafeProposedNewOwner[dSafe];
+        emit IDOSConfig.DSafeOwnershipTransferred(dSafe, msg.sender);
     }
 
     /// @notice Pause the contract
@@ -1110,12 +1153,14 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @notice Updates some of ERC20 config parameters
     /// @dev for governance only.
     /// @param erc20 The address of ERC20 contract for which DOS config parameters should be updated
+    /// @param valueOracle The address of the erc20 value oracle
     /// @param baseRate The interest rate when utilization is 0
     /// @param slope1 The interest rate slope when utilization is less than the targetUtilization
     /// @param slope2 The interest rate slope when utilization is more than the targetUtilization
     /// @param targetUtilization The target utilization for the asset
     function setERC20Data(
         address erc20,
+        address valueOracle,
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
@@ -1125,11 +1170,20 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         if (infoIdx[erc20].kind != ContractKind.ERC20) {
             revert NotERC20();
         }
+        erc20Infos[erc20Idx].valueOracle = IERC20ValueOracle(valueOracle);
         erc20Infos[erc20Idx].baseRate = baseRate;
         erc20Infos[erc20Idx].slope1 = slope1;
         erc20Infos[erc20Idx].slope2 = slope2;
         erc20Infos[erc20Idx].targetUtilization = targetUtilization;
-        emit IDOSConfig.ERC20DataSet(erc20, baseRate, slope1, slope2, targetUtilization);
+        emit IDOSConfig.ERC20DataSet(
+            erc20,
+            erc20Idx,
+            valueOracle,
+            baseRate,
+            slope1,
+            slope2,
+            targetUtilization
+        );
     }
 
     /// @notice creates a new dSafe with sender as the owner and returns the dSafe address
