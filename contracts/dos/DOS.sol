@@ -355,9 +355,9 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         _;
     }
 
-    constructor(address _dosConfig, address _versionManager) {
-        versionManager = IVersionManager(FsUtils.nonNull(_versionManager));
-        dosConfigAddress = FsUtils.nonNull(_dosConfig);
+    constructor(address dosConfig, address versionManagerAddress) {
+        versionManager = IVersionManager(FsUtils.nonNull(versionManagerAddress));
+        dosConfigAddress = FsUtils.nonNull(dosConfig);
     }
 
     /// @notice top up the dAccount owned by dSafe `to` with `amount` of `erc20`
@@ -593,7 +593,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @param calls An array of transaction calls
     function executeBatch(Call[] memory calls) external override onlyDSafe whenNotPaused {
         DSafeProxy(payable(msg.sender)).executeBatch(calls);
-        if (!isSolvent(msg.sender)) {
+        if (!_isSolvent(msg.sender)) {
             revert Insolvent();
         }
     }
@@ -725,9 +725,9 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return tokenDataByNFTId[nftId].approvedSpender;
     }
 
-    /// @notice Returns if the 'spender' is an operator for the 'owner'
-    function isOperator(address _owner, address _spender) public view override returns (bool) {
-        return operatorApprovals[_owner][_spender];
+    /// @notice Returns if the 'spender' is an operator for the '_owner'
+    function isOperator(address _owner, address spender) public view override returns (bool) {
+        return operatorApprovals[_owner][spender];
     }
 
     /// @notice Returns the remaining amount of tokens that `spender` will be allowed to spend on
@@ -945,12 +945,12 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     /// @dev checks the eventual state of `executeBatch` function execution:
     /// * `dSafe` must have collateral >= debt
     /// * DOS must have sufficient balance of deposits and loans for each ERC20 token
-    /// @dev when called by the end of `executeBatch`, isSolvent checks the potential target state
+    /// @dev when called by the end of `executeBatch`, _isSolvent checks the potential target state
     /// of DOS. Calling this function separately would check current state of DOS, that is always
     /// solvable, and so the return value would always be `true`, unless the `dSafe` is liquidatable
     /// @param dSafe The address of a dSafe who performed the `executeBatch`
     /// @return Whether the position is solvent.
-    function isSolvent(address dSafe) internal view returns (bool) {
+    function _isSolvent(address dSafe) internal view returns (bool) {
         uint gasBefore = gasleft();
         int256 leverage = config.fractionalReserveLeverage;
         for (uint256 i = 0; i < erc20Infos.length; i++) {
