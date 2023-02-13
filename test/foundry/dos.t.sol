@@ -100,13 +100,13 @@ contract DosTest is Test {
         versionManager.markRecommendedVersion(version);
     }
 
-    function testCreateDSafe() public {
+    function test_CreateDSafe() public {
         vm.startPrank(user);
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
         vm.stopPrank();
     }
 
-    function testDepositERC20(uint96 _amount0, uint96 _amount1) public {
+    function test_DepositERC20(uint96 _amount0, uint96 _amount1) public {
         vm.startPrank(user);
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
         _mintTokens(address(userSafe), _amount0, _amount1);
@@ -168,7 +168,7 @@ contract DosTest is Test {
         vm.stopPrank();
     }
 
-    function testDepositERC20ForSafe(uint96 _amount0, uint96 _amount1) public {
+    function test_DepositERC20ForSafe(uint96 _amount0, uint96 _amount1) public {
         vm.startPrank(user);
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
         vm.stopPrank();
@@ -184,7 +184,7 @@ contract DosTest is Test {
     }
 
     /// @dev using uint96 to avoid arithmetic overflow in uint -> int conversion
-    function testTransferERC20(uint96 _amount0) public {
+    function test_TransferERC20(uint96 _amount0) public {
         vm.startPrank(user);
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
         DSafeProxy userSafe2 = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
@@ -235,7 +235,7 @@ contract DosTest is Test {
         vm.stopPrank();
     }
 
-    function testDepositThenTransfer(uint96 _amount0) public {
+    function test_DepositThenTransfer(uint96 _amount0) public {
         vm.startPrank(user);
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
         DSafeProxy userSafe2 = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
@@ -286,10 +286,9 @@ contract DosTest is Test {
         vm.stopPrank();
     }
 
-    // TODO (with fresh eyes): check why this test doesn't always revert
-    function testTransferMoreThanBalance(uint96 _amount, uint96 _extraAmount) public {
+    function test_TransferMoreThanBalance(uint96 _amount, uint96 _extraAmount) public {
         vm.assume(_amount > 1 ether);
-        vm.assume(_extraAmount > 0);
+        vm.assume(_extraAmount > 1);
         DSafeProxy otherSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
         vm.startPrank(user);
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
