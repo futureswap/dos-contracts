@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "../tokens/HashNFT.sol";
-import "../lib/FsUtils.sol";
-import "./ImmutableGovernance.sol";
+import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
+
+import {HashNFT} from "../tokens/HashNFT.sol";
+import {FsUtils} from "./FsUtils.sol";
+import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 
 /// @title AccessControl
 /// @notice Access control based on HashNFT ownership.

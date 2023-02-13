@@ -7,20 +7,19 @@ import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/proxy/Proxy.sol";
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import "../lib/FsUtils.sol";
-import "../lib/Call.sol";
-import "../lib/ImmutableVersion.sol";
-import "../interfaces/IDOS.sol";
-import "../interfaces/IVersionManager.sol";
-import "../interfaces/ITransferReceiver2.sol";
-import "../external/interfaces/IPermit2.sol";
+import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import {FsUtils} from "../lib/FsUtils.sol";
+import {CallLib, Call, CallWithoutValue} from "../lib/Call.sol";
+import {ImmutableVersion} from "../lib/ImmutableVersion.sol";
+import {IVersionManager} from "../interfaces/IVersionManager.sol";
+import {ITransferReceiver2, TRANSFER_AND_CALL2} from "../interfaces/ITransferReceiver2.sol";
+import {IPermit2, PERMIT2} from "../external/interfaces/IPermit2.sol";
 import {ISafe} from "../interfaces/ISafe.sol";
-import "./DSafeState.sol";
-import "./Liquifier.sol";
-import "../interfaces/IERC1363-extended.sol";
-import "../lib/NonceMap.sol";
+import {DSafeState} from "./DSafeState.sol";
+import {Liquifier} from "./Liquifier.sol";
+import {IERC1363SpenderExtended} from "../interfaces/IERC1363-extended.sol";
+import {NonceMapLib, NonceMap} from "../lib/NonceMap.sol";
 
 /// @title DSafe Proxy
 /// @notice Proxy contract for DOS Safes

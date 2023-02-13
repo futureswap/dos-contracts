@@ -5,11 +5,11 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-import "../tokens/HashNFT.sol";
-import "../lib/Proofs.sol";
-import "../lib/Call.sol";
-import "../lib/FsUtils.sol";
-import "../lib/NonceMap.sol";
+import {HashNFT} from "../tokens/HashNFT.sol";
+import {TrieLib} from "../lib/Proofs.sol";
+import {CallLib, CallWithoutValue} from "../lib/Call.sol";
+import {FsUtils} from "../lib/FsUtils.sol";
+import {NonceMapLib, NonceMap} from "../lib/NonceMap.sol";
 
 contract Voting is EIP712 {
     using NonceMapLib for NonceMap;

@@ -3,8 +3,8 @@ pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import "../lib/Call.sol";
-import "../lib/FsUtils.sol";
+import {CallLib, Call} from "../lib/Call.sol";
+import {FsUtils} from "../lib/FsUtils.sol";
 
 // Signers (EOAs) are the only things that cross EVM chains as they have the same address on all chains.
 // To represent an entity cross chains therefore requires a dedicated signer. However this is cumbersome

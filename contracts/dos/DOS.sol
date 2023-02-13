@@ -8,16 +8,16 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "../lib/FsUtils.sol";
-import "../lib/FsMath.sol";
-import "../interfaces/IDOS.sol";
-import "../interfaces/IERC20ValueOracle.sol";
-import "../interfaces/INFTValueOracle.sol";
+import {FsUtils} from "../lib/FsUtils.sol";
+import {FsMath} from "../lib/FsMath.sol";
+import {IDOS, IDOSConfig, IDOSCore, ERC20Share} from "../interfaces/IDOS.sol";
+import {IERC20ValueOracle} from "../interfaces/IERC20ValueOracle.sol";
+import {INFTValueOracle} from "../interfaces/INFTValueOracle.sol";
 import {PERMIT2, IPermit2} from "../external/interfaces/IPermit2.sol";
 import {DSafeProxy} from "./DSafeProxy.sol";
 import {IVersionManager} from "../interfaces/IVersionManager.sol";
-import "../lib/Call.sol";
-import "../lib/ImmutableGovernance.sol";
+import {CallLib, Call} from "../lib/Call.sol";
+import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 import {IERC1363SpenderExtended, IERC1363ReceiverExtended} from "../interfaces/IERC1363-extended.sol";
 
 /// @notice Sender is not approved to spend dSafe erc20

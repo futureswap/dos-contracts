@@ -3,8 +3,8 @@ pragma solidity ^0.8.17;
 
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "../lib/FsUtils.sol";
-import "../interfaces/IERC20ValueOracle.sol";
+import {FsUtils} from "../lib/FsUtils.sol";
+import {IERC20ValueOracle} from "../interfaces/IERC20ValueOracle.sol";
 
 import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 

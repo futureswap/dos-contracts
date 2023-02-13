@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "../lib/ImmutableGovernance.sol";
-import "../interfaces/IERC20ValueOracle.sol";
-import "../interfaces/INFTValueOracle.sol";
-import "../lib/FsMath.sol";
-import "../lib/FsUtils.sol";
-import "../external/interfaces/INonfungiblePositionManager.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
+
+import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
+import {IERC20ValueOracle} from "../interfaces/IERC20ValueOracle.sol";
+import {INFTValueOracle} from "../interfaces/INFTValueOracle.sol";
+import {FsMath} from "../lib/FsMath.sol";
+import {FsUtils} from "../lib/FsUtils.sol";
+import {INonfungiblePositionManager} from "../external/interfaces/INonfungiblePositionManager.sol";
 
 // TickMath lib is inconsistent with solidity compiler version
 library TickMath {
