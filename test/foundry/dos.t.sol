@@ -65,11 +65,11 @@ contract DosTest is Test {
 
         token0Oracle = new MockERC20Oracle(owner);
         token0Oracle.setPrice(1e18, 18, 18);
-        token0Oracle.setCollateralFactor(9e17);
+        token0Oracle.setRiskFactors(9e17, 9e17);
 
         token1Oracle = new MockERC20Oracle(owner);
         token1Oracle.setPrice(1e18, 18, 18);
-        token1Oracle.setCollateralFactor(9e17);
+        token1Oracle.setRiskFactors(9e17, 9e17);
 
         IDOSConfig(address(dos)).addERC20Info(
             address(token0),
