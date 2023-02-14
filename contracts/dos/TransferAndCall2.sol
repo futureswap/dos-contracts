@@ -64,7 +64,7 @@ contract TransferAndCall2 is IERC1363Receiver, EIP712 {
         ITransferReceiver2.Transfer[] calldata transfers,
         bytes calldata data
     ) external {
-        return transferFromAndCall2Impl(msg.sender, receiver, address(0), transfers, data);
+        return _transferFromAndCall2Impl(msg.sender, receiver, address(0), transfers, data);
     }
 
     /// @dev Called by a token to indicate a transfer into the callee, converting ETH to WETH
@@ -78,7 +78,7 @@ contract TransferAndCall2 is IERC1363Receiver, EIP712 {
         ITransferReceiver2.Transfer[] calldata transfers,
         bytes calldata data
     ) external payable {
-        return transferFromAndCall2Impl(msg.sender, receiver, weth, transfers, data);
+        return _transferFromAndCall2Impl(msg.sender, receiver, weth, transfers, data);
     }
 
     /// @dev Called by a token to indicate a transfer into the callee
@@ -95,7 +95,7 @@ contract TransferAndCall2 is IERC1363Receiver, EIP712 {
         if (!approvalByOwnerByOperator[from][msg.sender]) {
             revert UnauthorizedOperator(msg.sender, from);
         }
-        return transferFromAndCall2Impl(from, receiver, address(0), transfers, data);
+        return _transferFromAndCall2Impl(from, receiver, address(0), transfers, data);
     }
 
     function transferAndCall2WithPermit(
@@ -132,7 +132,7 @@ contract TransferAndCall2 is IERC1363Receiver, EIP712 {
         if (!SignatureChecker.isValidSignatureNow(from, digest, signature)) {
             revert InvalidSignature();
         }
-        return transferFromAndCall2Impl(from, receiver, address(0), transfers, data);
+        return _transferFromAndCall2Impl(from, receiver, address(0), transfers, data);
     }
 
     /// @notice Callback for ERC1363 transferAndCall
@@ -149,11 +149,11 @@ contract TransferAndCall2 is IERC1363Receiver, EIP712 {
         (address to, bytes memory decodedData) = abi.decode(_data, (address, bytes));
         ITransferReceiver2.Transfer[] memory transfers = new ITransferReceiver2.Transfer[](1);
         transfers[0] = ITransferReceiver2.Transfer(msg.sender, _amount);
-        callOnTransferReceived2(to, _operator, _from, transfers, decodedData);
+        _callOnTransferReceived2(to, _operator, _from, transfers, decodedData);
         return IERC1363Receiver.onTransferReceived.selector;
     }
 
-    function transferFromAndCall2Impl(
+    function _transferFromAndCall2Impl(
         address from,
         address receiver,
         address weth,
@@ -181,11 +181,11 @@ contract TransferAndCall2 is IERC1363Receiver, EIP712 {
         }
         if (ethAmount != 0) revert EthDoesntMatchWethTransfer();
         if (receiver.isContract()) {
-            callOnTransferReceived2(receiver, msg.sender, from, transfers, data);
+            _callOnTransferReceived2(receiver, msg.sender, from, transfers, data);
         }
     }
 
-    function callOnTransferReceived2(
+    function _callOnTransferReceived2(
         address to,
         address operator,
         address from,
