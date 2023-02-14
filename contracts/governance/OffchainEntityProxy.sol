@@ -18,6 +18,8 @@ import {FsUtils} from "../lib/FsUtils.sol";
 // that deployment of this contract is always the first action on the chain for this key. Instead we
 // opt for a pattern that only needs the dedicated key to sign offchain.
 contract OffchainEntityProxy is Ownable, EIP712 {
+    error InvalidSignature();
+
     bytes32 constant TAKEOWNERSHIP_TYPEHASH =
         keccak256("TakeOwnership(address newOwner,uint256 nonce)");
 
@@ -43,7 +45,7 @@ contract OffchainEntityProxy is Ownable, EIP712 {
         );
 
         address signer = ECDSA.recover(digest, signature);
-        require(signer == owner(), "Invalid signature");
+        if (signer != owner()) revert InvalidSignature();
 
         _transferOwnership(msg.sender);
     }
