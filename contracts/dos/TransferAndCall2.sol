@@ -64,7 +64,7 @@ contract TransferAndCall2 is IERC1363Receiver, EIP712 {
         ITransferReceiver2.Transfer[] calldata transfers,
         bytes calldata data
     ) external {
-        return _transferFromAndCall2Impl(msg.sender, receiver, address(0), transfers, data);
+        _transferFromAndCall2Impl(msg.sender, receiver, address(0), transfers, data);
     }
 
     /// @dev Called by a token to indicate a transfer into the callee, converting ETH to WETH
@@ -78,7 +78,7 @@ contract TransferAndCall2 is IERC1363Receiver, EIP712 {
         ITransferReceiver2.Transfer[] calldata transfers,
         bytes calldata data
     ) external payable {
-        return _transferFromAndCall2Impl(msg.sender, receiver, weth, transfers, data);
+        _transferFromAndCall2Impl(msg.sender, receiver, weth, transfers, data);
     }
 
     /// @dev Called by a token to indicate a transfer into the callee
@@ -95,7 +95,7 @@ contract TransferAndCall2 is IERC1363Receiver, EIP712 {
         if (!approvalByOwnerByOperator[from][msg.sender]) {
             revert UnauthorizedOperator(msg.sender, from);
         }
-        return _transferFromAndCall2Impl(from, receiver, address(0), transfers, data);
+        _transferFromAndCall2Impl(from, receiver, address(0), transfers, data);
     }
 
     function transferAndCall2WithPermit(
@@ -132,7 +132,7 @@ contract TransferAndCall2 is IERC1363Receiver, EIP712 {
         if (!SignatureChecker.isValidSignatureNow(from, digest, signature)) {
             revert InvalidSignature();
         }
-        return _transferFromAndCall2Impl(from, receiver, address(0), transfers, data);
+        _transferFromAndCall2Impl(from, receiver, address(0), transfers, data);
     }
 
     /// @notice Callback for ERC1363 transferAndCall
