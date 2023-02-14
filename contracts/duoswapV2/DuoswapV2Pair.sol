@@ -110,7 +110,7 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
             balance0 <= type(uint112).max && balance1 <= type(uint112).max,
             "UniswapV2: OVERFLOW"
         );
-        uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);
+        uint32 blockTimestamp = uint32(block.timestamp);
         unchecked {
             uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
             if (timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0) {
