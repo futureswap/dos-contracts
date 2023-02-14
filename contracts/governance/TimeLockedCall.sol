@@ -2,7 +2,8 @@
 pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {GovernanceProxy, Governance} from "./GovernanceProxy.sol";
+import {GovernanceProxy} from "./GovernanceProxy.sol";
+import {Governance} from "./Governance.sol";
 import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 import {HashNFT} from "../tokens/HashNFT.sol";
 import {AccessControl} from "../lib/AccessControl.sol";

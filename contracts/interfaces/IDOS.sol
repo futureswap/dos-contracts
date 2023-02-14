@@ -4,8 +4,48 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Call} from "../lib/Call.sol";
 import {IERC20ValueOracle} from "./IERC20ValueOracle.sol";
+import {INFTValueOracle} from "./INFTValueOracle.sol";
 
 type ERC20Share is int256;
+
+struct NFTTokenData {
+    uint240 tokenId; // 240 LSB of the tokenId of the NFT
+    uint16 dSafeIdx; // index in dSafe NFT array
+    address approvedSpender; // approved spender for ERC721
+}
+
+struct ERC20Pool {
+    int256 tokens;
+    int256 shares;
+}
+
+struct ERC20Info {
+    address erc20Contract;
+    IERC20ValueOracle valueOracle;
+    ERC20Pool collateral;
+    ERC20Pool debt;
+    uint256 baseRate;
+    uint256 slope1;
+    uint256 slope2;
+    uint256 targetUtilization;
+    uint256 timestamp;
+}
+
+struct ERC721Info {
+    address erc721Contract;
+    INFTValueOracle valueOracle;
+}
+
+struct ContractData {
+    uint16 idx;
+    ContractKind kind; // 0 invalid, 1 ERC20, 2 ERC721
+}
+
+enum ContractKind {
+    Invalid,
+    ERC20,
+    ERC721
+}
 
 interface IDOSERC20 is IERC20 {
     function mint(address account, uint256 amount) external;

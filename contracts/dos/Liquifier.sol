@@ -3,10 +3,11 @@ pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import {INonfungiblePositionManager} from "../external/interfaces/INonfungiblePositionManager.sol";
+
+import {DSafeState} from "../dsafe/DSafeState.sol";
 import {IDOS} from "../interfaces/IDOS.sol";
+import {INonfungiblePositionManager} from "../external/interfaces/INonfungiblePositionManager.sol";
 import {Call} from "../lib/Call.sol";
-import {DSafeState} from "./DSafeState.sol";
 
 struct SqrtPricePriceRangeX96 {
     uint160 minSell;

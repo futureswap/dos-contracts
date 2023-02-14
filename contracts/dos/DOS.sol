@@ -2,73 +2,22 @@
 pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/proxy/Proxy.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+
+import {DOSState} from "./DOSState.sol";
+import {DSafeProxy} from "../dsafe/DSafeProxy.sol";
+import {IDOS, IDOSConfig, IDOSCore, ERC20Share, NFTTokenData, ERC20Pool, ERC20Info, ERC721Info, ContractData, ContractKind} from "../interfaces/IDOS.sol";
+import {IVersionManager} from "../interfaces/IVersionManager.sol";
+import {IERC1363SpenderExtended} from "../interfaces/IERC1363-extended.sol";
+import {DSafeLib} from "../lib/DSafeLib.sol";
+import {ERC20PoolLib} from "../lib/ERC20PoolLib.sol";
+import {Call} from "../lib/Call.sol";
 import {FsUtils} from "../lib/FsUtils.sol";
 import {FsMath} from "../lib/FsMath.sol";
-import {IDOS, IDOSConfig, IDOSCore, ERC20Share} from "../interfaces/IDOS.sol";
-import {IERC20ValueOracle} from "../interfaces/IERC20ValueOracle.sol";
-import {INFTValueOracle} from "../interfaces/INFTValueOracle.sol";
-import {PERMIT2, IPermit2} from "../external/interfaces/IPermit2.sol";
-import {DSafeProxy} from "./DSafeProxy.sol";
-import {IVersionManager} from "../interfaces/IVersionManager.sol";
-import {CallLib, Call} from "../lib/Call.sol";
-import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
-import {IERC1363SpenderExtended, IERC1363ReceiverExtended} from "../interfaces/IERC1363-extended.sol";
-
-/// @notice Sender is not approved to spend dSafe erc20
-error NotApprovedOrOwner();
-/// @notice Sender is not the owner of the dSafe;
-/// @param sender The address of the sender
-/// @param owner The address of the owner
-error NotOwner(address sender, address owner);
-/// @notice Transfer amount exceeds allowance
-error InsufficientAllowance();
-/// @notice Cannot approve self as spender
-error SelfApproval();
-/// @notice The receiving address is not a contract
-error ReceiverNotContract();
-/// @notice The receiver does not implement the required interface
-error ReceiverNoImplementation();
-/// @notice The receiver did not return the correct value - transaction failed
-error WrongDataReturned();
-/// @notice Asset is not an NFT
-error NotNFT();
-/// @notice NFT must be in the user's dSafe
-error NFTNotInDSafe();
-/// @notice NFT must be owned the the user or user's dSafe
-error NotNFTOwner();
-/// @notice Asset is not registered
-/// @param token The unregistered asset
-error NotRegistered(address token);
-/// @notice Only dSafe can call this function
-error OnlyDSafe();
-/// @notice Recipient is not a valid dSafe
-error DSafeNonExistent();
-/// @notice Operation leaves dSafe insolvent
-error Insolvent();
-/// @notice The address is not a registered ERC20
-error NotERC20();
-/// @notice The implementation is not a contract
-error InvalidImplementation();
-/// @notice The version is deprecated
-error DeprecatedVersion();
-/// @notice The bug level is too high
-error BugLevelTooHigh();
-/// @notice `newOwner` is not the proposed new owner
-/// @param proposedOwner The address of the proposed new owner
-/// @param newOwner The address of the attempted new owner
-error InvalidNewOwner(address proposedOwner, address newOwner);
-/// @notice Cannot withdraw debt
-error CannotWithdrawDebt();
-/// @notice DSafe is not liquidatable
-error NotLiquidatable();
-/// @notice There are insufficient reserves in the protocol for the debt
-error InsufficientReserves();
 
 // ERC20 standard token
 // ERC721 single non-fungible token support
@@ -94,250 +43,45 @@ error InsufficientReserves();
  * NFTId and thus has to be stored as part of NFTData, requiring the splitting of tokenId.
  */
 
-struct NFTTokenData {
-    uint240 tokenId; // 240 LSB of the tokenId of the NFT
-    uint16 dSafeIdx; // index in dSafe NFT array
-    address approvedSpender; // approved spender for ERC721
-}
-
-struct ERC20Pool {
-    int256 tokens;
-    int256 shares;
-}
-
-struct ERC20Info {
-    address erc20Contract;
-    IERC20ValueOracle valueOracle;
-    ERC20Pool collateral;
-    ERC20Pool debt;
-    uint256 baseRate;
-    uint256 slope1;
-    uint256 slope2;
-    uint256 targetUtilization;
-    uint256 timestamp;
-}
-
-struct ERC721Info {
-    address erc721Contract;
-    INFTValueOracle valueOracle;
-}
-
-struct ContractData {
-    uint16 idx;
-    ContractKind kind; // 0 invalid, 1 ERC20, 2 ERC721
-}
-
-enum ContractKind {
-    Invalid,
-    ERC20,
-    ERC721
-}
-
-// We will initialize the system so that 0 is the base currency
-// in which the system calculates value.
-uint16 constant K_NUMERAIRE_IDX = 0;
-
-library DSafeLib {
-    type NFTId is uint256; // 16 bits (tokenId) + 224 bits (hash) + 16 bits (erc721 index)
-
-    struct DSafe {
-        address owner;
-        mapping(uint16 => ERC20Share) erc20Share;
-        NFTId[] nfts;
-        // bitmask of DOS indexes of ERC20 present in a dSafe. `1` can be increased on updates
-        uint256[1] dAccountErc20Idxs;
-    }
-
-    function removeERC20IdxFromDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
-        dSafe.dAccountErc20Idxs[erc20Idx >> 8] &= ~(1 << (erc20Idx & 255));
-    }
-
-    function addERC20IdxToDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
-        dSafe.dAccountErc20Idxs[erc20Idx >> 8] |= (1 << (erc20Idx & 255));
-    }
-
-    function extractPosition(
-        ERC20Pool storage pool,
-        ERC20Share shares
-    ) internal returns (int256 tokens) {
-        tokens = computeERC20(pool, shares);
-        pool.tokens -= tokens;
-        pool.shares -= ERC20Share.unwrap(shares);
-    }
-
-    function insertPosition(ERC20Pool storage pool, int256 tokens) internal returns (ERC20Share) {
-        int256 shares;
-        if (pool.shares == 0) {
-            FsUtils.Assert(pool.tokens == 0);
-            shares = tokens;
-        } else {
-            shares = (pool.shares * tokens) / pool.tokens;
-        }
-        pool.tokens += tokens;
-        pool.shares += shares;
-        return ERC20Share.wrap(shares);
-    }
-
-    function extractNFT(
-        DSafe storage dSafe,
-        NFTId nftId,
-        mapping(NFTId => NFTTokenData) storage map
-    ) internal {
-        uint16 idx = map[nftId].dSafeIdx;
-        map[nftId].approvedSpender = address(0); // remove approval
-        bool userOwnsNFT = dSafe.nfts.length > 0 &&
-            NFTId.unwrap(dSafe.nfts[idx]) == NFTId.unwrap(nftId);
-        if (!userOwnsNFT) {
-            revert NFTNotInDSafe();
-        }
-        if (idx == dSafe.nfts.length - 1) {
-            dSafe.nfts.pop();
-        } else {
-            NFTId lastNFTId = dSafe.nfts[dSafe.nfts.length - 1];
-            map[lastNFTId].dSafeIdx = idx;
-            dSafe.nfts[idx] = lastNFTId;
-            dSafe.nfts.pop();
-        }
-    }
-
-    function insertNFT(
-        DSafe storage dSafe,
-        NFTId nftId,
-        mapping(NFTId => NFTTokenData) storage map
-    ) internal {
-        uint16 idx = uint16(dSafe.nfts.length);
-        dSafe.nfts.push(nftId);
-        map[nftId].dSafeIdx = idx;
-    }
-
-    function getERC20s(DSafe storage dSafe) internal view returns (uint16[] memory erc20s) {
-        uint256 numberOfERC20 = 0;
-        for (uint256 i = 0; i < dSafe.dAccountErc20Idxs.length; i++) {
-            numberOfERC20 += FsMath.bitCount(dSafe.dAccountErc20Idxs[i]);
-        }
-        erc20s = new uint16[](numberOfERC20);
-        uint256 idx = 0;
-        for (uint256 i = 0; i < dSafe.dAccountErc20Idxs.length; i++) {
-            uint256 mask = dSafe.dAccountErc20Idxs[i];
-            for (uint256 j = 0; j < 256; j++) {
-                uint256 x = mask >> j;
-                if (x == 0) break;
-                if ((x & 1) != 0) {
-                    erc20s[idx++] = uint16(i * 256 + j);
-                }
-            }
-        }
-    }
-
-    function computeERC20(
-        ERC20Pool storage pool,
-        ERC20Share sharesWrapped
-    ) internal view returns (int256 tokens) {
-        int256 shares = ERC20Share.unwrap(sharesWrapped);
-        if (shares == 0) return 0;
-        FsUtils.Assert(pool.shares != 0);
-        return (pool.tokens * shares) / pool.shares;
-    }
-}
-
-/// @title DOS State
-/// @notice Contract holds the configuration state for DOS
-contract DOSState is Pausable {
-    using DSafeLib for ERC20Pool;
-
-    IVersionManager public versionManager;
-    /// @notice mapping between dSafe address and DOS-specific dSafe data
-    mapping(address => DSafeLib.DSafe) public dSafes;
-
-    /// @notice mapping between dSafe address and the proposed new owner
-    /// @dev `proposedNewOwner` is address(0) when there is no pending change
-    mapping(address => address) public dSafeProposedNewOwner;
-
-    /// @notice mapping between dSafe address and an instance of deployed dSafeLogic contract.
-    /// It means that this specific dSafeLogic version is setup to operate the dSafe.
-    // @dev this could be a mapping to a version index instead of the implementation address
-    mapping(address => address) public dSafeLogic;
-
-    /// @notice mapping from
-    /// dSafe owner address => ERC20 address => dSafe spender address => allowed amount of ERC20.
-    /// It represent the allowance of `spender` to transfer up to `amount` of `erc20` balance of
-    /// owner's dAccount to some other dAccount. E.g. 123 => abc => 456 => 1000, means that
-    /// dSafe 456 can transfer up to 1000 of abc tokens from dAccount of dSafe 123 to some other dAccount.
-    /// Note, that no ERC20 are actually getting transferred - dAccount is a DOS concept, and
-    /// corresponding tokens are owned by DOS
-    mapping(address => mapping(address => mapping(address => uint256))) public allowances;
-
-    /// @notice Whether a spender is approved to operate on behalf of an owner
-    /// @dev Mapping from dSafe owner address => spender address => bool
-    mapping(address => mapping(address => bool)) public operatorApprovals;
-
-    mapping(DSafeLib.NFTId => NFTTokenData) public tokenDataByNFTId;
-
-    ERC20Info[] public erc20Infos;
-    ERC721Info[] public erc721Infos;
-
-    /// @notice mapping of ERC20 or ERC721 address => DOS asset idx and contract kind.
-    /// idx is the index of the ERC20 in `erc20Infos` or ERC721 in `erc721Infos`
-    /// kind is ContractKind enum, that here can be ERC20 or ERC721
-    mapping(address => ContractData) public infoIdx;
-
-    IDOSConfig.Config public config;
-
-    modifier onlyDSafe() {
-        if (dSafes[msg.sender].owner == address(0)) {
-            revert OnlyDSafe();
-        }
-        _;
-    }
-
-    modifier dSafeExists(address dSafe) {
-        if (dSafes[dSafe].owner == address(0)) {
-            revert DSafeNonExistent();
-        }
-        _;
-    }
-
-    function getBalance(
-        ERC20Share shares,
-        ERC20Info storage erc20Info
-    ) internal view returns (int256) {
-        ERC20Pool storage pool = ERC20Share.unwrap(shares) > 0
-            ? erc20Info.collateral
-            : erc20Info.debt;
-        return pool.computeERC20(shares);
-    }
-
-    function getNFTData(
-        DSafeLib.NFTId nftId
-    ) internal view returns (uint16 erc721Idx, uint256 tokenId) {
-        uint256 unwrappedId = DSafeLib.NFTId.unwrap(nftId);
-        erc721Idx = uint16(unwrappedId);
-        tokenId = tokenDataByNFTId[nftId].tokenId | ((unwrappedId >> 240) << 240);
-    }
-
-    function getERC20Info(IERC20 erc20) internal view returns (ERC20Info storage, uint16) {
-        if (infoIdx[address(erc20)].kind != ContractKind.ERC20) {
-            revert NotRegistered(address(erc20));
-        }
-        uint16 idx = infoIdx[address(erc20)].idx;
-        return (erc20Infos[idx], idx);
-    }
-
-    function getERC721Info(IERC721 erc721) internal view returns (ERC721Info storage, uint16) {
-        if (infoIdx[address(erc721)].kind != ContractKind.ERC721) {
-            revert NotRegistered(address(erc721));
-        }
-        uint16 idx = infoIdx[address(erc721)].idx;
-        return (erc721Infos[idx], idx);
-    }
-}
-
 /// @title DeFi OS (DOS)
 contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     using DSafeLib for DSafeLib.DSafe;
-    using DSafeLib for ERC20Pool;
+    using ERC20PoolLib for ERC20Pool;
     using SafeERC20 for IERC20;
     using Address for address;
+
+    /// @notice Sender is not approved to spend dSafe erc20
+    error NotApprovedOrOwner();
+    /// @notice Sender is not the owner of the dSafe;
+    /// @param sender The address of the sender
+    /// @param owner The address of the owner
+    error NotOwner(address sender, address owner);
+    /// @notice Transfer amount exceeds allowance
+    error InsufficientAllowance();
+    /// @notice Cannot approve self as spender
+    error SelfApproval();
+    /// @notice The receiving address is not a contract
+    error ReceiverNotContract();
+    /// @notice The receiver does not implement the required interface
+    error ReceiverNoImplementation();
+    /// @notice The receiver did not return the correct value - transaction failed
+    error WrongDataReturned();
+    /// @notice Asset is not an NFT
+    error NotNFT();
+    /// @notice NFT must be owned the the user or user's dSafe
+    error NotNFTOwner();
+    /// @notice Operation leaves dSafe insolvent
+    error Insolvent();
+    /// @notice Cannot withdraw debt
+    error CannotWithdrawDebt();
+    /// @notice DSafe is not liquidatable
+    error NotLiquidatable();
+    /// @notice There are insufficient reserves in the protocol for the debt
+    error InsufficientReserves();
+
+    // We will initialize the system so that 0 is the base currency
+    // in which the system calculates value.
+    uint16 constant K_NUMERAIRE_IDX = 0;
 
     uint256 constant POOL_ASSETS_CUTOFF = 100; // Wei amounts to prevent division by zero
 
@@ -1006,245 +750,5 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     // Config functions are handled by DOSConfig
     function _implementation() internal view override returns (address) {
         return dosConfigAddress;
-    }
-}
-
-/// @title DOS Config
-contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
-    using DSafeLib for DSafeLib.DSafe;
-    using DSafeLib for ERC20Pool;
-    using SafeERC20 for IERC20;
-    using Address for address;
-
-    constructor(address _owner) ImmutableGovernance(_owner) {}
-
-    /// @notice upgrades the version of dSafeLogic contract for the `dSafe`
-    /// @param version The new target version of dSafeLogic contract
-    function upgradeDSafeImplementation(
-        string calldata version
-    ) external override onlyDSafe whenNotPaused {
-        (
-            ,
-            IVersionManager.Status status,
-            IVersionManager.BugLevel bugLevel,
-            address implementation,
-
-        ) = versionManager.getVersionDetails(version);
-        if (implementation == address(0) || !implementation.isContract()) {
-            revert InvalidImplementation();
-        }
-        if (status == IVersionManager.Status.DEPRECATED) {
-            revert DeprecatedVersion();
-        }
-        if (bugLevel != IVersionManager.BugLevel.NONE) {
-            revert BugLevelTooHigh();
-        }
-        dSafeLogic[msg.sender] = implementation;
-        emit IDOSConfig.DSafeImplementationUpgraded(msg.sender, version, implementation);
-    }
-
-    /// @notice Proposes the ownership transfer of `dSafe` to the `newOwner`
-    /// @dev The ownership transfer must be executed by the `newOwner` to complete the transfer
-    /// @dev emits `DSafeOwnershipTransferProposed` event
-    /// @param newOwner The new owner of the `dSafe`
-    function proposeTransferDSafeOwnership(
-        address newOwner
-    ) external override onlyDSafe whenNotPaused {
-        dSafeProposedNewOwner[msg.sender] = newOwner;
-        emit IDOSConfig.DSafeOwnershipTransferProposed(msg.sender, newOwner);
-    }
-
-    /// @notice Executes the ownership transfer of `dSafe` to the `newOwner`
-    /// @dev The caller must be the `newOwner` and the `newOwner` must be the proposed new owner
-    /// @dev emits `DSafeOwnershipTransferred` event
-    /// @param dSafe The address of the dSafe
-    function executeTransferDSafeOwnership(address dSafe) external override whenNotPaused {
-        if (msg.sender != dSafeProposedNewOwner[dSafe]) {
-            revert InvalidNewOwner(dSafeProposedNewOwner[dSafe], msg.sender);
-        }
-        dSafes[dSafe].owner = msg.sender;
-        delete dSafeProposedNewOwner[dSafe];
-        emit IDOSConfig.DSafeOwnershipTransferred(dSafe, msg.sender);
-    }
-
-    /// @notice Pause the contract
-    function pause() external override onlyGovernance {
-        _pause();
-    }
-
-    /// @notice Unpause the contract
-    function unpause() external override onlyGovernance {
-        _unpause();
-    }
-
-    /// @notice add a new ERC20 to be used inside DOS
-    /// @dev For governance only.
-    /// @param erc20Contract The address of ERC20 to add
-    /// @param name The name of the ERC20. E.g. "Wrapped ETH"
-    /// @param symbol The symbol of the ERC20. E.g. "WETH"
-    /// @param decimals Decimals of the ERC20. E.g. 18 for WETH and 6 for USDC
-    /// @param valueOracle The address of the Value Oracle. Probably Uniswap one
-    /// @param baseRate The interest rate when utilization is 0
-    /// @param slope1 The interest rate slope when utilization is less than the targetUtilization
-    /// @param slope2 The interest rate slope when utilization is more than the targetUtilization
-    /// @param targetUtilization The target utilization for the asset
-    /// @return the index of the added ERC20 in the erc20Infos array
-    function addERC20Info(
-        address erc20Contract,
-        string calldata name,
-        string calldata symbol,
-        uint8 decimals,
-        address valueOracle,
-        uint256 baseRate,
-        uint256 slope1,
-        uint256 slope2,
-        uint256 targetUtilization
-    ) external override onlyGovernance returns (uint16) {
-        uint16 erc20Idx = uint16(erc20Infos.length);
-        erc20Infos.push(
-            ERC20Info(
-                erc20Contract,
-                IERC20ValueOracle(valueOracle),
-                ERC20Pool(0, 0),
-                ERC20Pool(0, 0),
-                baseRate,
-                slope1,
-                slope2,
-                targetUtilization,
-                block.timestamp
-            )
-        );
-        infoIdx[erc20Contract] = ContractData(erc20Idx, ContractKind.ERC20);
-        emit IDOSConfig.ERC20Added(
-            erc20Idx,
-            erc20Contract,
-            name,
-            symbol,
-            decimals,
-            valueOracle,
-            baseRate,
-            slope1,
-            slope2,
-            targetUtilization
-        );
-        return erc20Idx;
-    }
-
-    /// @notice Add a new ERC721 to be used inside DOS.
-    /// @dev For governance only.
-    /// @param erc721Contract The address of the ERC721 to be added
-    /// @param valueOracleAddress The address of the Uniswap Oracle to get the price of a token
-    function addERC721Info(
-        address erc721Contract,
-        address valueOracleAddress
-    ) external override onlyGovernance {
-        if (!IERC165(erc721Contract).supportsInterface(type(IERC721).interfaceId)) {
-            revert NotNFT();
-        }
-        INFTValueOracle valueOracle = INFTValueOracle(valueOracleAddress);
-        uint256 erc721Idx = erc721Infos.length;
-        erc721Infos.push(ERC721Info(erc721Contract, valueOracle));
-        infoIdx[erc721Contract] = ContractData(uint16(erc721Idx), ContractKind.ERC721);
-        emit IDOSConfig.ERC721Added(erc721Idx, erc721Contract, valueOracleAddress);
-    }
-
-    /// @notice Updates the config of DOS
-    /// @dev for governance only.
-    /// @param _config the Config of IDOSConfig. A struct with DOS parameters
-    function setConfig(Config calldata _config) external override onlyGovernance {
-        config = _config;
-        emit IDOSConfig.ConfigSet(_config);
-    }
-
-    /// @notice Set the address of Version Manager contract
-    /// @dev for governance only.
-    /// @param _versionManager The address of the Version Manager contract to be set
-    function setVersionManager(address _versionManager) external override onlyGovernance {
-        versionManager = IVersionManager(_versionManager);
-        emit IDOSConfig.VersionManagerSet(_versionManager);
-    }
-
-    /// @notice Updates some of ERC20 config parameters
-    /// @dev for governance only.
-    /// @param erc20 The address of ERC20 contract for which DOS config parameters should be updated
-    /// @param valueOracle The address of the erc20 value oracle
-    /// @param baseRate The interest rate when utilization is 0
-    /// @param slope1 The interest rate slope when utilization is less than the targetUtilization
-    /// @param slope2 The interest rate slope when utilization is more than the targetUtilization
-    /// @param targetUtilization The target utilization for the asset
-    function setERC20Data(
-        address erc20,
-        address valueOracle,
-        uint256 baseRate,
-        uint256 slope1,
-        uint256 slope2,
-        uint256 targetUtilization
-    ) external override onlyGovernance {
-        uint16 erc20Idx = infoIdx[erc20].idx;
-        if (infoIdx[erc20].kind != ContractKind.ERC20) {
-            revert NotERC20();
-        }
-        erc20Infos[erc20Idx].valueOracle = IERC20ValueOracle(valueOracle);
-        erc20Infos[erc20Idx].baseRate = baseRate;
-        erc20Infos[erc20Idx].slope1 = slope1;
-        erc20Infos[erc20Idx].slope2 = slope2;
-        erc20Infos[erc20Idx].targetUtilization = targetUtilization;
-        emit IDOSConfig.ERC20DataSet(
-            erc20,
-            erc20Idx,
-            valueOracle,
-            baseRate,
-            slope1,
-            slope2,
-            targetUtilization
-        );
-    }
-
-    /// @notice creates a new dSafe with sender as the owner and returns the dSafe address
-    /// @return dSafe The address of the created dSafe
-    function createDSafe() external override whenNotPaused returns (address dSafe) {
-        address[] memory erc20s = new address[](erc20Infos.length);
-        for (uint256 i = 0; i < erc20Infos.length; i++) {
-            erc20s[i] = erc20Infos[i].erc20Contract;
-        }
-        address[] memory erc721s = new address[](erc721Infos.length);
-        for (uint256 i = 0; i < erc721Infos.length; i++) {
-            erc721s[i] = erc721Infos[i].erc721Contract;
-        }
-
-        dSafe = address(new DSafeProxy(address(this), erc20s, erc721s));
-        dSafes[dSafe].owner = msg.sender;
-
-        // add a version parameter if users should pick a specific version
-        (, , , address implementation, ) = versionManager.getRecommendedVersion();
-        dSafeLogic[dSafe] = implementation;
-        emit IDOSConfig.DSafeCreated(dSafe, msg.sender);
-    }
-
-    /// @notice Returns the amount of `erc20` tokens on dAccount of dSafe
-    /// @param dSafeAddr The address of the dSafe for which dAccount the amount of `erc20` should
-    /// be calculated
-    /// @param erc20 The address of ERC20 which balance on dAccount of `dSafe` should be calculated
-    /// @return the amount of `erc20` on the dAccount of `dSafe`
-    function getDAccountERC20(
-        address dSafeAddr,
-        IERC20 erc20
-    ) external view override returns (int256) {
-        DSafeLib.DSafe storage dSafe = dSafes[dSafeAddr];
-        (ERC20Info storage erc20Info, uint16 erc20Idx) = getERC20Info(erc20);
-        ERC20Share erc20Share = dSafe.erc20Share[erc20Idx];
-        return getBalance(erc20Share, erc20Info);
-    }
-
-    /// @notice returns the NFTs on dAccount of `dSafe`
-    /// @param dSafe The address of dSafe which dAccount NFTs should be returned
-    /// @return The array of NFT deposited on the dAccount of `dSafe`
-    function getDAccountERC721(address dSafe) external view override returns (NFTData[] memory) {
-        NFTData[] memory nftData = new NFTData[](dSafes[dSafe].nfts.length);
-        for (uint i = 0; i < nftData.length; i++) {
-            (uint16 erc721Idx, uint256 tokenId) = getNFTData(dSafes[dSafe].nfts[i]);
-            nftData[i] = NFTData(erc721Infos[erc721Idx].erc721Contract, tokenId);
-        }
-        return nftData;
     }
 }

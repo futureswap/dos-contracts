@@ -2,17 +2,19 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-import {IDOS, DOS, DOSConfig, IDOSConfig, DSafeLib, DOSState, IDOSCore} from "../../contracts/dos/DOS.sol";
+import {DOS, IDOS, DSafeLib, DOSState, IDOSCore} from "../../contracts/dos/DOS.sol";
+import {DOSConfig, IDOSConfig} from "../../contracts/dos/DOSConfig.sol";
 
 import {Call} from "../../contracts/lib/Call.sol";
-import {DSafeProxy, DSafeLogic} from "../../contracts/dos/DSafeProxy.sol";
+import {DSafeProxy} from "../../contracts/dsafe/DSafeProxy.sol";
+import {DSafeLogic} from "../../contracts/dsafe/DSafeLogic.sol";
 
 import {IVersionManager, VersionManager, ImmutableVersion} from "../../contracts/dos/VersionManager.sol";
 
 import {MockERC20Oracle} from "../../contracts/testing/MockERC20Oracle.sol";
 import {ERC20ChainlinkValueOracle} from "../../contracts/oracles/ERC20ChainlinkValueOracle.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import {TestERC20} from "../../contracts/testing/TestERC20.sol";
 
