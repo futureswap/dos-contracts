@@ -19,7 +19,6 @@ import {Call, CallLib} from "contracts/lib/Call.sol";
 import {SigUtils} from "test/foundry/utils/SigUtils.sol";
 
 contract DSafeTest is Test {
-
     IPermit2 public permit2;
     TransferAndCall2 public transferAndCall2;
 
@@ -45,7 +44,7 @@ contract DSafeTest is Test {
 
     function setUp() public {
         address owner = address(this);
-        
+
         usdc = new TestERC20("Circle USD", "USDC", 6);
         weth = new TestERC20("Wrapped Ether", "WETH", 18);
         nft = new TestNFT("Test NFT", "TNFT", 0);
@@ -91,7 +90,6 @@ contract DSafeTest is Test {
         bytes memory signature = abi.encodePacked(r, s, v);
 
         DSafeLogic(address(userSafe)).executeSignedBatch(calls, 0, type(uint256).max, signature);
-
     }
 
     function test_transferAndCall2ToProxy() public {
@@ -108,13 +106,15 @@ contract DSafeTest is Test {
 
     function test_upgradeVersion() public {
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
-        (string memory versionName,,,,) = versionManager.getRecommendedVersion();
+        (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
         _upgradeDSafeImplementation(versionName);
     }
 
     function test_upgradeInvalidVersion(string memory invalidVersionName) public {
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
-        if (keccak256(abi.encodePacked(invalidVersionName)) == keccak256(abi.encodePacked(version))) {
+        if (
+            keccak256(abi.encodePacked(invalidVersionName)) == keccak256(abi.encodePacked(version))
+        ) {
             invalidVersionName = "1.0.1";
         }
         vm.expectRevert();
@@ -123,42 +123,62 @@ contract DSafeTest is Test {
 
     function test_upgradeDeprecatedVersion() public {
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
-        (string memory versionName,,,,) = versionManager.getRecommendedVersion();
-        versionManager.updateVersion(versionName, IVersionManager.Status.DEPRECATED, IVersionManager.BugLevel.NONE);
+        (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
+        versionManager.updateVersion(
+            versionName,
+            IVersionManager.Status.DEPRECATED,
+            IVersionManager.BugLevel.NONE
+        );
         vm.expectRevert();
-         _upgradeDSafeImplementation(versionName);
+        _upgradeDSafeImplementation(versionName);
     }
 
     function test_upgradeLowBugVersion() public {
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
-        (string memory versionName,,,,) = versionManager.getRecommendedVersion();
-        versionManager.updateVersion(versionName, IVersionManager.Status.PRODUCTION, IVersionManager.BugLevel.LOW);
+        (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
+        versionManager.updateVersion(
+            versionName,
+            IVersionManager.Status.PRODUCTION,
+            IVersionManager.BugLevel.LOW
+        );
         vm.expectRevert();
-         _upgradeDSafeImplementation(versionName);
+        _upgradeDSafeImplementation(versionName);
     }
 
     function test_upgradeMedBugVersion() public {
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
-        (string memory versionName,,,,) = versionManager.getRecommendedVersion();
-        versionManager.updateVersion(versionName, IVersionManager.Status.PRODUCTION, IVersionManager.BugLevel.MEDIUM);
+        (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
+        versionManager.updateVersion(
+            versionName,
+            IVersionManager.Status.PRODUCTION,
+            IVersionManager.BugLevel.MEDIUM
+        );
         vm.expectRevert();
-         _upgradeDSafeImplementation(versionName);
+        _upgradeDSafeImplementation(versionName);
     }
 
     function test_upgradeHighBugVersion() public {
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
-        (string memory versionName,,,,) = versionManager.getRecommendedVersion();
-        versionManager.updateVersion(versionName, IVersionManager.Status.PRODUCTION, IVersionManager.BugLevel.HIGH);
+        (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
+        versionManager.updateVersion(
+            versionName,
+            IVersionManager.Status.PRODUCTION,
+            IVersionManager.BugLevel.HIGH
+        );
         vm.expectRevert();
-         _upgradeDSafeImplementation(versionName);
+        _upgradeDSafeImplementation(versionName);
     }
 
     function test_upgradeCriticalBugVersion() public {
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
-        (string memory versionName,,,,) = versionManager.getRecommendedVersion();
-        versionManager.updateVersion(versionName, IVersionManager.Status.PRODUCTION, IVersionManager.BugLevel.CRITICAL);
+        (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
+        versionManager.updateVersion(
+            versionName,
+            IVersionManager.Status.PRODUCTION,
+            IVersionManager.BugLevel.CRITICAL
+        );
         vm.expectRevert();
-         _upgradeDSafeImplementation(versionName);
+        _upgradeDSafeImplementation(versionName);
     }
 
     function test_proposeTransferDSafeOwnership(address newOwner) public {
