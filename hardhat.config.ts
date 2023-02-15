@@ -3,10 +3,10 @@ import type {HardhatRuntimeEnvironment} from "hardhat/types";
 
 import "hardhat-preprocessor";
 import "@nomicfoundation/hardhat-toolbox";
-import "@nomiclabs/hardhat-waffle";
+// import "@nomiclabs/hardhat-waffle";
 import "@nomiclabs/hardhat-ethers";
 import {config as dotEnvConfig} from "dotenv";
-import "@graphprotocol/hardhat-graph";
+// import "@graphprotocol/hardhat-graph";
 
 import {preprocessCode} from "./lib/hardhat/preprocess";
 

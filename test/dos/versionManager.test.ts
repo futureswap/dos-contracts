@@ -80,7 +80,8 @@ describe("VersionManager", () => {
 
       await versionManager.connect(owner).removeRecommendedVersion();
 
-      await expect(versionManager.getRecommendedVersion()).to.be.revertedWith(
+      await expect(versionManager.getRecommendedVersion()).to.be.revertedWithCustomError(
+        versionManager,
         "NoRecommendedVersion",
       );
     });
