@@ -982,8 +982,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         return collateral >= debt;
     }
 
-    function _tokenStorageCheck(address dSafe) internal view {
-        DSafeLib.DSafe storage dSafe = dSafes[dSafe];
+    function _tokenStorageCheck(address dSafeAddress) internal view {
+        DSafeLib.DSafe storage dSafe = dSafes[dSafeAddress];
         uint256 tokenCounter;
         uint256 nftCounter;
         if (dSafe.tokenCounter < 0) {
