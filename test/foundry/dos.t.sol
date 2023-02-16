@@ -12,9 +12,11 @@ import {IVersionManager, VersionManager, ImmutableVersion} from "../../contracts
 
 import {MockERC20Oracle} from "../../contracts/testing/MockERC20Oracle.sol";
 import {ERC20ChainlinkValueOracle} from "../../contracts/oracles/ERC20ChainlinkValueOracle.sol";
+import {MockNFTOracle} from "../../contracts/testing/MockNFTOracle.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import {TestERC20} from "../../contracts/testing/TestERC20.sol";
+import {TestNFT} from "../../contracts/testing/TestNFT.sol";
 
 contract DosTest is Test {
     uint256 mainnetFork;
@@ -35,6 +37,9 @@ contract DosTest is Test {
 
     MockERC20Oracle public token0Oracle;
     MockERC20Oracle public token1Oracle;
+
+    TestNFT public nft0;
+    MockNFTOracle public nft0Oracle;
 
     // string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
 
@@ -79,6 +84,9 @@ contract DosTest is Test {
         token1Oracle.setPrice(1e18, 18, 18);
         token1Oracle.setRiskFactors(9e17, 9e17);
 
+        nft0 = new TestNFT("nft0", "n0", 0);
+        nft0Oracle = new MockNFTOracle();
+
         IDOSConfig(address(dos)).addERC20Info(
             address(token0),
             "token0",
@@ -101,6 +109,12 @@ contract DosTest is Test {
             480, // slope2
             8e17 // targetUtilization
         );
+
+        IDOSConfig(address(dos)).addERC721Info(
+            address(nft0),
+            address(nft0Oracle)
+        );
+
 
         // add to version manager
         string memory version = "1.0.0";
@@ -364,6 +378,38 @@ contract DosTest is Test {
         dos.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
         vm.expectRevert(TokenStorageExceeded.selector);
         dos.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
+    }
+
+    function test_exceedMaxTokenStorageNFT() public {
+        IDOSConfig(address(dos)).setTokenStorageConfig(
+            IDOSConfig.TokenStorageConfig({
+                maxTokenStorage: 1,
+                erc20Multiplier: 1,
+                erc721Multiplier: 1
+            })
+        );
+
+        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        _mintTokens(address(this), 100 * 1 ether, 100 * 1 ether);
+        token0.approve(address(dos), 100 * 1 ether);
+        token1.approve(address(dos), 100 * 1 ether);
+        dos.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
+
+        nft0.mint(address(userSafe));
+        Call[] memory calls = new Call[](1);
+        calls[0] = (
+            Call({
+                to: address(dos),
+                callData: abi.encodeWithSignature(
+                    "depositERC721(address,uint256)",
+                    address(nft0),
+                    0
+                ),
+                value: 0
+            })
+        );
+        vm.expectRevert(TokenStorageExceeded.selector);
+        userSafe.executeBatch(calls);
     }
 
     function test_increaseMaxTokenStorage() public {
