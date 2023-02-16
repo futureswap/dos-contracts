@@ -72,6 +72,14 @@ contract DuoswapV2Test is Test {
             })
         );
 
+        IDOSConfig(address(dos)).setTokenStorageConfig(
+            IDOSConfig.TokenStorageConfig({
+                maxTokenStorage: 250,
+                erc20Multiplier: 1,
+                erc721Multiplier: 1
+            })
+        );
+
         versionManager.addVersion(IVersionManager.Status.PRODUCTION, address(logic));
         versionManager.markRecommendedVersion(version);
 

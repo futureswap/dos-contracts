@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
 
-import {IDOS, DOS, DOSConfig, IDOSConfig, DSafeLib, DOSState, IDOSCore} from "../../contracts/dos/DOS.sol";
+import {IDOS, DOS, DOSConfig, IDOSConfig, DSafeLib, DOSState, IDOSCore, TokenStorageExceeded} from "../../contracts/dos/DOS.sol";
 
 import {Call} from "../../contracts/lib/Call.sol";
 import {DSafeProxy, DSafeLogic} from "../../contracts/dos/DSafeProxy.sol";
@@ -56,6 +56,14 @@ contract DosTest is Test {
                 maxSolvencyCheckGasCost: 1e6,
                 liqFraction: 8e17,
                 fractionalReserveLeverage: 9
+            })
+        );
+
+        IDOSConfig(address(dos)).setTokenStorageConfig(
+            IDOSConfig.TokenStorageConfig({
+                maxTokenStorage: 250,
+                erc20Multiplier: 1,
+                erc721Multiplier: 1
             })
         );
 
@@ -338,6 +346,51 @@ contract DosTest is Test {
         vm.expectRevert();
         userSafe.executeBatch(calls);
         vm.stopPrank();
+    }
+
+    function test_exceedMaxTokenStorage() public {
+        IDOSConfig(address(dos)).setTokenStorageConfig(
+            IDOSConfig.TokenStorageConfig({
+                maxTokenStorage: 100,
+                erc20Multiplier: 100,
+                erc721Multiplier: 1
+            })
+        );
+
+        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        _mintTokens(address(this), 100 * 1 ether, 100 * 1 ether);
+        token0.approve(address(dos), 100 * 1 ether);
+        token1.approve(address(dos), 100 * 1 ether);
+        dos.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
+        vm.expectRevert(TokenStorageExceeded.selector);
+        dos.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
+    }
+
+    function test_increaseMaxTokenStorage() public {
+        IDOSConfig(address(dos)).setTokenStorageConfig(
+            IDOSConfig.TokenStorageConfig({
+                maxTokenStorage: 100,
+                erc20Multiplier: 100,
+                erc721Multiplier: 1
+            })
+        );
+
+        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        _mintTokens(address(this), 100 * 1 ether, 100 * 1 ether);
+        token0.approve(address(dos), 100 * 1 ether);
+        token1.approve(address(dos), 100 * 1 ether);
+        dos.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
+        vm.expectRevert(TokenStorageExceeded.selector);
+        dos.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
+
+        IDOSConfig(address(dos)).setTokenStorageConfig(
+            IDOSConfig.TokenStorageConfig({
+                maxTokenStorage: 250,
+                erc20Multiplier: 1,
+                erc721Multiplier: 1
+            })
+        );
+        dos.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
     }
 
     function _mintTokens(address to, uint256 amount0, uint256 amount1) internal {

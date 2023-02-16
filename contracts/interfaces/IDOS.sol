@@ -22,6 +22,12 @@ interface IDOSConfig {
         int256 fractionalReserveLeverage; // Ratio of debt to reserves
     }
 
+    struct TokenStorageConfig {
+        uint256 maxTokenStorage;
+        uint256 erc20Multiplier;
+        uint256 erc721Multiplier;
+    }
+
     struct NFTData {
         address erc721;
         uint256 tokenId;
@@ -84,6 +90,10 @@ interface IDOSConfig {
     /// @param config The new config
     event ConfigSet(Config config);
 
+    /// @notice Emitted when the token storage config is set
+    /// @param tokenStorageConfig The new token storage config
+    event TokenStorageConfigSet(TokenStorageConfig tokenStorageConfig);
+
     /// @notice Emitted when the version manager address is set
     /// @param versionManager The version manager address
     event VersionManagerSet(address indexed versionManager);
@@ -141,6 +151,8 @@ interface IDOSConfig {
     ) external;
 
     function setConfig(Config calldata _config) external;
+
+    function setTokenStorageConfig(TokenStorageConfig calldata _tokenStorageConfig) external;
 
     function setVersionManager(address _versionManager) external;
 
