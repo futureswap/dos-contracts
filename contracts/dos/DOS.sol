@@ -996,7 +996,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         } else {
             nftCounter = FsMath.safeCastToUnsigned(dSafe.nftCounter);
         }
-        uint256 tokenStorage = (tokenCounter * tokenStorageConfig.erc20Multiplier) + (nftCounter * tokenStorageConfig.erc721Multiplier);
+        uint256 tokenStorage = (tokenCounter * tokenStorageConfig.erc20Multiplier) +
+            (nftCounter * tokenStorageConfig.erc721Multiplier);
         if (tokenStorage > tokenStorageConfig.maxTokenStorage) {
             revert TokenStorageExceeded();
         }
@@ -1180,7 +1181,9 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     /// @notice Updates the configuration setttings for credit account token storage
     /// @dev for governance only.
     /// @param _tokenStorageConfig the TokenStorageconfig of IDOSConfig
-    function setTokenStorageConfig(TokenStorageConfig calldata _tokenStorageConfig) external override onlyGovernance {
+    function setTokenStorageConfig(
+        TokenStorageConfig calldata _tokenStorageConfig
+    ) external override onlyGovernance {
         tokenStorageConfig = _tokenStorageConfig;
         emit IDOSConfig.TokenStorageConfigSet(_tokenStorageConfig);
     }
