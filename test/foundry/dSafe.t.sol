@@ -15,8 +15,10 @@ import {VersionManager, IVersionManager} from "contracts/dos/VersionManager.sol"
 import {DSafeLogic} from "contracts/dsafe/DSafeLogic.sol";
 import {DSafeProxy} from "contracts/dsafe/DSafeProxy.sol";
 import {Call, CallLib} from "contracts/lib/Call.sol";
+import {ITransferReceiver2} from "contracts/interfaces/ITransferReceiver2.sol";
 
-import {SigUtils} from "test/foundry/utils/SigUtils.sol";
+import {SigUtils, ECDSA} from "test/foundry/utils/SigUtils.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 contract DSafeTest is Test {
     IPermit2 public permit2;
@@ -39,6 +41,8 @@ contract DSafeTest is Test {
 
     DSafeProxy public treasurySafe;
     DSafeProxy public userSafe;
+
+    bytes32 fsSALT = bytes32(0x1234567890123456789012345678901234567890123456789012345678901234);
 
     string version = "1.0.0";
 
@@ -72,28 +76,58 @@ contract DSafeTest is Test {
 
         versionManager.addVersion(IVersionManager.Status.PRODUCTION, address(proxyLogic));
         versionManager.markRecommendedVersion(version);
+
+        transferAndCall2 = TransferAndCall2(0x4e765952997a33893AfB4457A6A7f381909f3629);
+        // transferAndCall2 = new TransferAndCall2{salt: fsSALT}();
+        usdc.approve(address(transferAndCall2), type(uint256).max);
+        weth.approve(address(transferAndCall2), type(uint256).max);
     }
 
     function test_validExecuteSignedBatch() public {
-        // TODO
         SigUtils sigUtils = new SigUtils();
         uint256 userPrivateKey = 0xB0B;
         address user = vm.addr(userPrivateKey);
+        console.log("user: %s", user);
         vm.prank(user);
         userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
 
         Call[] memory calls = new Call[](0);
+        uint256 nonce = 0;
+        uint256 deadline = type(uint256).max;
 
-        bytes32 digest = sigUtils.getTypedDataHash(address(userSafe), calls, 0, type(uint256).max);
+        bytes32 digest = sigUtils.getTypedDataHash(address(userSafe), calls, nonce, deadline);
+        console.log("digest");
+        console.logBytes32(digest);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        DSafeLogic(address(userSafe)).executeSignedBatch(calls, 0, type(uint256).max, signature);
+        address recovered = ecrecover(digest, v, r, s);
+        console.log("recovered");
+        console.logAddress(recovered);
+
+        DSafeLogic(address(userSafe)).executeSignedBatch(calls, nonce, deadline, signature);
     }
 
     function test_transferAndCall2ToProxy() public {
         // TODO
+
+        deal({token: address(usdc), to: address(this), give: 10_000 * 1e6});
+
+        deal({token: address(weth), to: address(this), give: 1 * 1 ether});
+
+        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+
+        ITransferReceiver2.Transfer[] memory transfers = new ITransferReceiver2.Transfer[](2);
+
+        transfers[0] = ITransferReceiver2.Transfer({token: address(usdc), amount: 10_000 * 1e6});
+
+        transfers[1] = ITransferReceiver2.Transfer({token: address(weth), amount: 1 * 1 ether});
+
+        _sortTransfers(transfers);
+
+        bytes memory data = bytes("0x");
+        transferAndCall2.transferAndCall2(address(userSafe), transfers, data);
     }
 
     function test_transferAndCall2ToDOS() public {
@@ -234,10 +268,15 @@ contract DSafeTest is Test {
         userSafe.executeBatch(calls);
     }
 
-    struct DSafeDomain {
-        string name;
-        string version;
-        uint256 chainId;
-        address verifyingContract;
+    function _sortTransfers(ITransferReceiver2.Transfer[] memory transfers) internal pure {
+        for (uint256 i = 0; i < transfers.length; i++) {
+            for (uint256 j = i + 1; j < transfers.length; j++) {
+                if (transfers[i].token > transfers[j].token) {
+                    ITransferReceiver2.Transfer memory temp = transfers[i];
+                    transfers[i] = transfers[j];
+                    transfers[j] = temp;
+                }
+            }
+        }
     }
 }
