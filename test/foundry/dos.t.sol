@@ -13,7 +13,6 @@ import {IVersionManager, VersionManager, ImmutableVersion} from "../../contracts
 import {MockERC20Oracle} from "../../contracts/testing/MockERC20Oracle.sol";
 import {ERC20ChainlinkValueOracle} from "../../contracts/oracles/ERC20ChainlinkValueOracle.sol";
 import {MockNFTOracle} from "../../contracts/testing/MockNFTOracle.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import {TestERC20} from "../../contracts/testing/TestERC20.sol";
 import {TestNFT} from "../../contracts/testing/TestNFT.sol";
@@ -110,11 +109,7 @@ contract DosTest is Test {
             8e17 // targetUtilization
         );
 
-        IDOSConfig(address(dos)).addERC721Info(
-            address(nft0),
-            address(nft0Oracle)
-        );
-
+        IDOSConfig(address(dos)).addERC721Info(address(nft0), address(nft0Oracle));
 
         // add to version manager
         string memory version = "1.0.0";
@@ -362,6 +357,132 @@ contract DosTest is Test {
         vm.stopPrank();
     }
 
+    function test_depositERC20IncreaseTokenCounter(uint256 amount) public {
+        amount = bound(amount, 0, uint256(type(int256).max));
+        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        (, int256 tokenCounter) = DOSState(dos).dSafes(address(userSafe));
+        assertEq(tokenCounter, 0);
+        _mintTokens(address(this), amount, 0);
+        token0.approve(address(dos), amount);
+        dos.depositERC20ForSafe(address(token0), address(userSafe), amount);
+        (, tokenCounter) = DOSState(dos).dSafes(address(userSafe));
+        if (amount == 0) {
+            assertEq(tokenCounter, 0);
+        } else {
+            assertEq(tokenCounter, 1);
+        }
+    }
+
+    function test_depositERC20IncreaseTokenCounter2(uint256 amount) public {
+        amount = bound(amount, 0, uint256(type(int256).max));
+        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        (, int256 tokenCounter) = DOSState(dos).dSafes(address(userSafe));
+        assertEq(tokenCounter, 0);
+        _mintTokens(address(this), amount, amount);
+        token0.approve(address(dos), amount);
+        token1.approve(address(dos), amount);
+        dos.depositERC20ForSafe(address(token0), address(userSafe), amount);
+        dos.depositERC20ForSafe(address(token1), address(userSafe), amount);
+        (, tokenCounter) = DOSState(dos).dSafes(address(userSafe));
+        if (amount == 0) {
+            assertEq(tokenCounter, 0);
+        } else {
+            assertEq(tokenCounter, 2);
+        }
+    }
+
+    function test_withdrawERC20DecreaseTokenCounter(uint256 amount) public {
+        // NOTE: reverts with some amount > 2^96
+        amount = bound(amount, 0, uint256(int256(type(int96).max)));
+        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        (, int256 tokenCounter) = DOSState(dos).dSafes(address(userSafe));
+        assertEq(tokenCounter, 0);
+        _mintTokens(address(this), amount, 0);
+        token0.approve(address(dos), amount);
+        dos.depositERC20ForSafe(address(token0), address(userSafe), amount);
+        (, tokenCounter) = DOSState(dos).dSafes(address(userSafe));
+        if (amount == 0) {
+            assertEq(tokenCounter, 0);
+        } else {
+            assertEq(tokenCounter, 1);
+            Call[] memory calls = new Call[](1);
+            calls[0] = (
+                Call({
+                    to: address(dos),
+                    callData: abi.encodeWithSignature(
+                        "withdrawERC20(address,uint256)",
+                        address(token0),
+                        amount
+                    ),
+                    value: 0
+                })
+            );
+            userSafe.executeBatch(calls);
+            (, tokenCounter) = DOSState(dos).dSafes(address(userSafe));
+            assertEq(tokenCounter, 0);
+        }
+    }
+
+    function test_depositERC721IncreaseNftCounter() public {
+        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        nft0Oracle.setPrice(0, 1 ether);
+        uint256 nftCounter = DOSConfig(address(dos)).getDAccountERC721Counter(address(userSafe));
+        assertEq(nftCounter, 0);
+        nft0.mint(address(userSafe));
+        Call[] memory calls = new Call[](1);
+        calls[0] = (
+            Call({
+                to: address(dos),
+                callData: abi.encodeWithSignature(
+                    "depositERC721(address,uint256)",
+                    address(nft0),
+                    0
+                ),
+                value: 0
+            })
+        );
+        userSafe.executeBatch(calls);
+        nftCounter = DOSConfig(address(dos)).getDAccountERC721Counter(address(userSafe));
+        assertEq(nftCounter, 1);
+    }
+
+    function test_withdrawERC721DecreaseNftCounter() public {
+        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        nft0Oracle.setPrice(0, 1 ether);
+        uint256 nftCounter = DOSConfig(address(dos)).getDAccountERC721Counter(address(userSafe));
+        assertEq(nftCounter, 0);
+        nft0.mint(address(userSafe));
+        Call[] memory calls = new Call[](1);
+        calls[0] = (
+            Call({
+                to: address(dos),
+                callData: abi.encodeWithSignature(
+                    "depositERC721(address,uint256)",
+                    address(nft0),
+                    0
+                ),
+                value: 0
+            })
+        );
+        userSafe.executeBatch(calls);
+        nftCounter = DOSConfig(address(dos)).getDAccountERC721Counter(address(userSafe));
+        assertEq(nftCounter, 1);
+        calls[0] = (
+            Call({
+                to: address(dos),
+                callData: abi.encodeWithSignature(
+                    "withdrawERC721(address,uint256)",
+                    address(nft0),
+                    0
+                ),
+                value: 0
+            })
+        );
+        userSafe.executeBatch(calls);
+        nftCounter = DOSConfig(address(dos)).getDAccountERC721Counter(address(userSafe));
+        assertEq(nftCounter, 0);
+    }
+
     function test_exceedMaxTokenStorage() public {
         IDOSConfig(address(dos)).setTokenStorageConfig(
             IDOSConfig.TokenStorageConfig({
@@ -437,6 +558,46 @@ contract DosTest is Test {
             })
         );
         dos.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
+    }
+
+    function test_decreaseMaxTokenStorage() public {
+        IDOSConfig(address(dos)).setTokenStorageConfig(
+            IDOSConfig.TokenStorageConfig({
+                maxTokenStorage: 100,
+                erc20Multiplier: 10,
+                erc721Multiplier: 1
+            })
+        );
+
+        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        _mintTokens(address(this), 100 * 1 ether, 100 * 1 ether);
+        token0.approve(address(dos), 100 * 1 ether);
+        token1.approve(address(dos), 100 * 1 ether);
+        dos.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
+        dos.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
+
+        IDOSConfig(address(dos)).setTokenStorageConfig(
+            IDOSConfig.TokenStorageConfig({
+                maxTokenStorage: 10,
+                erc20Multiplier: 10,
+                erc721Multiplier: 1
+            })
+        );
+        nft0.mint(address(userSafe));
+        Call[] memory calls = new Call[](1);
+        calls[0] = (
+            Call({
+                to: address(dos),
+                callData: abi.encodeWithSignature(
+                    "depositERC721(address,uint256)",
+                    address(nft0),
+                    0
+                ),
+                value: 0
+            })
+        );
+        vm.expectRevert(TokenStorageExceeded.selector);
+        userSafe.executeBatch(calls);
     }
 
     function _mintTokens(address to, uint256 amount0, uint256 amount1) internal {

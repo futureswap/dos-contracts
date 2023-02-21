@@ -139,7 +139,6 @@ library DSafeLib {
     struct DSafe {
         address owner;
         int256 tokenCounter;
-        int256 nftCounter;
         mapping(uint16 => ERC20Share) erc20Share;
         NFTId[] nfts;
         // bitmask of DOS indexes of ERC20 present in a dSafe. `1` can be increased on updates
@@ -198,7 +197,6 @@ library DSafeLib {
             dSafe.nfts[idx] = lastNFTId;
             dSafe.nfts.pop();
         }
-        --dSafe.nftCounter;
     }
 
     function insertNFT(
@@ -209,7 +207,6 @@ library DSafeLib {
         uint16 idx = uint16(dSafe.nfts.length);
         dSafe.nfts.push(nftId);
         map[nftId].dSafeIdx = idx;
-        ++dSafe.nftCounter;
     }
 
     function getERC20s(DSafe storage dSafe) internal view returns (uint16[] memory erc20s) {
@@ -238,7 +235,8 @@ library DSafeLib {
         int256 shares = ERC20Share.unwrap(sharesWrapped);
         if (shares == 0) return 0;
         FsUtils.Assert(pool.shares != 0);
-        return (pool.tokens * shares) / pool.shares;
+        tokens = (pool.tokens * shares) / pool.shares;
+        return tokens;
     }
 }
 
@@ -918,10 +916,11 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     function _extractPosition(
         ERC20Share sharesWrapped,
         ERC20Info storage erc20Info
-    ) internal returns (int256) {
+    ) internal returns (int256 position) {
         int256 shares = ERC20Share.unwrap(sharesWrapped);
         ERC20Pool storage pool = shares > 0 ? erc20Info.collateral : erc20Info.debt;
-        return pool.extractPosition(sharesWrapped);
+        position = pool.extractPosition(sharesWrapped);
+        return position;
     }
 
     function _insertPosition(
@@ -985,16 +984,11 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     function _tokenStorageCheck(address dSafeAddress) internal view {
         DSafeLib.DSafe storage dSafe = dSafes[dSafeAddress];
         uint256 tokenCounter;
-        uint256 nftCounter;
+        uint256 nftCounter = dSafe.nfts.length;
         if (dSafe.tokenCounter < 0) {
             tokenCounter = 0;
         } else {
             tokenCounter = FsMath.safeCastToUnsigned(dSafe.tokenCounter);
-        }
-        if (dSafe.nftCounter < 0) {
-            nftCounter = 0;
-        } else {
-            nftCounter = FsMath.safeCastToUnsigned(dSafe.nftCounter);
         }
         uint256 tokenStorage = (tokenCounter * tokenStorageConfig.erc20Multiplier) +
             (nftCounter * tokenStorageConfig.erc721Multiplier);
@@ -1278,5 +1272,12 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
             nftData[i] = NFTData(erc721Infos[erc721Idx].erc721Contract, tokenId);
         }
         return nftData;
+    }
+
+    /// @notice returns the amount of NFTs in dAccount of `dSafe`
+    /// @param dSafe The address of the dSafe
+    /// @return The amount of NFTs in the dAccount of `dSafe`
+    function getDAccountERC721Counter(address dSafe) external view returns (uint256) {
+        return dSafes[dSafe].nfts.length;
     }
 }
