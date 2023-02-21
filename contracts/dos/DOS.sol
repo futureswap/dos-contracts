@@ -1275,7 +1275,7 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
     }
 
     /// @notice returns the amount of NFTs in dAccount of `dSafe`
-    /// @param dSafe The address of the dSafe
+    /// @param dSafe The address of the dSafe that owns the dAccount
     /// @return The amount of NFTs in the dAccount of `dSafe`
     function getDAccountERC721Counter(address dSafe) external view returns (uint256) {
         return dSafes[dSafe].nfts.length;
