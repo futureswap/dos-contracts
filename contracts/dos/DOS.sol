@@ -63,6 +63,8 @@ error BugLevelTooHigh();
 /// @param proposedOwner The address of the proposed new owner
 /// @param newOwner The address of the attempted new owner
 error InvalidNewOwner(address proposedOwner, address newOwner);
+/// @notice This operation would add too many tokens to the credit account
+error TokenStorageExceeded();
 
 // ERC20 standard token
 // ERC721 single non-fungible token support
@@ -136,6 +138,7 @@ library DSafeLib {
 
     struct DSafe {
         address owner;
+        int256 tokenCounter;
         mapping(uint16 => ERC20Share) erc20Share;
         NFTId[] nfts;
         // bitmask of DOS indexes of ERC20 present in a dSafe. `1` can be increased on updates
@@ -144,10 +147,12 @@ library DSafeLib {
 
     function removeERC20IdxFromDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
         dSafe.dAccountErc20Idxs[erc20Idx >> 8] &= ~(1 << (erc20Idx & 255));
+        --dSafe.tokenCounter;
     }
 
     function addERC20IdxToDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
         dSafe.dAccountErc20Idxs[erc20Idx >> 8] |= (1 << (erc20Idx & 255));
+        ++dSafe.tokenCounter;
     }
 
     function extractPosition(
@@ -230,7 +235,8 @@ library DSafeLib {
         int256 shares = ERC20Share.unwrap(sharesWrapped);
         if (shares == 0) return 0;
         FsUtils.Assert(pool.shares != 0);
-        return (pool.tokens * shares) / pool.shares;
+        tokens = (pool.tokens * shares) / pool.shares;
+        return tokens;
     }
 }
 
@@ -276,6 +282,7 @@ contract DOSState is Pausable {
     mapping(address => ContractData) public infoIdx;
 
     IDOSConfig.Config public config;
+    IDOSConfig.TokenStorageConfig public tokenStorageConfig;
 
     modifier onlyDSafe() {
         if (dSafes[msg.sender].owner == address(0)) {
@@ -375,6 +382,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         _dAccountERC20ChangeBy(to, erc20Idx, signedAmount);
         emit IDOSCore.ERC20BalanceChanged(erc20, erc20Idx, to, signedAmount);
         IERC20(erc20).safeTransferFrom(msg.sender, address(this), amount);
+        _tokenStorageCheck(to);
     }
 
     /// @notice deposit `amount` of `erc20` to dAccount from dSafe
@@ -387,6 +395,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         _dAccountERC20ChangeBy(msg.sender, erc20Idx, signedAmount);
         emit IDOSCore.ERC20BalanceChanged(address(erc20), erc20Idx, msg.sender, signedAmount);
         erc20.safeTransferFrom(msg.sender, address(this), amount);
+        _tokenStorageCheck(msg.sender);
     }
 
     /// @notice deposit `amount` of `erc20` from dAccount tp dSafe
@@ -412,6 +421,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             emit IDOSCore.ERC20BalanceChanged(address(erc20), erc20Idx, msg.sender, signedAmount);
             erc20.safeTransferFrom(msg.sender, address(this), amount);
         }
+        _tokenStorageCheck(msg.sender);
     }
 
     /// @notice withdraw all `erc20s` from dAccount to dSafe
@@ -622,6 +632,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         require(dSafes[from].owner != address(0), "DSafe does not exist");
         tokenDataByNFTId[nftId].tokenId = uint240(tokenId);
         dSafes[from].insertNFT(nftId, tokenDataByNFTId);
+        _tokenStorageCheck(from);
         return this.onERC721Received.selector;
     }
 
@@ -860,6 +871,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         _dAccountERC20ChangeBy(from, erc20Idx, -amount);
         _dAccountERC20ChangeBy(to, erc20Idx, amount);
+        _tokenStorageCheck(to);
         emit IDOSCore.ERC20Transfer(address(erc20), erc20Idx, from, to, amount);
     }
 
@@ -869,6 +881,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     function _transferNFT(DSafeLib.NFTId nftId, address from, address to) internal {
         dSafes[from].extractNFT(nftId, tokenDataByNFTId);
         dSafes[to].insertNFT(nftId, tokenDataByNFTId);
+        _tokenStorageCheck(to);
         emit ERC721Transferred(DSafeLib.NFTId.unwrap(nftId), from, to);
     }
 
@@ -903,10 +916,11 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     function _extractPosition(
         ERC20Share sharesWrapped,
         ERC20Info storage erc20Info
-    ) internal returns (int256) {
+    ) internal returns (int256 position) {
         int256 shares = ERC20Share.unwrap(sharesWrapped);
         ERC20Pool storage pool = shares > 0 ? erc20Info.collateral : erc20Info.debt;
-        return pool.extractPosition(sharesWrapped);
+        position = pool.extractPosition(sharesWrapped);
+        return position;
     }
 
     function _insertPosition(
@@ -965,6 +979,22 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         if (gasBefore - gasleft() > config.maxSolvencyCheckGasCost)
             revert SolvencyCheckTooExpensive();
         return collateral >= debt;
+    }
+
+    function _tokenStorageCheck(address dSafeAddress) internal view {
+        DSafeLib.DSafe storage dSafe = dSafes[dSafeAddress];
+        uint256 tokenCounter;
+        uint256 nftCounter = dSafe.nfts.length;
+        if (dSafe.tokenCounter < 0) {
+            tokenCounter = 0;
+        } else {
+            tokenCounter = FsMath.safeCastToUnsigned(dSafe.tokenCounter);
+        }
+        uint256 tokenStorage = (tokenCounter * tokenStorageConfig.erc20Multiplier) +
+            (nftCounter * tokenStorageConfig.erc721Multiplier);
+        if (tokenStorage > tokenStorageConfig.maxTokenStorage) {
+            revert TokenStorageExceeded();
+        }
     }
 
     function _getNFTId(address erc721, uint256 tokenId) internal view returns (DSafeLib.NFTId) {
@@ -1142,6 +1172,16 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         emit IDOSConfig.ConfigSet(_config);
     }
 
+    /// @notice Updates the configuration setttings for credit account token storage
+    /// @dev for governance only.
+    /// @param _tokenStorageConfig the TokenStorageconfig of IDOSConfig
+    function setTokenStorageConfig(
+        TokenStorageConfig calldata _tokenStorageConfig
+    ) external override onlyGovernance {
+        tokenStorageConfig = _tokenStorageConfig;
+        emit IDOSConfig.TokenStorageConfigSet(_tokenStorageConfig);
+    }
+
     /// @notice Set the address of Version Manager contract
     /// @dev for governance only.
     /// @param _versionManager The address of the Version Manager contract to be set
@@ -1232,5 +1272,12 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
             nftData[i] = NFTData(erc721Infos[erc721Idx].erc721Contract, tokenId);
         }
         return nftData;
+    }
+
+    /// @notice returns the amount of NFTs in dAccount of `dSafe`
+    /// @param dSafe The address of the dSafe that owns the dAccount
+    /// @return The amount of NFTs in the dAccount of `dSafe`
+    function getDAccountERC721Counter(address dSafe) external view returns (uint256) {
+        return dSafes[dSafe].nfts.length;
     }
 }

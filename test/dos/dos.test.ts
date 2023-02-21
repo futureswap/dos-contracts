@@ -99,6 +99,12 @@ describe("DOS", () => {
       fractionalReserveLeverage: 9,
     });
 
+    await iDos.setTokenStorageConfig({
+      maxTokenStorage: 250,
+      erc20Multiplier: 1,
+      erc721Multiplier: 1,
+    });
+
     await iDos.addERC20Info(
       usdc.address,
       "USD Coin",
