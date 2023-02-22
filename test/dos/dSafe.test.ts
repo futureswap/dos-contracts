@@ -345,37 +345,37 @@ describe("DSafeProxy", () => {
     );
     const newImplementation = await iDos.getImplementation(dSafe.address);
     expect(newImplementation).to.equal(oldImplementation);
-  });
 
-  it("should be able to propose dSafe ownership transfer", async () => {
-    const {user2, dSafe, iDos, dos} = await loadFixture(deployDOSFixture);
+    it("should be able to propose dSafe ownership transfer", async () => {
+      const {user2, dSafe, iDos, dos} = await loadFixture(deployDOSFixture);
 
-    await expect(proposeTransferDSafeOwnership(iDos, dSafe, user2.address)).to.not.be.reverted;
+      await expect(proposeTransferDSafeOwnership(iDos, dSafe, user2.address)).to.not.be.reverted;
 
-    expect(await dos.dSafeProposedNewOwner(dSafe.address)).to.equal(user2.address);
-  });
+      expect(await dos.dSafeProposedNewOwner(dSafe.address)).to.equal(user2.address);
+    });
 
-  it("should be able to execute dSafe ownership transfer after proposal", async () => {
-    const {user2, dSafe, iDos, dos} = await loadFixture(deployDOSFixture);
+    it("should be able to execute dSafe ownership transfer after proposal", async () => {
+      const {user2, dSafe, iDos, dos} = await loadFixture(deployDOSFixture);
 
-    await proposeTransferDSafeOwnership(iDos, dSafe, user2.address);
+      await proposeTransferDSafeOwnership(iDos, dSafe, user2.address);
 
-    expect(await dos.dSafeProposedNewOwner(dSafe.address)).to.equal(user2.address);
+      expect(await dos.dSafeProposedNewOwner(dSafe.address)).to.equal(user2.address);
 
-    await expect(iDos.connect(user2).executeTransferDSafeOwnership(dSafe.address)).to.not.be
-      .reverted;
+      await expect(iDos.connect(user2).executeTransferDSafeOwnership(dSafe.address)).to.not.be
+        .reverted;
 
-    expect(await dos.getDSafeOwner(dSafe.address)).to.equal(user2.address);
-    expect(await dos.dSafeProposedNewOwner(dSafe.address)).to.equal(ethers.constants.AddressZero);
-  });
+      expect(await dos.getDSafeOwner(dSafe.address)).to.equal(user2.address);
+      expect(await dos.dSafeProposedNewOwner(dSafe.address)).to.equal(ethers.constants.AddressZero);
+    });
 
-  it("should be not able to execute dSafe ownership transfer without proposal", async () => {
-    const {user, user2, dSafe, iDos, dos} = await loadFixture(deployDOSFixture);
+    it("should be not able to execute dSafe ownership transfer without proposal", async () => {
+      const {user, user2, dSafe, iDos, dos} = await loadFixture(deployDOSFixture);
 
-    expect(await dos.dSafeProposedNewOwner(dSafe.address)).to.equal(ethers.constants.AddressZero);
+      expect(await dos.dSafeProposedNewOwner(dSafe.address)).to.equal(ethers.constants.AddressZero);
 
-    await expect(iDos.connect(user2).executeTransferDSafeOwnership(dSafe.address)).to.be.reverted;
+      await expect(iDos.connect(user2).executeTransferDSafeOwnership(dSafe.address)).to.be.reverted;
 
-    expect(await dos.getDSafeOwner(dSafe.address)).to.equal(user.address);
+      expect(await dos.getDSafeOwner(dSafe.address)).to.equal(user.address);
+    });
   });
 });
