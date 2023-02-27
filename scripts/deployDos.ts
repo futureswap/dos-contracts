@@ -16,7 +16,7 @@ async function main() {
   const {versionManager, dos} = await deployDos(
     governanceProxy.address,
     anyswapCreate2Deployer,
-    (BigInt(fsSalt) + 10n).toString(),
+    (BigInt(fsSalt) + 11n).toString(),
     deployer,
   );
   console.log("DeployDOS Finished");
@@ -24,7 +24,7 @@ async function main() {
   const dSafeLogic = await deployAtFixedAddress(
     new DSafeLogic__factory(deployer),
     anyswapCreate2Deployer,
-    (BigInt(fsSalt) + 10n).toString(),
+    (BigInt(fsSalt) + 11n).toString(),
     dos.address,
   );
   console.log("dSafeLogic:", dSafeLogic.address);
