@@ -26,3 +26,5 @@ out/
 .env
 # Matchstick
 ./path/to/subgraph/tests/.*
+
+docs/
