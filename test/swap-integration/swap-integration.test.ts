@@ -1,5 +1,4 @@
 import type {DSafeLogic, TestERC20, WETH9} from "../../typechain-types";
-import type {BigNumber} from "ethers";
 
 import {ethers} from "hardhat";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
