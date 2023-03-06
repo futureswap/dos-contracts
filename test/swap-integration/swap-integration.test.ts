@@ -29,11 +29,6 @@ const ETH_PRICE = 2000;
 const USDC_DECIMALS = 6;
 const WETH_DECIMALS = 18;
 
-type NFTDataStructOutput = {
-  erc721: string;
-  tokenId: BigNumber;
-};
-
 describe("DOS swap integration", () => {
   // we define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
@@ -293,7 +288,7 @@ describe("DOS swap integration", () => {
         makeCall(uniV3LPHelper).mintAndDeposit(mintParams),
       ]);
 
-      const nfts: NFTDataStructOutput[] = await iDos.getDAccountERC721(dSafe.address);
+      const nfts = await iDos.getDAccountERC721(dSafe.address);
       expect(nfts.length).to.equal(1);
     });
 
