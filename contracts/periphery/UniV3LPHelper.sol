@@ -8,22 +8,33 @@ import {IDOS} from "contracts/interfaces/IDOS.sol";
 
 contract UniV3LPHelper {
     IDOS public dos;
-    INonfungiblePositionManager public nonfungiblePositionManager;
+    address public nonfungiblePositionManager;
 
     constructor(address _dos, address _nonfungiblePositionManger) {
         dos = IDOS(_dos);
-        nonfungiblePositionManager = INonfungiblePositionManager(_nonfungiblePositionManger);
+        nonfungiblePositionManager = _nonfungiblePositionManger;
     }
 
     function mintAndDeposit(INonfungiblePositionManager.MintParams memory params) external payable {
+        // Transfer tokens to this contract
         IERC20(params.token0).transferFrom(msg.sender, address(this), params.amount0Desired);
         IERC20(params.token1).transferFrom(msg.sender, address(this), params.amount1Desired);
-        IERC20(params.token0).approve(address(nonfungiblePositionManager), type(uint256).max);
-        IERC20(params.token1).approve(address(nonfungiblePositionManager), type(uint256).max);
-        params.recipient = address(this);
-        (uint256 tokenId, , , ) = nonfungiblePositionManager.mint(params);
 
+        // Approve tokens to nonfungiblePositionManager
+        IERC20(params.token0).approve(nonfungiblePositionManager, params.amount0Desired);
+        IERC20(params.token1).approve(nonfungiblePositionManager, params.amount1Desired);
+
+        // Update recipient to this contract
+        params.recipient = address(this);
+
+        // Mint LP token
+        (uint256 tokenId, , , ) = INonfungiblePositionManager(nonfungiblePositionManager).mint(
+            params
+        );
+
+        // Approve LP token to DOS
         IERC721(address(nonfungiblePositionManager)).approve(address(dos), tokenId);
-        dos.depositERC721ForSafe(address(nonfungiblePositionManager), msg.sender, tokenId);
+        // Deposit LP token to credit account
+        dos.depositERC721ForSafe(nonfungiblePositionManager, msg.sender, tokenId);
     }
 }
