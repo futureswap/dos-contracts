@@ -60,6 +60,7 @@ contract DOSState is Pausable {
     mapping(address => ContractData) public infoIdx;
 
     IDOSConfig.Config public config;
+    IDOSConfig.TokenStorageConfig public tokenStorageConfig;
 
     modifier onlyDSafe() {
         if (dSafes[msg.sender].owner == address(0)) {

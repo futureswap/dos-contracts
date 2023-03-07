@@ -9,7 +9,6 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
 import {IDOS, IDOSConfig, IDOSCore, ERC20Share, NFTTokenData, ERC20Pool, ERC20Info, ERC721Info, ContractData, ContractKind} from "../interfaces/IDOS.sol";
-import {DSafeProxy} from "./DSafeProxy.sol";
 import {DOSState} from "./DOSState.sol";
 import {DSafeProxy} from "../dsafe/DSafeProxy.sol";
 import {IVersionManager} from "../interfaces/IVersionManager.sol";
@@ -23,7 +22,6 @@ import {FsMath} from "../lib/FsMath.sol";
 import "../interfaces/IERC20ValueOracle.sol";
 import "../interfaces/INFTValueOracle.sol";
 import {PERMIT2, IPermit2} from "../external/interfaces/IPermit2.sol";
-
 
 // ERC20 standard token
 // ERC721 single non-fungible token support
@@ -84,6 +82,8 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     error NotLiquidatable();
     /// @notice There are insufficient reserves in the protocol for the debt
     error InsufficientReserves();
+    /// @notice This operation would add too many tokens to the credit account
+    error TokenStorageExceeded();
 
     // We will initialize the system so that 0 is the base currency
     // in which the system calculates value.

@@ -177,6 +177,16 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
         emit IDOSConfig.ConfigSet(_config);
     }
 
+    /// @notice Updates the configuration setttings for credit account token storage
+    /// @dev for governance only.
+    /// @param _tokenStorageConfig the TokenStorageconfig of IDOSConfig
+    function setTokenStorageConfig(
+        TokenStorageConfig calldata _tokenStorageConfig
+    ) external override onlyGovernance {
+        tokenStorageConfig = _tokenStorageConfig;
+        emit IDOSConfig.TokenStorageConfigSet(_tokenStorageConfig);
+    }
+
     /// @notice Set the address of Version Manager contract
     /// @dev for governance only.
     /// @param _versionManager The address of the Version Manager contract to be set
@@ -267,5 +277,12 @@ contract DOSConfig is DOSState, ImmutableGovernance, IDOSConfig {
             nftData[i] = NFTData(erc721Infos[erc721Idx].erc721Contract, tokenId);
         }
         return nftData;
+    }
+
+    /// @notice returns the amount of NFTs in dAccount of `dSafe`
+    /// @param dSafe The address of the dSafe that owns the dAccount
+    /// @return The amount of NFTs in the dAccount of `dSafe`
+    function getDAccountERC721Counter(address dSafe) external view returns (uint256) {
+        return dSafes[dSafe].nfts.length;
     }
 }

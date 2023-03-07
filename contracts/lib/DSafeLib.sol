@@ -12,6 +12,7 @@ library DSafeLib {
 
     struct DSafe {
         address owner;
+        int256 tokenCounter;
         mapping(uint16 => ERC20Share) erc20Share;
         NFTId[] nfts;
         // bitmask of DOS indexes of ERC20 present in a dSafe. `1` can be increased on updates
@@ -20,10 +21,12 @@ library DSafeLib {
 
     function removeERC20IdxFromDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
         dSafe.dAccountErc20Idxs[erc20Idx >> 8] &= ~(1 << (erc20Idx & 255));
+        --dSafe.tokenCounter;
     }
 
     function addERC20IdxToDAccount(DSafe storage dSafe, uint16 erc20Idx) internal {
         dSafe.dAccountErc20Idxs[erc20Idx >> 8] |= (1 << (erc20Idx & 255));
+        ++dSafe.tokenCounter;
     }
 
     function extractNFT(
