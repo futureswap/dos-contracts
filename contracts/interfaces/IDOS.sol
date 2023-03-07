@@ -285,6 +285,8 @@ interface IDOSCore {
 
     function depositERC721(address nftContract, uint256 tokenId) external;
 
+    function depositERC721ForSafe(address nftContract, address to, uint256 tokenId) external;
+
     function withdrawERC721(address erc721, uint256 tokenId) external;
 
     function transferERC721(address erc721, uint256 tokenId, address to) external;

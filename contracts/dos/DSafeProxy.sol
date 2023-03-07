@@ -234,7 +234,7 @@ contract DSafeLogic is
             /* just deposit in the proxy, nothing to do */
         } else if (data[0] == 0x00) {
             // execute batch
-            require(msg.sender == dos.getDSafeOwner(address(this)), "Not owner");
+            require(from == dos.getDSafeOwner(address(this)), "Not owner");
             Call[] memory calls = abi.decode(data[1:], (Call[]));
             dos.executeBatch(calls);
         } else if (data[0] == 0x01) {

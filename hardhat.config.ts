@@ -5,12 +5,14 @@ import "hardhat-preprocessor";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-waffle";
 import "@nomiclabs/hardhat-ethers";
-import {config as dotEnvConfig} from "dotenv";
 import "@graphprotocol/hardhat-graph";
+import {config as dotEnvConfig} from "dotenv";
+import * as tdly from "@tenderly/hardhat-tenderly";
 
 import {preprocessCode} from "./lib/hardhat/preprocess";
 
 dotEnvConfig({path: "./.env"});
+tdly.setup();
 
 // account mnemonics and infura api keys should be stored in .env file
 // as to not expose them through GitHub.
@@ -158,6 +160,11 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: getEnvVariable("ETHERSCAN_API_KEY"),
+  },
+  tenderly: {
+    username: "supa",
+    project: "supa-testnets",
+    privateVerification: true,
   },
 };
 

@@ -463,6 +463,29 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         );
     }
 
+    /// @notice deposit ERC721 `erc721Contract` token `tokenId` from dSafe to dAccount
+    /// @dev the part when we track the ownership of deposit NFT to a specific dAccount is in
+    /// `onERC721Received` function of this contract
+    /// @param erc721Contract The address of the ERC721 contract that the token belongs to
+    /// @param to The dSafe address for which the NFT will be deposited
+    /// @param tokenId The id of the token to be transferred
+    function depositERC721ForSafe(
+        address erc721Contract,
+        address to,
+        uint256 tokenId
+    )
+        external
+        override
+        dSafeExists(to)
+        whenNotPaused
+        onlyRegisteredNFT(erc721Contract, tokenId)
+        onlyNFTOwner(erc721Contract, tokenId)
+    {
+        address _owner = ERC721(erc721Contract).ownerOf(tokenId);
+        emit IDOSCore.ERC721Deposited(erc721Contract, to, tokenId);
+        ERC721(erc721Contract).safeTransferFrom(_owner, address(this), tokenId, abi.encode(to));
+    }
+
     /// @notice withdraw ERC721 `nftContract` token `tokenId` from dAccount to dSafe
     /// @param erc721 The address of the ERC721 contract that the token belongs to
     /// @param tokenId The id of the token to be transferred
