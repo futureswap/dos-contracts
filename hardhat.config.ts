@@ -3,7 +3,7 @@ import type {HardhatRuntimeEnvironment} from "hardhat/types";
 
 import "hardhat-preprocessor";
 import "@nomicfoundation/hardhat-toolbox";
-import "@nomiclabs/hardhat-waffle";
+// import "@nomiclabs/hardhat-waffle";
 import "@nomiclabs/hardhat-ethers";
 import "@graphprotocol/hardhat-graph";
 import {config as dotEnvConfig} from "dotenv";
@@ -49,7 +49,7 @@ const config: HardhatUserConfig = {
   solidity: {
     compilers: [
       {
-        version: "0.8.17",
+        version: "0.8.18",
         settings: {
           metadata: {
             // not including the metadata hash

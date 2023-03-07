@@ -3,72 +3,20 @@ pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import "@openzeppelin/contracts/proxy/Proxy.sol";
-import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import "../lib/FsUtils.sol";
-import "../lib/Call.sol";
-import "../lib/ImmutableVersion.sol";
-import "../interfaces/IDOS.sol";
-import "../interfaces/IVersionManager.sol";
-import "../interfaces/ITransferReceiver2.sol";
-import "../external/interfaces/IPermit2.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+
+import {DSafeState} from "./DSafeState.sol";
+import {Liquifier} from "../dos/Liquifier.sol";
+import {IVersionManager} from "../interfaces/IVersionManager.sol";
+import {ITransferReceiver2} from "../interfaces/ITransferReceiver2.sol";
 import {ISafe} from "../interfaces/ISafe.sol";
-import "./DSafeState.sol";
-import "./Liquifier.sol";
-import "../interfaces/IERC1363-extended.sol";
-import "../lib/NonceMap.sol";
-
-/// @title DSafe Proxy
-/// @notice Proxy contract for DOS Safes
-// Inspired by TransparentUpdatableProxy
-contract DSafeProxy is DSafeState, Proxy {
-    modifier ifDos() {
-        if (msg.sender == address(dos)) {
-            _;
-        } else {
-            _fallback();
-        }
-    }
-
-    constructor(address _dos, address[] memory erc20s, address[] memory erc721s) DSafeState(_dos) {
-        // Approve DOS and PERMIT2 to spend all ERC20s
-        for (uint256 i = 0; i < erc20s.length; i++) {
-            // slither-disable-next-line missing-zero-check
-            IERC20 erc20 = IERC20(FsUtils.nonNull(erc20s[i]));
-            erc20.approve(_dos, type(uint256).max);
-            erc20.approve(address(PERMIT2), type(uint256).max);
-            erc20.approve(address(TRANSFER_AND_CALL2), type(uint256).max);
-        }
-        // Approve DOS to spend all ERC721s
-        for (uint256 i = 0; i < erc721s.length; i++) {
-            // slither-disable-next-line missing-zero-check
-            IERC721 erc721 = IERC721(FsUtils.nonNull(erc721s[i]));
-            erc721.setApprovalForAll(_dos, true);
-            // Add future uniswap permit for ERC721 support
-        }
-    }
-
-    // Allow ETH transfers
-    receive() external payable override {}
-
-    // Allow DOS to make arbitrary calls in lieu of this dSafe
-    function executeBatch(Call[] calldata calls) external payable ifDos {
-        // Function is payable to allow for ETH transfers to the logic
-        // contract, but dos should never send eth (dos contract should
-        // never contain eth / other than what's self-destructed into it)
-        FsUtils.Assert(msg.value == 0);
-        CallLib.executeBatch(calls);
-    }
-
-    // The implementation of the delegate is controlled by DOS
-    function _implementation() internal view override returns (address) {
-        return dos.getImplementation(address(this));
-    }
-}
+import {IERC1363SpenderExtended} from "../interfaces/IERC1363-extended.sol";
+import {CallLib, Call} from "../lib/Call.sol";
+import {NonceMapLib, NonceMap} from "../lib/NonceMap.sol";
+import {ImmutableVersion} from "../lib/ImmutableVersion.sol";
 
 // Calls to the contract not coming from DOS itself are routed to this logic
 // contract. This allows for flexible extra addition to your dSafe.
@@ -108,17 +56,27 @@ contract DSafeLogic is
     bool internal forwardNFT;
     NonceMap private nonceMap;
 
+    /// @notice Data does not match the expected format
     error InvalidData();
+    /// @notice Signature is invalid
     error InvalidSignature();
+    /// @notice Nonce has already been used
     error NonceAlreadyUsed();
+    /// @notice Deadline has expired
     error DeadlineExpired();
     /// @notice Only DOS can call this function
     error OnlyDOS();
     /// @notice Only the owner or operator can call this function
     error NotOwnerOrOperator();
+    /// @notice Only the owner can call this function
+    error OnlyOwner();
+    /// @notice Only this address can call this function
+    error OnlyThisAddress();
 
     modifier onlyOwner() {
-        require(dos.getDSafeOwner(address(this)) == msg.sender, "");
+        if (dos.getDSafeOwner(address(this)) != msg.sender) {
+            revert OnlyOwner();
+        }
         _;
     }
 
@@ -187,7 +145,9 @@ contract DSafeLogic is
     }
 
     function forwardNFTs(bool _forwardNFT) external {
-        require(msg.sender == address(this), "only this");
+        if (msg.sender != address(this)) {
+            revert OnlyThisAddress();
+        }
         forwardNFT = _forwardNFT;
     }
 
@@ -234,11 +194,13 @@ contract DSafeLogic is
             /* just deposit in the proxy, nothing to do */
         } else if (data[0] == 0x00) {
             // execute batch
-            require(from == dos.getDSafeOwner(address(this)), "Not owner");
+            if (msg.sender != dos.getDSafeOwner(address(this))) {
+                revert OnlyOwner();
+            }
             Call[] memory calls = abi.decode(data[1:], (Call[]));
             dos.executeBatch(calls);
         } else if (data[0] == 0x01) {
-            require(data.length == 1, "Invalid data - allowed are [], [0...], [1] and [2]");
+            if (data.length != 1) revert InvalidData();
             // deposit in the dos dSafe
             for (uint256 i = 0; i < transfers.length; i++) {
                 ITransferReceiver2.Transfer memory transfer = transfers[i];

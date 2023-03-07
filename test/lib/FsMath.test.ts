@@ -65,7 +65,7 @@ describe("FSMath", () => {
     const {fsMath} = await loadFixture(setupFsMath);
     expect(await fsMath.safeCastToUnsigned(0)).to.equal(0);
     expect(await fsMath.safeCastToUnsigned(1)).to.equal(1);
-    await expect(fsMath.safeCastToUnsigned(-1)).to.revertedWith("underflow");
+    await expect(fsMath.safeCastToUnsigned(-1)).to.revertedWith("Cast underflow");
 
     expect(await fsMath.safeCastToSigned(0)).to.equal(0);
     expect(await fsMath.safeCastToSigned(1)).to.equal(1);
@@ -73,7 +73,7 @@ describe("FSMath", () => {
     expect(await fsMath.safeCastToSigned((twoPow255 - 1n).toString())).to.equal(
       (twoPow255 - 1n).toString(),
     );
-    await expect(fsMath.safeCastToSigned(twoPow255.toString())).to.revertedWith("overflow");
+    await expect(fsMath.safeCastToSigned(twoPow255.toString())).to.revertedWith("Cast overflow");
   });
 
   it("exp", async () => {

@@ -1,15 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-/// @notice version is not registered
-error VersionNotRegistered();
-/// @notice version name cannot be the empty string
-error InvalidVersionName();
-/// @notice implementation must be a contract
-error InvalidImplementation();
-/// @notice version is already registered
-error VersionAlreadyRegistered();
-
 interface IVersionManager {
     /// @dev Signifies the status of a version
     enum Status {

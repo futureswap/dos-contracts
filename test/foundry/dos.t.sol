@@ -2,20 +2,23 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-import {IDOS, DOS, DOSConfig, IDOSConfig, DSafeLib, DOSState, IDOSCore, TokenStorageExceeded} from "../../contracts/dos/DOS.sol";
+import {DOS, IDOS, DSafeLib, DOSState, IDOSCore} from "contracts/dos/DOS.sol";
+import {DOSConfig, IDOSConfig} from "contracts/dos/DOSConfig.sol";
 
-import {Call} from "../../contracts/lib/Call.sol";
-import {DSafeProxy, DSafeLogic} from "../../contracts/dos/DSafeProxy.sol";
+import {Call} from "contracts/lib/Call.sol";
+import {DSafeProxy} from "contracts/dsafe/DSafeProxy.sol";
+import {DSafeLogic} from "contracts/dsafe/DSafeLogic.sol";
 
-import {IVersionManager, VersionManager, ImmutableVersion} from "../../contracts/dos/VersionManager.sol";
+import {IVersionManager, VersionManager, ImmutableVersion} from "contracts/dos/VersionManager.sol";
 
-import {MockERC20Oracle} from "../../contracts/testing/MockERC20Oracle.sol";
-import {ERC20ChainlinkValueOracle} from "../../contracts/oracles/ERC20ChainlinkValueOracle.sol";
-import {MockNFTOracle} from "../../contracts/testing/MockNFTOracle.sol";
+import {MockERC20Oracle} from "contracts/testing/MockERC20Oracle.sol";
+import {ERC20ChainlinkValueOracle} from "contracts/oracles/ERC20ChainlinkValueOracle.sol";
+import {MockNFTOracle} from "contracts/testing/MockNFTOracle.sol";
 
-import {TestERC20} from "../../contracts/testing/TestERC20.sol";
-import {TestNFT} from "../../contracts/testing/TestNFT.sol";
+import {TestERC20} from "contracts/testing/TestERC20.sol";
+import {TestNFT} from "contracts/testing/TestNFT.sol";
 
 contract DosTest is Test {
     uint256 mainnetFork;
@@ -497,7 +500,7 @@ contract DosTest is Test {
         token0.approve(address(dos), 100 * 1 ether);
         token1.approve(address(dos), 100 * 1 ether);
         dos.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
-        vm.expectRevert(TokenStorageExceeded.selector);
+        vm.expectRevert(DOS.TokenStorageExceeded.selector);
         dos.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
     }
 
@@ -529,7 +532,7 @@ contract DosTest is Test {
                 value: 0
             })
         );
-        vm.expectRevert(TokenStorageExceeded.selector);
+        vm.expectRevert(DOS.TokenStorageExceeded.selector);
         userSafe.executeBatch(calls);
     }
 
@@ -547,7 +550,7 @@ contract DosTest is Test {
         token0.approve(address(dos), 100 * 1 ether);
         token1.approve(address(dos), 100 * 1 ether);
         dos.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
-        vm.expectRevert(TokenStorageExceeded.selector);
+        vm.expectRevert(DOS.TokenStorageExceeded.selector);
         dos.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
 
         IDOSConfig(address(dos)).setTokenStorageConfig(
@@ -596,7 +599,7 @@ contract DosTest is Test {
                 value: 0
             })
         );
-        vm.expectRevert(TokenStorageExceeded.selector);
+        vm.expectRevert(DOS.TokenStorageExceeded.selector);
         userSafe.executeBatch(calls);
     }
 

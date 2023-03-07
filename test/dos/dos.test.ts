@@ -79,7 +79,7 @@ describe("DOS", () => {
 
     const nftOracle = await new MockNFTOracle__factory(owner).deploy();
 
-    const {iDos, versionManager} = await deployDos(
+    const {iDos, dos, versionManager} = await deployDos(
       owner.address,
       anyswapCreate2Deployer,
       "0x01",
@@ -160,6 +160,7 @@ describe("DOS", () => {
       nftOracle, // some registered nft
       unregisteredNft, // some unregistered nft
       iDos,
+      dos,
       permit2,
       getBalances,
     };
@@ -212,14 +213,14 @@ describe("DOS", () => {
     });
 
     it("User cannot send more than they own", async () => {
-      const {user, user2, iDos, usdc} = await loadFixture(deployDOSFixture);
+      const {user, user2, iDos, dos, usdc} = await loadFixture(deployDOSFixture);
       const sender = await createDSafe(iDos, user);
       const receiver = await createDSafe(iDos, user2);
       await depositERC20(iDos, sender, usdc, toWeiUsdc(10_000));
 
       const tx = transfer(iDos, sender, receiver, usdc.address, toWeiUsdc(20_000));
 
-      await expect(tx).to.be.revertedWith("Insolvent");
+      await expect(tx).to.be.revertedWithCustomError(dos, "Insolvent");
     });
 
     it("User can send more ERC20 then they have", async () => {
@@ -292,6 +293,7 @@ describe("DOS", () => {
       // prettier-ignore
       const {
         iDos,
+        dos,
         user, user2,
         usdc,
         weth
@@ -311,18 +313,18 @@ describe("DOS", () => {
         makeCall(iDos).liquidate(nonLiquidatable.address),
       ]);
 
-      await expect(liquidationTx).to.be.revertedWith("DSafe is not liquidatable");
+      await expect(liquidationTx).to.be.revertedWithCustomError(dos, "NotLiquidatable");
     });
   });
 
   describe("#getRiskAdjustedPositionValues", () => {
     it("Should revert when dSafe doesn't exist", async () => {
-      const {iDos} = await loadFixture(deployDOSFixture);
+      const {iDos, dos} = await loadFixture(deployDOSFixture);
       const nonDSafeAddress = "0xb4A50D202ca799AA07d4E9FE11C2919e5dFe4220";
 
       const computeTx = iDos.getRiskAdjustedPositionValues(nonDSafeAddress);
 
-      await expect(computeTx).to.be.reverted; // revertedWithCustomError(iDos, "DSafeNonExistent");
+      await expect(computeTx).to.be.revertedWithCustomError(dos, "DSafeNonExistent");
     });
 
     it("when dSafe is empty should return 0", async () => {
@@ -433,39 +435,39 @@ describe("DOS", () => {
 
   describe("#liquidate", () => {
     it("when called directly on DOS should revert", async () => {
-      const {user, iDos, nft, nftOracle} = await loadFixture(deployDOSFixture);
+      const {user, iDos, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const dSafe = await createDSafe(iDos, user);
       await depositERC721(iDos, dSafe, nft, nftOracle, 1600);
 
       const depositERC721Tx = iDos.liquidate(dSafe.address);
 
-      await expect(depositERC721Tx).to.be.revertedWith("OnlyDSafe"); // revertedWithCustomError(iDos, "OnlyDSafe");
+      await expect(depositERC721Tx).to.be.revertedWithCustomError(dos, "OnlyDSafe");
     });
 
     it("when dSafe to liquidate doesn't exist should revert", async () => {
-      const {iDos, user, nft, nftOracle} = await loadFixture(deployDOSFixture);
+      const {iDos, dos, user, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const liquidator = await createDSafe(iDos, user);
       await depositERC721(iDos, liquidator, nft, nftOracle, NFT_PRICE);
       const nonDSafeAddress = "0xb4A50D202ca799AA07d4E9FE11C2919e5dFe4220";
 
       const liquidateTx = liquidator.executeBatch([makeCall(iDos).liquidate(nonDSafeAddress)]);
 
-      await expect(liquidateTx).to.be.revertedWith("DSafeNonExistent"); // revertedWithCustomError(iDos, "DSafeNonExistent");
+      await expect(liquidateTx).to.be.revertedWithCustomError(dos, "DSafeNonExistent");
     });
 
     it("when dSafe to liquidate is empty should revert", async () => {
-      const {iDos, user, user2, usdc} = await loadFixture(deployDOSFixture);
+      const {iDos, dos, user, user2, usdc} = await loadFixture(deployDOSFixture);
       const emptyDSafe = await createDSafe(iDos, user);
       const liquidator = await createDSafe(iDos, user2);
       await depositERC20(iDos, liquidator, usdc, toWeiUsdc(1000));
 
       const liquidateTx = liquidator.executeBatch([makeCall(iDos).liquidate(emptyDSafe.address)]);
 
-      await expect(liquidateTx).to.be.revertedWith("DSafe is not liquidatable");
+      await expect(liquidateTx).to.be.revertedWithCustomError(dos, "NotLiquidatable");
     });
 
     it("when debt is zero should revert", async () => {
-      const {iDos, user, user2, usdc} = await loadFixture(deployDOSFixture);
+      const {iDos, dos, user, user2, usdc} = await loadFixture(deployDOSFixture);
       const nonLiquidatable = await createDSafe(iDos, user);
       await depositERC20(iDos, nonLiquidatable, usdc, toWeiUsdc(1000));
       const liquidator = await createDSafe(iDos, user2);
@@ -475,13 +477,14 @@ describe("DOS", () => {
         makeCall(iDos).liquidate(nonLiquidatable.address),
       ]);
 
-      await expect(liquidateTx).to.be.revertedWith("DSafe is not liquidatable");
+      await expect(liquidateTx).to.be.revertedWithCustomError(dos, "NotLiquidatable");
     });
 
     it("when collateral is above some debt should revert", async () => {
       // prettier-ignore
       const {
         iDos,
+        dos,
         user, user2, user3,
         usdc,
         weth
@@ -501,13 +504,14 @@ describe("DOS", () => {
         makeCall(iDos).liquidate(nonLiquidatable.address),
       ]);
 
-      await expect(liquidateTx).to.be.revertedWith("DSafe is not liquidatable");
+      await expect(liquidateTx).to.be.revertedWithCustomError(dos, "NotLiquidatable");
     });
 
     it("when liquidator doesn't have enough collateral to cover the debt difference should revert", async () => {
       // prettier-ignore
       const {
         iDos,
+        dos,
         user, user2, user3,
         usdc,
         weth,
@@ -526,13 +530,14 @@ describe("DOS", () => {
       await ethChainlink.setPrice(2_100); // 2_000 -> 2_100
       const liquidateTx = liquidator.executeBatch([makeCall(iDos).liquidate(liquidatable.address)]);
 
-      await expect(liquidateTx).to.revertedWith(`Insolvent`); // revertedWithCustomError(iDos, "Insolvent");
+      await expect(liquidateTx).to.revertedWithCustomError(dos, `Insolvent`);
     });
 
     it("when a dSafe tries to liquidate itself should revert", async () => {
       // prettier-ignore
       const {
         iDos,
+        dos,
         user, user2,
         usdc,
         weth,
@@ -552,7 +557,7 @@ describe("DOS", () => {
         makeCall(iDos).liquidate(liquidatable.address),
       ]);
 
-      await expect(liquidateTx).to.revertedWith(`Insolvent`); // revertedWithCustomError(iDos, "Insolvent");
+      await expect(liquidateTx).to.revertedWithCustomError(dos, "Insolvent");
     });
 
     it("when collateral is smaller than debt should transfer all ERC20s of the dSafe to the caller", async () => {
@@ -740,16 +745,16 @@ describe("DOS", () => {
     );
 
     it("when NFT contract is not registered should revert the deposit", async () => {
-      const {user, iDos, unregisteredNft, nftOracle} = await loadFixture(deployDOSFixture);
+      const {user, iDos, dos, unregisteredNft, nftOracle} = await loadFixture(deployDOSFixture);
       const dSafe = await createDSafe(iDos, user);
 
       const txRevert = depositERC721(iDos, dSafe, unregisteredNft, nftOracle, NFT_PRICE);
 
-      await expect(txRevert).to.be.revertedWith(`NotRegistered`); // revertedWithCustomError(iDos "NotRegistered");
+      await expect(txRevert).to.be.revertedWithCustomError(dos, `NotRegistered`);
     });
 
     it("when user is not an owner of NFT should revert the deposit", async () => {
-      const {user, user2, iDos, nft, nftOracle} = await loadFixture(deployDOSFixture);
+      const {user, user2, iDos, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const dSafe = await createDSafe(iDos, user);
       const dSafe2 = await createDSafe(iDos, user2);
       const tokenId = await depositERC721(iDos, dSafe, nft, nftOracle, NFT_PRICE);
@@ -758,11 +763,11 @@ describe("DOS", () => {
         makeCall(iDos).depositERC721(nft.address, tokenId),
       ]);
 
-      await expect(depositERC721Tx).to.be.revertedWith(`NotNFTOwner`); // revertedWithCustomError(iDos, "NotNFTOwner");
+      await expect(depositERC721Tx).to.be.revertedWithCustomError(dos, `NotNFTOwner`);
     });
 
     it("when called directly on DOS should revert the deposit", async () => {
-      const {user, iDos, nft} = await loadFixture(deployDOSFixture);
+      const {user, iDos, dos, nft} = await loadFixture(deployDOSFixture);
       const mintTx = await nft.mint(user.address);
       const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
       const tokenId = mintEventArgs[0] as BigNumber;
@@ -770,19 +775,19 @@ describe("DOS", () => {
 
       const depositERC721Tx = iDos.depositERC721(nft.address, tokenId);
 
-      await expect(depositERC721Tx).to.be.revertedWith(`OnlyDSafe`); // revertedWithCustomError(iDos, "OnlyDSafe");
+      await expect(depositERC721Tx).to.be.revertedWithCustomError(dos, `OnlyDSafe`);
     });
   });
 
   describe("#withdrawERC721", () => {
     it("when called not with dSafe should revert", async () => {
-      const {user, iDos, nft, nftOracle} = await loadFixture(deployDOSFixture);
+      const {user, iDos, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const dSafe = await createDSafe(iDos, user);
       const tokenId = await depositERC721(iDos, dSafe, nft, nftOracle, NFT_PRICE);
 
       const withdrawERC721Tx = iDos.connect(user).withdrawERC721(nft.address, tokenId);
 
-      await expect(withdrawERC721Tx).to.be.revertedWith(`OnlyDSafe`); // revertedWithCustomError(iDos, "OnlyDSafe");
+      await expect(withdrawERC721Tx).to.be.revertedWithCustomError(dos, `OnlyDSafe`);
     });
 
     it("when user is not the owner of the deposited NFT should revert", async () => {
@@ -837,7 +842,7 @@ describe("DOS", () => {
 
   describe("#transferERC721", () => {
     it("when called not with dSafe should revert", async () => {
-      const {user, user2, iDos, nft, nftOracle} = await loadFixture(deployDOSFixture);
+      const {user, user2, iDos, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const dSafeOwner = await createDSafe(iDos, user);
       const dSafeReceiver = await createDSafe(iDos, user2);
       const tokenId = await depositERC721(iDos, dSafeOwner, nft, nftOracle, NFT_PRICE);
@@ -846,7 +851,7 @@ describe("DOS", () => {
         .connect(user)
         .transferERC721(nft.address, tokenId, dSafeReceiver.address);
 
-      await expect(sendNftTx).to.be.revertedWith(`OnlyDSafe`); // revertedWithCustomError(iDos, "OnlyDSafe");
+      await expect(sendNftTx).to.be.revertedWithCustomError(dos, "OnlyDSafe");
     });
 
     it("when user is not the owner of the deposited NFT should revert", async () => {
@@ -862,14 +867,14 @@ describe("DOS", () => {
     });
 
     it("when receiver is not a dSafe should revert", async () => {
-      const {user, user2, iDos, nft, nftOracle} = await loadFixture(deployDOSFixture);
+      const {user, user2, iDos, dos, nft, nftOracle} = await loadFixture(deployDOSFixture);
       const dSafeOwner = await createDSafe(iDos, user);
       const tokenId = await depositERC721(iDos, dSafeOwner, nft, nftOracle, NFT_PRICE);
 
       // @ts-expect-error - bypass `transfer` type that forbids this invariant in TS
       const tx = transfer(iDos, dSafeOwner, user2, nft, tokenId);
 
-      await expect(tx).to.be.revertedWith(`DSafeNonExistent`); // revertedWithCustomError(iDos, "DSafeNonExistent");
+      await expect(tx).to.be.revertedWithCustomError(dos, "DSafeNonExistent");
     });
 
     it("when user owns the deposited NFT should be able to move the NFT to another dSafe", async () => {

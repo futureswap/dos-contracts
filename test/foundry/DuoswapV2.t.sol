@@ -3,25 +3,27 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 
-import {IDOS, DOS, DOSConfig, IDOSConfig, DSafeLib, DOSState, IDOSCore} from "../../contracts/dos/DOS.sol";
-import {Call} from "../../contracts/lib/Call.sol";
-import {DSafeProxy, DSafeLogic} from "../../contracts/dos/DSafeProxy.sol";
-import {IVersionManager, VersionManager, ImmutableVersion} from "../../contracts/dos/VersionManager.sol";
-// import "../src/dos/TransferAndCall2.sol";
-import {DuoswapV2Factory} from "../../contracts/duoswapV2/DuoswapV2Factory.sol";
-import {DuoswapV2Pair} from "../../contracts/duoswapV2/DuoswapV2Pair.sol";
-import {DuoswapV2Router} from "../../contracts/duoswapV2/DuoswapV2Router.sol";
-
-import {UniV2Oracle} from "../../contracts/oracles/UniV2Oracle.sol";
-import {MockERC20Oracle} from "../../contracts/testing/MockERC20Oracle.sol";
-import {ERC20ChainlinkValueOracle} from "../../contracts/oracles/ERC20ChainlinkValueOracle.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-import {TestERC20} from "../../contracts/testing/TestERC20.sol";
-import {IWETH9} from "../../contracts/external/interfaces/IWETH9.sol";
+import {IDOS, DOS, DSafeLib, DOSState, IDOSCore} from "contracts/dos/DOS.sol";
+import {DOSConfig, IDOSConfig} from "contracts/dos/DOSConfig.sol";
+import {Call} from "contracts/lib/Call.sol";
+import {DSafeProxy} from "contracts/dsafe/DSafeProxy.sol";
+import {DSafeLogic} from "contracts/dsafe/DSafeLogic.sol";
+import {IVersionManager, VersionManager, ImmutableVersion} from "contracts/dos/VersionManager.sol";
+// import "../src/dos/TransferAndCall2.sol";
+import {DuoswapV2Factory} from "contracts/duoswapV2/DuoswapV2Factory.sol";
+import {DuoswapV2Pair} from "contracts/duoswapV2/DuoswapV2Pair.sol";
+import {DuoswapV2Router} from "contracts/duoswapV2/DuoswapV2Router.sol";
+
+import {UniV2Oracle} from "contracts/oracles/UniV2Oracle.sol";
+import {MockERC20Oracle} from "contracts/testing/MockERC20Oracle.sol";
+import {ERC20ChainlinkValueOracle} from "contracts/oracles/ERC20ChainlinkValueOracle.sol";
+
+import {TestERC20} from "contracts/testing/TestERC20.sol";
+import {IWETH9} from "contracts/external/interfaces/IWETH9.sol";
 
 contract DuoswapV2Test is Test {
     uint256 mainnetFork;

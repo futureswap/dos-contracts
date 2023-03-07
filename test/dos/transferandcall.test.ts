@@ -1,4 +1,5 @@
-import {ethers, waffle} from "hardhat";
+import {ethers} from "hardhat";
+import {type MockContract, deployMockContract} from "@ethereum-waffle/mock-contract";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
 
@@ -31,11 +32,12 @@ describe("TransferAndCall2", () => {
 
     const {transferAndCall2} = await deployFixedAddressForTests(owner);
 
-    const mockReceiver = await waffle.deployMockContract(
+    const mockReceiver: MockContract = await deployMockContract(
       owner,
-      JSON.parse(JSON.stringify(ITransferReceiver2__factory.abi)),
+      ITransferReceiver2__factory.abi,
     );
-    const magicValue = mockReceiver.interface.getSighash("onTransferReceived2");
+    const mockInterface = new ethers.utils.Interface(ITransferReceiver2__factory.abi);
+    const magicValue = mockInterface.getSighash("onTransferReceived2");
 
     await usdc.approve(transferAndCall2.address, ethers.constants.MaxUint256);
     await weth.approve(transferAndCall2.address, ethers.constants.MaxUint256);

@@ -28,6 +28,7 @@ import type {
 } from "../typechain-types";
 import type {TransactionRequest} from "@ethersproject/abstract-provider";
 
+import {deployMockContract} from "@ethereum-waffle/mock-contract";
 import uniV3FactJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json";
 import uniNFTManagerJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json";
 import tokenPosDescJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungibleTokenPositionDescriptor.sol/NonfungibleTokenPositionDescriptor.json";
@@ -35,7 +36,6 @@ import nftDescJSON from "@uniswap/v3-periphery/artifacts/contracts/libraries/NFT
 import swapRouterJSON from "@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json";
 import {ethers} from "ethers";
 import {setCode} from "@nomicfoundation/hardhat-network-helpers";
-import {waffle} from "hardhat";
 
 import {
   IWETH9__factory,
@@ -188,7 +188,7 @@ export class Chainlink {
     borrowFactor: bigint,
     owner: string,
   ): Promise<Chainlink> {
-    const mockChainLink = await waffle.deployMockContract(
+    const mockChainLink = await deployMockContract(
       signer,
       // @ts-expect-error -- the type of abi is readonly array,
       // while the type in deployMockContract is `any[]`. I have checked the implementation -
@@ -457,7 +457,7 @@ export const deployDos = async (
     versionManager.address,
   );
   console.log("dos: ", dos.address);
-  return {iDos: IDOS__factory.connect(dos.address, signer), dos, versionManager};
+  return {iDos: IDOS__factory.connect(dos.address, signer), dos, dosConfig, versionManager};
 };
 
 export const setupDos = async (
