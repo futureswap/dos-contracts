@@ -9,6 +9,7 @@ import {
   TestERC20__factory,
   WETH9__factory,
   UniV3Oracle__factory,
+  UniV3LPHelper__factory,
 } from "../../typechain-types";
 import {toWei, toWeiUsdc} from "../../lib/numbers";
 import {createDSafe, depositERC20, leverageLP, leveragePos, makeCall} from "../../lib/calls";
@@ -87,6 +88,12 @@ describe("DOS swap integration", () => {
       fractionalReserveLeverage: 9,
     });
 
+    await iDos.setTokenStorageConfig({
+      maxTokenStorage: 250,
+      erc20Multiplier: 1,
+      erc721Multiplier: 1,
+    });
+
     await iDos.addERC20Info(
       usdc.address,
       "USD Coin",
@@ -114,6 +121,11 @@ describe("DOS swap integration", () => {
     const {uniswapV3Factory, nonFungiblePositionManager, swapRouter} = await deployUniswapFactory(
       weth.address,
       owner,
+    );
+
+    const uniV3LPHelper = await new UniV3LPHelper__factory(owner).deploy(
+      iDos.address,
+      nonFungiblePositionManager.address,
     );
 
     const price = (ETH_PRICE * 10 ** USDC_DECIMALS) / 10 ** WETH_DECIMALS;
@@ -170,6 +182,7 @@ describe("DOS swap integration", () => {
       ethChainlink,
       iDos,
       nonFungiblePositionManager,
+      uniV3LPHelper,
       swapRouter,
       getBalances,
       addAllowances,
@@ -245,6 +258,37 @@ describe("DOS swap integration", () => {
       expect(usdcBalance).to.be.lessThan(0);
       expect(wethBalance).to.be.greaterThan(0);
       expect(nfts.length).to.equal(0); // regular leveraged position, no NFTs
+    });
+
+    it("should mint an LP position and deposit to credit account", async () => {
+      const {user, iDos, usdc, weth, uniV3LPHelper} = await loadFixture(deployDOSFixture);
+
+      const dSafe = await createDSafe(iDos, user);
+      await usdc.mint(dSafe.address, toWeiUsdc(25_000));
+      await weth.mint(dSafe.address, toWei(15));
+
+      const mintParams = {
+        token0: weth.address,
+        token1: usdc.address,
+        fee: 500,
+        tickLower: -210000,
+        tickUpper: -190000,
+        amount0Desired: toWei(10),
+        amount1Desired: toWeiUsdc(20_000),
+        amount0Min: 0,
+        amount1Min: 0,
+        recipient: dSafe.address,
+        deadline: ethers.constants.MaxUint256,
+      };
+
+      await dSafe.executeBatch([
+        makeCall(weth).approve(uniV3LPHelper.address, ethers.constants.MaxUint256),
+        makeCall(usdc).approve(uniV3LPHelper.address, ethers.constants.MaxUint256),
+        makeCall(uniV3LPHelper).mintAndDeposit(mintParams),
+      ]);
+
+      const nfts = await iDos.getDAccountERC721(dSafe.address);
+      expect(nfts.length).to.equal(1);
     });
 
     // considering that #liquify uses #liquidate, all "negative" tests for non-liquidatable

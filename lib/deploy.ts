@@ -520,9 +520,9 @@ export const setupDos = async (
       await weth.decimals(),
       ethOracle.address,
       0, // no interest which would include time sensitive calculations
-      0,
-      0,
-      0,
+      5,
+      480,
+      "800000000000000000",
     ),
     makeCall(dos).addERC20Info(
       uni.address,
@@ -531,9 +531,9 @@ export const setupDos = async (
       await uni.decimals(),
       uniOracle.address,
       0, // no interest which would include time sensitive calculations
-      0,
-      0,
-      0,
+      5,
+      480,
+      "800000000000000000",
     ),
     makeCall(uniV3Oracle).setERC20ValueOracle(usdc.address, usdcOracle.address),
     makeCall(uniV3Oracle).setERC20ValueOracle(weth.address, ethOracle.address),

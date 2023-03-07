@@ -8,9 +8,10 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
+import {IDOS, IDOSConfig, IDOSCore, ERC20Share, NFTTokenData, ERC20Pool, ERC20Info, ERC721Info, ContractData, ContractKind} from "../interfaces/IDOS.sol";
+import {DSafeProxy} from "./DSafeProxy.sol";
 import {DOSState} from "./DOSState.sol";
 import {DSafeProxy} from "../dsafe/DSafeProxy.sol";
-import {IDOS, IDOSConfig, IDOSCore, ERC20Share, NFTTokenData, ERC20Pool, ERC20Info, ERC721Info, ContractData, ContractKind} from "../interfaces/IDOS.sol";
 import {IVersionManager} from "../interfaces/IVersionManager.sol";
 import {IERC1363SpenderExtended} from "../interfaces/IERC1363-extended.sol";
 import {DSafeLib} from "../lib/DSafeLib.sol";
@@ -18,6 +19,11 @@ import {ERC20PoolLib} from "../lib/ERC20PoolLib.sol";
 import {Call} from "../lib/Call.sol";
 import {FsUtils} from "../lib/FsUtils.sol";
 import {FsMath} from "../lib/FsMath.sol";
+
+import "../interfaces/IERC20ValueOracle.sol";
+import "../interfaces/INFTValueOracle.sol";
+import {PERMIT2, IPermit2} from "../external/interfaces/IPermit2.sol";
+
 
 // ERC20 standard token
 // ERC721 single non-fungible token support
@@ -125,6 +131,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         _dAccountERC20ChangeBy(to, erc20Idx, signedAmount);
         emit IDOSCore.ERC20BalanceChanged(erc20, erc20Idx, to, signedAmount);
         IERC20(erc20).safeTransferFrom(msg.sender, address(this), amount);
+        _tokenStorageCheck(to);
     }
 
     /// @notice deposit `amount` of `erc20` to dAccount from dSafe
@@ -137,6 +144,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         _dAccountERC20ChangeBy(msg.sender, erc20Idx, signedAmount);
         emit IDOSCore.ERC20BalanceChanged(address(erc20), erc20Idx, msg.sender, signedAmount);
         erc20.safeTransferFrom(msg.sender, address(this), amount);
+        _tokenStorageCheck(msg.sender);
     }
 
     /// @notice deposit `amount` of `erc20` from dAccount tp dSafe
@@ -162,6 +170,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             emit IDOSCore.ERC20BalanceChanged(address(erc20), erc20Idx, msg.sender, signedAmount);
             erc20.safeTransferFrom(msg.sender, address(this), amount);
         }
+        _tokenStorageCheck(msg.sender);
     }
 
     /// @notice withdraw all `erc20s` from dAccount to dSafe
@@ -203,6 +212,29 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
             tokenId,
             abi.encode(msg.sender)
         );
+    }
+
+    /// @notice deposit ERC721 `erc721Contract` token `tokenId` from dSafe to dAccount
+    /// @dev the part when we track the ownership of deposit NFT to a specific dAccount is in
+    /// `onERC721Received` function of this contract
+    /// @param erc721Contract The address of the ERC721 contract that the token belongs to
+    /// @param to The dSafe address for which the NFT will be deposited
+    /// @param tokenId The id of the token to be transferred
+    function depositERC721ForSafe(
+        address erc721Contract,
+        address to,
+        uint256 tokenId
+    )
+        external
+        override
+        dSafeExists(to)
+        whenNotPaused
+        onlyRegisteredNFT(erc721Contract, tokenId)
+        onlyNFTOwner(erc721Contract, tokenId)
+    {
+        address _owner = ERC721(erc721Contract).ownerOf(tokenId);
+        emit IDOSCore.ERC721Deposited(erc721Contract, to, tokenId);
+        ERC721(erc721Contract).safeTransferFrom(_owner, address(this), tokenId, abi.encode(to));
     }
 
     /// @notice withdraw ERC721 `nftContract` token `tokenId` from dAccount to dSafe
@@ -378,6 +410,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         }
         tokenDataByNFTId[nftId].tokenId = uint240(tokenId);
         dSafes[from].insertNFT(nftId, tokenDataByNFTId);
+        _tokenStorageCheck(from);
         return this.onERC721Received.selector;
     }
 
@@ -616,6 +649,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         (, uint16 erc20Idx) = getERC20Info(erc20);
         _dAccountERC20ChangeBy(from, erc20Idx, -amount);
         _dAccountERC20ChangeBy(to, erc20Idx, amount);
+        _tokenStorageCheck(to);
         emit IDOSCore.ERC20Transfer(address(erc20), erc20Idx, from, to, amount);
     }
 
@@ -625,6 +659,7 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     function _transferNFT(DSafeLib.NFTId nftId, address from, address to) internal {
         dSafes[from].extractNFT(nftId, tokenDataByNFTId);
         dSafes[to].insertNFT(nftId, tokenDataByNFTId);
+        _tokenStorageCheck(to);
         emit ERC721Transferred(DSafeLib.NFTId.unwrap(nftId), from, to);
     }
 
@@ -659,10 +694,11 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
     function _extractPosition(
         ERC20Share sharesWrapped,
         ERC20Info storage erc20Info
-    ) internal returns (int256) {
+    ) internal returns (int256 position) {
         int256 shares = ERC20Share.unwrap(sharesWrapped);
         ERC20Pool storage pool = shares > 0 ? erc20Info.collateral : erc20Info.debt;
-        return pool.extractPosition(sharesWrapped);
+        position = pool.extractPosition(sharesWrapped);
+        return position;
     }
 
     function _insertPosition(
@@ -723,6 +759,22 @@ contract DOS is DOSState, IDOSCore, IERC721Receiver, Proxy {
         if (gasBefore - gasleft() > config.maxSolvencyCheckGasCost)
             revert SolvencyCheckTooExpensive();
         return collateral >= debt;
+    }
+
+    function _tokenStorageCheck(address dSafeAddress) internal view {
+        DSafeLib.DSafe storage dSafe = dSafes[dSafeAddress];
+        uint256 tokenCounter;
+        uint256 nftCounter = dSafe.nfts.length;
+        if (dSafe.tokenCounter < 0) {
+            tokenCounter = 0;
+        } else {
+            tokenCounter = FsMath.safeCastToUnsigned(dSafe.tokenCounter);
+        }
+        uint256 tokenStorage = (tokenCounter * tokenStorageConfig.erc20Multiplier) +
+            (nftCounter * tokenStorageConfig.erc721Multiplier);
+        if (tokenStorage > tokenStorageConfig.maxTokenStorage) {
+            revert TokenStorageExceeded();
+        }
     }
 
     function _getNFTId(address erc721, uint256 tokenId) internal view returns (DSafeLib.NFTId) {
