@@ -22,6 +22,12 @@ interface IDOSConfig {
         int256 fractionalReserveLeverage; // Ratio of debt to reserves
     }
 
+    struct TokenStorageConfig {
+        uint256 maxTokenStorage;
+        uint256 erc20Multiplier;
+        uint256 erc721Multiplier;
+    }
+
     struct NFTData {
         address erc721;
         uint256 tokenId;
@@ -36,6 +42,14 @@ interface IDOSConfig {
         address implementation
     );
 
+    /// @notice Emitted when the ownership of a dSafe is proposed to be transferred
+    /// @param dSafe The address of the dSafe
+    /// @param newOwner The address of the new owner
+    event DSafeOwnershipTransferProposed(address indexed dSafe, address indexed newOwner);
+
+    /// @notice Emitted when the ownership of a dSafe is transferred
+    /// @param dSafe The address of the dSafe
+    /// @param newOwner The address of the new owner
     event DSafeOwnershipTransferred(address indexed dSafe, address indexed newOwner);
 
     /// @notice Emitted when a new ERC20 is added to the protocol
@@ -74,7 +88,11 @@ interface IDOSConfig {
 
     /// @notice Emitted when the config is set
     /// @param config The new config
-    event ConfigSet(Config indexed config);
+    event ConfigSet(Config config);
+
+    /// @notice Emitted when the token storage config is set
+    /// @param tokenStorageConfig The new token storage config
+    event TokenStorageConfigSet(TokenStorageConfig tokenStorageConfig);
 
     /// @notice Emitted when the version manager address is set
     /// @param versionManager The version manager address
@@ -82,12 +100,16 @@ interface IDOSConfig {
 
     /// @notice Emitted when ERC20 Data is set
     /// @param erc20 The address of the erc20 token
+    /// @param erc20Idx The index of the erc20 token
+    /// @param valueOracle The new value oracle
     /// @param baseRate The new base interest rate
     /// @param slope1 The new slope1
     /// @param slope2 The new slope2
     /// @param targetUtilization The new target utilization
     event ERC20DataSet(
         address indexed erc20,
+        uint16 indexed erc20Idx,
+        address valueOracle,
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
@@ -103,8 +125,9 @@ interface IDOSConfig {
     // @audit-info Reverts if version is invalid
     function upgradeDSafeImplementation(string calldata version) external;
 
-    // @audit-info Never reverts if called by owner
-    function transferDSafeOwnership(address newOwner) external;
+    function proposeTransferDSafeOwnership(address newOwner) external;
+
+    function executeTransferDSafeOwnership(address dSafe) external;
 
     function addERC20Info(
         address erc20Contract,
@@ -122,6 +145,7 @@ interface IDOSConfig {
 
     function setERC20Data(
         address erc20,
+        address valueOracle,
         uint256 baseRate,
         uint256 slope1,
         uint256 slope2,
@@ -129,6 +153,8 @@ interface IDOSConfig {
     ) external;
 
     function setConfig(Config calldata _config) external;
+
+    function setTokenStorageConfig(TokenStorageConfig calldata _tokenStorageConfig) external;
 
     function setVersionManager(address _versionManager) external;
 
@@ -151,11 +177,13 @@ interface IDOSCore {
 
     /// @notice Emitted when ERC20 tokens are transferred between credit accounts
     /// @param erc20 The address of the ERC20 token
+    /// @param erc20Idx The index of the ERC20 in the protocol
     /// @param from The address of the sender
     /// @param to The address of the receiver
     /// @param value The amount of tokens transferred
     event ERC20Transfer(
         address indexed erc20,
+        uint16 erc20Idx,
         address indexed from,
         address indexed to,
         int256 value
@@ -163,9 +191,15 @@ interface IDOSCore {
 
     /// @notice Emitted when erc20 tokens are deposited or withdrawn from a credit account
     /// @param erc20 The address of the ERC20 token
+    /// @param erc20Idx The index of the ERC20 in the protocol
     /// @param to The address of the dSafe
     /// @param amount The amount of tokens deposited or withdrawn
-    event ERC20BalanceChanged(address indexed erc20, address indexed to, int256 indexed amount);
+    event ERC20BalanceChanged(
+        address indexed erc20,
+        uint16 erc20Idx,
+        address indexed to,
+        int256 amount
+    );
 
     /// @notice Emitted when a ERC721 is transferred between credit accounts
     /// @param nftId The nftId of the ERC721 token
@@ -192,6 +226,7 @@ interface IDOSCore {
     /// @param value The amount of tokens to approve
     event ERC20Approval(
         address indexed erc20,
+        uint16 erc20Idx,
         address indexed owner,
         address indexed spender,
         uint256 value
@@ -224,7 +259,12 @@ interface IDOSCore {
     /// @notice Emitted when a dSafe is liquidated
     /// @param dSafe The address of the liquidated dSafe
     /// @param liquidator The address of the liquidator
-    event SafeLiquidated(address indexed dSafe, address indexed liquidator);
+    event SafeLiquidated(
+        address indexed dSafe,
+        address indexed liquidator,
+        int256 collateral,
+        int256 debt
+    );
 
     /// @notice Error thrown if a dSafe accumulates too many assets
     error SolvencyCheckTooExpensive();
@@ -256,6 +296,8 @@ interface IDOSCore {
     function transferERC20(IERC20 erc20, address to, uint256 amount) external;
 
     function depositERC721(address nftContract, uint256 tokenId) external;
+
+    function depositERC721ForSafe(address nftContract, address to, uint256 tokenId) external;
 
     function withdrawERC721(address erc721, uint256 tokenId) external;
 
@@ -292,6 +334,10 @@ interface IDOSCore {
         bytes calldata data
     ) external;
 
+    function addOperator(address operator) external;
+
+    function removeOperator(address operator) external;
+
     /// @notice Returns the approved address for a token, or zero if no address set
     /// @param collection The address of the ERC721 token
     /// @param tokenId The id of the token to query
@@ -301,15 +347,10 @@ interface IDOSCore {
         address dSafeAddress
     ) external view returns (int256 totalValue, int256 collateral, int256 debt);
 
-    /// @notice Returns if the `operator` is allowed to manage all of the erc20s of `owner` on the `collection` contract
-    /// @param collection The address of the collection contract
+    /// @notice Returns if '_spender' is an operator of '_owner'
     /// @param _owner The address of the owner
-    /// @param spender The address of the spender
-    function isApprovedForAll(
-        address collection,
-        address _owner,
-        address spender
-    ) external view returns (bool);
+    /// @param _spender The address of the spender
+    function isOperator(address _owner, address _spender) external view returns (bool);
 
     /**
      * @dev Returns the remaining number of tokens that `spender` will be

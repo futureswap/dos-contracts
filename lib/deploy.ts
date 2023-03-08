@@ -400,6 +400,7 @@ export const deployAtFixedAddress = async <Factory extends ContractFactoryLike>(
     anyswapCreate2Deployer.deploy(checkDefined(deployTx.data), salt),
     anyswapCreate2Deployer,
   );
+  console.log("Deployed: ", Deployed.addr);
   return factory.attach(Deployed.addr) as DeployResult<Factory>;
 };
 
@@ -440,12 +441,14 @@ export const deployDos = async (
     salt,
     governanceProxy,
   );
+  console.log("versionManager: ", versionManager.address);
   const dosConfig = await deployAtFixedAddress(
     new DOSConfig__factory(signer),
     anyswapCreate2Deployer,
     salt,
     governanceProxy,
   );
+  console.log("dosConfig: ", dosConfig.address);
   const dos = await deployAtFixedAddress(
     new DOS__factory(signer),
     anyswapCreate2Deployer,
@@ -453,6 +456,7 @@ export const deployDos = async (
     dosConfig.address,
     versionManager.address,
   );
+  console.log("dos: ", dos.address);
   return {iDos: IDOS__factory.connect(dos.address, signer), dos, versionManager};
 };
 
@@ -505,9 +509,9 @@ export const setupDos = async (
       await usdc.decimals(),
       usdcOracle.address,
       0, // no interest which would include time sensitive calculations
-      0,
-      0,
-      0,
+      5,
+      480,
+      "800000000000000000",
     ),
     makeCall(dos).addERC20Info(
       weth.address,
@@ -516,9 +520,9 @@ export const setupDos = async (
       await weth.decimals(),
       ethOracle.address,
       0, // no interest which would include time sensitive calculations
-      0,
-      0,
-      0,
+      5,
+      480,
+      "800000000000000000",
     ),
     makeCall(dos).addERC20Info(
       uni.address,
@@ -527,9 +531,9 @@ export const setupDos = async (
       await uni.decimals(),
       uniOracle.address,
       0, // no interest which would include time sensitive calculations
-      0,
-      0,
-      0,
+      5,
+      480,
+      "800000000000000000",
     ),
     makeCall(uniV3Oracle).setERC20ValueOracle(usdc.address, usdcOracle.address),
     makeCall(uniV3Oracle).setERC20ValueOracle(weth.address, ethOracle.address),
@@ -675,7 +679,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
     futureSwapProxy,
     transferAndCall2,
     governanceProxy,
-    iDos,
+    dos: iDos,
     versionManager,
     weth: env.weth,
     usdc: env.usdc,

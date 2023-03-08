@@ -36,3 +36,4 @@ out/
 # Echidna
 corpus/
 crytic-export/
+docs/

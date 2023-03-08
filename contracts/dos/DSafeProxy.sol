@@ -112,9 +112,30 @@ contract DSafeLogic is
     error InvalidSignature();
     error NonceAlreadyUsed();
     error DeadlineExpired();
+    /// @notice Only DOS can call this function
+    error OnlyDOS();
+    /// @notice Only the owner or operator can call this function
+    error NotOwnerOrOperator();
 
     modifier onlyOwner() {
         require(dos.getDSafeOwner(address(this)) == msg.sender, "");
+        _;
+    }
+
+    modifier onlyOwnerOrOperator() {
+        if (
+            dos.getDSafeOwner(address(this)) != msg.sender &&
+            !dos.isOperator(address(this), msg.sender)
+        ) {
+            revert NotOwnerOrOperator();
+        }
+        _;
+    }
+
+    modifier onlyDOS() {
+        if (msg.sender != address(dos)) {
+            revert OnlyDOS();
+        }
         _;
     }
 
@@ -134,7 +155,7 @@ contract DSafeLogic is
     ///   * to - is the address of the contract whose function should be called
     ///   * callData - encoded function name and it's arguments
     ///   * value - the amount of ETH to sent with the call
-    function executeBatch(Call[] memory calls) external payable onlyOwner {
+    function executeBatch(Call[] memory calls) external payable onlyOwnerOrOperator {
         bool saveForwardNFT = forwardNFT;
         forwardNFT = false;
         dos.executeBatch(calls);
@@ -213,7 +234,7 @@ contract DSafeLogic is
             /* just deposit in the proxy, nothing to do */
         } else if (data[0] == 0x00) {
             // execute batch
-            require(msg.sender == dos.getDSafeOwner(address(this)), "Not owner");
+            require(from == dos.getDSafeOwner(address(this)), "Not owner");
             Call[] memory calls = abi.decode(data[1:], (Call[]));
             dos.executeBatch(calls);
         } else if (data[0] == 0x01) {
@@ -271,9 +292,9 @@ contract DSafeLogic is
         address sender,
         uint256 amount,
         Call memory call
-    ) external returns (bytes4) {
+    ) external onlyDOS returns (bytes4) {
         if (call.callData.length == 0) {
-            revert("PL: INVALID_DATA");
+            revert InvalidData();
         }
         emit TokensApproved(sender, amount, call.callData);
 

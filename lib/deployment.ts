@@ -15,6 +15,7 @@ import {
   OffchainEntityProxy__factory,
   IDOS__factory,
   UniV3Oracle__factory,
+  UniV3LPHelper__factory,
   ISwapRouter__factory,
   IUniswapV3Factory__factory,
 } from "../typechain-types";
@@ -50,6 +51,7 @@ export const saveAddressesForNetwork = async (
     content += "\n";
   }
   await writeFile(path, content, {encoding: "utf-8"});
+  console.log("write to json completed");
 };
 
 const getNetwork = () => {
@@ -98,6 +100,8 @@ export const getContractFactory = (
       return MockERC20Oracle__factory.connect(address, signer);
     case "uniV3Oracle":
       return UniV3Oracle__factory.connect(address, signer);
+    case "uniV3LPHelper":
+      return UniV3LPHelper__factory.connect(address, signer);
     default:
       throw new Error(`Unknown contract name: ${contractName}`);
   }

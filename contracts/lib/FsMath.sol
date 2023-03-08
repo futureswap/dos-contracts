@@ -114,7 +114,9 @@ library FsMath {
         int256 shiftLeft = x / ln2FixedPoint;
         int256 remainder = x % ln2FixedPoint;
         if (shiftLeft <= -FIXED_POINT_SCALE_BITS) return 0;
-        require(shiftLeft < (256 - FIXED_POINT_SCALE_BITS), "Exponentiation overflows");
+        // We use signed integers so we have 256 - 1 bits to work with of which FIXED_POINT_SCALE_BITS
+        // are used for the fractional part.
+        require(shiftLeft < (256 - 1 - FIXED_POINT_SCALE_BITS), "Exponentiation overflows");
 
         /*
          * At this point we have decomposed exp as a simple bitshift and a fractional power of 2. We
@@ -168,13 +170,15 @@ library FsMath {
              * This implies shiftLeft >= 0 we don't want to lose precision by first dividing and
              * subsequent shifting left.
              */
-            prod = pow(twoPowRecipSmallFactor, integerPower) * taylorApprox;
+            prod = powInternal(twoPowRecipSmallFactor, integerPower) * taylorApprox;
             shiftLeft -= FIXED_POINT_SCALE_BITS;
         } else {
             /*
              * This implies shiftLeft <= 0 so we're losing precision anyway.
              */
-            prod = (FIXED_POINT_SCALE * taylorApprox) / pow(twoPowRecipSmallFactor, -integerPower);
+            prod =
+                (FIXED_POINT_SCALE * taylorApprox) /
+                powInternal(twoPowRecipSmallFactor, -integerPower);
         }
 
         return shiftLeft >= 0 ? (prod << uint256(shiftLeft)) : (prod >> uint256(-shiftLeft));

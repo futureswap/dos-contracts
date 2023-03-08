@@ -10,6 +10,7 @@
     "test": "yarn hardhat test",
     "test:forge": "forge test",
     "test:withTypesCheck": "yarn tsc --noEmit && yarn hardhat test",
+    "pairHashCode": "forge script script/PairHashCode.s.sol:PairHashCodeScript",
     "start": "yarn run pm2 start 'npx hardhat node' --name localhostNode",
     "setupLocalhost": "yarn run hardhat run scripts/setupLocalhost.ts --network localhost",
     "stop": "yarn run pm2 delete all",
@@ -32,17 +33,20 @@
     "clean-workspace": "yarn run hardhat run scripts/resetEtheralWorkspace.ts --network localhost",
     "echidna-e2e": "echidna-test . --contract EchidnaE2E --config echidna.yaml",
     "echidna-math": "echidna-test . --contract EchidnaMathTests --config echidna-math.yaml"
+    "prepare": "husky install"
   },
   "dependencies": {
     "@chainlink/contracts": "^0.5.1",
     "@ethersproject/abi": "^5.4.7",
     "@ethersproject/bytes": "^5.7.0",
     "@ethersproject/providers": "^5.7.2",
-    "@openzeppelin/contracts": "^4.8.0",
+    "@openzeppelin/contracts": "^4.8.2",
+    "@tenderly/hardhat-tenderly": "^1.6.1",
     "@trezor/connect": "^9.0.4",
     "@uniswap/v3-core": "^1.0.1",
     "@uniswap/v3-periphery": "^1.4.3",
-    "ethers": "^5.7.2"
+    "ethers": "^5.7.2",
+    "husky": "^8.0.3"
   },
   "devDependencies": {
     "@graphprotocol/graph-cli": "^0.37.1",
@@ -71,7 +75,7 @@
     "eslint-plugin-filename-rules": "^1.3.0",
     "eslint-plugin-import": "^2.26.0",
     "ethereum-waffle": "^3.4.4",
-    "hardhat": "^2.12.1-ir.0",
+    "hardhat": "^2.12.7",
     "hardhat-ethernal": "^3.1.0",
     "hardhat-gas-reporter": "^1.0.9",
     "hardhat-preprocessor": "^0.1.5",

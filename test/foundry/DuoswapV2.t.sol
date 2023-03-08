@@ -13,6 +13,7 @@ import {DuoswapV2Pair} from "../../contracts/duoswapV2/DuoswapV2Pair.sol";
 import {DuoswapV2Router} from "../../contracts/duoswapV2/DuoswapV2Router.sol";
 
 import {UniV2Oracle} from "../../contracts/oracles/UniV2Oracle.sol";
+import {MockERC20Oracle} from "../../contracts/testing/MockERC20Oracle.sol";
 import {ERC20ChainlinkValueOracle} from "../../contracts/oracles/ERC20ChainlinkValueOracle.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
@@ -44,28 +45,50 @@ contract DuoswapV2Test is Test {
 
     AggregatorV3Interface public oracleAddress =
         AggregatorV3Interface(0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6);
-    string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
+    // string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
 
-    ERC20ChainlinkValueOracle public token0Oracle;
-    ERC20ChainlinkValueOracle public token1Oracle;
+    MockERC20Oracle public token0Oracle;
+    MockERC20Oracle public token1Oracle;
     UniV2Oracle public pairOracle;
 
     function setUp() public {
-        mainnetFork = vm.createFork(MAINNET_RPC_URL);
-        vm.selectFork(mainnetFork);
-        token0 = new TestERC20("token0", "t0", 18);
-        token1 = new TestERC20("token1", "t1", 18);
         address owner = address(this);
 
-        token0Oracle = new ERC20ChainlinkValueOracle(address(oracleAddress), 18, 18, 0, 0, owner);
-        token1Oracle = new ERC20ChainlinkValueOracle(address(oracleAddress), 18, 18, 0, 0, owner);
-
+        // create DOS contracts
         versionManager = new VersionManager(owner);
         dosConfig = new DOSConfig(owner);
         dos = new DOS(address(dosConfig), address(versionManager));
         logic = new DSafeLogic(address(dos));
 
         string memory version = "1.0.0";
+
+        IDOSConfig(address(dos)).setConfig(
+            IDOSConfig.Config({
+                treasurySafe: address(0),
+                treasuryInterestFraction: 0,
+                maxSolvencyCheckGasCost: 10_000_000,
+                liqFraction: 8e17,
+                fractionalReserveLeverage: 10
+            })
+        );
+
+        IDOSConfig(address(dos)).setTokenStorageConfig(
+            IDOSConfig.TokenStorageConfig({
+                maxTokenStorage: 250,
+                erc20Multiplier: 1,
+                erc721Multiplier: 1
+            })
+        );
+
+        versionManager.addVersion(IVersionManager.Status.PRODUCTION, address(logic));
+        versionManager.markRecommendedVersion(version);
+
+        // setup tokens and oracles
+        token0 = new TestERC20("token0", "t0", 18);
+        token1 = new TestERC20("token1", "t1", 18);
+
+        token0Oracle = new MockERC20Oracle(owner);
+        token1Oracle = new MockERC20Oracle(owner);
 
         IDOSConfig(address(dos)).addERC20Info(
             address(token0),
@@ -90,19 +113,7 @@ contract DuoswapV2Test is Test {
             0
         );
 
-        IDOSConfig(address(dos)).setConfig(
-            IDOSConfig.Config({
-                treasurySafe: address(0),
-                treasuryInterestFraction: 0,
-                maxSolvencyCheckGasCost: 10_000_000,
-                liqFraction: 8e17,
-                fractionalReserveLeverage: 10
-            })
-        );
-
-        versionManager.addVersion(IVersionManager.Status.PRODUCTION, address(logic));
-        versionManager.markRecommendedVersion(version);
-
+        // create duoswap contracts
         factory = new DuoswapV2Factory(address(dos), owner);
         router = new DuoswapV2Router(address(factory), address(weth), address(dos));
     }
@@ -123,19 +134,16 @@ contract DuoswapV2Test is Test {
 
         _depositTokens(amount0 * 100, amount1 * 100);
 
+        // create a safe for the air
         pair = _createPair(address(token0), address(token1));
         pairSafe = pair.dSafe();
 
+        // mint tokens to safe
         token0.mint(address(userSafe), amount0);
         token1.mint(address(userSafe), amount1);
-        Call[] memory calls = new Call[](1);
-        IERC20[] memory tokens = new IERC20[](2);
-        tokens[0] = token0;
-        tokens[1] = token1;
 
-        uint256[] memory amounts = new uint256[](2);
-        amounts[0] = amount0;
-        amounts[1] = amount1;
+        // construct call for executeBatch
+        Call[] memory calls = new Call[](1);
 
         bytes memory callData = abi.encodeWithSignature(
             "addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256)",
@@ -151,10 +159,10 @@ contract DuoswapV2Test is Test {
 
         IDOSCore.Approval[] memory approvals = new IDOSCore.Approval[](2);
         approvals[0] = (
-            IDOSCore.Approval({ercContract: address(tokens[0]), amountOrTokenId: amounts[0]})
+            IDOSCore.Approval({ercContract: address(token0), amountOrTokenId: amount0})
         );
         approvals[1] = (
-            IDOSCore.Approval({ercContract: address(tokens[1]), amountOrTokenId: amounts[1]})
+            IDOSCore.Approval({ercContract: address(token1), amountOrTokenId: amount1})
         );
 
         calls[0] = (
