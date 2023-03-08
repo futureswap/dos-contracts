@@ -334,7 +334,7 @@ describe("Supa swap integration", () => {
           );
 
           // make `liquidatable` liquidatable
-          await ethChainlink.setPrice(ETH_PRICE / 2);
+          ethChainlink.setPrice(ETH_PRICE / 2);
 
           const liquidator = await createWallet(iSupa, user3);
           await usdc.mint(liquidator.address, toWeiUsdc(1_000));
@@ -394,7 +394,7 @@ describe("Supa swap integration", () => {
           );
 
           // make `liquidatable` liquidatable
-          await ethChainlink.setPrice(ETH_PRICE * 2);
+          ethChainlink.setPrice(ETH_PRICE * 2);
 
           const liquidator = await createWallet(iSupa, user3);
           await usdc.mint(liquidator.address, toWeiUsdc(1_000));
@@ -467,7 +467,7 @@ describe("Supa swap integration", () => {
         await depositERC20(iSupa, liquidator, usdc, toWeiUsdc(100_000));
         await addAllowances(liquidator);
 
-        await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
+        ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
         await liquidator.liquify(
           liquidatable.address,
           swapRouter.address,
@@ -537,7 +537,7 @@ describe("Supa swap integration", () => {
         await depositERC20(iSupa, liquidator, usdc, toWeiUsdc(100_000));
         await addAllowances(liquidator);
 
-        await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
+        ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
         await liquidator.liquify(
           liquidatable.address,
           swapRouter.address,
@@ -595,7 +595,7 @@ describe("Supa swap integration", () => {
           );
 
           // make `liquidatable` liquidatable
-          await ethChainlink.setPrice(ETH_PRICE / 2);
+          ethChainlink.setPrice(ETH_PRICE / 2);
 
           const liquidator = await createWallet(iSupa, user3);
           await usdc.mint(liquidator.address, toWeiUsdc(2_000));
@@ -686,7 +686,7 @@ describe("Supa swap integration", () => {
           await depositERC20(iSupa, liquidator, usdc, toWeiUsdc(4_000));
           await addAllowances(liquidator);
 
-          await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
+          ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
           // constant used to represent float with bignumber used in Uniswap
           const Q96 = 2 ** 96;
           // if we would have a more precise control over the Uniswap pool, we would just change
