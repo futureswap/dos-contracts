@@ -49,7 +49,7 @@
   },
   "devDependencies": {
     "@ethereum-waffle/mock-contract": "^4.0.3",
-    "@graphprotocol/graph-cli": "^0.37.7",
+    "@graphprotocol/graph-cli": "^0.42.4",
     "@graphprotocol/graph-ts": "^0.29.3",
     "@graphprotocol/hardhat-graph": "0.1.0-alpha.2",
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.6",
