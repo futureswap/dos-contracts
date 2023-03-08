@@ -261,13 +261,13 @@ describe("Supa", () => {
       // put WETH in system so we can borrow weth
       const someOther = await createWallet(iSupa, user);
       await depositERC20(iSupa, someOther, weth, toWei(2));
-      ethChainlink.setPrice(2_000);
+      await ethChainlink.setPrice(2_000);
 
       // generate a debt on liquidatable
       const tx = transfer(iSupa, liquidatable, someOther, weth.address, oneEth);
       await (await tx).wait();
       // make liquidatable debt overcome collateral. Now it can be liquidated
-      ethChainlink.setPrice(9_000);
+      await ethChainlink.setPrice(9_000);
       const {collateral, debt} = await iSupa.getRiskAdjustedPositionValues(liquidatable.address);
       const percentUnderwater = ethers.utils.parseEther(
         (Number(collateral) / Number(debt)).toString(),
@@ -527,7 +527,7 @@ describe("Supa", () => {
       const tx = transfer(iSupa, liquidatable, other, weth.address, toWei(4));
       await (await tx).wait();
 
-      ethChainlink.setPrice(2_100); // 2_000 -> 2_100
+      await ethChainlink.setPrice(2_100); // 2_000 -> 2_100
       const liquidateTx = liquidator.executeBatch([
         makeCall(iSupa).liquidate(liquidatable.address),
       ]);
@@ -554,7 +554,7 @@ describe("Supa", () => {
       const tx = transfer(iSupa, liquidatable, other, weth.address, toWei(4));
       await (await tx).wait();
 
-      ethChainlink.setPrice(2_100); // 2_000 -> 2_100
+      await ethChainlink.setPrice(2_100); // 2_000 -> 2_100
       const liquidateTx = liquidatable.executeBatch([
         makeCall(iSupa).liquidate(liquidatable.address),
       ]);
@@ -582,7 +582,7 @@ describe("Supa", () => {
       const tx = transfer(iSupa, liquidatable, other, weth.address, toWei(4));
       await (await tx).wait();
 
-      ethChainlink.setPrice(2_100); // 2_000 -> 2_100
+      await ethChainlink.setPrice(2_100); // 2_000 -> 2_100
       const {collateral, debt} = await iSupa.getRiskAdjustedPositionValues(liquidatable.address);
       const percentUnderwater = Number(collateral) / Number(debt);
       const liquidateTx = await liquidator.executeBatch([
@@ -684,7 +684,7 @@ describe("Supa", () => {
       // nft 2,500 * 0.5 + USDC 1,500 * 0.9 = 2,650
       // and the debt would become 2,500 / 0.9 = 2,777
       // So the debt would exceed the collateral and the wallet becomes liquidatable
-      ethChainlink.setPrice(2_500);
+      await ethChainlink.setPrice(2_500);
       const {collateral, debt} = await iSupa.getRiskAdjustedPositionValues(liquidatable.address);
       const percentUnderwater = Number(collateral) / Number(debt);
       const liquidateTx = await liquidator.executeBatch([

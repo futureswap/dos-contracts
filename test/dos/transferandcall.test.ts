@@ -53,7 +53,7 @@ describe("TransferAndCall2", () => {
       deploySupaFixture,
     );
 
-    mockReceiver.mock.onTransferReceived2.returns(magicValue);
+    await mockReceiver.mock.onTransferReceived2.returns(magicValue);
 
     await expect(
       transferAndCall2.transferAndCall2(
@@ -106,7 +106,7 @@ describe("TransferAndCall2", () => {
   it("Should not be able to transferAndCall2 to send to contract that doesn't accept by not returning right hash", async () => {
     const {usdc, uni, transferAndCall2, mockReceiver} = await loadFixture(deploySupaFixture);
 
-    mockReceiver.mock.onTransferReceived2.returns("0x12345678");
+    await mockReceiver.mock.onTransferReceived2.returns("0x12345678");
 
     await expect(
       transferAndCall2.transferAndCall2(
@@ -189,7 +189,7 @@ describe("TransferAndCall2", () => {
       deploySupaFixture,
     );
 
-    mockReceiver.mock.onTransferReceived2.returns(magicValue);
+    await mockReceiver.mock.onTransferReceived2.returns(magicValue);
     await transferAndCall2.setApprovalForAll(user.address, true);
 
     await expect(
@@ -213,7 +213,7 @@ describe("TransferAndCall2", () => {
       deploySupaFixture,
     );
 
-    mockReceiver.mock.onTransferReceived2.returns(magicValue);
+    await mockReceiver.mock.onTransferReceived2.returns(magicValue);
 
     await expect(
       transferAndCall2.connect(user).transferFromAndCall2(

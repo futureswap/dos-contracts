@@ -195,7 +195,7 @@ export class Chainlink {
       // it should have been readonly as well. Consider as a bug in types of the waffle
       AggregatorV3Interface__factory.abi,
     );
-    mockChainLink.mock.decimals.returns(chainLinkDecimals);
+    await mockChainLink.mock.decimals.returns(chainLinkDecimals);
     const erc20Oracle = await new ERC20ChainlinkValueOracle__factory(signer).deploy(
       mockChainLink.address,
       baseTokenDecimals,
@@ -205,12 +205,18 @@ export class Chainlink {
       owner,
     );
     const oracle = new Chainlink(mockChainLink, erc20Oracle, chainLinkDecimals);
-    oracle.setPrice(price);
+    await oracle.setPrice(price);
     return oracle;
   }
 
-  setPrice(price: number): void {
-    this.chainlink.mock.latestRoundData.returns(0, toWei(price, this.chainlinkDecimals), 0, 0, 0);
+  async setPrice(price: number): Promise<void> {
+    await this.chainlink.mock.latestRoundData.returns(
+      0,
+      toWei(price, this.chainlinkDecimals),
+      0,
+      0,
+      0,
+    );
   }
 }
 

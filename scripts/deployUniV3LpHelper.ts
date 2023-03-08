@@ -18,7 +18,7 @@ async function main() {
     new UniV3LPHelper__factory(deployer),
     anyswapCreate2Deployer,
     (BigInt(fsSalt) + 11n).toString(),
-    networkContracts.supa.address,
+    networkContracts.dos.address,
     nonfungiblePositionManager,
   );
 
