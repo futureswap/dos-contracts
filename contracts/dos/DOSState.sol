@@ -101,12 +101,4 @@ contract DOSState is Pausable {
         uint16 idx = infoIdx[address(erc20)].idx;
         return (erc20Infos[idx], idx);
     }
-
-    function getERC721Info(IERC721 erc721) internal view returns (ERC721Info storage, uint16) {
-        if (infoIdx[address(erc721)].kind != ContractKind.ERC721) {
-            revert NotRegistered(address(erc721));
-        }
-        uint16 idx = infoIdx[address(erc721)].idx;
-        return (erc721Infos[idx], idx);
-    }
 }
