@@ -267,7 +267,7 @@ export const governatorAddress = "0x6eEf89f0383dD76c06A8a6Ead63cf95795B5bA3F";
 export const testGovernatorAddress = "0xc9B6088732E83ef013873e2f04d032F1a7a2E42D";
 
 export const testGovernatorHardhatSignature =
-  "0xb843a40459a06a1b53feba1397c39fa84a0c27dd3277ab3bea74063cf613f498666f4af3e9d69a55d173f02e497fd934468346cadeca7b270e47c63d9f0c255e1c";
+  "0xfda3dc8061fd2592fb3863ad77b74fd9d97a2592d096fc1e8fc7269342aaf86b1bee11b2b3033b6906bd8e4e54a2ee7009b552bba0e4218bd960058f1fd584021c";
 
 export const deployOffchainEntityProxy = async (
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
