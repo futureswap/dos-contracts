@@ -12,15 +12,15 @@ contract DuoswapV2Factory is IUniswapV2Factory {
 
     bytes32 public constant PAIR_HASH = keccak256(type(DuoswapV2Pair).creationCode);
 
-    address public dos;
+    address public supa;
     address public override feeTo;
     address public override feeToSetter;
 
     mapping(address => mapping(address => address)) public override getPair;
     address[] public override allPairs;
 
-    constructor(address _dos, address _feeToSetter) {
-        dos = _dos;
+    constructor(address _supa, address _feeToSetter) {
+        supa = _supa;
         feeToSetter = _feeToSetter;
     }
 
@@ -31,7 +31,7 @@ contract DuoswapV2Factory is IUniswapV2Factory {
         if (getPair[token0][token1] != address(0)) revert PairExists();
 
         pair = address(new DuoswapV2Pair{salt: keccak256(abi.encodePacked(token0, token1))}());
-        IDuoswapV2Pair(pair).initialize(dos, token0, token1);
+        IDuoswapV2Pair(pair).initialize(supa, token0, token1);
         getPair[token0][token1] = pair;
         getPair[token1][token0] = pair; // populate mapping in the reverse direction
         allPairs.push(pair);

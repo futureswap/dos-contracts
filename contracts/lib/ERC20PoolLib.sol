@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import {ERC20Pool, ERC20Share} from "../interfaces/IDOS.sol";
+import {ERC20Pool, ERC20Share} from "../interfaces/ISupa.sol";
 import {FsUtils} from "../lib/FsUtils.sol";
 
 library ERC20PoolLib {

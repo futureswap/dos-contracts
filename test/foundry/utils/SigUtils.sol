@@ -6,7 +6,7 @@ import "forge-std/console.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {Call, CallLib} from "contracts/lib/Call.sol";
-import {DSafeLogic} from "contracts/dsafe/DSafeLogic.sol";
+import {WalletLogic} from "contracts/wallet/WalletLogic.sol";
 
 contract SigUtils {
     bytes32 private constant _TYPE_HASH =
@@ -35,19 +35,20 @@ contract SigUtils {
 
     // computes the hash of the fully encoded EIP-712 message for the domain, which can be used to recover the signer
     function getTypedDataHash(
-        address dSafe,
+        address wallet,
         Call[] memory _calls,
         uint256 _nonce,
         uint256 _deadline
     ) public view returns (bytes32) {
-        return ECDSA.toTypedDataHash(dSafeDomain(dSafe), getStructHash(_calls, _nonce, _deadline));
+        return
+            ECDSA.toTypedDataHash(walletDomain(wallet), getStructHash(_calls, _nonce, _deadline));
     }
 
-    function dSafeDomain(address dSafe) internal view returns (bytes32) {
-        bytes32 _hashedName = keccak256(bytes("DOS dSafe"));
+    function walletDomain(address wallet) internal view returns (bytes32) {
+        bytes32 _hashedName = keccak256(bytes("Supa wallet"));
         bytes32 _hashedVersion = keccak256(bytes("1.0.0"));
         bytes32 _domainSeparatorV4 = keccak256(
-            abi.encode(_TYPE_HASH, _hashedName, _hashedVersion, block.chainid, dSafe)
+            abi.encode(_TYPE_HASH, _hashedName, _hashedVersion, block.chainid, wallet)
         );
         console.log("_domainSeparatorV4");
         console.logBytes32(_domainSeparatorV4);

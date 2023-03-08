@@ -4,23 +4,23 @@ pragma solidity ^0.8.17;
 import "forge-std/Test.sol";
 
 import {IPermit2} from "contracts/external/interfaces/IPermit2.sol";
-import {TransferAndCall2} from "contracts/dos/TransferAndCall2.sol";
+import {TransferAndCall2} from "contracts/supa/TransferAndCall2.sol";
 import {TestERC20} from "contracts/testing/TestERC20.sol";
 import {TestNFT} from "contracts/testing/TestNFT.sol";
 import {MockERC20Oracle} from "contracts/testing/MockERC20Oracle.sol";
 import {MockNFTOracle} from "contracts/testing/MockNFTOracle.sol";
-import {DOS, IDOS} from "contracts/dos/DOS.sol";
-import {DOSConfig, IDOSConfig} from "contracts/dos/DOSConfig.sol";
-import {VersionManager, IVersionManager} from "contracts/dos/VersionManager.sol";
-import {DSafeLogic} from "contracts/dsafe/DSafeLogic.sol";
-import {DSafeProxy} from "contracts/dsafe/DSafeProxy.sol";
+import {Supa, ISupa} from "contracts/supa/Supa.sol";
+import {SupaConfig, ISupaConfig} from "contracts/supa/SupaConfig.sol";
+import {VersionManager, IVersionManager} from "contracts/supa/VersionManager.sol";
+import {WalletLogic} from "contracts/wallet/WalletLogic.sol";
+import {WalletProxy} from "contracts/wallet/WalletProxy.sol";
 import {Call, CallLib} from "contracts/lib/Call.sol";
 import {ITransferReceiver2} from "contracts/interfaces/ITransferReceiver2.sol";
 
 import {SigUtils, ECDSA} from "test/foundry/utils/SigUtils.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
-contract DSafeTest is Test {
+contract WalletTest is Test {
     IPermit2 public permit2;
     TransferAndCall2 public transferAndCall2;
 
@@ -34,13 +34,13 @@ contract DSafeTest is Test {
 
     MockNFTOracle public nftOracle;
 
-    DOS public dos;
-    DOSConfig public dosConfig;
+    Supa public supa;
+    SupaConfig public supaConfig;
     VersionManager public versionManager;
-    DSafeLogic public proxyLogic;
+    WalletLogic public proxyLogic;
 
-    DSafeProxy public treasurySafe;
-    DSafeProxy public userSafe;
+    WalletProxy public treasurySafe;
+    WalletProxy public userSafe;
 
     bytes32 fsSALT = bytes32(0x1234567890123456789012345678901234567890123456789012345678901234);
 
@@ -60,12 +60,12 @@ contract DSafeTest is Test {
         nftOracle = new MockNFTOracle();
 
         versionManager = new VersionManager(owner);
-        dosConfig = new DOSConfig(owner);
-        dos = new DOS(address(dosConfig), address(versionManager));
-        proxyLogic = new DSafeLogic(address(dos));
+        supaConfig = new SupaConfig(owner);
+        supa = new Supa(address(supaConfig), address(versionManager));
+        proxyLogic = new WalletLogic(address(supa));
 
-        IDOSConfig(address(dos)).setConfig(
-            IDOSConfig.Config({
+        ISupaConfig(address(supa)).setConfig(
+            ISupaConfig.Config({
                 treasurySafe: address(0),
                 treasuryInterestFraction: 0,
                 maxSolvencyCheckGasCost: 10_000_000,
@@ -77,7 +77,7 @@ contract DSafeTest is Test {
         versionManager.addVersion(IVersionManager.Status.PRODUCTION, address(proxyLogic));
         versionManager.markRecommendedVersion(version);
 
-        transferAndCall2 = TransferAndCall2(0x74Ce850573804912938D4b0F9AbFCE95f724774c);
+        transferAndCall2 = TransferAndCall2(0x1554b484D2392672F0375C56d80e91c1d070a007);
         vm.etch(address(transferAndCall2), type(TransferAndCall2).creationCode);
         // transferAndCall2 = new TransferAndCall2{salt: fsSALT}();
         usdc.approve(address(transferAndCall2), type(uint256).max);
@@ -90,7 +90,7 @@ contract DSafeTest is Test {
         address user = vm.addr(userPrivateKey);
         console.log("user: %s", user);
         vm.prank(user);
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         Call[] memory calls = new Call[](0);
         uint256 nonce = 0;
@@ -107,7 +107,7 @@ contract DSafeTest is Test {
         console.log("recovered");
         console.logAddress(recovered);
 
-        DSafeLogic(address(userSafe)).executeSignedBatch(calls, nonce, deadline, signature);
+        WalletLogic(address(userSafe)).executeSignedBatch(calls, nonce, deadline, signature);
     }
 
     function test_transferAndCall2ToProxy() public {
@@ -117,7 +117,7 @@ contract DSafeTest is Test {
 
         deal({token: address(weth), to: address(this), give: 1 * 1 ether});
 
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         ITransferReceiver2.Transfer[] memory transfers = new ITransferReceiver2.Transfer[](2);
 
@@ -131,7 +131,7 @@ contract DSafeTest is Test {
         transferAndCall2.transferAndCall2(address(userSafe), transfers, data);
     }
 
-    function test_transferAndCall2ToDOS() public {
+    function test_transferAndCall2ToSupa() public {
         // TODO
     }
 
@@ -140,24 +140,24 @@ contract DSafeTest is Test {
     }
 
     function test_upgradeVersion() public {
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
-        _upgradeDSafeImplementation(versionName);
+        _upgradeWalletImplementation(versionName);
     }
 
     function test_upgradeInvalidVersion(string memory invalidVersionName) public {
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         if (
             keccak256(abi.encodePacked(invalidVersionName)) == keccak256(abi.encodePacked(version))
         ) {
             invalidVersionName = "1.0.1";
         }
         vm.expectRevert();
-        _upgradeDSafeImplementation(invalidVersionName);
+        _upgradeWalletImplementation(invalidVersionName);
     }
 
     function test_upgradeDeprecatedVersion() public {
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
         versionManager.updateVersion(
             versionName,
@@ -165,11 +165,11 @@ contract DSafeTest is Test {
             IVersionManager.BugLevel.NONE
         );
         vm.expectRevert();
-        _upgradeDSafeImplementation(versionName);
+        _upgradeWalletImplementation(versionName);
     }
 
     function test_upgradeLowBugVersion() public {
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
         versionManager.updateVersion(
             versionName,
@@ -177,11 +177,11 @@ contract DSafeTest is Test {
             IVersionManager.BugLevel.LOW
         );
         vm.expectRevert();
-        _upgradeDSafeImplementation(versionName);
+        _upgradeWalletImplementation(versionName);
     }
 
     function test_upgradeMedBugVersion() public {
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
         versionManager.updateVersion(
             versionName,
@@ -189,11 +189,11 @@ contract DSafeTest is Test {
             IVersionManager.BugLevel.MEDIUM
         );
         vm.expectRevert();
-        _upgradeDSafeImplementation(versionName);
+        _upgradeWalletImplementation(versionName);
     }
 
     function test_upgradeHighBugVersion() public {
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
         versionManager.updateVersion(
             versionName,
@@ -201,11 +201,11 @@ contract DSafeTest is Test {
             IVersionManager.BugLevel.HIGH
         );
         vm.expectRevert();
-        _upgradeDSafeImplementation(versionName);
+        _upgradeWalletImplementation(versionName);
     }
 
     function test_upgradeCriticalBugVersion() public {
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
         versionManager.updateVersion(
             versionName,
@@ -213,57 +213,57 @@ contract DSafeTest is Test {
             IVersionManager.BugLevel.CRITICAL
         );
         vm.expectRevert();
-        _upgradeDSafeImplementation(versionName);
+        _upgradeWalletImplementation(versionName);
     }
 
-    function test_proposeTransferDSafeOwnership(address newOwner) public {
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+    function test_proposeTransferWalletOwnership(address newOwner) public {
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         Call[] memory calls = new Call[](1);
         calls[0] = Call({
-            to: address(dos),
-            callData: abi.encodeWithSignature("proposeTransferDSafeOwnership(address)", newOwner),
+            to: address(supa),
+            callData: abi.encodeWithSignature("proposeTransferWalletOwnership(address)", newOwner),
             value: 0
         });
         userSafe.executeBatch(calls);
-        address proposedOwner = DOSConfig(address(dos)).dSafeProposedNewOwner(address(userSafe));
+        address proposedOwner = SupaConfig(address(supa)).walletProposedNewOwner(address(userSafe));
         assert(proposedOwner == newOwner);
     }
 
-    function test_executeTransferDSafeOwnership(address newOwner) public {
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+    function test_executeTransferWalletOwnership(address newOwner) public {
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         Call[] memory calls = new Call[](1);
         calls[0] = Call({
-            to: address(dos),
-            callData: abi.encodeWithSignature("proposeTransferDSafeOwnership(address)", newOwner),
+            to: address(supa),
+            callData: abi.encodeWithSignature("proposeTransferWalletOwnership(address)", newOwner),
             value: 0
         });
         userSafe.executeBatch(calls);
 
         vm.prank(newOwner);
-        IDOS(address(dos)).executeTransferDSafeOwnership(address(userSafe));
+        ISupa(address(supa)).executeTransferWalletOwnership(address(userSafe));
 
-        address actualOwner = IDOS(address(dos)).getDSafeOwner(address(userSafe));
+        address actualOwner = ISupa(address(supa)).getWalletOwner(address(userSafe));
         assert(actualOwner == newOwner);
     }
 
     function test_executeInvalidOwnershipTransfer(address newOwner) public {
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         vm.prank(newOwner);
         vm.expectRevert();
-        IDOS(address(dos)).executeTransferDSafeOwnership(address(userSafe));
+        ISupa(address(supa)).executeTransferWalletOwnership(address(userSafe));
     }
 
     function _setupSafes() internal {
-        treasurySafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        treasurySafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
     }
 
-    function _upgradeDSafeImplementation(string memory versionName) internal {
+    function _upgradeWalletImplementation(string memory versionName) internal {
         Call[] memory calls = new Call[](1);
         calls[0] = Call({
-            to: address(dos),
-            callData: abi.encodeWithSignature("upgradeDSafeImplementation(string)", versionName),
+            to: address(supa),
+            callData: abi.encodeWithSignature("upgradeWalletImplementation(string)", versionName),
             value: 0
         });
         userSafe.executeBatch(calls);

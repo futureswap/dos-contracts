@@ -9,7 +9,7 @@ import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 import {ImmutableVersion} from "../lib/ImmutableVersion.sol";
 import {IVersionManager} from "../interfaces/IVersionManager.sol";
 
-/// @title DOS Version Manager
+/// @title Supa Version Manager
 contract VersionManager is IVersionManager, ImmutableGovernance {
     /// @notice Recommended Version does not exist
     error NoRecommendedVersion();

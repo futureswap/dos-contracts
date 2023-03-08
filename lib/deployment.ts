@@ -13,7 +13,7 @@ import {
   VersionManager__factory,
   IAnyswapCreate2Deployer__factory,
   OffchainEntityProxy__factory,
-  IDOS__factory,
+  ISupa__factory,
   UniV3Oracle__factory,
   UniV3LPHelper__factory,
   ISwapRouter__factory,
@@ -71,8 +71,8 @@ export const getContractFactory = (
       return IPermit2__factory.connect(address, signer);
     case "transferAndCall2":
       return TransferAndCall2__factory.connect(address, signer);
-    case "dos":
-      return IDOS__factory.connect(address, signer);
+    case "supa":
+      return ISupa__factory.connect(address, signer);
     case "versionManager":
       return VersionManager__factory.connect(address, signer);
     case "governanceProxy":

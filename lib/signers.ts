@@ -1,4 +1,4 @@
-import type {IPermit2, DSafeLogic, OffchainEntityProxy, Voting} from "../typechain-types";
+import type {IPermit2, WalletLogic, OffchainEntityProxy, Voting} from "../typechain-types";
 import type {Call} from "./calls";
 import type {TypedDataSigner} from "@ethersproject/abstract-signer";
 
@@ -60,24 +60,24 @@ export const generateTypedDataString = (
   return Object.fromEntries(l);
 };
 
-const dSafeDomain = async (dSafe: DSafeLogic) => {
+const walletDomain = async (wallet: WalletLogic) => {
   return {
-    name: "DOS dSafe",
+    name: "Supa wallet",
     version: "1.0.0",
-    chainId: (await dSafe.provider.getNetwork()).chainId,
-    verifyingContract: dSafe.address,
+    chainId: (await wallet.provider.getNetwork()).chainId,
+    verifyingContract: wallet.address,
   };
 };
 
 export const signExecuteBatch = async (
-  dSafe: DSafeLogic,
+  wallet: WalletLogic,
   calls: Call[],
   nonce: number,
   deadline: bigint,
   signer: TypedDataSigner,
 ): Promise<string> => {
   // corresponds with the EIP712 constructor call
-  const domain = await dSafeDomain(dSafe);
+  const domain = await walletDomain(wallet);
 
   /* eslint-disable @typescript-eslint/naming-convention */
   const types = {
@@ -97,7 +97,7 @@ export const signExecuteBatch = async (
 };
 
 export const signOnTransferReceived2Call = async (
-  dSafe: DSafeLogic,
+  wallet: WalletLogic,
   signedCall: {
     operator: string;
     from: string;
@@ -108,7 +108,7 @@ export const signOnTransferReceived2Call = async (
   signer: TypedDataSigner,
 ): Promise<string> => {
   // corresponds with the EIP712 constructor call
-  const domain = await dSafeDomain(dSafe);
+  const domain = await walletDomain(wallet);
 
   // the named list of all type definitions
   /* eslint-disable @typescript-eslint/naming-convention */

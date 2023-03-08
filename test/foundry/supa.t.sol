@@ -4,14 +4,14 @@ pragma solidity ^0.8.17;
 import "forge-std/Test.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-import {DOS, IDOS, DSafeLib, DOSState, IDOSCore} from "contracts/dos/DOS.sol";
-import {DOSConfig, IDOSConfig} from "contracts/dos/DOSConfig.sol";
+import {Supa, ISupa, WalletLib, SupaState, ISupaCore} from "contracts/supa/Supa.sol";
+import {SupaConfig, ISupaConfig} from "contracts/supa/SupaConfig.sol";
 
 import {Call} from "contracts/lib/Call.sol";
-import {DSafeProxy} from "contracts/dsafe/DSafeProxy.sol";
-import {DSafeLogic} from "contracts/dsafe/DSafeLogic.sol";
+import {WalletProxy} from "contracts/wallet/WalletProxy.sol";
+import {WalletLogic} from "contracts/wallet/WalletLogic.sol";
 
-import {IVersionManager, VersionManager, ImmutableVersion} from "contracts/dos/VersionManager.sol";
+import {IVersionManager, VersionManager, ImmutableVersion} from "contracts/supa/VersionManager.sol";
 
 import {MockERC20Oracle} from "contracts/testing/MockERC20Oracle.sol";
 import {ERC20ChainlinkValueOracle} from "contracts/oracles/ERC20ChainlinkValueOracle.sol";
@@ -20,16 +20,16 @@ import {MockNFTOracle} from "contracts/testing/MockNFTOracle.sol";
 import {TestERC20} from "contracts/testing/TestERC20.sol";
 import {TestNFT} from "contracts/testing/TestNFT.sol";
 
-contract DosTest is Test {
+contract SupaTest is Test {
     uint256 mainnetFork;
     address public user = 0x8FffFfD4AFb6115b954bd326CbE7b4bA576818f5;
 
     VersionManager public versionManager;
-    DOS public dos;
-    DOSConfig public dosConfig;
-    DSafeLogic public logic;
+    Supa public supa;
+    SupaConfig public supaConfig;
+    WalletLogic public logic;
 
-    DSafeProxy public userSafe;
+    WalletProxy public userSafe;
 
     // IWETH9 public weth = IWETH9(payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)); // Mainnet WETH
 
@@ -50,14 +50,14 @@ contract DosTest is Test {
         // vm.selectFork(mainnetFork);
         address owner = address(this);
 
-        // deploy DOS contracts
+        // deploy Supa contracts
         versionManager = new VersionManager(owner);
-        dosConfig = new DOSConfig(owner);
-        dos = new DOS(address(dosConfig), address(versionManager));
-        logic = new DSafeLogic(address(dos));
+        supaConfig = new SupaConfig(owner);
+        supa = new Supa(address(supaConfig), address(versionManager));
+        logic = new WalletLogic(address(supa));
 
-        IDOSConfig(address(dos)).setConfig(
-            IDOSConfig.Config({
+        ISupaConfig(address(supa)).setConfig(
+            ISupaConfig.Config({
                 treasurySafe: address(0),
                 treasuryInterestFraction: 5e16,
                 maxSolvencyCheckGasCost: 1e6,
@@ -66,8 +66,8 @@ contract DosTest is Test {
             })
         );
 
-        IDOSConfig(address(dos)).setTokenStorageConfig(
-            IDOSConfig.TokenStorageConfig({
+        ISupaConfig(address(supa)).setTokenStorageConfig(
+            ISupaConfig.TokenStorageConfig({
                 maxTokenStorage: 250,
                 erc20Multiplier: 1,
                 erc721Multiplier: 1
@@ -89,7 +89,7 @@ contract DosTest is Test {
         nft0 = new TestNFT("nft0", "n0", 0);
         nft0Oracle = new MockNFTOracle();
 
-        IDOSConfig(address(dos)).addERC20Info(
+        ISupaConfig(address(supa)).addERC20Info(
             address(token0),
             "token0",
             "t0",
@@ -100,7 +100,7 @@ contract DosTest is Test {
             480, // slope2
             8e17 // targetUtilization
         );
-        IDOSConfig(address(dos)).addERC20Info(
+        ISupaConfig(address(supa)).addERC20Info(
             address(token1),
             "token1",
             "t1",
@@ -112,7 +112,7 @@ contract DosTest is Test {
             8e17 // targetUtilization
         );
 
-        IDOSConfig(address(dos)).addERC721Info(address(nft0), address(nft0Oracle));
+        ISupaConfig(address(supa)).addERC721Info(address(nft0), address(nft0Oracle));
 
         // add to version manager
         string memory version = "1.0.0";
@@ -120,15 +120,15 @@ contract DosTest is Test {
         versionManager.markRecommendedVersion(version);
     }
 
-    function test_CreateDSafe() public {
+    function test_CreateWallet() public {
         vm.startPrank(user);
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         vm.stopPrank();
     }
 
     function test_DepositERC20(uint96 _amount0, uint96 _amount1) public {
         vm.startPrank(user);
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         _mintTokens(address(userSafe), _amount0, _amount1);
 
         // construct calls
@@ -140,7 +140,7 @@ contract DosTest is Test {
                 to: address(token0),
                 callData: abi.encodeWithSignature(
                     "approve(address,uint256)",
-                    address(dos),
+                    address(supa),
                     _amount0
                 ),
                 value: 0
@@ -151,7 +151,7 @@ contract DosTest is Test {
                 to: address(token1),
                 callData: abi.encodeWithSignature(
                     "approve(address,uint256)",
-                    address(dos),
+                    address(supa),
                     _amount1
                 ),
                 value: 0
@@ -161,7 +161,7 @@ contract DosTest is Test {
         // deposit erc20 tokens
         calls[2] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "depositERC20(address,uint256)",
                     token0,
@@ -173,7 +173,7 @@ contract DosTest is Test {
 
         calls[3] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "depositERC20(address,uint256)",
                     token1,
@@ -184,30 +184,30 @@ contract DosTest is Test {
         );
 
         // execute batch
-        DSafeLogic(address(userSafe)).executeBatch(calls);
+        WalletLogic(address(userSafe)).executeBatch(calls);
         vm.stopPrank();
     }
 
     function test_DepositERC20ForSafe(uint96 _amount0, uint96 _amount1) public {
         vm.startPrank(user);
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         vm.stopPrank();
 
         _mintTokens(address(this), _amount0, _amount1);
 
         // set allowances
-        token0.approve(address(dos), _amount0);
-        token1.approve(address(dos), _amount1);
+        token0.approve(address(supa), _amount0);
+        token1.approve(address(supa), _amount1);
 
-        dos.depositERC20ForSafe(address(token0), address(userSafe), _amount0);
-        dos.depositERC20ForSafe(address(token1), address(userSafe), _amount1);
+        supa.depositERC20ForSafe(address(token0), address(userSafe), _amount0);
+        supa.depositERC20ForSafe(address(token1), address(userSafe), _amount1);
     }
 
     /// @dev using uint96 to avoid arithmetic overflow in uint -> int conversion
     function test_TransferERC20(uint96 _amount0) public {
         vm.startPrank(user);
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
-        DSafeProxy userSafe2 = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        WalletProxy userSafe2 = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         // mint tokens to user's wallet
         token0.mint(address(userSafe), _amount0);
@@ -221,7 +221,7 @@ contract DosTest is Test {
                 to: address(token0),
                 callData: abi.encodeWithSignature(
                     "approve(address,uint256)",
-                    address(dos),
+                    address(supa),
                     uint256(_amount0)
                 ),
                 value: 0
@@ -229,7 +229,7 @@ contract DosTest is Test {
         );
         calls[1] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "depositERC20(address,uint256)",
                     token0,
@@ -240,7 +240,7 @@ contract DosTest is Test {
         );
         calls[2] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "transferERC20(address,address,uint256)",
                     token0,
@@ -257,8 +257,8 @@ contract DosTest is Test {
 
     function test_DepositThenTransfer(uint96 _amount0) public {
         vm.startPrank(user);
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
-        DSafeProxy userSafe2 = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        WalletProxy userSafe2 = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         // mint tokens to user's wallet
         token0.mint(address(userSafe), _amount0);
@@ -272,7 +272,7 @@ contract DosTest is Test {
                 to: address(token0),
                 callData: abi.encodeWithSignature(
                     "approve(address,uint256)",
-                    address(dos),
+                    address(supa),
                     uint256(_amount0)
                 ),
                 value: 0
@@ -280,7 +280,7 @@ contract DosTest is Test {
         );
         calls[1] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "transferERC20(address,address,uint256)",
                     token0,
@@ -292,7 +292,7 @@ contract DosTest is Test {
         );
         calls[2] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "depositERC20(address,uint256)",
                     token0,
@@ -309,9 +309,9 @@ contract DosTest is Test {
     function test_TransferMoreThanBalance(uint96 _amount, uint96 _extraAmount) public {
         vm.assume(_amount > 1 ether);
         vm.assume(_extraAmount > 1);
-        DSafeProxy otherSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        WalletProxy otherSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         vm.startPrank(user);
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         // mint tokens to user's wallet
         token0.mint(address(userSafe), _amount);
@@ -325,7 +325,7 @@ contract DosTest is Test {
                 to: address(token0),
                 callData: abi.encodeWithSignature(
                     "approve(address,uint256)",
-                    address(dos),
+                    address(supa),
                     uint256(_amount)
                 ),
                 value: 0
@@ -333,7 +333,7 @@ contract DosTest is Test {
         );
         calls[1] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "depositERC20(address,uint256)",
                     token0,
@@ -344,7 +344,7 @@ contract DosTest is Test {
         );
         calls[2] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "transferERC20(address,address,uint256)",
                     token0,
@@ -362,13 +362,13 @@ contract DosTest is Test {
 
     function test_depositERC20IncreaseTokenCounter(uint256 amount) public {
         amount = bound(amount, 0, uint256(type(int256).max));
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
-        (, int256 tokenCounter) = DOSState(dos).dSafes(address(userSafe));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        (, int256 tokenCounter) = SupaState(supa).wallets(address(userSafe));
         assertEq(tokenCounter, 0);
         _mintTokens(address(this), amount, 0);
-        token0.approve(address(dos), amount);
-        dos.depositERC20ForSafe(address(token0), address(userSafe), amount);
-        (, tokenCounter) = DOSState(dos).dSafes(address(userSafe));
+        token0.approve(address(supa), amount);
+        supa.depositERC20ForSafe(address(token0), address(userSafe), amount);
+        (, tokenCounter) = SupaState(supa).wallets(address(userSafe));
         if (amount == 0) {
             assertEq(tokenCounter, 0);
         } else {
@@ -378,15 +378,15 @@ contract DosTest is Test {
 
     function test_depositERC20IncreaseTokenCounter2(uint256 amount) public {
         amount = bound(amount, 0, uint256(type(int256).max));
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
-        (, int256 tokenCounter) = DOSState(dos).dSafes(address(userSafe));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        (, int256 tokenCounter) = SupaState(supa).wallets(address(userSafe));
         assertEq(tokenCounter, 0);
         _mintTokens(address(this), amount, amount);
-        token0.approve(address(dos), amount);
-        token1.approve(address(dos), amount);
-        dos.depositERC20ForSafe(address(token0), address(userSafe), amount);
-        dos.depositERC20ForSafe(address(token1), address(userSafe), amount);
-        (, tokenCounter) = DOSState(dos).dSafes(address(userSafe));
+        token0.approve(address(supa), amount);
+        token1.approve(address(supa), amount);
+        supa.depositERC20ForSafe(address(token0), address(userSafe), amount);
+        supa.depositERC20ForSafe(address(token1), address(userSafe), amount);
+        (, tokenCounter) = SupaState(supa).wallets(address(userSafe));
         if (amount == 0) {
             assertEq(tokenCounter, 0);
         } else {
@@ -397,13 +397,13 @@ contract DosTest is Test {
     function test_withdrawERC20DecreaseTokenCounter(uint256 amount) public {
         // NOTE: reverts with some amount > 2^96
         amount = bound(amount, 0, uint256(int256(type(int96).max)));
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
-        (, int256 tokenCounter) = DOSState(dos).dSafes(address(userSafe));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        (, int256 tokenCounter) = SupaState(supa).wallets(address(userSafe));
         assertEq(tokenCounter, 0);
         _mintTokens(address(this), amount, 0);
-        token0.approve(address(dos), amount);
-        dos.depositERC20ForSafe(address(token0), address(userSafe), amount);
-        (, tokenCounter) = DOSState(dos).dSafes(address(userSafe));
+        token0.approve(address(supa), amount);
+        supa.depositERC20ForSafe(address(token0), address(userSafe), amount);
+        (, tokenCounter) = SupaState(supa).wallets(address(userSafe));
         if (amount == 0) {
             assertEq(tokenCounter, 0);
         } else {
@@ -411,7 +411,7 @@ contract DosTest is Test {
             Call[] memory calls = new Call[](1);
             calls[0] = (
                 Call({
-                    to: address(dos),
+                    to: address(supa),
                     callData: abi.encodeWithSignature(
                         "withdrawERC20(address,uint256)",
                         address(token0),
@@ -421,21 +421,23 @@ contract DosTest is Test {
                 })
             );
             userSafe.executeBatch(calls);
-            (, tokenCounter) = DOSState(dos).dSafes(address(userSafe));
+            (, tokenCounter) = SupaState(supa).wallets(address(userSafe));
             assertEq(tokenCounter, 0);
         }
     }
 
     function test_depositERC721IncreaseNftCounter() public {
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         nft0Oracle.setPrice(0, 1 ether);
-        uint256 nftCounter = DOSConfig(address(dos)).getDAccountERC721Counter(address(userSafe));
+        uint256 nftCounter = SupaConfig(address(supa)).getCreditAccountERC721Counter(
+            address(userSafe)
+        );
         assertEq(nftCounter, 0);
         nft0.mint(address(userSafe));
         Call[] memory calls = new Call[](1);
         calls[0] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "depositERC721(address,uint256)",
                     address(nft0),
@@ -445,20 +447,22 @@ contract DosTest is Test {
             })
         );
         userSafe.executeBatch(calls);
-        nftCounter = DOSConfig(address(dos)).getDAccountERC721Counter(address(userSafe));
+        nftCounter = SupaConfig(address(supa)).getCreditAccountERC721Counter(address(userSafe));
         assertEq(nftCounter, 1);
     }
 
     function test_withdrawERC721DecreaseNftCounter() public {
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         nft0Oracle.setPrice(0, 1 ether);
-        uint256 nftCounter = DOSConfig(address(dos)).getDAccountERC721Counter(address(userSafe));
+        uint256 nftCounter = SupaConfig(address(supa)).getCreditAccountERC721Counter(
+            address(userSafe)
+        );
         assertEq(nftCounter, 0);
         nft0.mint(address(userSafe));
         Call[] memory calls = new Call[](1);
         calls[0] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "depositERC721(address,uint256)",
                     address(nft0),
@@ -468,11 +472,11 @@ contract DosTest is Test {
             })
         );
         userSafe.executeBatch(calls);
-        nftCounter = DOSConfig(address(dos)).getDAccountERC721Counter(address(userSafe));
+        nftCounter = SupaConfig(address(supa)).getCreditAccountERC721Counter(address(userSafe));
         assertEq(nftCounter, 1);
         calls[0] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "withdrawERC721(address,uint256)",
                     address(nft0),
@@ -482,48 +486,48 @@ contract DosTest is Test {
             })
         );
         userSafe.executeBatch(calls);
-        nftCounter = DOSConfig(address(dos)).getDAccountERC721Counter(address(userSafe));
+        nftCounter = SupaConfig(address(supa)).getCreditAccountERC721Counter(address(userSafe));
         assertEq(nftCounter, 0);
     }
 
     function test_exceedMaxTokenStorage() public {
-        IDOSConfig(address(dos)).setTokenStorageConfig(
-            IDOSConfig.TokenStorageConfig({
+        ISupaConfig(address(supa)).setTokenStorageConfig(
+            ISupaConfig.TokenStorageConfig({
                 maxTokenStorage: 100,
                 erc20Multiplier: 100,
                 erc721Multiplier: 1
             })
         );
 
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         _mintTokens(address(this), 100 * 1 ether, 100 * 1 ether);
-        token0.approve(address(dos), 100 * 1 ether);
-        token1.approve(address(dos), 100 * 1 ether);
-        dos.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
-        vm.expectRevert(DOS.TokenStorageExceeded.selector);
-        dos.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
+        token0.approve(address(supa), 100 * 1 ether);
+        token1.approve(address(supa), 100 * 1 ether);
+        supa.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
+        vm.expectRevert(Supa.TokenStorageExceeded.selector);
+        supa.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
     }
 
     function test_exceedMaxTokenStorageNFT() public {
-        IDOSConfig(address(dos)).setTokenStorageConfig(
-            IDOSConfig.TokenStorageConfig({
+        ISupaConfig(address(supa)).setTokenStorageConfig(
+            ISupaConfig.TokenStorageConfig({
                 maxTokenStorage: 1,
                 erc20Multiplier: 1,
                 erc721Multiplier: 1
             })
         );
 
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         _mintTokens(address(this), 100 * 1 ether, 100 * 1 ether);
-        token0.approve(address(dos), 100 * 1 ether);
-        token1.approve(address(dos), 100 * 1 ether);
-        dos.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
+        token0.approve(address(supa), 100 * 1 ether);
+        token1.approve(address(supa), 100 * 1 ether);
+        supa.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
 
         nft0.mint(address(userSafe));
         Call[] memory calls = new Call[](1);
         calls[0] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "depositERC721(address,uint256)",
                     address(nft0),
@@ -532,55 +536,55 @@ contract DosTest is Test {
                 value: 0
             })
         );
-        vm.expectRevert(DOS.TokenStorageExceeded.selector);
+        vm.expectRevert(Supa.TokenStorageExceeded.selector);
         userSafe.executeBatch(calls);
     }
 
     function test_increaseMaxTokenStorage() public {
-        IDOSConfig(address(dos)).setTokenStorageConfig(
-            IDOSConfig.TokenStorageConfig({
+        ISupaConfig(address(supa)).setTokenStorageConfig(
+            ISupaConfig.TokenStorageConfig({
                 maxTokenStorage: 100,
                 erc20Multiplier: 100,
                 erc721Multiplier: 1
             })
         );
 
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         _mintTokens(address(this), 100 * 1 ether, 100 * 1 ether);
-        token0.approve(address(dos), 100 * 1 ether);
-        token1.approve(address(dos), 100 * 1 ether);
-        dos.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
-        vm.expectRevert(DOS.TokenStorageExceeded.selector);
-        dos.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
+        token0.approve(address(supa), 100 * 1 ether);
+        token1.approve(address(supa), 100 * 1 ether);
+        supa.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
+        vm.expectRevert(Supa.TokenStorageExceeded.selector);
+        supa.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
 
-        IDOSConfig(address(dos)).setTokenStorageConfig(
-            IDOSConfig.TokenStorageConfig({
+        ISupaConfig(address(supa)).setTokenStorageConfig(
+            ISupaConfig.TokenStorageConfig({
                 maxTokenStorage: 250,
                 erc20Multiplier: 1,
                 erc721Multiplier: 1
             })
         );
-        dos.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
+        supa.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
     }
 
     function test_decreaseMaxTokenStorage() public {
-        IDOSConfig(address(dos)).setTokenStorageConfig(
-            IDOSConfig.TokenStorageConfig({
+        ISupaConfig(address(supa)).setTokenStorageConfig(
+            ISupaConfig.TokenStorageConfig({
                 maxTokenStorage: 100,
                 erc20Multiplier: 10,
                 erc721Multiplier: 1
             })
         );
 
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         _mintTokens(address(this), 100 * 1 ether, 100 * 1 ether);
-        token0.approve(address(dos), 100 * 1 ether);
-        token1.approve(address(dos), 100 * 1 ether);
-        dos.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
-        dos.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
+        token0.approve(address(supa), 100 * 1 ether);
+        token1.approve(address(supa), 100 * 1 ether);
+        supa.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
+        supa.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
 
-        IDOSConfig(address(dos)).setTokenStorageConfig(
-            IDOSConfig.TokenStorageConfig({
+        ISupaConfig(address(supa)).setTokenStorageConfig(
+            ISupaConfig.TokenStorageConfig({
                 maxTokenStorage: 10,
                 erc20Multiplier: 10,
                 erc721Multiplier: 1
@@ -590,7 +594,7 @@ contract DosTest is Test {
         Call[] memory calls = new Call[](1);
         calls[0] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "depositERC721(address,uint256)",
                     address(nft0),
@@ -599,7 +603,7 @@ contract DosTest is Test {
                 value: 0
             })
         );
-        vm.expectRevert(DOS.TokenStorageExceeded.selector);
+        vm.expectRevert(Supa.TokenStorageExceeded.selector);
         userSafe.executeBatch(calls);
     }
 

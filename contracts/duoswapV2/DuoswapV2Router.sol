@@ -18,22 +18,22 @@ import "./libraries/DuoswapV2Library.sol";
 import "../external/interfaces/IWETH9.sol";
 
 import {IDuoswapV2Pair} from "./interfaces/IDuoswapV2Pair.sol";
-import {IDOS} from "../interfaces/IDOS.sol";
+import {ISupa} from "../interfaces/ISupa.sol";
 
 contract DuoswapV2Router is IDuoswapV2Router {
     address public immutable override factory;
     address public immutable override WETH;
-    address public immutable dos;
+    address public immutable supa;
 
     modifier ensure(uint256 deadline) {
         require(deadline >= block.timestamp, "UniswapV2Router: EXPIRED");
         _;
     }
 
-    constructor(address _factory, address _WETH, address _dos) {
+    constructor(address _factory, address _WETH, address _supa) {
         factory = _factory;
         WETH = _WETH;
-        dos = _dos;
+        supa = _supa;
     }
 
     receive() external payable {
@@ -90,7 +90,7 @@ contract DuoswapV2Router is IDuoswapV2Router {
         ensure(deadline)
         returns (uint256 amountA, uint256 amountB, uint256 liquidity)
     {
-        // require(msg.sender == address(dos));
+        // require(msg.sender == address(supa));
         (amountA, amountB) = _addLiquidity(
             tokenA,
             tokenB,
@@ -100,10 +100,10 @@ contract DuoswapV2Router is IDuoswapV2Router {
             amountBMin
         );
         address pair = DuoswapV2Library.pairFor(factory, tokenA, tokenB);
-        address pairSafe = IDuoswapV2Pair(pair).dSafe();
+        address pairWallet = IDuoswapV2Pair(pair).wallet();
 
-        IDOS(dos).transferFromERC20(tokenA, msg.sender, pairSafe, amountA);
-        IDOS(dos).transferFromERC20(tokenB, msg.sender, pairSafe, amountB);
+        ISupa(supa).transferFromERC20(tokenA, msg.sender, pairWallet, amountA);
+        ISupa(supa).transferFromERC20(tokenB, msg.sender, pairWallet, amountB);
         liquidity = IDuoswapV2Pair(pair).mint(to);
     }
 
@@ -187,10 +187,10 @@ contract DuoswapV2Router is IDuoswapV2Router {
             amounts[amounts.length - 1] >= amountOutMin,
             "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
         );
-        IDOS(dos).transferFromERC20(
+        ISupa(supa).transferFromERC20(
             path[0],
             to, // changed to userSafe
-            IDuoswapV2Pair(DuoswapV2Library.pairFor(factory, path[0], path[1])).dSafe(), // changed to pairSafe
+            IDuoswapV2Pair(DuoswapV2Library.pairFor(factory, path[0], path[1])).wallet(), // changed to pairWallet
             amounts[0]
         );
         _swap(amounts, path, to);
@@ -205,10 +205,10 @@ contract DuoswapV2Router is IDuoswapV2Router {
     ) external virtual override ensure(deadline) returns (uint256[] memory amounts) {
         amounts = DuoswapV2Library.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= amountInMax, "UniswapV2Router: EXCESSIVE_INPUT_AMOUNT");
-        IDOS(dos).transferFromERC20(
+        ISupa(supa).transferFromERC20(
             path[0],
             to, // changed to userSafe
-            IDuoswapV2Pair(DuoswapV2Library.pairFor(factory, path[0], path[1])).dSafe(), // changed to pairSafe
+            IDuoswapV2Pair(DuoswapV2Library.pairFor(factory, path[0], path[1])).wallet(), // changed to pairWallet
             amounts[0]
         );
         _swap(amounts, path, to);

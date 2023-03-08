@@ -7,13 +7,13 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-import {IDOS, DOS, DSafeLib, DOSState, IDOSCore} from "contracts/dos/DOS.sol";
-import {DOSConfig, IDOSConfig} from "contracts/dos/DOSConfig.sol";
+import {ISupa, Supa, WalletLib, SupaState, ISupaCore} from "contracts/supa/Supa.sol";
+import {SupaConfig, ISupaConfig} from "contracts/supa/SupaConfig.sol";
 import {Call} from "contracts/lib/Call.sol";
-import {DSafeProxy} from "contracts/dsafe/DSafeProxy.sol";
-import {DSafeLogic} from "contracts/dsafe/DSafeLogic.sol";
-import {IVersionManager, VersionManager, ImmutableVersion} from "contracts/dos/VersionManager.sol";
-// import "../src/dos/TransferAndCall2.sol";
+import {WalletProxy} from "contracts/wallet/WalletProxy.sol";
+import {WalletLogic} from "contracts/wallet/WalletLogic.sol";
+import {IVersionManager, VersionManager, ImmutableVersion} from "contracts/supa/VersionManager.sol";
+// import "../src/supa/TransferAndCall2.sol";
 import {DuoswapV2Factory} from "contracts/duoswapV2/DuoswapV2Factory.sol";
 import {DuoswapV2Pair} from "contracts/duoswapV2/DuoswapV2Pair.sol";
 import {DuoswapV2Router} from "contracts/duoswapV2/DuoswapV2Router.sol";
@@ -33,11 +33,11 @@ contract DuoswapV2Test is Test {
     DuoswapV2Pair public pair;
     DuoswapV2Router public router;
 
-    DOS public dos;
-    DOSConfig public dosConfig;
-    DSafeProxy public userSafe;
+    Supa public supa;
+    SupaConfig public supaConfig;
+    WalletProxy public userSafe;
     address public pairSafe;
-    DSafeLogic public logic;
+    WalletLogic public logic;
 
     IWETH9 public weth = IWETH9(payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
 
@@ -56,16 +56,16 @@ contract DuoswapV2Test is Test {
     function setUp() public {
         address owner = address(this);
 
-        // create DOS contracts
+        // create Supa contracts
         versionManager = new VersionManager(owner);
-        dosConfig = new DOSConfig(owner);
-        dos = new DOS(address(dosConfig), address(versionManager));
-        logic = new DSafeLogic(address(dos));
+        supaConfig = new SupaConfig(owner);
+        supa = new Supa(address(supaConfig), address(versionManager));
+        logic = new WalletLogic(address(supa));
 
         string memory version = "1.0.0";
 
-        IDOSConfig(address(dos)).setConfig(
-            IDOSConfig.Config({
+        ISupaConfig(address(supa)).setConfig(
+            ISupaConfig.Config({
                 treasurySafe: address(0),
                 treasuryInterestFraction: 0,
                 maxSolvencyCheckGasCost: 10_000_000,
@@ -74,8 +74,8 @@ contract DuoswapV2Test is Test {
             })
         );
 
-        IDOSConfig(address(dos)).setTokenStorageConfig(
-            IDOSConfig.TokenStorageConfig({
+        ISupaConfig(address(supa)).setTokenStorageConfig(
+            ISupaConfig.TokenStorageConfig({
                 maxTokenStorage: 250,
                 erc20Multiplier: 1,
                 erc721Multiplier: 1
@@ -92,7 +92,7 @@ contract DuoswapV2Test is Test {
         token0Oracle = new MockERC20Oracle(owner);
         token1Oracle = new MockERC20Oracle(owner);
 
-        IDOSConfig(address(dos)).addERC20Info(
+        ISupaConfig(address(supa)).addERC20Info(
             address(token0),
             "token0",
             "t0",
@@ -103,7 +103,7 @@ contract DuoswapV2Test is Test {
             0,
             0
         );
-        IDOSConfig(address(dos)).addERC20Info(
+        ISupaConfig(address(supa)).addERC20Info(
             address(token1),
             "token1",
             "t1",
@@ -116,8 +116,8 @@ contract DuoswapV2Test is Test {
         );
 
         // create duoswap contracts
-        factory = new DuoswapV2Factory(address(dos), owner);
-        router = new DuoswapV2Router(address(factory), address(weth), address(dos));
+        factory = new DuoswapV2Factory(address(supa), owner);
+        router = new DuoswapV2Router(address(factory), address(weth), address(supa));
     }
 
     function testCreatePair() public {
@@ -132,13 +132,13 @@ contract DuoswapV2Test is Test {
         uint256 amount0 = uint256(_amount0) + 1e18;
         uint256 amount1 = uint256(_amount1) + 1e18;
 
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         _depositTokens(amount0 * 100, amount1 * 100);
 
         // create a safe for the air
         pair = _createPair(address(token0), address(token1));
-        pairSafe = pair.dSafe();
+        pairSafe = pair.wallet();
 
         // mint tokens to safe
         token0.mint(address(userSafe), amount0);
@@ -159,17 +159,17 @@ contract DuoswapV2Test is Test {
             block.timestamp
         );
 
-        IDOSCore.Approval[] memory approvals = new IDOSCore.Approval[](2);
+        ISupaCore.Approval[] memory approvals = new ISupaCore.Approval[](2);
         approvals[0] = (
-            IDOSCore.Approval({ercContract: address(token0), amountOrTokenId: amount0})
+            ISupaCore.Approval({ercContract: address(token0), amountOrTokenId: amount0})
         );
         approvals[1] = (
-            IDOSCore.Approval({ercContract: address(token1), amountOrTokenId: amount1})
+            ISupaCore.Approval({ercContract: address(token1), amountOrTokenId: amount1})
         );
 
         calls[0] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "approveAndCall((address,uint256)[],address,bytes)",
                     approvals,
@@ -179,7 +179,7 @@ contract DuoswapV2Test is Test {
                 value: 0
             })
         );
-        DSafeLogic(address(userSafe)).executeBatch(calls);
+        WalletLogic(address(userSafe)).executeBatch(calls);
     }
 
     function testDepositTokens() public {
@@ -188,7 +188,7 @@ contract DuoswapV2Test is Test {
         token1.mint(address(this), 1e21);
 
         // deposit tokens to portfolios
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         token0.transfer(address(userSafe), 1e21);
         token1.transfer(address(userSafe), 1e21);
@@ -204,7 +204,7 @@ contract DuoswapV2Test is Test {
                 to: address(token0),
                 callData: abi.encodeWithSignature(
                     "approve(address,uint256)",
-                    address(dos),
+                    address(supa),
                     userSafeBalance0
                 ),
                 value: 0
@@ -216,7 +216,7 @@ contract DuoswapV2Test is Test {
                 to: address(token1),
                 callData: abi.encodeWithSignature(
                     "approve(address,uint256)",
-                    address(dos),
+                    address(supa),
                     userSafeBalance1
                 ),
                 value: 0
@@ -225,7 +225,7 @@ contract DuoswapV2Test is Test {
 
         calls[2] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "depositERC20(address,uint256)",
                     address(token0),
@@ -237,7 +237,7 @@ contract DuoswapV2Test is Test {
 
         calls[3] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "depositERC20(address,uint256)",
                     address(token1),
@@ -247,12 +247,12 @@ contract DuoswapV2Test is Test {
             })
         );
 
-        DSafeLogic(address(userSafe)).executeBatch(calls);
+        WalletLogic(address(userSafe)).executeBatch(calls);
     }
 
     function testSwap() public {
         // deposit tokens to portfolios
-        userSafe = DSafeProxy(payable(IDOSConfig(address(dos)).createDSafe()));
+        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         _depositTokens(1e30, 1e30);
 
@@ -267,11 +267,11 @@ contract DuoswapV2Test is Test {
         path[1] = address(token1);
         uint256 swapAmount = 1e21;
 
-        int256 userSafeBalance0Before = IDOSConfig(address(dos)).getDAccountERC20(
+        int256 userSafeBalance0Before = ISupaConfig(address(supa)).getCreditAccountERC20(
             address(userSafe),
             token0
         );
-        int256 userSafeBalance1Before = IDOSConfig(address(dos)).getDAccountERC20(
+        int256 userSafeBalance1Before = ISupaConfig(address(supa)).getCreditAccountERC20(
             address(userSafe),
             token1
         );
@@ -285,9 +285,9 @@ contract DuoswapV2Test is Test {
             block.timestamp
         );
 
-        IDOSCore.Approval[] memory approvals = new IDOSCore.Approval[](1);
+        ISupaCore.Approval[] memory approvals = new ISupaCore.Approval[](1);
         approvals[0] = (
-            IDOSCore.Approval({ercContract: address(token0), amountOrTokenId: swapAmount})
+            ISupaCore.Approval({ercContract: address(token0), amountOrTokenId: swapAmount})
         );
 
         bytes memory callData = abi.encodeWithSignature(
@@ -297,15 +297,15 @@ contract DuoswapV2Test is Test {
             data
         );
         Call[] memory calls = new Call[](1);
-        calls[0] = (Call({to: address(dos), callData: callData, value: 0}));
+        calls[0] = (Call({to: address(supa), callData: callData, value: 0}));
 
-        DSafeLogic(address(userSafe)).executeBatch(calls);
+        WalletLogic(address(userSafe)).executeBatch(calls);
 
-        int256 userSafeBalance0After = IDOSConfig(address(dos)).getDAccountERC20(
+        int256 userSafeBalance0After = ISupaConfig(address(supa)).getCreditAccountERC20(
             address(userSafe),
             IERC20(token0)
         );
-        int256 userSafeBalance1After = IDOSConfig(address(dos)).getDAccountERC20(
+        int256 userSafeBalance1After = ISupaConfig(address(supa)).getCreditAccountERC20(
             address(userSafe),
             IERC20(token1)
         );
@@ -321,7 +321,7 @@ contract DuoswapV2Test is Test {
 
     function _addLiquidity(uint256 _amount0, uint256 _amount1) public {
         pair = _createPair(address(token0), address(token1));
-        pairSafe = pair.dSafe();
+        pairSafe = pair.wallet();
 
         token0.mint(address(userSafe), _amount0);
         token1.mint(address(userSafe), _amount1);
@@ -338,19 +338,19 @@ contract DuoswapV2Test is Test {
             block.timestamp
         );
 
-        IDOSCore.Approval[] memory approvals = new IDOSCore.Approval[](2);
+        ISupaCore.Approval[] memory approvals = new ISupaCore.Approval[](2);
         approvals[0] = (
-            IDOSCore.Approval({ercContract: address(token0), amountOrTokenId: _amount0})
+            ISupaCore.Approval({ercContract: address(token0), amountOrTokenId: _amount0})
         );
         approvals[1] = (
-            IDOSCore.Approval({ercContract: address(token1), amountOrTokenId: _amount1})
+            ISupaCore.Approval({ercContract: address(token1), amountOrTokenId: _amount1})
         );
 
         Call[] memory calls = new Call[](1);
 
         calls[0] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "approveAndCall((address,uint256)[],address,bytes)",
                     approvals,
@@ -360,7 +360,7 @@ contract DuoswapV2Test is Test {
                 value: 0
             })
         );
-        DSafeLogic(address(userSafe)).executeBatch(calls);
+        WalletLogic(address(userSafe)).executeBatch(calls);
     }
 
     function _depositTokens(uint256 _amount0, uint256 _amount1) public {
@@ -374,7 +374,7 @@ contract DuoswapV2Test is Test {
                 to: address(token0),
                 callData: abi.encodeWithSignature(
                     "approve(address,uint256)",
-                    address(dos),
+                    address(supa),
                     _amount0
                 ),
                 value: 0
@@ -386,7 +386,7 @@ contract DuoswapV2Test is Test {
                 to: address(token1),
                 callData: abi.encodeWithSignature(
                     "approve(address,uint256)",
-                    address(dos),
+                    address(supa),
                     _amount1
                 ),
                 value: 0
@@ -395,7 +395,7 @@ contract DuoswapV2Test is Test {
 
         calls[2] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "depositERC20(address,uint256)",
                     address(token0),
@@ -407,7 +407,7 @@ contract DuoswapV2Test is Test {
 
         calls[3] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "depositERC20(address,uint256)",
                     address(token1),
@@ -417,15 +417,15 @@ contract DuoswapV2Test is Test {
             })
         );
 
-        DSafeLogic(address(userSafe)).executeBatch(calls);
+        WalletLogic(address(userSafe)).executeBatch(calls);
     }
 
     function _createPair(address _token0, address _token1) public returns (DuoswapV2Pair _pair) {
         _pair = DuoswapV2Pair(factory.createPair(_token0, _token1));
-        pairOracle = new UniV2Oracle(address(dos), address(_pair), address(this));
+        pairOracle = new UniV2Oracle(address(supa), address(_pair), address(this));
         pairOracle.setERC20ValueOracle(address(token0), address(token0Oracle));
         pairOracle.setERC20ValueOracle(address(token1), address(token1Oracle));
-        IDOSConfig(address(dos)).addERC20Info(
+        ISupaConfig(address(supa)).addERC20Info(
             address(_pair),
             "uni-v2",
             "t0-t1",

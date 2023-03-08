@@ -5,73 +5,73 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
-import {IDOSConfig, ERC20Pool, ERC20Share, NFTTokenData, ERC20Info, ERC721Info, ContractData, ContractKind} from "../interfaces/IDOS.sol";
+import {ISupaConfig, ERC20Pool, ERC20Share, NFTTokenData, ERC20Info, ERC721Info, ContractData, ContractKind} from "../interfaces/ISupa.sol";
 import {IVersionManager} from "../interfaces/IVersionManager.sol";
-import {DSafeLib} from "../lib/DSafeLib.sol";
+import {WalletLib} from "../lib/WalletLib.sol";
 import {ERC20PoolLib} from "../lib/ERC20PoolLib.sol";
 
-/// @title DOS State
-/// @notice Contract holds the configuration state for DOS
-contract DOSState is Pausable {
+/// @title Supa State
+/// @notice Contract holds the configuration state for Supa
+contract SupaState is Pausable {
     using ERC20PoolLib for ERC20Pool;
 
-    /// @notice Only dSafe can call this function
-    error OnlyDSafe();
-    /// @notice Recipient is not a valid dSafe
-    error DSafeNonExistent();
+    /// @notice Only wallet can call this function
+    error OnlyWallet();
+    /// @notice Recipient is not a valid wallet
+    error WalletNonExistent();
     /// @notice Asset is not registered
     /// @param token The unregistered asset
     error NotRegistered(address token);
 
     IVersionManager public versionManager;
-    /// @notice mapping between dSafe address and DOS-specific dSafe data
-    mapping(address => DSafeLib.DSafe) public dSafes;
+    /// @notice mapping between wallet address and Supa-specific wallet data
+    mapping(address => WalletLib.Wallet) public wallets;
 
-    /// @notice mapping between dSafe address and the proposed new owner
+    /// @notice mapping between wallet address and the proposed new owner
     /// @dev `proposedNewOwner` is address(0) when there is no pending change
-    mapping(address => address) public dSafeProposedNewOwner;
+    mapping(address => address) public walletProposedNewOwner;
 
-    /// @notice mapping between dSafe address and an instance of deployed dSafeLogic contract.
-    /// It means that this specific dSafeLogic version is setup to operate the dSafe.
+    /// @notice mapping between wallet address and an instance of deployed walletLogic contract.
+    /// It means that this specific walletLogic version is setup to operate the wallet.
     // @dev this could be a mapping to a version index instead of the implementation address
-    mapping(address => address) public dSafeLogic;
+    mapping(address => address) public walletLogic;
 
     /// @notice mapping from
-    /// dSafe owner address => ERC20 address => dSafe spender address => allowed amount of ERC20.
+    /// wallet owner address => ERC20 address => wallet spender address => allowed amount of ERC20.
     /// It represent the allowance of `spender` to transfer up to `amount` of `erc20` balance of
-    /// owner's dAccount to some other dAccount. E.g. 123 => abc => 456 => 1000, means that
-    /// dSafe 456 can transfer up to 1000 of abc tokens from dAccount of dSafe 123 to some other dAccount.
-    /// Note, that no ERC20 are actually getting transferred - dAccount is a DOS concept, and
-    /// corresponding tokens are owned by DOS
+    /// owner's creditAccount to some other creditAccount. E.g. 123 => abc => 456 => 1000, means that
+    /// wallet 456 can transfer up to 1000 of abc tokens from creditAccount of wallet 123 to some other creditAccount.
+    /// Note, that no ERC20 are actually getting transferred - creditAccount is a Supa concept, and
+    /// corresponding tokens are owned by Supa
     mapping(address => mapping(address => mapping(address => uint256))) public allowances;
 
     /// @notice Whether a spender is approved to operate on behalf of an owner
-    /// @dev Mapping from dSafe owner address => spender address => bool
+    /// @dev Mapping from wallet owner address => spender address => bool
     mapping(address => mapping(address => bool)) public operatorApprovals;
 
-    mapping(DSafeLib.NFTId => NFTTokenData) public tokenDataByNFTId;
+    mapping(WalletLib.NFTId => NFTTokenData) public tokenDataByNFTId;
 
     ERC20Info[] public erc20Infos;
     ERC721Info[] public erc721Infos;
 
-    /// @notice mapping of ERC20 or ERC721 address => DOS asset idx and contract kind.
+    /// @notice mapping of ERC20 or ERC721 address => Supa asset idx and contract kind.
     /// idx is the index of the ERC20 in `erc20Infos` or ERC721 in `erc721Infos`
     /// kind is ContractKind enum, that here can be ERC20 or ERC721
     mapping(address => ContractData) public infoIdx;
 
-    IDOSConfig.Config public config;
-    IDOSConfig.TokenStorageConfig public tokenStorageConfig;
+    ISupaConfig.Config public config;
+    ISupaConfig.TokenStorageConfig public tokenStorageConfig;
 
-    modifier onlyDSafe() {
-        if (dSafes[msg.sender].owner == address(0)) {
-            revert OnlyDSafe();
+    modifier onlyWallet() {
+        if (wallets[msg.sender].owner == address(0)) {
+            revert OnlyWallet();
         }
         _;
     }
 
-    modifier dSafeExists(address dSafe) {
-        if (dSafes[dSafe].owner == address(0)) {
-            revert DSafeNonExistent();
+    modifier walletExists(address wallet) {
+        if (wallets[wallet].owner == address(0)) {
+            revert WalletNonExistent();
         }
         _;
     }
@@ -87,9 +87,9 @@ contract DOSState is Pausable {
     }
 
     function getNFTData(
-        DSafeLib.NFTId nftId
+        WalletLib.NFTId nftId
     ) internal view returns (uint16 erc721Idx, uint256 tokenId) {
-        uint256 unwrappedId = DSafeLib.NFTId.unwrap(nftId);
+        uint256 unwrappedId = WalletLib.NFTId.unwrap(nftId);
         erc721Idx = uint16(unwrappedId);
         tokenId = tokenDataByNFTId[nftId].tokenId | ((unwrappedId >> 240) << 240);
     }

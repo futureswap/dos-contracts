@@ -1,16 +1,16 @@
-import type {GovernanceProxy, IDOS, IWETH9, IERC20WithMetadata} from "../typechain-types";
+import type {GovernanceProxy, ISupa, IWETH9, IERC20WithMetadata} from "../typechain-types";
 
 import {ethers} from "hardhat";
 
 import {getAddressesForNetwork, getContracts, saveAddressesForNetwork} from "../lib/deployment";
-import {setupDos} from "../lib/deploy";
+import {setupSupa} from "../lib/deploy";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
   const networkAddresses = await getAddressesForNetwork();
   const networkContracts = getContracts(networkAddresses, deployer);
 
-  const dos = networkContracts.dos as IDOS;
+  const supa = networkContracts.supa as ISupa;
   const governanceProxy = networkContracts.governanceProxy as GovernanceProxy;
   const usdc = networkContracts.usdc as IERC20WithMetadata;
   const weth = networkContracts.weth as IWETH9;
@@ -22,7 +22,7 @@ async function main() {
     swapRouter: networkAddresses.swapRouter,
   };
 
-  const oracles = await setupDos(governanceProxy, dos, usdc, weth, uni, uniAddresses, deployer);
+  const oracles = await setupSupa(governanceProxy, supa, usdc, weth, uni, uniAddresses, deployer);
 
   await saveAddressesForNetwork(oracles);
 }

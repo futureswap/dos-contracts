@@ -5,38 +5,42 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/proxy/Proxy.sol";
 
-import {DSafeState} from "./DSafeState.sol";
+import {WalletState} from "./WalletState.sol";
 import {ITransferReceiver2, TRANSFER_AND_CALL2} from "../interfaces/ITransferReceiver2.sol";
 import {PERMIT2} from "../external/interfaces/IPermit2.sol";
 import {FsUtils} from "../lib/FsUtils.sol";
 import {CallLib, Call} from "../lib/Call.sol";
 
-/// @title DSafe Proxy
-/// @notice Proxy contract for DOS Safes
+/// @title Wallet Proxy
+/// @notice Proxy contract for Supa Safes
 // Inspired by TransparentUpdatableProxy
-contract DSafeProxy is DSafeState, Proxy {
-    modifier ifDos() {
-        if (msg.sender == address(dos)) {
+contract WalletProxy is WalletState, Proxy {
+    modifier ifSupa() {
+        if (msg.sender == address(supa)) {
             _;
         } else {
             _fallback();
         }
     }
 
-    constructor(address _dos, address[] memory erc20s, address[] memory erc721s) DSafeState(_dos) {
-        // Approve DOS and PERMIT2 to spend all ERC20s
+    constructor(
+        address _supa,
+        address[] memory erc20s,
+        address[] memory erc721s
+    ) WalletState(_supa) {
+        // Approve Supa and PERMIT2 to spend all ERC20s
         for (uint256 i = 0; i < erc20s.length; i++) {
             // slither-disable-next-line missing-zero-check
             IERC20 erc20 = IERC20(FsUtils.nonNull(erc20s[i]));
-            erc20.approve(_dos, type(uint256).max);
+            erc20.approve(_supa, type(uint256).max);
             erc20.approve(address(PERMIT2), type(uint256).max);
             erc20.approve(address(TRANSFER_AND_CALL2), type(uint256).max);
         }
-        // Approve DOS to spend all ERC721s
+        // Approve Supa to spend all ERC721s
         for (uint256 i = 0; i < erc721s.length; i++) {
             // slither-disable-next-line missing-zero-check
             IERC721 erc721 = IERC721(FsUtils.nonNull(erc721s[i]));
-            erc721.setApprovalForAll(_dos, true);
+            erc721.setApprovalForAll(_supa, true);
             // Add future uniswap permit for ERC721 support
         }
     }
@@ -44,17 +48,17 @@ contract DSafeProxy is DSafeState, Proxy {
     // Allow ETH transfers
     receive() external payable override {}
 
-    // Allow DOS to make arbitrary calls in lieu of this dSafe
-    function executeBatch(Call[] calldata calls) external payable ifDos {
+    // Allow Supa to make arbitrary calls in lieu of this wallet
+    function executeBatch(Call[] calldata calls) external payable ifSupa {
         // Function is payable to allow for ETH transfers to the logic
-        // contract, but dos should never send eth (dos contract should
+        // contract, but supa should never send eth (supa contract should
         // never contain eth / other than what's self-destructed into it)
         FsUtils.Assert(msg.value == 0);
         CallLib.executeBatch(calls);
     }
 
-    // The implementation of the delegate is controlled by DOS
+    // The implementation of the delegate is controlled by Supa
     function _implementation() internal view override returns (address) {
-        return dos.getImplementation(address(this));
+        return supa.getImplementation(address(this));
     }
 }
