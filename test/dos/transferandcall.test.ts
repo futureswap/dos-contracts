@@ -8,6 +8,7 @@ import {
   WETH9__factory,
   ITransferReceiver2__factory,
 } from "../../typechain-types";
+import ITransferReceiver2 from "../../artifacts/contracts/interfaces/ITransferReceiver2.sol/ITransferReceiver2.json";
 import {toWei} from "../../lib/numbers";
 import {getFixedGasSigners} from "../../lib/hardhat/fixedGasSigners";
 import {deployFixedAddressForTests} from "../../lib/deploy";
@@ -32,10 +33,7 @@ describe("TransferAndCall2", () => {
 
     const {transferAndCall2} = await deployFixedAddressForTests(owner);
 
-    const mockReceiver: MockContract = await deployMockContract(
-      owner,
-      ITransferReceiver2__factory.abi,
-    );
+    const mockReceiver: MockContract = await deployMockContract(owner, ITransferReceiver2.abi);
     const mockInterface = new ethers.utils.Interface(ITransferReceiver2__factory.abi);
     const magicValue = mockInterface.getSighash("onTransferReceived2");
 

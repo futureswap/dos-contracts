@@ -77,7 +77,8 @@ contract DSafeTest is Test {
         versionManager.addVersion(IVersionManager.Status.PRODUCTION, address(proxyLogic));
         versionManager.markRecommendedVersion(version);
 
-        transferAndCall2 = TransferAndCall2(0x4e765952997a33893AfB4457A6A7f381909f3629);
+        transferAndCall2 = TransferAndCall2(0x74Ce850573804912938D4b0F9AbFCE95f724774c);
+        vm.etch(address(transferAndCall2), type(TransferAndCall2).creationCode);
         // transferAndCall2 = new TransferAndCall2{salt: fsSALT}();
         usdc.approve(address(transferAndCall2), type(uint256).max);
         weth.approve(address(transferAndCall2), type(uint256).max);

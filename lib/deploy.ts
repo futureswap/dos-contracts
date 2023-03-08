@@ -287,7 +287,7 @@ export const deployOffchainEntityProxy = async (
 export const fsSalt = "0x1234567890123456789012345678901234567890123456789012345678901234";
 
 const permit2Address = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
-const transferAndCall2Address = "0x4e765952997a33893AfB4457A6A7f381909f3629";
+const transferAndCall2Address = "0x74Ce850573804912938D4b0F9AbFCE95f724774c";
 
 let futureSwapProxy: OffchainEntityProxy;
 let governanceProxy: GovernanceProxy | undefined;
@@ -306,6 +306,8 @@ export const deployFixedAddressForTests = async (
 
   const permit2 = IPermit2__factory.connect(permit2Address, signer);
   const transferAndCall2 = TransferAndCall2__factory.connect(transferAndCall2Address, signer);
+
+  let transferAndCall2Return = transferAndCall2;
 
   if (governanceProxy === undefined) {
     await setCode(permit2.address, permit2JSON.deployedBytecode.object);
@@ -333,6 +335,7 @@ export const deployFixedAddressForTests = async (
       transferAndCall2: deployedTransferAndCall2.address,
       futureSwapProxy: futureSwapProxy.address,
     });
+    transferAndCall2Return = deployedTransferAndCall2;
     // eslint-disable-next-line require-atomic-updates
     governanceProxy = await deployGovernanceProxy(
       isCoverage ? await signer.getAddress() : futureSwapProxy.address,
@@ -355,7 +358,7 @@ export const deployFixedAddressForTests = async (
     permit2,
     anyswapCreate2Deployer,
     futureSwapProxy,
-    transferAndCall2,
+    transferAndCall2: transferAndCall2Return,
     governanceProxy,
   };
 };
@@ -457,7 +460,7 @@ export const deployDos = async (
     versionManager.address,
   );
   console.log("dos: ", dos.address);
-  return {iDos: IDOS__factory.connect(dos.address, signer), dos, dosConfig, versionManager};
+  return {iDos: IDOS__factory.connect(dos.address, signer), dos, versionManager};
 };
 
 export const setupDos = async (

@@ -31,7 +31,7 @@
   },
   "localhost": {
     "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
-    "transferAndCall2": "0x4e765952997a33893AfB4457A6A7f381909f3629",
+    "transferAndCall2": "0x74Ce850573804912938D4b0F9AbFCE95f724774c",
     "anyswapCreate2Deployer": "0xDf7Cc8d582D213Db25FBfb9CF659c79e8E4263bd",
     "futureSwapProxy": "0x8b1799c84d7e55Aa6d6a67276CCbfD9c54332096",
     "governanceProxy": "0x784A2FB0931E6D13c65cF11793b0E053A203b199",

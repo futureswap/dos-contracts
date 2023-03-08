@@ -1,3 +1,5 @@
+import type {OffchainEntityProxy} from "../typechain-types";
+
 import {ethers} from "ethers";
 import hre from "hardhat";
 
@@ -5,11 +7,11 @@ import {getAddressesForNetwork, getContracts} from "../lib/deployment";
 import {signTakeFutureSwapProxyOwnership} from "../lib/signers";
 
 async function main() {
-  const networkAddresses = await getAddressesForNetwork();
-  const networkContracts = getContracts(networkAddresses, owner);
-
   const signer = new ethers.Wallet(`0x${process.env.PRIVATE_KEY}`, hre.ethers.provider);
   console.log("Signer address", signer.address);
+
+  const networkAddresses = await getAddressesForNetwork();
+  const networkContracts = getContracts(networkAddresses, signer);
 
   // update the address to the one you want to sign for
   const fsProxy = networkContracts.futureSwapProxy as OffchainEntityProxy;
