@@ -7,7 +7,7 @@ test = 'test/foundry'
 cache_path = 'forge-cache'
 via_ir = true
 fs_permissions = [{ access = "read-write", path = "./"}]
-
+gas_reports_ignore = ["SigUtils", "TestNFT", "TestERC20", "MockNFTOracle", "MockERC20Oracle"]
 
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
