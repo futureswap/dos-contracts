@@ -2,9 +2,9 @@
 pragma solidity ^0.8.17;
 
 import "../../dos/DOS.sol";
-import "../../dos/DSafeProxy.sol";
-import "../../dos/VersionManager.sol";
-import "../../interfaces/IVersionManager.sol";
+import {DSafeProxy, DSafeLogic} from "../../dos/DSafeProxy.sol";
+import {VersionManager} from "../../dos/VersionManager.sol";
+import {IVersionManager} from "../../interfaces/IVersionManager.sol";
 import "../../lib/FsMath.sol";
 import "../../lib/FsUtils.sol";
 import "../../lib/ImmutableVersion.sol";
@@ -51,21 +51,25 @@ contract EchidnaE2E {
 
         nftOracle.setCollateralFactor(5e17); // toWei(.5)
 
-        IDOS(address(dos)).setConfig(IDOSConfig.Config(
-            /* treasurySafe: */ address(this),
-            /* treasuryInterestFraction: */ 5e16, // toWei(0.05),
-            /* maxSolvencyCheckGasCost: */ 1e6,
-            /* liqFraction: */ 8e17, // toWei(0.8),
-            /* fractionalReserveLeverage: */ 9
-        ));
+        IDOS(address(dos)).setConfig(
+            IDOSConfig.Config(
+                /* treasurySafe: */ address(this),
+                /* treasuryInterestFraction: */ 5e16, // toWei(0.05),
+                /* maxSolvencyCheckGasCost: */ 1e6,
+                /* liqFraction: */ 8e17, // toWei(0.8),
+                /* fractionalReserveLeverage: */ 9
+            )
+        );
 
         dosConfig.setVersionManager(address(versionManager));
 
         versionManager.addVersion(IVersionManager.Status.PRODUCTION, address(dSafeLogic));
-        string memory versionName = string(FsUtils.decodeFromBytes32(dSafeLogic.immutableVersion()));
+        string memory versionName = string(
+            FsUtils.decodeFromBytes32(dSafeLogic.immutableVersion())
+        );
         versionManager.markRecommendedVersion(versionName);
 
-        for(uint256 i; i < 4; i++) {
+        for (uint256 i; i < 4; i++) {
             genDSafeProxy();
         }
 
@@ -77,19 +81,29 @@ contract EchidnaE2E {
         dSafes.push(proxy);
     }
 
-    function create_erc20(bool _weth, string memory name, string memory symbol, uint8 decimals, int256 price, uint256 baseRate, uint256 slope1, uint256 slope2, uint256 targetUtilization) internal returns (address token, MockERC20Oracle oracle) {
-            if (_weth) {
-                token = address(new WETH9());
-            } else {
-                token = address(new TestERC20(name, symbol, decimals));
-            }
-            oracle = new MockERC20Oracle(address(this));
+    function create_erc20(
+        bool _weth,
+        string memory name,
+        string memory symbol,
+        uint8 decimals,
+        int256 price,
+        uint256 baseRate,
+        uint256 slope1,
+        uint256 slope2,
+        uint256 targetUtilization
+    ) internal returns (address token, MockERC20Oracle oracle) {
+        if (_weth) {
+            token = address(new WETH9());
+        } else {
+            token = address(new TestERC20(name, symbol, decimals));
+        }
+        oracle = new MockERC20Oracle(address(this));
 
-            oracle.setPrice(price, 6, uint256(decimals));
+        oracle.setPrice(price, 6, uint256(decimals));
 
-            erc20s.push(IERC20(token));
+        erc20s.push(IERC20(token));
 
-            IDOS(address(dos)).addERC20Info(
+        IDOS(address(dos)).addERC20Info(
             token,
             name,
             symbol,
@@ -102,7 +116,12 @@ contract EchidnaE2E {
         );
     }
 
-    function create_erc721(string memory name, string memory symbol, uint256 startId, address oracle) internal returns (TestNFT nft) {
+    function create_erc721(
+        string memory name,
+        string memory symbol,
+        uint256 startId,
+        address oracle
+    ) internal returns (TestNFT nft) {
         nft = new TestNFT(name, symbol, startId);
 
         erc721s.push(nft);
@@ -112,15 +131,15 @@ contract EchidnaE2E {
     // ******************** Check Proper System Deployment ********************
 
     function check_proper_deployment() public {
-        for(uint256 i; i < erc20s.length; i++) {
-            (address tokenAddress,,,,,,,,) = dos.erc20Infos(i);
+        for (uint256 i; i < erc20s.length; i++) {
+            (address tokenAddress, , , , , , , , ) = dos.erc20Infos(i);
 
             assert(address(erc20s[i]) != address(0));
             assert(address(erc20s[i]) == tokenAddress);
         }
 
-        for(uint256 i; i < erc721s.length; i++) {
-            (address tokenAddress,) = dos.erc721Infos(i);
+        for (uint256 i; i < erc721s.length; i++) {
+            (address tokenAddress, ) = dos.erc721Infos(i);
 
             assert(address(erc721s[i]) != address(0));
             assert(address(erc721s[i]) == tokenAddress);
@@ -141,7 +160,10 @@ contract EchidnaE2E {
     }
 
     function depositERC20_never_reverts(uint256 erc20Index, uint256 amount) public {
-        require(dos.getDSafeOwner(address(selectedProxy)) == address(this), "Ownership has already been transferred, so we expect it to revert");
+        require(
+            dos.getDSafeOwner(address(selectedProxy)) == address(this),
+            "Ownership has already been transferred, so we expect it to revert"
+        );
 
         uint256 index = erc20Index % erc20s.length;
         IERC20 erc20 = erc20s[index];
@@ -149,7 +171,12 @@ contract EchidnaE2E {
         approveAndDeposit[0] = address(erc20).getApproveCall(address(dos), amount);
         approveAndDeposit[1] = address(dos).getDepositERC20Call(address(erc20), amount);
 
-        if (erc20.balanceOf(address(selectedProxy)) >= amount && amount > 0 && amount < uint256(type(int256).max) && amount <= 240615969168004511545033772477625056927) {
+        if (
+            erc20.balanceOf(address(selectedProxy)) >= amount &&
+            amount > 0 &&
+            amount < uint256(type(int256).max) &&
+            amount <= 240615969168004511545033772477625056927
+        ) {
             int256 balanceBefore = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
             try selectedProxy.executeBatch(approveAndDeposit) {} catch {
                 assert(false);
@@ -161,17 +188,32 @@ contract EchidnaE2E {
     }
 
     function depositERC20_withdrawERC20_never_reverts(uint256 erc20Index, uint256 amount) public {
-        require(dos.getDSafeOwner(address(selectedProxy)) == address(this), "Ownership has already been transferred, so we expect it to revert");
+        require(
+            dos.getDSafeOwner(address(selectedProxy)) == address(this),
+            "Ownership has already been transferred, so we expect it to revert"
+        );
 
         uint256 index = erc20Index % erc20s.length;
         IERC20 erc20 = erc20s[index];
         Call[] memory depositAndWithdraw = new Call[](3);
-        depositAndWithdraw[0] = Call(address(erc20), abi.encodeWithSignature("approve(address,uint256)", address(dos), amount),0);
+        depositAndWithdraw[0] = Call(
+            address(erc20),
+            abi.encodeWithSignature("approve(address,uint256)", address(dos), amount),
+            0
+        );
         depositAndWithdraw[1] = address(dos).getDepositERC20Call(address(erc20), amount);
         depositAndWithdraw[2] = address(dos).getWithdrawERC20Call(address(erc20), amount);
 
-        if (erc20.balanceOf(address(selectedProxy)) >= amount && amount > 0 && int256(amount) > 0 && amount <= 240615969168004511545033772477625056927) {
-            int256 dAccountBalanceBefore = dosConfig.getDAccountERC20(address(selectedProxy), erc20);
+        if (
+            erc20.balanceOf(address(selectedProxy)) >= amount &&
+            amount > 0 &&
+            int256(amount) > 0 &&
+            amount <= 240615969168004511545033772477625056927
+        ) {
+            int256 dAccountBalanceBefore = dosConfig.getDAccountERC20(
+                address(selectedProxy),
+                erc20
+            );
             uint256 dSafeBalanceBefore = erc20.balanceOf(address(selectedProxy));
             try selectedProxy.executeBatch(depositAndWithdraw) {} catch {
                 assert(false);
@@ -186,11 +228,18 @@ contract EchidnaE2E {
     // **************** Echidna-friendly calls *********************
 
     function mintERC20(uint256 dSafeNum, uint256 erc20Num, uint256 amount) public {
-        TestERC20(address(erc20s[erc20Num % erc20s.length])).mint(address(dSafes[dSafeNum % dSafes.length]), amount);
+        TestERC20(address(erc20s[erc20Num % erc20s.length])).mint(
+            address(dSafes[dSafeNum % dSafes.length]),
+            amount
+        );
         // this cast works even for weth since weth also has a mint function with the same signature
     }
 
-    function mintERC721(uint256 dSafeNum, uint256 erc721Num, int256 price) public returns (uint256 tokenId) {
+    function mintERC721(
+        uint256 dSafeNum,
+        uint256 erc721Num,
+        int256 price
+    ) public returns (uint256 tokenId) {
         TestNFT nft = TestNFT(address(erc721s[erc721Num % erc721s.length]));
         tokenId = nft.mint(address(dSafes[dSafeNum % dSafes.length]));
         nftOracle.setPrice(tokenId, price);
@@ -235,10 +284,8 @@ contract EchidnaE2E {
     // erc20 or erc721
     function ercNumToAddress(uint256 ercNum) internal returns (address) {
         uint256 modded = ercNum % (erc20s.length + erc721s.length);
-        if (modded < erc20s.length)
-            return erc20NumToAddress(modded);
-        else
-            return erc721NumToAddress(modded - erc20s.length);
+        if (modded < erc20s.length) return erc20NumToAddress(modded);
+        else return erc721NumToAddress(modded - erc20s.length);
     }
 
     function dSafeNumToAddress(uint256 dSafeNum) internal returns (address) {
@@ -251,10 +298,11 @@ contract EchidnaE2E {
         uint256 amountOrTokenId;
     }
 
-    function limitedApprovalToApproval(LimitedApproval calldata limApproval) internal returns (IDOSCore.Approval memory approval) {
+    function limitedApprovalToApproval(
+        LimitedApproval calldata limApproval
+    ) internal returns (IDOSCore.Approval memory approval) {
         return IDOSCore.Approval(ercNumToAddress(limApproval.ercNum), limApproval.amountOrTokenId);
     }
-
 
     // ******************** Adding Calls ********************
 
@@ -296,48 +344,124 @@ contract EchidnaE2E {
     }
 
     function addTransferERC20CallLimited(uint256 erc20Num, uint256 toNum, uint256 amount) public {
-        calls.push(address(dos).getTransferERC20Call(erc20NumToAddress(erc20Num), dSafeNumToAddress(toNum), amount));
+        calls.push(
+            address(dos).getTransferERC20Call(
+                erc20NumToAddress(erc20Num),
+                dSafeNumToAddress(toNum),
+                amount
+            )
+        );
     }
 
     function addTransferERC721Call(address erc721, uint256 tokenId, address to) public {
         calls.push(address(dos).getTransferERC721Call(erc721, tokenId, to));
     }
 
-    function addTransferERC721CallLimited(uint256 erc721Num, uint256 tokenId, uint256 toNum) public {
-        calls.push(address(dos).getTransferERC721Call(erc721NumToAddress(erc721Num), tokenId, dSafeNumToAddress(toNum)));
+    function addTransferERC721CallLimited(
+        uint256 erc721Num,
+        uint256 tokenId,
+        uint256 toNum
+    ) public {
+        calls.push(
+            address(dos).getTransferERC721Call(
+                erc721NumToAddress(erc721Num),
+                tokenId,
+                dSafeNumToAddress(toNum)
+            )
+        );
     }
 
-    function addTransferFromERC20Call(address erc20, address from, address to, uint256 amount) public {
+    function addTransferFromERC20Call(
+        address erc20,
+        address from,
+        address to,
+        uint256 amount
+    ) public {
         calls.push(address(dos).getTransferFromERC20Call(erc20, from, to, amount));
     }
 
-    function addTransferFromERC20CallLimited(uint256 erc20Num, uint256 fromNum, uint256 toNum, uint256 amount) public {
-        calls.push(address(dos).getTransferFromERC20Call(erc20NumToAddress(erc20Num), dSafeNumToAddress(fromNum), dSafeNumToAddress(toNum), amount));
+    function addTransferFromERC20CallLimited(
+        uint256 erc20Num,
+        uint256 fromNum,
+        uint256 toNum,
+        uint256 amount
+    ) public {
+        calls.push(
+            address(dos).getTransferFromERC20Call(
+                erc20NumToAddress(erc20Num),
+                dSafeNumToAddress(fromNum),
+                dSafeNumToAddress(toNum),
+                amount
+            )
+        );
     }
 
-    function addTransferFromERC721Call(address erc721, address from, address to, uint256 tokenId) public {
+    function addTransferFromERC721Call(
+        address erc721,
+        address from,
+        address to,
+        uint256 tokenId
+    ) public {
         calls.push(address(dos).getTransferFromERC721Call(erc721, from, to, tokenId));
     }
 
-    function addTransferFromERC721CallLimited(uint256 erc721Num, uint256 fromNum, uint256 toNum, uint256 tokenId) public {
-        calls.push(address(dos).getTransferFromERC721Call(erc721NumToAddress(erc721Num), dSafeNumToAddress(fromNum), dSafeNumToAddress(toNum), tokenId));
-    
+    function addTransferFromERC721CallLimited(
+        uint256 erc721Num,
+        uint256 fromNum,
+        uint256 toNum,
+        uint256 tokenId
+    ) public {
+        calls.push(
+            address(dos).getTransferFromERC721Call(
+                erc721NumToAddress(erc721Num),
+                dSafeNumToAddress(fromNum),
+                dSafeNumToAddress(toNum),
+                tokenId
+            )
+        );
     }
 
-    function addOnERC721ReceivedCall(address operator, address from, uint256 tokenId, bytes calldata data) public {
+    function addOnERC721ReceivedCall(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) public {
         calls.push(address(dos).getOnERC721ReceivedCall(operator, from, tokenId, data));
     }
 
-    function addOnERC721ReceivedCallLimited(address operator, uint256 fromNum, uint256 tokenId, bytes calldata data) public {
-        calls.push(address(dos).getOnERC721ReceivedCall(operator, dSafeNumToAddress(fromNum), tokenId, data));
+    function addOnERC721ReceivedCallLimited(
+        address operator,
+        uint256 fromNum,
+        uint256 tokenId,
+        bytes calldata data
+    ) public {
+        calls.push(
+            address(dos).getOnERC721ReceivedCall(
+                operator,
+                dSafeNumToAddress(fromNum),
+                tokenId,
+                data
+            )
+        );
     }
 
     function addDepositERC20ForSafeCall(address erc20, address to, uint256 amount) public {
         calls.push(address(dos).getDepositERC20ForSafeCall(erc20, to, amount));
     }
 
-    function addDepositERC20ForSafeCallLimited(uint256 erc20Num, uint256 toNum, uint256 amount) public {
-        calls.push(address(dos).getDepositERC20ForSafeCall(erc20NumToAddress(erc20Num), dSafeNumToAddress(toNum), amount));
+    function addDepositERC20ForSafeCallLimited(
+        uint256 erc20Num,
+        uint256 toNum,
+        uint256 amount
+    ) public {
+        calls.push(
+            address(dos).getDepositERC20ForSafeCall(
+                erc20NumToAddress(erc20Num),
+                dSafeNumToAddress(toNum),
+                amount
+            )
+        );
     }
 
     function addLiquidateCall(address dSafe) public {
@@ -378,15 +502,25 @@ contract EchidnaE2E {
         calls.push(address(dos).getWithdrawFullCall(erc20Args));
     }
 
-    function addApproveAndCallCall(IDOSCore.Approval[] calldata approvals, address spender, bytes calldata data) public {
+    function addApproveAndCallCall(
+        IDOSCore.Approval[] calldata approvals,
+        address spender,
+        bytes calldata data
+    ) public {
         calls.push(address(dos).getApproveAndCallCall(approvals, spender, data));
     }
 
-    function addApproveAndCallCallLimited(LimitedApproval[] calldata limApprovals, uint256 spenderNum, bytes calldata data) public {
+    function addApproveAndCallCallLimited(
+        LimitedApproval[] calldata limApprovals,
+        uint256 spenderNum,
+        bytes calldata data
+    ) public {
         IDOSCore.Approval[] memory approvals = new IDOSCore.Approval[](limApprovals.length);
         for (uint256 i = 0; i < limApprovals.length; i++)
             approvals[i] = limitedApprovalToApproval(limApprovals[i]);
-        calls.push(address(dos).getApproveAndCallCall(approvals, dSafeNumToAddress(spenderNum), data));
+        calls.push(
+            address(dos).getApproveAndCallCall(approvals, dSafeNumToAddress(spenderNum), data)
+        );
     }
 
     function addExecuteBatchCall(Call[] calldata callsArg) public {
@@ -395,7 +529,6 @@ contract EchidnaE2E {
 
     // we leave out the onlyGovernance functions, since modifer onlyGovernance() is pretty airtight
     // and we check that immutableGovernance hasn't changed in EchidnaDOS.invariant()
-
 }
 
 // We make our own subclass of DOS so that we can
@@ -406,10 +539,8 @@ contract EchidnaDOS is DOS {
     constructor(address _dosConfig, address _versionManager) DOS(_dosConfig, _versionManager) {}
 
     function invariant() public returns (bool) {
-
         // check 1: governance hasn't changed
-        if (DOSConfig(address(this)).immutableGovernance() != msg.sender)
-            return false; // msg.sender will always be EchidnaDOSTests
+        if (DOSConfig(address(this)).immutableGovernance() != msg.sender) return false; // msg.sender will always be EchidnaDOSTests
 
         // check 2: global solvency checks
         // largely copied from isSolvent
@@ -424,9 +555,8 @@ contract EchidnaDOS is DOS {
 
             int256 reserve = totalCollateral + totalDebt;
 
-            if (
-                IERC20(erc20Infos[i].erc20Contract).balanceOf(address(this)) < uint256(reserve)
-            ) return false;
+            if (IERC20(erc20Infos[i].erc20Contract).balanceOf(address(this)) < uint256(reserve))
+                return false;
 
             if (reserve < -totalDebt / leverage) return false;
         }
