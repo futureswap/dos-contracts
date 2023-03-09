@@ -13,7 +13,7 @@ import "./libraries/UQ112x112.sol";
 import {IDuoswapV2Pair} from "./interfaces/IDuoswapV2Pair.sol";
 import {DuoswapV2ERC20} from "./DuoswapV2ERC20.sol";
 
-import {IDOS} from "../interfaces/IDOS.sol";
+import {ISupa} from "../interfaces/ISupa.sol";
 import {Call} from "../lib/Call.sol";
 import {ISafe} from "../interfaces/ISafe.sol";
 
@@ -31,8 +31,8 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
     address public override token0;
     address public override token1;
 
-    address public dos;
-    address public dSafe;
+    address public supa;
+    address public wallet;
 
     uint112 private reserve0; // uses single storage slot, accessible via getReserves
     uint112 private reserve1; // uses single storage slot, accessible via getReserves
@@ -65,7 +65,7 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
         Call[] memory call = new Call[](1);
         call[0] = (
             Call({
-                to: address(dos),
+                to: address(supa),
                 callData: abi.encodeWithSignature(
                     "transferERC20(address,address,uint256)",
                     address(token),
@@ -76,9 +76,9 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
             })
         );
 
-        ISafe(dSafe).executeBatch(call);
+        ISafe(wallet).executeBatch(call);
         // (bool success, bytes memory data) = token.call(
-        //     abi.encodeWithSelector(IERC20.transferFrom.selector, dSafe,to, value)
+        //     abi.encodeWithSelector(IERC20.transferFrom.selector, wallet,to, value)
         // );
         // require(
         //     success && (data.length == 0 || abi.decode(data, (bool))),
@@ -91,10 +91,10 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
     }
 
     // called once by the factory at time of deployment
-    function initialize(address _dos, address _token0, address _token1) external override {
+    function initialize(address _supa, address _token0, address _token1) external override {
         require(msg.sender == factory, "UniswapV2: FORBIDDEN"); // sufficient check
-        dos = _dos;
-        dSafe = IDOS(dos).createDSafe();
+        supa = _supa;
+        wallet = ISupa(supa).createWallet();
         token0 = _token0;
         token1 = _token1;
     }
@@ -110,7 +110,7 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
             balance0 <= type(uint112).max && balance1 <= type(uint112).max,
             "UniswapV2: OVERFLOW"
         );
-        uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);
+        uint32 blockTimestamp = uint32(block.timestamp);
         unchecked {
             uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
             if (timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0) {
@@ -153,8 +153,8 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
     // this low-level function should be called from a contract which performs important safety checks
     function mint(address to) external override lock returns (uint256 liquidity) {
         (uint112 _reserve0, uint112 _reserve1, ) = getReserves(); // gas savings
-        uint256 balance0 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token0)));
-        uint256 balance1 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token1)));
+        uint256 balance0 = uint256(ISupa(supa).getCreditAccountERC20(wallet, IERC20(token0)));
+        uint256 balance1 = uint256(ISupa(supa).getCreditAccountERC20(wallet, IERC20(token1)));
         uint256 amount0 = balance0 - _reserve0;
         uint256 amount1 = balance1 - _reserve1;
 
@@ -171,8 +171,8 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
         }
         require(liquidity > 0, "UniswapV2: INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(address(this), liquidity); // mint to this address
-        _approve(address(this), address(dos), liquidity);
-        IDOS(dos).depositERC20ForSafe(address(this), to, liquidity); // deposit LP tokens into DOS
+        _approve(address(this), address(supa), liquidity);
+        ISupa(supa).depositERC20ForSafe(address(this), to, liquidity); // deposit LP tokens into Supa
 
         _update(balance0, balance1, _reserve0, _reserve1);
         if (feeOn) kLast = uint256(reserve0) * reserve1; // reserve0 and reserve1 are up-to-date
@@ -184,8 +184,8 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
         (uint112 _reserve0, uint112 _reserve1, ) = getReserves(); // gas savings
         address _token0 = token0; // gas savings
         address _token1 = token1; // gas savings
-        uint256 balance0 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(_token0)));
-        uint256 balance1 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(_token1)));
+        uint256 balance0 = uint256(ISupa(supa).getCreditAccountERC20(wallet, IERC20(_token0)));
+        uint256 balance1 = uint256(ISupa(supa).getCreditAccountERC20(wallet, IERC20(_token1)));
         uint256 liquidity = balanceOf[address(this)];
 
         bool feeOn = _mintFee(_reserve0, _reserve1);
@@ -196,8 +196,8 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
         _burn(address(this), liquidity);
         _safeTransfer(_token0, to, amount0);
         _safeTransfer(_token1, to, amount1);
-        balance0 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(_token0)));
-        balance1 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(_token1)));
+        balance0 = uint256(ISupa(supa).getCreditAccountERC20(wallet, IERC20(_token0)));
+        balance1 = uint256(ISupa(supa).getCreditAccountERC20(wallet, IERC20(_token1)));
 
         _update(balance0, balance1, _reserve0, _reserve1);
         if (feeOn) kLast = uint256(reserve0) * reserve1; // reserve0 and reserve1 are up-to-date
@@ -230,8 +230,8 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
             if (data.length > 0)
                 IUniswapV2Callee(to).uniswapV2Call(msg.sender, amount0Out, amount1Out, data);
 
-            balance0 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(_token0)));
-            balance1 = uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(_token1)));
+            balance0 = uint256(ISupa(supa).getCreditAccountERC20(wallet, IERC20(_token0)));
+            balance1 = uint256(ISupa(supa).getCreditAccountERC20(wallet, IERC20(_token1)));
         }
         uint256 amount0In = balance0 > _reserve0 - amount0Out
             ? balance0 - (_reserve0 - amount0Out)
@@ -261,16 +261,20 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
         _safeTransfer(
             _token0,
             to,
-            uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token0))) - reserve0
+            uint256(ISupa(supa).getCreditAccountERC20(wallet, IERC20(token0))) - reserve0
         );
-        _safeTransfer(_token1, to, uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token1))));
+        _safeTransfer(
+            _token1,
+            to,
+            uint256(ISupa(supa).getCreditAccountERC20(wallet, IERC20(token1)))
+        );
     }
 
     // force reserves to match balances
     function sync() external override lock {
         _update(
-            uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token0))),
-            uint256(IDOS(dos).getDAccountERC20(dSafe, IERC20(token1))),
+            uint256(ISupa(supa).getCreditAccountERC20(wallet, IERC20(token0))),
+            uint256(ISupa(supa).getCreditAccountERC20(wallet, IERC20(token1))),
             reserve0,
             reserve1
         );

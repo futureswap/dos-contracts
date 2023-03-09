@@ -1,21 +1,21 @@
-import type {DSafeLogic, TestERC20, WETH9} from "../../typechain-types";
+import type {WalletLogic, TestERC20, WETH9} from "../../typechain-types";
 
 import {ethers} from "hardhat";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
 
 import {
-  DSafeLogic__factory,
+  WalletLogic__factory,
   TestERC20__factory,
   WETH9__factory,
   UniV3Oracle__factory,
   UniV3LPHelper__factory,
 } from "../../typechain-types";
 import {toWei, toWeiUsdc} from "../../lib/numbers";
-import {createDSafe, depositERC20, leverageLP, leveragePos, makeCall} from "../../lib/calls";
+import {createWallet, depositERC20, leverageLP, leveragePos, makeCall} from "../../lib/calls";
 import {
   Chainlink,
-  deployDos,
+  deploySupa,
   deployFixedAddressForTests,
   deployUniswapFactory,
   deployUniswapPool,
@@ -28,11 +28,11 @@ const ETH_PRICE = 2000;
 const USDC_DECIMALS = 6;
 const WETH_DECIMALS = 18;
 
-describe("DOS swap integration", () => {
+describe("Supa swap integration", () => {
   // we define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
-  async function deployDOSFixture() {
+  async function deploySupaFixture() {
     const [owner, user, user2, user3] = await getFixedGasSigners(10_000_000);
 
     const {anyswapCreate2Deployer} = await deployFixedAddressForTests(owner);
@@ -68,19 +68,19 @@ describe("DOS swap integration", () => {
       owner.address,
     );
 
-    const {iDos, versionManager} = await deployDos(
+    const {iSupa, versionManager} = await deploySupa(
       owner.address,
       anyswapCreate2Deployer,
       "0x02",
       owner,
     );
-    const proxyLogic = await new DSafeLogic__factory(owner).deploy(iDos.address);
+    const proxyLogic = await new WalletLogic__factory(owner).deploy(iSupa.address);
     await versionManager.addVersion(2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
-    const treasurySafe = await createDSafe(iDos, owner);
+    const treasurySafe = await createWallet(iSupa, owner);
 
-    await iDos.setConfig({
+    await iSupa.setConfig({
       treasurySafe: treasurySafe.address,
       treasuryInterestFraction: toWei(0.05),
       maxSolvencyCheckGasCost: 1e6,
@@ -88,13 +88,13 @@ describe("DOS swap integration", () => {
       fractionalReserveLeverage: 9,
     });
 
-    await iDos.setTokenStorageConfig({
+    await iSupa.setTokenStorageConfig({
       maxTokenStorage: 250,
       erc20Multiplier: 1,
       erc721Multiplier: 1,
     });
 
-    await iDos.addERC20Info(
+    await iSupa.addERC20Info(
       usdc.address,
       "USD Coin",
       "USDC",
@@ -106,7 +106,7 @@ describe("DOS swap integration", () => {
       0,
     );
 
-    await iDos.addERC20Info(
+    await iSupa.addERC20Info(
       weth.address,
       "Wrapped ETH",
       "WETH",
@@ -124,7 +124,7 @@ describe("DOS swap integration", () => {
     );
 
     const uniV3LPHelper = await new UniV3LPHelper__factory(owner).deploy(
-      iDos.address,
+      iSupa.address,
       nonFungiblePositionManager.address,
     );
 
@@ -139,33 +139,33 @@ describe("DOS swap integration", () => {
     await uniswapNftOracle.setERC20ValueOracle(usdc.address, usdcChainlink.oracle.address);
     await uniswapNftOracle.setERC20ValueOracle(weth.address, ethChainlink.oracle.address);
 
-    await iDos.addERC721Info(nonFungiblePositionManager.address, uniswapNftOracle.address);
+    await iSupa.addERC721Info(nonFungiblePositionManager.address, uniswapNftOracle.address);
 
-    const ownerDSafe = await createDSafe(iDos, owner);
+    const ownerWallet = await createWallet(iSupa, owner);
     const usdcAmount = toWeiUsdc(2_000_000);
     const wethAmount = toWei(1000);
 
-    await usdc.mint(ownerDSafe.address, usdcAmount);
-    await ownerDSafe.executeBatch(
+    await usdc.mint(ownerWallet.address, usdcAmount);
+    await ownerWallet.executeBatch(
       [
         makeCall(weth, toWei(1000)).deposit(),
-        makeCall(iDos).depositERC20(usdc.address, usdcAmount),
-        makeCall(iDos).depositERC20(weth.address, wethAmount),
+        makeCall(iSupa).depositERC20(usdc.address, usdcAmount),
+        makeCall(iSupa).depositERC20(weth.address, wethAmount),
       ],
       {value: wethAmount},
     );
 
-    const getBalances = async (dSafe: DSafeLogic) => {
+    const getBalances = async (wallet: WalletLogic) => {
       const [nfts, usdcBalance, wethBalance] = await Promise.all([
-        iDos.getDAccountERC721(dSafe.address),
-        iDos.getDAccountERC20(dSafe.address, usdc.address),
-        iDos.getDAccountERC20(dSafe.address, weth.address),
+        iSupa.getCreditAccountERC721(wallet.address),
+        iSupa.getCreditAccountERC20(wallet.address, usdc.address),
+        iSupa.getCreditAccountERC20(wallet.address, weth.address),
       ]);
       return {nfts, usdcBalance: usdcBalance.toBigInt(), wethBalance: wethBalance.toBigInt()};
     };
 
-    const addAllowances = async (dSafe: DSafeLogic) => {
-      await dSafe.executeBatch([
+    const addAllowances = async (wallet: WalletLogic) => {
+      await wallet.executeBatch([
         makeCall(usdc).approve(swapRouter.address, ethers.constants.MaxUint256),
         makeCall(weth).approve(swapRouter.address, ethers.constants.MaxUint256),
       ]);
@@ -180,7 +180,7 @@ describe("DOS swap integration", () => {
       weth,
       usdcChainlink,
       ethChainlink,
-      iDos,
+      iSupa,
       nonFungiblePositionManager,
       uniV3LPHelper,
       swapRouter,
@@ -189,14 +189,14 @@ describe("DOS swap integration", () => {
     };
   }
 
-  describe("Dos tests", () => {
+  describe("Supa tests", () => {
     it("User can leverage LP", async () => {
-      const {user, iDos, usdc, weth, nonFungiblePositionManager, getBalances} = await loadFixture(
-        deployDOSFixture,
+      const {user, iSupa, usdc, weth, nonFungiblePositionManager, getBalances} = await loadFixture(
+        deploySupaFixture,
       );
 
-      const dSafe = await createDSafe(iDos, user);
-      await usdc.mint(dSafe.address, toWeiUsdc(1_600));
+      const wallet = await createWallet(iSupa, user);
+      await usdc.mint(wallet.address, toWeiUsdc(1_600));
 
       const mintParams = {
         token0: weth.address,
@@ -208,13 +208,15 @@ describe("DOS swap integration", () => {
         amount1Desired: toWeiUsdc(2_000),
         amount0Min: 0,
         amount1Min: 0,
-        recipient: dSafe.address,
+        recipient: wallet.address,
         deadline: ethers.constants.MaxUint256,
       };
       await expect(
-        dSafe.executeBatch(leverageLP(iDos, weth, usdc, nonFungiblePositionManager, mintParams, 1)),
+        wallet.executeBatch(
+          leverageLP(iSupa, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+        ),
       ).to.not.be.reverted;
-      const {usdcBalance, wethBalance, nfts} = await getBalances(dSafe);
+      const {usdcBalance, wethBalance, nfts} = await getBalances(wallet);
       // expect leveraged LP position with NFT as collateral
       expect(usdcBalance).to.be.lessThan(0);
       expect(wethBalance).to.be.lessThan(0);
@@ -222,11 +224,11 @@ describe("DOS swap integration", () => {
     });
 
     it("User can create leveraged position", async () => {
-      const {user, user2, iDos, usdc, weth, nonFungiblePositionManager, swapRouter, getBalances} =
-        await loadFixture(deployDOSFixture);
+      const {user, user2, iSupa, usdc, weth, nonFungiblePositionManager, swapRouter, getBalances} =
+        await loadFixture(deploySupaFixture);
 
-      const dSafe = await createDSafe(iDos, user);
-      await usdc.mint(dSafe.address, toWeiUsdc(16_000));
+      const wallet = await createWallet(iSupa, user);
+      await usdc.mint(wallet.address, toWeiUsdc(16_000));
 
       const mintParams = {
         token0: weth.address,
@@ -238,22 +240,22 @@ describe("DOS swap integration", () => {
         amount1Desired: toWeiUsdc(20_000),
         amount0Min: 0,
         amount1Min: 0,
-        recipient: dSafe.address,
+        recipient: wallet.address,
         deadline: ethers.constants.MaxUint256,
       };
-      await dSafe.executeBatch(
-        leverageLP(iDos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+      await wallet.executeBatch(
+        leverageLP(iSupa, weth, usdc, nonFungiblePositionManager, mintParams, 1),
       );
 
-      const dSafe2 = await createDSafe(iDos, user2);
-      await usdc.mint(dSafe2.address, toWeiUsdc(1_000));
+      const wallet2 = await createWallet(iSupa, user2);
+      await usdc.mint(wallet2.address, toWeiUsdc(1_000));
       await expect(
-        dSafe2.executeBatch(
-          leveragePos(dSafe2, iDos, usdc, weth, 500, swapRouter, toWeiUsdc(2_000)),
+        wallet2.executeBatch(
+          leveragePos(wallet2, iSupa, usdc, weth, 500, swapRouter, toWeiUsdc(2_000)),
         ),
       ).to.not.be.reverted;
 
-      const {usdcBalance, wethBalance, nfts} = await getBalances(dSafe2);
+      const {usdcBalance, wethBalance, nfts} = await getBalances(wallet2);
       // expect leveraged long eth position
       expect(usdcBalance).to.be.lessThan(0);
       expect(wethBalance).to.be.greaterThan(0);
@@ -261,11 +263,11 @@ describe("DOS swap integration", () => {
     });
 
     it("should mint an LP position and deposit to credit account", async () => {
-      const {user, iDos, usdc, weth, uniV3LPHelper} = await loadFixture(deployDOSFixture);
+      const {user, iSupa, usdc, weth, uniV3LPHelper} = await loadFixture(deploySupaFixture);
 
-      const dSafe = await createDSafe(iDos, user);
-      await usdc.mint(dSafe.address, toWeiUsdc(25_000));
-      await weth.mint(dSafe.address, toWei(15));
+      const wallet = await createWallet(iSupa, user);
+      await usdc.mint(wallet.address, toWeiUsdc(25_000));
+      await weth.mint(wallet.address, toWei(15));
 
       const mintParams = {
         token0: weth.address,
@@ -277,36 +279,36 @@ describe("DOS swap integration", () => {
         amount1Desired: toWeiUsdc(20_000),
         amount0Min: 0,
         amount1Min: 0,
-        recipient: dSafe.address,
+        recipient: wallet.address,
         deadline: ethers.constants.MaxUint256,
       };
 
-      await dSafe.executeBatch([
+      await wallet.executeBatch([
         makeCall(weth).approve(uniV3LPHelper.address, ethers.constants.MaxUint256),
         makeCall(usdc).approve(uniV3LPHelper.address, ethers.constants.MaxUint256),
         makeCall(uniV3LPHelper).mintAndDeposit(mintParams),
       ]);
 
-      const nfts = await iDos.getDAccountERC721(dSafe.address);
+      const nfts = await iSupa.getCreditAccountERC721(wallet.address);
       expect(nfts.length).to.equal(1);
     });
 
     // considering that #liquify uses #liquidate, all "negative" tests for non-liquidatable
-    // positions are done in tests for #liquidate in iDos.tests.ts
+    // positions are done in tests for #liquidate in iSupa.tests.ts
     describe("#liquify successfully", () => {
-      describe("when liquidatable dSafe has only erc20s", () => {
+      describe("when liquidatable wallet has only erc20s", () => {
         it("when liquidation creates no intermediate debt on liquidator", async () => {
           // prettier-ignore
           const {
-            iDos,
+            iSupa,
             user, user2, user3,
             usdc, weth,
             swapRouter, nonFungiblePositionManager, ethChainlink,
             getBalances, addAllowances
-          } = await loadFixture(deployDOSFixture);
+          } = await loadFixture(deploySupaFixture);
 
-          // provides assets both to DOS and to Uniswap pool
-          const initialAssetsProvider = await createDSafe(iDos, user);
+          // provides assets both to Supa and to Uniswap pool
+          const initialAssetsProvider = await createWallet(iSupa, user);
           await usdc.mint(initialAssetsProvider.address, toWeiUsdc(16_000));
           const mintParams = {
             token0: weth.address,
@@ -322,19 +324,19 @@ describe("DOS swap integration", () => {
             deadline: ethers.constants.MaxUint256,
           };
           await initialAssetsProvider.executeBatch(
-            leverageLP(iDos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+            leverageLP(iSupa, weth, usdc, nonFungiblePositionManager, mintParams, 1),
           );
 
-          const liquidatable = await createDSafe(iDos, user2);
+          const liquidatable = await createWallet(iSupa, user2);
           await usdc.mint(liquidatable.address, toWeiUsdc(1_000));
           await liquidatable.executeBatch(
-            leveragePos(liquidatable, iDos, usdc, weth, 500, swapRouter, toWeiUsdc(2_000)),
+            leveragePos(liquidatable, iSupa, usdc, weth, 500, swapRouter, toWeiUsdc(2_000)),
           );
 
           // make `liquidatable` liquidatable
           await ethChainlink.setPrice(ETH_PRICE / 2);
 
-          const liquidator = await createDSafe(iDos, user3);
+          const liquidator = await createWallet(iSupa, user3);
           await usdc.mint(liquidator.address, toWeiUsdc(1_000));
           await addAllowances(liquidator);
 
@@ -349,23 +351,23 @@ describe("DOS swap integration", () => {
 
           const {usdcBalance, wethBalance} = await getBalances(liquidator);
           expect(wethBalance).to.equal(0);
-          // if there was no debt in USDC to pay then there is no need to transfer USDC from dSafe
-          // to dAccount to pay it back. So all USDC remains on dSafe
+          // if there was no debt in USDC to pay then there is no need to transfer USDC from wallet
+          // to creditAccount to pay it back. So all USDC remains on wallet
           expect(usdcBalance).to.greaterThan(toWeiUsdc(1_000));
         });
 
         it("when liquidation creates an intermediate debt on liquidator", async () => {
           // prettier-ignore
           const {
-            iDos,
+            iSupa,
             user, user2, user3,
             usdc, weth,
             swapRouter, nonFungiblePositionManager, ethChainlink,
             getBalances, addAllowances
-          } = await loadFixture(deployDOSFixture);
+          } = await loadFixture(deploySupaFixture);
 
-          // provides assets both to DOS and to Uniswap pool
-          const initialAssetsProvider = await createDSafe(iDos, user);
+          // provides assets both to Supa and to Uniswap pool
+          const initialAssetsProvider = await createWallet(iSupa, user);
           await weth.mint(initialAssetsProvider.address, toWei(10));
           await usdc.mint(initialAssetsProvider.address, toWeiUsdc(20_000));
           const mintParams = {
@@ -382,19 +384,19 @@ describe("DOS swap integration", () => {
             deadline: ethers.constants.MaxUint256,
           };
           await initialAssetsProvider.executeBatch(
-            leverageLP(iDos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+            leverageLP(iSupa, weth, usdc, nonFungiblePositionManager, mintParams, 1),
           );
 
-          const liquidatable = await createDSafe(iDos, user2);
+          const liquidatable = await createWallet(iSupa, user2);
           await weth.mint(liquidatable.address, toWei(1));
           await liquidatable.executeBatch(
-            leveragePos(liquidatable, iDos, weth, usdc, 500, swapRouter, toWei(2)),
+            leveragePos(liquidatable, iSupa, weth, usdc, 500, swapRouter, toWei(2)),
           );
 
           // make `liquidatable` liquidatable
           await ethChainlink.setPrice(ETH_PRICE * 2);
 
-          const liquidator = await createDSafe(iDos, user3);
+          const liquidator = await createWallet(iSupa, user3);
           await usdc.mint(liquidator.address, toWeiUsdc(1_000));
           await addAllowances(liquidator);
 
@@ -413,17 +415,17 @@ describe("DOS swap integration", () => {
         });
       });
 
-      it("when liquidatable dSafe has erc721", async () => {
+      it("when liquidatable wallet has erc721", async () => {
         // prettier-ignore
         const {
-          iDos,
+          iSupa,
           user, user2, user3,
           usdc, weth,
           nonFungiblePositionManager, swapRouter, ethChainlink,
           getBalances, addAllowances,
-        } = await loadFixture(deployDOSFixture);
+        } = await loadFixture(deploySupaFixture);
 
-        const initialAssetsProvider = await createDSafe(iDos, user);
+        const initialAssetsProvider = await createWallet(iSupa, user);
         await usdc.mint(initialAssetsProvider.address, toWeiUsdc(160_000));
         const initMintParams = {
           token0: weth.address,
@@ -439,10 +441,10 @@ describe("DOS swap integration", () => {
           deadline: ethers.constants.MaxUint256,
         };
         await initialAssetsProvider.executeBatch(
-          leverageLP(iDos, weth, usdc, nonFungiblePositionManager, initMintParams, 1),
+          leverageLP(iSupa, weth, usdc, nonFungiblePositionManager, initMintParams, 1),
         );
 
-        const liquidatable = await createDSafe(iDos, user2);
+        const liquidatable = await createWallet(iSupa, user2);
         await usdc.mint(liquidatable.address, toWeiUsdc(5_000));
         const mintParams = {
           token0: weth.address,
@@ -458,11 +460,11 @@ describe("DOS swap integration", () => {
           deadline: ethers.constants.MaxUint256,
         };
         await liquidatable.executeBatch(
-          leverageLP(iDos, weth, usdc, nonFungiblePositionManager, mintParams, 2),
+          leverageLP(iSupa, weth, usdc, nonFungiblePositionManager, mintParams, 2),
         );
 
-        const liquidator = await createDSafe(iDos, user3);
-        await depositERC20(iDos, liquidator, usdc, toWeiUsdc(100_000));
+        const liquidator = await createWallet(iSupa, user3);
+        await depositERC20(iSupa, liquidator, usdc, toWeiUsdc(100_000));
         await addAllowances(liquidator);
 
         await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
@@ -480,17 +482,17 @@ describe("DOS swap integration", () => {
         expect(usdcBalance).to.be.greaterThan(toWeiUsdc(100_000));
       });
 
-      it("when liquidatable dSafe has erc20 and erc721", async () => {
+      it("when liquidatable wallet has erc20 and erc721", async () => {
         // prettier-ignore
         const {
-          iDos,
+          iSupa,
           user, user2, user3,
           usdc, weth,
           nonFungiblePositionManager, swapRouter, ethChainlink,
           getBalances, addAllowances,
-        } = await loadFixture(deployDOSFixture);
+        } = await loadFixture(deploySupaFixture);
 
-        const initialAssetsProvider = await createDSafe(iDos, user);
+        const initialAssetsProvider = await createWallet(iSupa, user);
         await usdc.mint(initialAssetsProvider.address, toWeiUsdc(160_000));
         const initMintParams = {
           token0: weth.address,
@@ -506,13 +508,13 @@ describe("DOS swap integration", () => {
           deadline: ethers.constants.MaxUint256,
         };
         await initialAssetsProvider.executeBatch(
-          leverageLP(iDos, weth, usdc, nonFungiblePositionManager, initMintParams, 1),
+          leverageLP(iSupa, weth, usdc, nonFungiblePositionManager, initMintParams, 1),
         );
 
-        const liquidatable = await createDSafe(iDos, user2);
+        const liquidatable = await createWallet(iSupa, user2);
         await usdc.mint(liquidatable.address, toWeiUsdc(5_000));
         await liquidatable.executeBatch(
-          leveragePos(liquidatable, iDos, weth, usdc, 500, swapRouter, toWei(2.5)),
+          leveragePos(liquidatable, iSupa, weth, usdc, 500, swapRouter, toWei(2.5)),
         );
         const mintParams = {
           token0: weth.address,
@@ -528,11 +530,11 @@ describe("DOS swap integration", () => {
           deadline: ethers.constants.MaxUint256,
         };
         await liquidatable.executeBatch(
-          leverageLP(iDos, weth, usdc, nonFungiblePositionManager, mintParams, 2),
+          leverageLP(iSupa, weth, usdc, nonFungiblePositionManager, mintParams, 2),
         );
 
-        const liquidator = await createDSafe(iDos, user3);
-        await depositERC20(iDos, liquidator, usdc, toWeiUsdc(100_000));
+        const liquidator = await createWallet(iSupa, user3);
+        await depositERC20(iSupa, liquidator, usdc, toWeiUsdc(100_000));
         await addAllowances(liquidator);
 
         await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable
@@ -559,15 +561,15 @@ describe("DOS swap integration", () => {
         it("when buy price is too high, should liquidate without conversion", async () => {
           // prettier-ignore
           const {
-            iDos,
+            iSupa,
             user, user2, user3,
             usdc, weth,
             nonFungiblePositionManager, swapRouter, ethChainlink,
             getBalances, addAllowances
-          } = await loadFixture(deployDOSFixture);
+          } = await loadFixture(deploySupaFixture);
 
-          // provides assets both to DOS and to Uniswap pool
-          const initialAssetsProvider = await createDSafe(iDos, user);
+          // provides assets both to Supa and to Uniswap pool
+          const initialAssetsProvider = await createWallet(iSupa, user);
           await usdc.mint(initialAssetsProvider.address, toWeiUsdc(16_000));
           const mintParams = {
             token0: weth.address,
@@ -583,19 +585,19 @@ describe("DOS swap integration", () => {
             deadline: ethers.constants.MaxUint256,
           };
           await initialAssetsProvider.executeBatch(
-            leverageLP(iDos, weth, usdc, nonFungiblePositionManager, mintParams, 1),
+            leverageLP(iSupa, weth, usdc, nonFungiblePositionManager, mintParams, 1),
           );
 
-          const liquidatable = await createDSafe(iDos, user2);
+          const liquidatable = await createWallet(iSupa, user2);
           await usdc.mint(liquidatable.address, toWeiUsdc(1_000));
           await liquidatable.executeBatch(
-            leveragePos(liquidatable, iDos, usdc, weth, 500, swapRouter, toWeiUsdc(2_000)),
+            leveragePos(liquidatable, iSupa, usdc, weth, 500, swapRouter, toWeiUsdc(2_000)),
           );
 
           // make `liquidatable` liquidatable
           await ethChainlink.setPrice(ETH_PRICE / 2);
 
-          const liquidator = await createDSafe(iDos, user3);
+          const liquidator = await createWallet(iSupa, user3);
           await usdc.mint(liquidator.address, toWeiUsdc(2_000));
           await addAllowances(liquidator);
 
@@ -632,14 +634,14 @@ describe("DOS swap integration", () => {
         it("when sell price is too low, should liquidate without conversion", async () => {
           // prettier-ignore
           const {
-            iDos,
+            iSupa,
             user, user2, user3,
             usdc, weth,
             nonFungiblePositionManager, swapRouter, ethChainlink,
             getBalances, addAllowances,
-          } = await loadFixture(deployDOSFixture);
+          } = await loadFixture(deploySupaFixture);
 
-          const initialAssetsProvider = await createDSafe(iDos, user);
+          const initialAssetsProvider = await createWallet(iSupa, user);
           await usdc.mint(initialAssetsProvider.address, toWeiUsdc(160_000));
           const initMintParams = {
             token0: weth.address,
@@ -655,13 +657,13 @@ describe("DOS swap integration", () => {
             deadline: ethers.constants.MaxUint256,
           };
           await initialAssetsProvider.executeBatch(
-            leverageLP(iDos, weth, usdc, nonFungiblePositionManager, initMintParams, 1),
+            leverageLP(iSupa, weth, usdc, nonFungiblePositionManager, initMintParams, 1),
           );
 
-          const liquidatable = await createDSafe(iDos, user2);
+          const liquidatable = await createWallet(iSupa, user2);
           await usdc.mint(liquidatable.address, toWeiUsdc(5_000));
           await liquidatable.executeBatch(
-            leveragePos(liquidatable, iDos, weth, usdc, 500, swapRouter, toWei(2.5)),
+            leveragePos(liquidatable, iSupa, weth, usdc, 500, swapRouter, toWei(2.5)),
           );
           const mintParams = {
             token0: weth.address,
@@ -677,11 +679,11 @@ describe("DOS swap integration", () => {
             deadline: ethers.constants.MaxUint256,
           };
           await liquidatable.executeBatch(
-            leverageLP(iDos, weth, usdc, nonFungiblePositionManager, mintParams, 2),
+            leverageLP(iSupa, weth, usdc, nonFungiblePositionManager, mintParams, 2),
           );
 
-          const liquidator = await createDSafe(iDos, user3);
-          await depositERC20(iDos, liquidator, usdc, toWeiUsdc(4_000));
+          const liquidator = await createWallet(iSupa, user3);
+          await depositERC20(iSupa, liquidator, usdc, toWeiUsdc(4_000));
           await addAllowances(liquidator);
 
           await ethChainlink.setPrice(ETH_PRICE * 2); // make `liquidatable` liquidatable

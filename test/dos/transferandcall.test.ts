@@ -1,4 +1,5 @@
-import {ethers, waffle} from "hardhat";
+import {ethers} from "hardhat";
+import {type MockContract, deployMockContract} from "@ethereum-waffle/mock-contract";
 import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
 
@@ -7,6 +8,7 @@ import {
   WETH9__factory,
   ITransferReceiver2__factory,
 } from "../../typechain-types";
+import ITransferReceiver2 from "../../artifacts/contracts/interfaces/ITransferReceiver2.sol/ITransferReceiver2.json";
 import {toWei} from "../../lib/numbers";
 import {getFixedGasSigners} from "../../lib/hardhat/fixedGasSigners";
 import {deployFixedAddressForTests} from "../../lib/deploy";
@@ -22,7 +24,7 @@ describe("TransferAndCall2", () => {
   // we define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
-  async function deployDOSFixture() {
+  async function deploySupaFixture() {
     const [owner, user] = await getFixedGasSigners(10_000_000);
 
     const weth = await new WETH9__factory(owner).deploy();
@@ -31,11 +33,9 @@ describe("TransferAndCall2", () => {
 
     const {transferAndCall2} = await deployFixedAddressForTests(owner);
 
-    const mockReceiver = await waffle.deployMockContract(
-      owner,
-      JSON.parse(JSON.stringify(ITransferReceiver2__factory.abi)),
-    );
-    const magicValue = mockReceiver.interface.getSighash("onTransferReceived2");
+    const mockReceiver: MockContract = await deployMockContract(owner, ITransferReceiver2.abi);
+    const mockInterface = new ethers.utils.Interface(ITransferReceiver2__factory.abi);
+    const magicValue = mockInterface.getSighash("onTransferReceived2");
 
     await usdc.approve(transferAndCall2.address, ethers.constants.MaxUint256);
     await weth.approve(transferAndCall2.address, ethers.constants.MaxUint256);
@@ -50,7 +50,7 @@ describe("TransferAndCall2", () => {
 
   it("Should be able to transferAndCall2 to send to contract that accepts", async () => {
     const {usdc, uni, transferAndCall2, mockReceiver, magicValue} = await loadFixture(
-      deployDOSFixture,
+      deploySupaFixture,
     );
 
     await mockReceiver.mock.onTransferReceived2.returns(magicValue);
@@ -71,7 +71,7 @@ describe("TransferAndCall2", () => {
   });
 
   it("Should be able to transferAndCall2 to send to EOA", async () => {
-    const {user, usdc, uni, transferAndCall2} = await loadFixture(deployDOSFixture);
+    const {user, usdc, uni, transferAndCall2} = await loadFixture(deploySupaFixture);
 
     await expect(
       transferAndCall2.transferAndCall2(
@@ -89,7 +89,7 @@ describe("TransferAndCall2", () => {
   });
 
   it("Should not be able to transferAndCall2 to send to contract that doesn't accept by reverting", async () => {
-    const {usdc, uni, transferAndCall2, mockReceiver} = await loadFixture(deployDOSFixture);
+    const {usdc, uni, transferAndCall2, mockReceiver} = await loadFixture(deploySupaFixture);
 
     await expect(
       transferAndCall2.transferAndCall2(
@@ -104,7 +104,7 @@ describe("TransferAndCall2", () => {
   });
 
   it("Should not be able to transferAndCall2 to send to contract that doesn't accept by not returning right hash", async () => {
-    const {usdc, uni, transferAndCall2, mockReceiver} = await loadFixture(deployDOSFixture);
+    const {usdc, uni, transferAndCall2, mockReceiver} = await loadFixture(deploySupaFixture);
 
     await mockReceiver.mock.onTransferReceived2.returns("0x12345678");
 
@@ -121,7 +121,7 @@ describe("TransferAndCall2", () => {
   });
 
   it("Should be able to transferAndCall2WithValue to send to EOA", async () => {
-    const {user, weth, usdc, uni, transferAndCall2} = await loadFixture(deployDOSFixture);
+    const {user, weth, usdc, uni, transferAndCall2} = await loadFixture(deploySupaFixture);
 
     await expect(
       transferAndCall2.transferAndCall2WithValue(
@@ -145,7 +145,7 @@ describe("TransferAndCall2", () => {
   // tODO: #202 Fix this test
   // temporarily disabled as it throws an error rather than failing with the latest hardhat version
   it.skip("transferAndCall2WithValue reverts if send too much value to send to EOA", async () => {
-    const {user, weth, usdc, uni, transferAndCall2} = await loadFixture(deployDOSFixture);
+    const {user, weth, usdc, uni, transferAndCall2} = await loadFixture(deploySupaFixture);
 
     await expect(
       transferAndCall2.transferAndCall2WithValue(
@@ -163,7 +163,7 @@ describe("TransferAndCall2", () => {
   });
 
   it("transferAndCall2WithValue transfers weth if not send enough value to send to EOA", async () => {
-    const {user, weth, usdc, uni, transferAndCall2} = await loadFixture(deployDOSFixture);
+    const {user, weth, usdc, uni, transferAndCall2} = await loadFixture(deploySupaFixture);
 
     await expect(
       transferAndCall2.transferAndCall2WithValue(
@@ -186,7 +186,7 @@ describe("TransferAndCall2", () => {
 
   it("transferFromAndCall2 can send value to send to contract", async () => {
     const {owner, user, usdc, uni, transferAndCall2, mockReceiver, magicValue} = await loadFixture(
-      deployDOSFixture,
+      deploySupaFixture,
     );
 
     await mockReceiver.mock.onTransferReceived2.returns(magicValue);
@@ -210,7 +210,7 @@ describe("TransferAndCall2", () => {
 
   it("transferFromAndCall2 reverts if not approved", async () => {
     const {owner, user, usdc, uni, transferAndCall2, mockReceiver, magicValue} = await loadFixture(
-      deployDOSFixture,
+      deploySupaFixture,
     );
 
     await mockReceiver.mock.onTransferReceived2.returns(magicValue);

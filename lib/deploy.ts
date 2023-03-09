@@ -22,12 +22,13 @@ import type {
   TestERC20,
   UniV3Oracle,
   TimeLockedCall,
-  DOS,
-  IDOS,
+  Supa,
+  ISupa,
   MockERC20Oracle,
 } from "../typechain-types";
 import type {TransactionRequest} from "@ethersproject/abstract-provider";
 
+import {deployMockContract} from "@ethereum-waffle/mock-contract";
 import uniV3FactJSON from "@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json";
 import uniNFTManagerJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json";
 import tokenPosDescJSON from "@uniswap/v3-periphery/artifacts/contracts/NonfungibleTokenPositionDescriptor.sol/NonfungibleTokenPositionDescriptor.json";
@@ -35,11 +36,10 @@ import nftDescJSON from "@uniswap/v3-periphery/artifacts/contracts/libraries/NFT
 import swapRouterJSON from "@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json";
 import {ethers} from "ethers";
 import {setCode} from "@nomicfoundation/hardhat-network-helpers";
-import {waffle} from "hardhat";
 
 import {
   IWETH9__factory,
-  DSafeLogic__factory,
+  WalletLogic__factory,
   IUniswapV3Pool__factory,
   WETH9__factory,
   TestERC20__factory,
@@ -57,17 +57,17 @@ import {
   IPermit2__factory,
   IAnyswapCreate2Deployer__factory,
   TransferAndCall2__factory,
-  DOS__factory,
-  DOSConfig__factory,
-  IDOS__factory,
+  Supa__factory,
+  SupaConfig__factory,
+  ISupa__factory,
   TimeLockedCall__factory,
 } from "../typechain-types";
 import {getEventsTx} from "./events";
 import permit2JSON from "../external/Permit2.sol/Permit2.json";
 import {toWei} from "./numbers";
 import {
-  createDSafe,
-  depositIntoDos,
+  createWallet,
+  depositIntoSupa,
   getSelector,
   leverageLP2,
   makeCall,
@@ -188,7 +188,7 @@ export class Chainlink {
     borrowFactor: bigint,
     owner: string,
   ): Promise<Chainlink> {
-    const mockChainLink = await waffle.deployMockContract(
+    const mockChainLink = await deployMockContract(
       signer,
       // @ts-expect-error -- the type of abi is readonly array,
       // while the type in deployMockContract is `any[]`. I have checked the implementation -
@@ -267,7 +267,7 @@ export const governatorAddress = "0x6eEf89f0383dD76c06A8a6Ead63cf95795B5bA3F";
 export const testGovernatorAddress = "0xc9B6088732E83ef013873e2f04d032F1a7a2E42D";
 
 export const testGovernatorHardhatSignature =
-  "0xb843a40459a06a1b53feba1397c39fa84a0c27dd3277ab3bea74063cf613f498666f4af3e9d69a55d173f02e497fd934468346cadeca7b270e47c63d9f0c255e1c";
+  "0xa06a5942282cd8830f6205b2fa3a3506aff57fda226bbca4a7749bfde61146e23fd2b10d92c4c21ec96d2cc077279870cf2f5f2cbc329ae1d5dd0a6a1cc85f011c";
 
 export const deployOffchainEntityProxy = async (
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
@@ -287,7 +287,7 @@ export const deployOffchainEntityProxy = async (
 export const fsSalt = "0x1234567890123456789012345678901234567890123456789012345678901234";
 
 const permit2Address = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
-const transferAndCall2Address = "0x4e765952997a33893AfB4457A6A7f381909f3629";
+const transferAndCall2Address = "0x1554b484D2392672F0375C56d80e91c1d070a007";
 
 let futureSwapProxy: OffchainEntityProxy;
 let governanceProxy: GovernanceProxy | undefined;
@@ -306,6 +306,8 @@ export const deployFixedAddressForTests = async (
 
   const permit2 = IPermit2__factory.connect(permit2Address, signer);
   const transferAndCall2 = TransferAndCall2__factory.connect(transferAndCall2Address, signer);
+
+  let transferAndCall2Return = transferAndCall2;
 
   if (governanceProxy === undefined) {
     await setCode(permit2.address, permit2JSON.deployedBytecode.object);
@@ -333,6 +335,7 @@ export const deployFixedAddressForTests = async (
       transferAndCall2: deployedTransferAndCall2.address,
       futureSwapProxy: futureSwapProxy.address,
     });
+    transferAndCall2Return = deployedTransferAndCall2;
     // eslint-disable-next-line require-atomic-updates
     governanceProxy = await deployGovernanceProxy(
       isCoverage ? await signer.getAddress() : futureSwapProxy.address,
@@ -355,7 +358,7 @@ export const deployFixedAddressForTests = async (
     permit2,
     anyswapCreate2Deployer,
     futureSwapProxy,
-    transferAndCall2,
+    transferAndCall2: transferAndCall2Return,
     governanceProxy,
   };
 };
@@ -429,12 +432,12 @@ export async function deployGovernanceProxy(
   );
 }
 
-export const deployDos = async (
+export const deploySupa = async (
   governanceProxy: string,
   anyswapCreate2Deployer: IAnyswapCreate2Deployer,
   salt: ethers.BytesLike,
   signer: ethers.Signer,
-): Promise<{iDos: IDOS; dos: DOS; versionManager: VersionManager}> => {
+): Promise<{iSupa: ISupa; supa: Supa; versionManager: VersionManager}> => {
   const versionManager = await deployAtFixedAddress(
     new VersionManager__factory(signer),
     anyswapCreate2Deployer,
@@ -442,27 +445,27 @@ export const deployDos = async (
     governanceProxy,
   );
   console.log("versionManager: ", versionManager.address);
-  const dosConfig = await deployAtFixedAddress(
-    new DOSConfig__factory(signer),
+  const supaConfig = await deployAtFixedAddress(
+    new SupaConfig__factory(signer),
     anyswapCreate2Deployer,
     salt,
     governanceProxy,
   );
-  console.log("dosConfig: ", dosConfig.address);
-  const dos = await deployAtFixedAddress(
-    new DOS__factory(signer),
+  console.log("supaConfig: ", supaConfig.address);
+  const supa = await deployAtFixedAddress(
+    new Supa__factory(signer),
     anyswapCreate2Deployer,
     salt,
-    dosConfig.address,
+    supaConfig.address,
     versionManager.address,
   );
-  console.log("dos: ", dos.address);
-  return {iDos: IDOS__factory.connect(dos.address, signer), dos, versionManager};
+  console.log("supa: ", supa.address);
+  return {iSupa: ISupa__factory.connect(supa.address, signer), supa, versionManager};
 };
 
-export const setupDos = async (
+export const setupSupa = async (
   governanceProxy: GovernanceProxy,
-  dos: IDOS,
+  supa: ISupa,
   usdc: IERC20WithMetadata,
   weth: IERC20WithMetadata,
   uni: IERC20WithMetadata,
@@ -495,14 +498,14 @@ export const setupDos = async (
     makeCall(usdcOracle).setPrice(toWei(1), USDC_DECIMALS, USDC_DECIMALS),
     makeCall(ethOracle).setPrice(toWei(ETH_PRICE), USDC_DECIMALS, ETHEREUM_DECIMALS),
     makeCall(uniOracle).setPrice(toWei(UNI_PRICE), USDC_DECIMALS, ETHEREUM_DECIMALS),
-    makeCall(dos).setConfig({
+    makeCall(supa).setConfig({
       treasurySafe: await deployer.getAddress(), // todo: update to a dWallet address
       treasuryInterestFraction: toWei(0.05),
       maxSolvencyCheckGasCost: 1e6,
       liqFraction: toWei(0.8),
       fractionalReserveLeverage: 9,
     }),
-    makeCall(dos).addERC20Info(
+    makeCall(supa).addERC20Info(
       usdc.address,
       await usdc.name(),
       await usdc.symbol(),
@@ -513,7 +516,7 @@ export const setupDos = async (
       480,
       "800000000000000000",
     ),
-    makeCall(dos).addERC20Info(
+    makeCall(supa).addERC20Info(
       weth.address,
       await weth.name(),
       await weth.symbol(),
@@ -524,7 +527,7 @@ export const setupDos = async (
       480,
       "800000000000000000",
     ),
-    makeCall(dos).addERC20Info(
+    makeCall(supa).addERC20Info(
       uni.address,
       await uni.name(),
       await uni.symbol(),
@@ -538,7 +541,7 @@ export const setupDos = async (
     makeCall(uniV3Oracle).setERC20ValueOracle(usdc.address, usdcOracle.address),
     makeCall(uniV3Oracle).setERC20ValueOracle(weth.address, ethOracle.address),
     makeCall(uniV3Oracle).setERC20ValueOracle(uni.address, uniOracle.address),
-    makeCall(dos).addERC721Info(uniAddresses.nonFungiblePositionManager, uniV3Oracle.address),
+    makeCall(supa).addERC721Info(uniAddresses.nonFungiblePositionManager, uniV3Oracle.address),
   ]);
   return {usdcOracle, ethOracle, uniOracle, uniV3Oracle};
 };
@@ -572,21 +575,21 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
   const {permit2, anyswapCreate2Deployer, transferAndCall2, governanceProxy} =
     await deployFixedAddressForTests(signer);
 
-  const {iDos, versionManager} = await deployDos(
+  const {iSupa, versionManager} = await deploySupa(
     governanceProxy.address,
     anyswapCreate2Deployer,
     fsSalt,
     signer,
   );
 
-  const dSafeLogic = await deployAtFixedAddress(
-    new DSafeLogic__factory(signer),
+  const walletLogic = await deployAtFixedAddress(
+    new WalletLogic__factory(signer),
     anyswapCreate2Deployer,
     fsSalt,
-    iDos.address,
+    iSupa.address,
   );
   await governanceProxy.executeBatch([
-    makeCall(versionManager).addVersion(2, dSafeLogic.address),
+    makeCall(versionManager).addVersion(2, walletLogic.address),
     makeCall(versionManager).markRecommendedVersion("1.0.0"),
   ]);
 
@@ -595,9 +598,9 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
     nonFungiblePositionManager: env.nonFungiblePositionManager.address,
   };
 
-  const {usdcOracle, ethOracle, uniOracle, uniV3Oracle} = await setupDos(
+  const {usdcOracle, ethOracle, uniOracle, uniV3Oracle} = await setupSupa(
     governanceProxy,
-    iDos,
+    iSupa,
     env.usdc,
     env.weth,
     env.uni,
@@ -614,10 +617,10 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
     await erc20.approve(env.swapRouter.address, ethers.constants.MaxUint256);
     await erc20.approve(env.nonFungiblePositionManager.address, ethers.constants.MaxUint256);
   }
-  const dsafe = await createDSafe(iDos, signer);
-  await depositIntoDos(
+  const wallet = await createWallet(iSupa, signer);
+  await depositIntoSupa(
     transferAndCall2,
-    dsafe,
+    wallet,
     [
       {token: env.usdc.address, amount: toWei(100000, 6)},
       {token: env.uni.address, amount: toWei(100000)},
@@ -636,17 +639,17 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
 
   console.log(
     await getEventsTx(
-      dsafe.executeBatch(
+      wallet.executeBatch(
         await leverageLP2(
-          dsafe,
-          iDos,
+          wallet,
+          iSupa,
           env.nonFungiblePositionManager,
           {token0: env.weth, token1: env.usdc, fee: 500},
           normalize(900),
           normalize(1100),
           toWei(10),
           toWei(10000, 6),
-          dsafe.address,
+          wallet.address,
         ),
       ),
       env.nonFungiblePositionManager,
@@ -654,17 +657,17 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
   );
   console.log(
     await getEventsTx(
-      dsafe.executeBatch(
+      wallet.executeBatch(
         await leverageLP2(
-          dsafe,
-          iDos,
+          wallet,
+          iSupa,
           env.nonFungiblePositionManager,
           {token0: env.weth, token1: env.uni, fee: 500},
           0.9,
           1.1,
           toWei(10),
           toWei(10),
-          dsafe.address,
+          wallet.address,
         ),
       ),
       env.nonFungiblePositionManager,
@@ -679,7 +682,7 @@ export const setupLocalhost = async (signer: ethers.Signer, env: LocalhostEnviro
     futureSwapProxy,
     transferAndCall2,
     governanceProxy,
-    dos: iDos,
+    supa: iSupa,
     versionManager,
     weth: env.weth,
     usdc: env.usdc,
@@ -703,7 +706,7 @@ export enum AccessLevel {
 export const setupGovernance = async (
   governance: Governance,
   hashNFT: HashNFT,
-  dos: IDOS,
+  supa: ISupa,
   versionManager: VersionManager,
   uniV3Oracle: UniV3Oracle,
 ): Promise<{timeLockedCall: TimeLockedCall}> => {
@@ -716,27 +719,27 @@ export const setupGovernance = async (
   );
   await proposeAndExecute(governance, hashNFT, [
     makeCall(governance).setAccessLevel(
-      ...getSelector(dos).addERC20Info,
+      ...getSelector(supa).addERC20Info,
       AccessLevel.Timelock,
       true,
     ),
     makeCall(governance).setAccessLevel(
-      ...getSelector(dos).addERC721Info,
+      ...getSelector(supa).addERC721Info,
       AccessLevel.Timelock,
       true,
     ),
-    makeCall(governance).setAccessLevel(...getSelector(dos).setConfig, AccessLevel.Timelock, true),
+    makeCall(governance).setAccessLevel(...getSelector(supa).setConfig, AccessLevel.Timelock, true),
     makeCall(governance).setAccessLevel(
       ...getSelector(uniV3Oracle).setERC20ValueOracle,
       AccessLevel.Timelock,
       true,
     ),
     makeCall(governance).setAccessLevel(
-      ...getSelector(dos).setERC20Data,
+      ...getSelector(supa).setERC20Data,
       AccessLevel.Timelock,
       true,
     ),
-    makeCall(governance).setAccessLevel(...getSelector(dos).pause, AccessLevel.Security, true),
+    makeCall(governance).setAccessLevel(...getSelector(supa).pause, AccessLevel.Security, true),
     makeCall(governance).setAccessLevel(
       ...getSelector(versionManager).markRecommendedVersion,
       AccessLevel.Security,

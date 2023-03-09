@@ -3,47 +3,51 @@ pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import "../external/interfaces/INonfungiblePositionManager.sol";
-import "../interfaces/IDOS.sol";
-import "./DSafeState.sol";
+
+import {WalletState} from "../wallet/WalletState.sol";
+import {ISupa} from "../interfaces/ISupa.sol";
+import {INonfungiblePositionManager} from "../external/interfaces/INonfungiblePositionManager.sol";
+import {Call} from "../lib/Call.sol";
 
 struct SqrtPricePriceRangeX96 {
     uint160 minSell;
     uint160 maxBuy;
 }
 
-/// @title Logic for liquify functionality of dSafe
-/// @dev It is designed to be an extension for dSafeLogic contract.
-/// Functionally, it's a part of the dSafeLogic contract, but has been extracted into a separate
+/// @title Logic for liquify functionality of wallet
+/// @dev It is designed to be an extension for walletLogic contract.
+/// Functionally, it's a part of the walletLogic contract, but has been extracted into a separate
 /// contract for better code structuring. This is why the contract is declared as abstract
 ///   The only function it exports is `liquify`. The rest are private function that are parts of
 /// `liquify`
-abstract contract Liquifier is DSafeState {
-    modifier selfOrDSafeOwner() {
-        require(
-            msg.sender == address(this) || msg.sender == dos.getDSafeOwner(address(this)),
-            "only self or owner"
-        );
+abstract contract Liquifier is WalletState {
+    /// @notice Only this address or the Wallet owner can call this function
+    error OnlySelfOrOwner();
+
+    modifier selfOrWalletOwner() {
+        if (msg.sender != address(this) && msg.sender != supa.getWalletOwner(address(this))) {
+            revert OnlySelfOrOwner();
+        }
         _;
     }
 
     /// @notice Advanced version of liquidate function. Potentially unwanted side-affect of
     /// liquidation is a debt on the liquidator. So liquify would liquidate and then re-balance
     /// obtained assets to have no debt. This is the algorithm:
-    ///   * liquidate dAccount of target `dSafe`
+    ///   * liquidate creditAccount of target `wallet`
     ///   * terminate all obtained ERC721s (NFTs)
-    ///   * buy/sell `erc20s` for `numeraire` so the balance of `dSafe` on that ERC20s matches the
-    ///     debt of `dSafe` on it's dAccount. E.g.:
-    ///     - for 1 WETH of debt on dAccount and 3 WETH on the balance of dSafe - sell 2 WETH
-    ///     - for 3 WETH of debt on dAccount and 1 WETH on the balance of dSafe - buy 2 WETH
-    ///     - for no debt on dAccount and 1 WETH on the balance of dSafe - sell 2 WETH
-    ///     - for 1 WETH of debt on dAccount and no WETH on the balance of dSave - buy 1 WETH
+    ///   * buy/sell `erc20s` for `numeraire` so the balance of `wallet` on that ERC20s matches the
+    ///     debt of `wallet` on it's creditAccount. E.g.:
+    ///     - for 1 WETH of debt on creditAccount and 3 WETH on the balance of wallet - sell 2 WETH
+    ///     - for 3 WETH of debt on creditAccount and 1 WETH on the balance of wallet - buy 2 WETH
+    ///     - for no debt on creditAccount and 1 WETH on the balance of wallet - sell 2 WETH
+    ///     - for 1 WETH of debt on creditAccount and no WETH on the balance of dSave - buy 1 WETH
     ///   * deposit `erc20s` and `numeraire` to cover debts
     ///
-    /// !! IMPORTANT: because this function executes quite a lot of logic on top of DOS.liquidate(),
+    /// !! IMPORTANT: because this function executes quite a lot of logic on top of Supa.liquidate(),
     /// there is a risk that for liquidatable position with a long list of NFTs it will run out
     /// of gas. As for now, it's up to liquidator to estimate if specific position is liquifiable,
-    /// or DOS.liquidate() need to be used (with further assets re-balancing in other transactions)
+    /// or Supa.liquidate() need to be used (with further assets re-balancing in other transactions)
     /// @dev notes on erc20s: the reason for erc20s been a call parameter, and not been calculated
     /// inside of liquify, is reducing gas costs
     ///   erc20s should NOT include numeraire. Otherwise, the transaction would be reverted with an
@@ -51,19 +55,19 @@ abstract contract Liquifier is DSafeState {
     ///   It's the responsibility of caller to provide the correct list of erc20s. Assets
     /// re-balancing would be performed only by this list of tokens and numeraire.
     ///   * if erc20s misses a token that liquidatable have debt on - the debt on this erc20 would
-    ///     persist on liquidator's dAccount as-is
+    ///     persist on liquidator's creditAccount as-is
     ///   * if erc20s misses a token that liquidatable have collateral on - the token would persist
-    ///     on liquidator's dAccount. It may result in generating debt in numeraire on liquidator
-    ///     dAccount by the end of liquify (because the token would not be soled for numeraire,
+    ///     on liquidator's creditAccount. It may result in generating debt in numeraire on liquidator
+    ///     creditAccount by the end of liquify (because the token would not be soled for numeraire,
     ///     there may not be enough numeraire to buy tokens to cover debts, and so they will be
     ///     bought in debt)
     ///   * if erc20s misses a token that would be obtained as the result of NFT termination - same
-    ///     as previous, except of the token to be persisted on dSafe instead of dAccount of
+    ///     as previous, except of the token to be persisted on wallet instead of creditAccount of
     ///     liquidator
     ///   Because no buy/sell would be done for prices from outside of the erc20sAllowedPriceRanges,
     /// too narrow range may result in not having enough of some ERC20 to cover the debt. So the
     /// eventual state would still include some debt
-    /// @param dSafe - the address of a dSafe to liquidate
+    /// @param wallet - the address of a wallet to liquidate
     /// @param swapRouter - the address of a Uniswap swap router to be used to buy/sell erc20s
     /// @param nftManager - the address of a Uniswap NonFungibleTokenManager to be used to terminate
     /// ERC721 (NFTs)
@@ -87,26 +91,26 @@ abstract contract Liquifier is DSafeState {
     /// * if no tokens can be bought by the price below the limit
     /// then error would be thrown with message "SPL"
     function liquify(
-        address dSafe,
+        address wallet,
         address swapRouter,
         address nftManager,
         address numeraire,
         IERC20[] calldata erc20s,
         SqrtPricePriceRangeX96[] calldata erc20sAllowedPriceRanges
-    ) external selfOrDSafeOwner {
+    ) external selfOrWalletOwner {
         if (msg.sender != address(this)) {
             /* prettier-ignore */ // list of liquify arguments as-is
-            return callOverBatchExecute(dSafe, swapRouter, nftManager, numeraire, erc20s, erc20sAllowedPriceRanges);
+            return callOverBatchExecute(wallet, swapRouter, nftManager, numeraire, erc20s, erc20sAllowedPriceRanges);
         }
 
-        dos.liquidate(dSafe);
+        supa.liquidate(wallet);
 
         (
             IERC20[] memory erc20sCollateral,
             uint256[] memory erc20sDebtAmounts
-        ) = analyseDAccountStructure(erc20s, numeraire);
+        ) = analyseCreditAccountStructure(erc20s, numeraire);
 
-        dos.withdrawFull(erc20sCollateral);
+        supa.withdrawFull(erc20sCollateral);
         terminateERC721s(nftManager);
 
         (
@@ -120,7 +124,7 @@ abstract contract Liquifier is DSafeState {
     }
 
     function callOverBatchExecute(
-        address dSafe,
+        address wallet,
         address swapRouter,
         address nftManager,
         address numeraire,
@@ -132,7 +136,7 @@ abstract contract Liquifier is DSafeState {
             to: address(this),
             callData: abi.encodeWithSelector(
                 this.liquify.selector,
-                dSafe,
+                wallet,
                 swapRouter,
                 nftManager,
                 numeraire,
@@ -141,17 +145,17 @@ abstract contract Liquifier is DSafeState {
             ),
             value: 0
         });
-        dos.executeBatch(calls);
+        supa.executeBatch(calls);
     }
 
     /// @param nftManager - passed as-is from liquify function. The address of a Uniswap
     ///   NonFungibleTokenManager to be used to terminate ERC721 (NFTs)
     function terminateERC721s(address nftManager) private {
         INonfungiblePositionManager manager = INonfungiblePositionManager(nftManager);
-        IDOS.NFTData[] memory nfts = dos.getDAccountERC721(address(this));
+        ISupa.NFTData[] memory nfts = supa.getCreditAccountERC721(address(this));
         for (uint256 i = 0; i < nfts.length; i++) {
-            IDOS.NFTData memory nft = nfts[i];
-            dos.withdrawERC721(nft.erc721, nft.tokenId);
+            ISupa.NFTData memory nft = nfts[i];
+            supa.withdrawERC721(nft.erc721, nft.tokenId);
             (, , , , , , , uint128 nftLiquidity, , , , ) = manager.positions(nft.tokenId);
             manager.decreaseLiquidity(
                 INonfungiblePositionManager.DecreaseLiquidityParams({
@@ -175,7 +179,7 @@ abstract contract Liquifier is DSafeState {
         }
     }
 
-    function analyseDAccountStructure(
+    function analyseCreditAccountStructure(
         IERC20[] calldata erc20s,
         address numeraire
     ) private view returns (IERC20[] memory erc20sCollateral, uint256[] memory erc20sDebtAmounts) {
@@ -183,7 +187,7 @@ abstract contract Liquifier is DSafeState {
         int256[] memory balances = new int256[](erc20s.length);
 
         for (uint256 i = 0; i < erc20s.length; i++) {
-            int256 balance = dos.getDAccountERC20(address(this), erc20s[i]);
+            int256 balance = supa.getCreditAccountERC20(address(this), erc20s[i]);
             if (balance > 0) {
                 numOfERC20sCollateral++;
                 balances[i] = balance;
@@ -192,15 +196,18 @@ abstract contract Liquifier is DSafeState {
             }
         }
 
-        int256 dAccountNumeraireBalance = dos.getDAccountERC20(address(this), IERC20(numeraire));
-        if (dAccountNumeraireBalance > 0) {
+        int256 creditAccountNumeraireBalance = supa.getCreditAccountERC20(
+            address(this),
+            IERC20(numeraire)
+        );
+        if (creditAccountNumeraireBalance > 0) {
             numOfERC20sCollateral++;
         }
 
         erc20sCollateral = new IERC20[](numOfERC20sCollateral);
         erc20sDebtAmounts = new uint256[](erc20s.length);
 
-        if (dAccountNumeraireBalance > 0) {
+        if (creditAccountNumeraireBalance > 0) {
             erc20sCollateral[0] = IERC20(numeraire);
         }
 
@@ -249,7 +256,7 @@ abstract contract Liquifier is DSafeState {
                 tokenOut: erc20ToSellFor,
                 fee: 500,
                 recipient: address(this),
-                deadline: type(uint256).max, // ignore - total transaction type should be limited at DOS level
+                deadline: type(uint256).max, // ignore - total transaction type should be limited at Supa level
                 amountIn: amountsToSell[i],
                 amountOutMinimum: 0,
                 // see comments on `erc20sAllowedPriceRanges` parameter of `liquify`
@@ -287,7 +294,7 @@ abstract contract Liquifier is DSafeState {
                     tokenOut: address(erc20sToBuy[i]),
                     fee: 500,
                     recipient: address(this),
-                    deadline: type(uint256).max, // ignore - total transaction type should be limited at DOS level
+                    deadline: type(uint256).max, // ignore - total transaction type should be limited at Supa level
                     amountOut: amountsToBuy[i],
                     amountInMaximum: type(uint256).max,
                     // see comments on `erc20sAllowedPriceRanges` parameter of `liquify`
@@ -310,9 +317,9 @@ abstract contract Liquifier is DSafeState {
     }
 
     function deposit(IERC20[] memory erc20s, address numeraire) private {
-        dos.depositFull(erc20s);
+        supa.depositFull(erc20s);
         IERC20[] memory numeraireArray = new IERC20[](1);
         numeraireArray[0] = IERC20(numeraire);
-        dos.depositFull(numeraireArray);
+        supa.depositFull(numeraireArray);
     }
 }

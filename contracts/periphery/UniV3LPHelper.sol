@@ -4,14 +4,14 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {INonfungiblePositionManager} from "contracts/external/interfaces/INonfungiblePositionManager.sol";
-import {IDOS} from "contracts/interfaces/IDOS.sol";
+import {ISupa} from "contracts/interfaces/ISupa.sol";
 
 contract UniV3LPHelper {
-    IDOS public dos;
+    ISupa public supa;
     address public nonfungiblePositionManager;
 
-    constructor(address _dos, address _nonfungiblePositionManger) {
-        dos = IDOS(_dos);
+    constructor(address _supa, address _nonfungiblePositionManger) {
+        supa = ISupa(_supa);
         nonfungiblePositionManager = _nonfungiblePositionManger;
     }
 
@@ -32,9 +32,9 @@ contract UniV3LPHelper {
             params
         );
 
-        // Approve LP token to DOS
-        IERC721(address(nonfungiblePositionManager)).approve(address(dos), tokenId);
+        // Approve LP token to Supa
+        IERC721(address(nonfungiblePositionManager)).approve(address(supa), tokenId);
         // Deposit LP token to credit account
-        dos.depositERC721ForSafe(nonfungiblePositionManager, msg.sender, tokenId);
+        supa.depositERC721ForSafe(nonfungiblePositionManager, msg.sender, tokenId);
     }
 }

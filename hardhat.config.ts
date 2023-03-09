@@ -3,9 +3,9 @@ import type {HardhatRuntimeEnvironment} from "hardhat/types";
 
 import "hardhat-preprocessor";
 import "@nomicfoundation/hardhat-toolbox";
-import "@nomiclabs/hardhat-waffle";
+// import "@nomiclabs/hardhat-waffle";
 import "@nomiclabs/hardhat-ethers";
-import "@graphprotocol/hardhat-graph";
+// import "@graphprotocol/hardhat-graph";
 import {config as dotEnvConfig} from "dotenv";
 import * as tdly from "@tenderly/hardhat-tenderly";
 
@@ -49,7 +49,7 @@ const config: HardhatUserConfig = {
   solidity: {
     compilers: [
       {
-        version: "0.8.17",
+        version: "0.8.19",
         settings: {
           metadata: {
             // not including the metadata hash
@@ -189,14 +189,14 @@ export default {
       }
     }),
   },
-  subgraph: {
-    name: "DOS", // defaults to the name of the root folder of the hardhat project
-    product: "subgraph-studio", // defaults to 'subgraph-studio'
-    indexEvents: false, // defaults to false
-    allowSimpleName: true, // defaults to `false` if product is `hosted-service` and `true` if product is `subgraph-studio`
-  },
-  paths: {
-    subgraph: "./subgraph", // defaults to './subgraph'
-  },
+  // subgraph: {
+  //   name: "Supa", // defaults to the name of the root folder of the hardhat project
+  //   product: "subgraph-studio", // defaults to 'subgraph-studio'
+  //   indexEvents: false, // defaults to false
+  //   allowSimpleName: true, // defaults to `false` if product is `hosted-service` and `true` if product is `subgraph-studio`
+  // },
+  // paths: {
+  //   subgraph: "./subgraph", // defaults to './subgraph'
+  // },
   ...ethernalAddOn,
 };

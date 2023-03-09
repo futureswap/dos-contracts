@@ -3,77 +3,25 @@ pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import "@openzeppelin/contracts/proxy/Proxy.sol";
-import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import "../lib/FsUtils.sol";
-import "../lib/Call.sol";
-import "../lib/ImmutableVersion.sol";
-import "../interfaces/IDOS.sol";
-import "../interfaces/IVersionManager.sol";
-import "../interfaces/ITransferReceiver2.sol";
-import "../external/interfaces/IPermit2.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+
+import {WalletState} from "./WalletState.sol";
+import {Liquifier} from "../supa/Liquifier.sol";
+import {IVersionManager} from "../interfaces/IVersionManager.sol";
+import {ITransferReceiver2} from "../interfaces/ITransferReceiver2.sol";
 import {ISafe} from "../interfaces/ISafe.sol";
-import "./DSafeState.sol";
-import "./Liquifier.sol";
-import "../interfaces/IERC1363-extended.sol";
-import "../lib/NonceMap.sol";
+import {IERC1363SpenderExtended} from "../interfaces/IERC1363-extended.sol";
+import {CallLib, Call} from "../lib/Call.sol";
+import {NonceMapLib, NonceMap} from "../lib/NonceMap.sol";
+import {ImmutableVersion} from "../lib/ImmutableVersion.sol";
 
-/// @title DSafe Proxy
-/// @notice Proxy contract for DOS Safes
-// Inspired by TransparentUpdatableProxy
-contract DSafeProxy is DSafeState, Proxy {
-    modifier ifDos() {
-        if (msg.sender == address(dos)) {
-            _;
-        } else {
-            _fallback();
-        }
-    }
-
-    constructor(address _dos, address[] memory erc20s, address[] memory erc721s) DSafeState(_dos) {
-        // Approve DOS and PERMIT2 to spend all ERC20s
-        for (uint256 i = 0; i < erc20s.length; i++) {
-            // slither-disable-next-line missing-zero-check
-            IERC20 erc20 = IERC20(FsUtils.nonNull(erc20s[i]));
-            erc20.approve(_dos, type(uint256).max);
-            erc20.approve(address(PERMIT2), type(uint256).max);
-            erc20.approve(address(TRANSFER_AND_CALL2), type(uint256).max);
-        }
-        // Approve DOS to spend all ERC721s
-        for (uint256 i = 0; i < erc721s.length; i++) {
-            // slither-disable-next-line missing-zero-check
-            IERC721 erc721 = IERC721(FsUtils.nonNull(erc721s[i]));
-            erc721.setApprovalForAll(_dos, true);
-            // Add future uniswap permit for ERC721 support
-        }
-    }
-
-    // Allow ETH transfers
-    receive() external payable override {}
-
-    // Allow DOS to make arbitrary calls in lieu of this dSafe
-    function executeBatch(Call[] calldata calls) external payable ifDos {
-        // Function is payable to allow for ETH transfers to the logic
-        // contract, but dos should never send eth (dos contract should
-        // never contain eth / other than what's self-destructed into it)
-        FsUtils.Assert(msg.value == 0);
-        CallLib.executeBatch(calls);
-    }
-
-    // The implementation of the delegate is controlled by DOS
-    function _implementation() internal view override returns (address) {
-        return dos.getImplementation(address(this));
-    }
-}
-
-// Calls to the contract not coming from DOS itself are routed to this logic
-// contract. This allows for flexible extra addition to your dSafe.
-contract DSafeLogic is
-    DSafeState,
+// Calls to the contract not coming from Supa itself are routed to this logic
+// contract. This allows for flexible extra addition to your wallet.
+contract WalletLogic is
+    WalletState,
     ImmutableVersion,
     IERC721Receiver,
     IERC1271,
@@ -108,33 +56,43 @@ contract DSafeLogic is
     bool internal forwardNFT;
     NonceMap private nonceMap;
 
+    /// @notice Data does not match the expected format
     error InvalidData();
+    /// @notice Signature is invalid
     error InvalidSignature();
+    /// @notice Nonce has already been used
     error NonceAlreadyUsed();
+    /// @notice Deadline has expired
     error DeadlineExpired();
-    /// @notice Only DOS can call this function
-    error OnlyDOS();
+    /// @notice Only Supa can call this function
+    error OnlySupa();
     /// @notice Only the owner or operator can call this function
     error NotOwnerOrOperator();
+    /// @notice Only the owner can call this function
+    error OnlyOwner();
+    /// @notice Only this address can call this function
+    error OnlyThisAddress();
 
     modifier onlyOwner() {
-        require(dos.getDSafeOwner(address(this)) == msg.sender, "");
+        if (supa.getWalletOwner(address(this)) != msg.sender) {
+            revert OnlyOwner();
+        }
         _;
     }
 
     modifier onlyOwnerOrOperator() {
         if (
-            dos.getDSafeOwner(address(this)) != msg.sender &&
-            !dos.isOperator(address(this), msg.sender)
+            supa.getWalletOwner(address(this)) != msg.sender &&
+            !supa.isOperator(address(this), msg.sender)
         ) {
             revert NotOwnerOrOperator();
         }
         _;
     }
 
-    modifier onlyDOS() {
-        if (msg.sender != address(dos)) {
-            revert OnlyDOS();
+    modifier onlySupa() {
+        if (msg.sender != address(supa)) {
+            revert OnlySupa();
         }
         _;
     }
@@ -143,13 +101,13 @@ contract DSafeLogic is
     // storage and thus can be used in a proxy contract constructor.
     // Version number should be in sync with VersionManager version.
     constructor(
-        address _dos
-    ) EIP712("DOS dSafe", VERSION) ImmutableVersion(VERSION) DSafeState(_dos) {}
+        address _supa
+    ) EIP712("Supa wallet", VERSION) ImmutableVersion(VERSION) WalletState(_supa) {}
 
-    /// @notice makes a batch of different calls from the name of dSafe owner. Eventual state of
-    /// dAccount and DOS must be solvent, i.e. debt on dAccount cannot exceed collateral on
-    /// dAccount and dSafe and DOS reserve/debt must be sufficient
-    /// @dev - this goes to dos.executeBatch that would immediately call DSafeProxy.executeBatch
+    /// @notice makes a batch of different calls from the name of wallet owner. Eventual state of
+    /// creditAccount and Supa must be solvent, i.e. debt on creditAccount cannot exceed collateral on
+    /// creditAccount and wallet and Supa reserve/debt must be sufficient
+    /// @dev - this goes to supa.executeBatch that would immediately call WalletProxy.executeBatch
     /// from above of this file
     /// @param calls {address to, bytes callData, uint256 value}[], where
     ///   * to - is the address of the contract whose function should be called
@@ -158,7 +116,7 @@ contract DSafeLogic is
     function executeBatch(Call[] memory calls) external payable onlyOwnerOrOperator {
         bool saveForwardNFT = forwardNFT;
         forwardNFT = false;
-        dos.executeBatch(calls);
+        supa.executeBatch(calls);
         forwardNFT = saveForwardNFT;
     }
 
@@ -177,24 +135,26 @@ contract DSafeLogic is
         );
         if (
             !SignatureChecker.isValidSignatureNow(
-                dos.getDSafeOwner(address(this)),
+                supa.getWalletOwner(address(this)),
                 digest,
                 signature
             )
         ) revert InvalidSignature();
 
-        dos.executeBatch(calls);
+        supa.executeBatch(calls);
     }
 
     function forwardNFTs(bool _forwardNFT) external {
-        require(msg.sender == address(this), "only this");
+        if (msg.sender != address(this)) {
+            revert OnlyThisAddress();
+        }
         forwardNFT = _forwardNFT;
     }
 
     /// @notice ERC721 transfer callback
     /// @dev it's a callback, required to be implemented by IERC721Receiver interface for the
     /// contract to be able to receive ERC721 NFTs.
-    /// we are already using it to support "forwardNFT" of dSafe.
+    /// we are already using it to support "forwardNFT" of wallet.
     /// `return this.onERC721Received.selector;` is mandatory part for the NFT transfer to work -
     /// not a part of owr business logic
     /// @param - operator The address which called `safeTransferFrom` function
@@ -209,7 +169,7 @@ contract DSafeLogic is
         bytes memory data
     ) public virtual override returns (bytes4) {
         if (forwardNFT) {
-            IERC721(msg.sender).safeTransferFrom(address(this), address(dos), tokenId, data);
+            IERC721(msg.sender).safeTransferFrom(address(this), address(supa), tokenId, data);
         }
         return this.onERC721Received.selector;
     }
@@ -228,21 +188,23 @@ contract DSafeLogic is
         // options:
         // 1) just deposit into proxy, nothing to do
         // 2) execute a batch of calls (msg.sender is owner)
-        // 3) directly deposit into dos contract
+        // 3) directly deposit into supa contract
         // 3) execute a signed batch of tx's
         if (data.length == 0) {
             /* just deposit in the proxy, nothing to do */
         } else if (data[0] == 0x00) {
             // execute batch
-            require(from == dos.getDSafeOwner(address(this)), "Not owner");
+            if (msg.sender != supa.getWalletOwner(address(this))) {
+                revert OnlyOwner();
+            }
             Call[] memory calls = abi.decode(data[1:], (Call[]));
-            dos.executeBatch(calls);
+            supa.executeBatch(calls);
         } else if (data[0] == 0x01) {
-            require(data.length == 1, "Invalid data - allowed are [], [0...], [1] and [2]");
-            // deposit in the dos dSafe
+            if (data.length != 1) revert InvalidData();
+            // deposit in the supa wallet
             for (uint256 i = 0; i < transfers.length; i++) {
                 ITransferReceiver2.Transfer memory transfer = transfers[i];
-                dos.depositERC20(IERC20(transfer.token), transfer.amount);
+                supa.depositERC20(IERC20(transfer.token), transfer.amount);
             }
         } else if (data[0] == 0x02) {
             // execute signed batch
@@ -275,13 +237,13 @@ contract DSafeLogic is
             );
             if (
                 !SignatureChecker.isValidSignatureNow(
-                    dos.getDSafeOwner(address(this)),
+                    supa.getWalletOwner(address(this)),
                     digest,
                     signature
                 )
             ) revert InvalidSignature();
 
-            dos.executeBatch(calls);
+            supa.executeBatch(calls);
         } else {
             revert("Invalid data - allowed are '', '0x00...', '0x01' and '0x02...'");
         }
@@ -292,7 +254,7 @@ contract DSafeLogic is
         address sender,
         uint256 amount,
         Call memory call
-    ) external onlyDOS returns (bytes4) {
+    ) external onlySupa returns (bytes4) {
         if (call.callData.length == 0) {
             revert InvalidData();
         }
@@ -301,13 +263,13 @@ contract DSafeLogic is
         Call[] memory calls = new Call[](1);
         calls[0] = call;
 
-        dos.executeBatch(calls);
+        supa.executeBatch(calls);
 
         return this.onApprovalReceived.selector;
     }
 
     function owner() external view returns (address) {
-        return dos.getDSafeOwner(address(this));
+        return supa.getWalletOwner(address(this));
     }
 
     /// @inheritdoc IERC1271
@@ -316,7 +278,7 @@ contract DSafeLogic is
         bytes memory signature
     ) public view override returns (bytes4 magicValue) {
         magicValue = SignatureChecker.isValidSignatureNow(
-            dos.getDSafeOwner(address(this)),
+            supa.getWalletOwner(address(this)),
             hash,
             signature
         )

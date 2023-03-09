@@ -3,9 +3,9 @@ import type {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import type {
   Governance,
   HashNFT,
-  DOS,
-  IDOS,
-  DSafeLogic,
+  Supa,
+  ISupa,
+  WalletLogic,
   TransferAndCall2,
   IERC20,
   ISwapRouter,
@@ -20,7 +20,7 @@ import {BigNumber, ethers} from "ethers";
 import {
   IUniswapV3Pool__factory,
   IUniswapV3Factory__factory,
-  DSafeLogic__factory,
+  WalletLogic__factory,
 } from "../typechain-types";
 import {getEventsTx, getEventParams} from "./events";
 import {toWeiUsdc} from "./numbers";
@@ -68,7 +68,7 @@ type SetReturnType<Func extends (...args: unknown[]) => unknown, NewReturn> = (
 
 // returns an object with methods of Contract. Return value of each method is changed to Call.
 // So instead of calling a method of the Contract it would return call parameters that can be sent
-// to DOS.executeBatch([...]) or GovernanceProxy.execute(...)
+// to Supa.executeBatch([...]) or GovernanceProxy.execute(...)
 type WrappedContract<Contract extends ethers.Contract> = {
   [key in OnlyFunctions<Contract["functions"]>]: SetReturnType<Contract[key], Call>;
 };
@@ -146,13 +146,13 @@ export async function proposeAndExecute(
   return await governance.executeBatch(calls);
 }
 
-export const createDSafe = async (dos: IDOS, signer: ethers.Signer): Promise<DSafeLogic> => {
-  const {dSafe} = await getEventParams(
-    await dos.connect(signer).createDSafe(),
-    dos,
-    "DSafeCreated",
+export const createWallet = async (supa: ISupa, signer: ethers.Signer): Promise<WalletLogic> => {
+  const {wallet} = await getEventParams(
+    await supa.connect(signer).createWallet(),
+    supa,
+    "WalletCreated",
   );
-  return DSafeLogic__factory.connect(dSafe as string, signer);
+  return WalletLogic__factory.connect(wallet as string, signer);
 };
 
 export const sortTransfers = (
@@ -182,7 +182,7 @@ const updateTransfers = (
 
 export const depositIntoSafe = async (
   transferAndCall2: TransferAndCall2,
-  safe: DSafeLogic,
+  safe: WalletLogic,
   transfers: {token: string; amount: bigint}[],
   value?: {weth: string; amount: bigint},
 ): Promise<ethers.ContractTransaction> => {
@@ -200,9 +200,9 @@ export const depositIntoSafe = async (
   }
 };
 
-export const depositIntoDos = async (
+export const depositIntoSupa = async (
   transferAndCall2: TransferAndCall2,
-  safe: DSafeLogic,
+  safe: WalletLogic,
   transfers: {token: string; amount: bigint}[],
   value?: {weth: string; amount: bigint},
 ): Promise<ethers.ContractTransaction> => {
@@ -222,7 +222,7 @@ export const depositIntoDos = async (
 
 export const depositIntoSafeAndCall = async (
   transferAndCall2: TransferAndCall2,
-  safe: DSafeLogic,
+  safe: WalletLogic,
   transfers: {token: string; amount: bigint}[],
   calls: Call[],
   nonce: number,
@@ -279,7 +279,7 @@ type NonFungiblePositionManagerTypes = {
 };
 
 export const leverageLP = (
-  dos: IDOS,
+  supa: ISupa,
   token0: IERC20,
   token1: IERC20,
   nonFungiblePositionManager: ethers.Contract,
@@ -292,18 +292,18 @@ export const leverageLP = (
   return [
     makeCall(token0).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
     makeCall(token1).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
-    makeCall(nonFungiblePositionManager).setApprovalForAll(dos.address, true),
-    makeCall(dos).withdrawERC20(token0.address, mintParams.amount0Desired),
-    makeCall(dos).withdrawERC20(token1.address, mintParams.amount1Desired),
+    makeCall(nonFungiblePositionManager).setApprovalForAll(supa.address, true),
+    makeCall(supa).withdrawERC20(token0.address, mintParams.amount0Desired),
+    makeCall(supa).withdrawERC20(token1.address, mintParams.amount1Desired),
     makeCall(nonFungiblePositionManager).mint(mintParams),
-    makeCall(dos).depositERC721(nonFungiblePositionManager.address, tokenId),
-    makeCall(dos).depositFull([token0.address, token1.address]),
+    makeCall(supa).depositERC721(nonFungiblePositionManager.address, tokenId),
+    makeCall(supa).depositFull([token0.address, token1.address]),
   ];
 };
 
 export const leverageLP2 = async (
-  dSafe: DSafeLogic,
-  dos: IDOS,
+  wallet: WalletLogic,
+  supa: ISupa,
   nonFungiblePositionManager: ethers.Contract,
   {token0, token1, fee}: {token0: IERC20; token1: IERC20; fee: number},
   lowerPrice: number,
@@ -348,18 +348,18 @@ export const leverageLP2 = async (
   return [
     makeCall(token0).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256), // tODO: remove
     makeCall(token1).approve(nonFungiblePositionManager.address, ethers.constants.MaxUint256),
-    //    makeCall(nonFungiblePositionManager).setApprovalForAll(dos.address, true),
-    makeCall(dos).withdrawERC20(token0.address, mintParams.amount0Desired),
-    makeCall(dos).withdrawERC20(token1.address, mintParams.amount1Desired),
-    makeCall(dSafe).forwardNFTs(true),
+    //    makeCall(nonFungiblePositionManager).setApprovalForAll(supa.address, true),
+    makeCall(supa).withdrawERC20(token0.address, mintParams.amount0Desired),
+    makeCall(supa).withdrawERC20(token1.address, mintParams.amount1Desired),
+    makeCall(wallet).forwardNFTs(true),
     makeCall(nonFungiblePositionManager).mint(mintParams),
-    makeCall(dos).depositFull([token0.address, token1.address]),
+    makeCall(supa).depositFull([token0.address, token1.address]),
   ];
 };
 
 export const leveragePos = (
-  dSafe: DSafeLogic,
-  dos: IDOS,
+  wallet: WalletLogic,
+  supa: ISupa,
   tokenIn: IERC20,
   tokenOut: IERC20,
   fee: number,
@@ -370,7 +370,7 @@ export const leveragePos = (
     tokenIn: tokenIn.address,
     tokenOut: tokenOut.address,
     fee,
-    recipient: dSafe.address,
+    recipient: wallet.address,
     deadline: ethers.constants.MaxUint256,
     amountIn: amount,
     amountOutMinimum: 0,
@@ -378,10 +378,10 @@ export const leveragePos = (
   };
 
   return [
-    makeCall(dos).withdrawERC20(tokenIn.address, amount),
+    makeCall(supa).withdrawERC20(tokenIn.address, amount),
     makeCall(tokenIn).approve(swapRouter.address, ethers.constants.MaxUint256),
     makeCall(swapRouter).exactInputSingle(exactInputSingleParams),
-    makeCall(dos).depositFull([tokenIn.address, tokenOut.address]),
+    makeCall(supa).depositFull([tokenIn.address, tokenOut.address]),
   ];
 };
 
@@ -459,31 +459,31 @@ export const provideLiquidity = async (
 };
 
 export async function depositERC20(
-  dos: IDOS,
-  dSafe: DSafeLogic,
+  supa: ISupa,
+  wallet: WalletLogic,
   erc20: TestERC20 | WETH9,
   amount: number | bigint,
 ): Promise<void> {
-  await erc20.mint(dSafe.address, amount);
+  await erc20.mint(wallet.address, amount);
 
-  const depositTx = await dSafe.executeBatch([makeCall(dos).depositERC20(erc20.address, amount)]);
+  const depositTx = await wallet.executeBatch([makeCall(supa).depositERC20(erc20.address, amount)]);
   await depositTx.wait();
 }
 
 export async function depositERC721(
-  dos: IDOS,
-  dSafe: DSafeLogic,
+  supa: ISupa,
+  wallet: WalletLogic,
   nft: TestNFT,
   priceOracle: MockNFTOracle,
   price: number,
 ): Promise<BigNumber> {
-  const mintTx = await nft.mint(dSafe.address);
+  const mintTx = await nft.mint(wallet.address);
   const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
   const tokenId = mintEventArgs[0] as BigNumber;
   await priceOracle.setPrice(tokenId, toWeiUsdc(price));
-  const depositERC721Tx = await dSafe.executeBatch([
-    makeCall(nft).approve(dos.address, tokenId),
-    makeCall(dos).depositERC721(nft.address, tokenId),
+  const depositERC721Tx = await wallet.executeBatch([
+    makeCall(nft).approve(supa.address, tokenId),
+    makeCall(supa).depositERC721(nft.address, tokenId),
   ]);
   await depositERC721Tx.wait();
   return tokenId;
@@ -491,99 +491,99 @@ export async function depositERC721(
 
 // special case of depositERC721 function above.
 // Used only in one test to show that this scenario is supported.
-// In depositERC721 the NFT is minted to the dSafe and transferred from the dSafe to DOS.
-// In depositUserNft, nft is minted to the user and transferred from the user to DOS
+// In depositERC721 the NFT is minted to the wallet and transferred from the wallet to Supa.
+// In depositUserNft, nft is minted to the user and transferred from the user to Supa
 export async function depositUserNft(
-  dos: IDOS,
-  dSafe: DSafeLogic,
+  supa: ISupa,
+  wallet: WalletLogic,
   nft: TestNFT,
   priceOracle: MockNFTOracle,
   price: number,
 ): Promise<BigNumber> {
-  const user = dSafe.signer;
+  const user = wallet.signer;
   const mintTx = await nft.mint(await user.getAddress());
   const mintEventArgs = await getEventParams(mintTx, nft, "Mint");
   const tokenId = mintEventArgs[0] as BigNumber;
   await priceOracle.setPrice(tokenId, toWeiUsdc(price));
-  await (await nft.connect(user).approve(dos.address, tokenId)).wait();
-  const depositERC721Tx = await dSafe.executeBatch([
-    makeCall(dos).depositERC721(nft.address, tokenId),
+  await (await nft.connect(user).approve(supa.address, tokenId)).wait();
+  const depositERC721Tx = await wallet.executeBatch([
+    makeCall(supa).depositERC721(nft.address, tokenId),
   ]);
   await depositERC721Tx.wait();
   return tokenId;
 }
 
 export async function transfer(
-  dos: IDOS,
-  from: DSafeLogic,
-  to: DSafeLogic,
+  supa: ISupa,
+  from: WalletLogic,
+  to: WalletLogic,
   ...value: [erc20: string, amount: BigNumberish] | [nft: TestNFT, tokenId: BigNumberish]
 ): Promise<ContractTransaction> {
   if (typeof value[0] == "string") {
     // transfer erc20
     const [erc20, amount] = value;
-    return await from.executeBatch([makeCall(dos).transferERC20(erc20, to.address, amount)]);
+    return await from.executeBatch([makeCall(supa).transferERC20(erc20, to.address, amount)]);
   } else {
     // transfer NFT
     const [nft, tokenId] = value;
     return await from.executeBatch([
-      makeCall(dos).transferERC721(nft.address, tokenId, to.address),
+      makeCall(supa).transferERC721(nft.address, tokenId, to.address),
     ]);
   }
 }
 
 /*
 export async function approveErc20(
-  dos: IDOS,
-  owner: DSafeLogic,
-  spender: DSafeLogic,
+  supa: ISupa,
+  owner: WalletLogic,
+  spender: WalletLogic,
   erc20: string,
   amount: BigNumberish,
 ): Promise<ContractTransaction> {
-  return await owner.executeBatch([makeCall(dos).approveERC20(erc20, spender.address, amount)]);
+  return await owner.executeBatch([makeCall(supa).approveERC20(erc20, spender.address, amount)]);
 }
 
 export async function approveERC721(
-  dos: IDOS,
-  owner: DSafeLogic,
-  spender: DSafeLogic,
+  supa: ISupa,
+  owner: WalletLogic,
+  spender: WalletLogic,
   nft: string,
   tokenId: BigNumber,
 ): Promise<ContractTransaction> {
-  return await owner.executeBatch([makeCall(dos).approveERC721(nft, spender.address, tokenId)]);
+  return await owner.executeBatch([makeCall(supa).approveERC721(nft, spender.address, tokenId)]);
 }
 */
 
 export async function transferFromErc20(
-  dos: IDOS,
-  spender: DSafeLogic,
-  owner: DSafeLogic,
-  to: DSafeLogic,
+  supa: ISupa,
+  spender: WalletLogic,
+  owner: WalletLogic,
+  to: WalletLogic,
   erc20: string,
   amount: BigNumberish,
 ): Promise<ContractTransaction> {
   return await spender.executeBatch([
-    makeCall(dos).transferFromERC20(erc20, owner.address, to.address, amount),
+    makeCall(supa).transferFromERC20(erc20, owner.address, to.address, amount),
   ]);
 }
 
 export async function transferFromERC721(
-  dos: IDOS,
-  spender: DSafeLogic,
-  owner: DSafeLogic,
-  to: DSafeLogic,
+  supa: ISupa,
+  spender: WalletLogic,
+  owner: WalletLogic,
+  to: WalletLogic,
   nft: string,
   tokenId: BigNumber,
 ): Promise<ContractTransaction> {
   return await spender.executeBatch([
-    makeCall(dos).transferFromERC721(nft, owner.address, to.address, tokenId),
+    makeCall(supa).transferFromERC721(nft, owner.address, to.address, tokenId),
   ]);
 }
 
-export async function getMaximumWithdrawableOfERC20(dos: DOS, erc20: string): Promise<BigNumber> {
-  const {fractionalReserveLeverage: leverage} = await dos.config();
-  const {idx: erc20Idx} = await dos.infoIdx(erc20);
-  const erc20Info = await dos.erc20Infos(erc20Idx);
+export async function getMaximumWithdrawableOfERC20(supa: Supa, erc20: string): Promise<BigNumber> {
+  const {fractionalReserveLeverage: leverage} = await supa.config();
+  const {idx: erc20Idx} = await supa.infoIdx(erc20);
+  const erc20Info = await supa.erc20Infos(erc20Idx);
   const {tokens} = erc20Info.collateral;
   const {tokens: totalDebt} = erc20Info.debt;
   const minReserveAmount = tokens.div(leverage.add(1));
@@ -592,19 +592,21 @@ export async function getMaximumWithdrawableOfERC20(dos: DOS, erc20: string): Pr
   return remainingERC20ToBorrow;
 }
 
-export async function upgradeDSafeImplementation(
-  dos: IDOS,
-  dSafe: DSafeLogic,
+export async function upgradeWalletImplementation(
+  supa: ISupa,
+  wallet: WalletLogic,
   version: string,
 ): Promise<void> {
-  const upgradeTx = await dSafe.executeBatch([makeCall(dos).upgradeDSafeImplementation(version)]);
+  const upgradeTx = await wallet.executeBatch([
+    makeCall(supa).upgradeWalletImplementation(version),
+  ]);
   await upgradeTx.wait();
 }
 
-export async function proposeTransferDSafeOwnership(
-  dos: IDOS,
-  dSafe: DSafeLogic,
+export async function proposeTransferWalletOwnership(
+  supa: ISupa,
+  wallet: WalletLogic,
   newOwner: string,
 ): Promise<ContractTransaction> {
-  return await dSafe.executeBatch([makeCall(dos).proposeTransferDSafeOwnership(newOwner)]);
+  return await wallet.executeBatch([makeCall(supa).proposeTransferWalletOwnership(newOwner)]);
 }

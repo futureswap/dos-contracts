@@ -6,28 +6,28 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 import {IERC20ValueOracle} from "../interfaces/IERC20ValueOracle.sol";
 import {FsMath} from "../lib/FsMath.sol";
-import {IDOS} from "../interfaces/IDOS.sol";
+import {ISupa} from "../interfaces/ISupa.sol";
 import {IDuoswapV2Pair} from "../duoswapV2/interfaces/IDuoswapV2Pair.sol";
 
 error ZeroAddress();
 
 contract UniV2Oracle is ImmutableGovernance, IERC20ValueOracle {
-    IDOS public immutable dos;
+    ISupa public immutable supa;
     IDuoswapV2Pair public immutable pair;
-    // address public immutable dSafe;
+    // address public immutable wallet;
     // address public immutable token0;
     // address public immutable token1;
 
     mapping(address => IERC20ValueOracle) public erc20ValueOracle;
 
-    constructor(address _dos, address _pair, address _owner) ImmutableGovernance(_owner) {
-        if (_dos == address(0) || _pair == address(0) || _owner == address(0)) {
+    constructor(address _supa, address _pair, address _owner) ImmutableGovernance(_owner) {
+        if (_supa == address(0) || _pair == address(0) || _owner == address(0)) {
             revert ZeroAddress();
         }
-        dos = IDOS(_dos);
+        supa = ISupa(_supa);
         pair = IDuoswapV2Pair(_pair);
 
-        // dSafe = IUniswapV2Pair(_pair).dSafe();
+        // wallet = IUniswapV2Pair(_pair).wallet();
         // token0 = IUniswapV2Pair(_pair).token0();
         // token1 = IUniswapV2Pair(_pair).token1();
     }

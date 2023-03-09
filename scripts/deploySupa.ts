@@ -3,9 +3,9 @@ import type {GovernanceProxy, IAnyswapCreate2Deployer} from "../typechain-types"
 import {ethers} from "hardhat";
 
 import {makeCall} from "../lib/calls";
-import {deployAtFixedAddress, deployDos, fsSalt} from "../lib/deploy";
+import {deployAtFixedAddress, deploySupa, fsSalt} from "../lib/deploy";
 import {getAddressesForNetwork, getContracts, saveAddressesForNetwork} from "../lib/deployment";
-import {DSafeLogic__factory} from "../typechain-types";
+import {WalletLogic__factory} from "../typechain-types";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -13,30 +13,30 @@ async function main() {
   const networkContracts = getContracts(networkAddresses, deployer);
   const anyswapCreate2Deployer = networkContracts.anyswapCreate2Deployer as IAnyswapCreate2Deployer;
   const governanceProxy = networkContracts.governanceProxy as GovernanceProxy;
-  const {versionManager, dos} = await deployDos(
+  const {versionManager, supa} = await deploySupa(
     governanceProxy.address,
     anyswapCreate2Deployer,
     (BigInt(fsSalt) + 11n).toString(),
     deployer,
   );
-  console.log("DeployDOS Finished");
+  console.log("DeploySupa Finished");
 
-  const dSafeLogic = await deployAtFixedAddress(
-    new DSafeLogic__factory(deployer),
+  const walletLogic = await deployAtFixedAddress(
+    new WalletLogic__factory(deployer),
     anyswapCreate2Deployer,
     (BigInt(fsSalt) + 11n).toString(),
-    dos.address,
+    supa.address,
   );
-  console.log("dSafeLogic:", dSafeLogic.address);
-  console.log("dSafeLogic Finished");
+  console.log("walletLogic:", walletLogic.address);
+  console.log("walletLogic Finished");
 
   await governanceProxy.executeBatch([
-    makeCall(versionManager).addVersion(2, dSafeLogic.address),
+    makeCall(versionManager).addVersion(2, walletLogic.address),
     makeCall(versionManager).markRecommendedVersion("1.0.0"),
   ]);
 
   console.log("governanceProxy setup Finished");
-  await saveAddressesForNetwork({versionManager, dos});
+  await saveAddressesForNetwork({versionManager, supa});
 }
 
 // we recommend this pattern to be able to use async/await everywhere

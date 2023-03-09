@@ -28,7 +28,7 @@ interface IDuoswapV2Pair is IUniswapV2ERC20 {
 
     function token1() external view returns (address);
 
-    function dSafe() external view returns (address);
+    function wallet() external view returns (address);
 
     function getReserves()
         external

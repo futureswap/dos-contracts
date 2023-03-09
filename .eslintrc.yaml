@@ -98,6 +98,7 @@ rules:
   spaced-comment: error
   symbol-description: error
 
+  "@typescript-eslint/await-thenable": off
   "@typescript-eslint/ban-ts-comment":
     [error, {ts-ignore: "allow-with-description", minimumDescriptionLength: 5}]
   "@typescript-eslint/consistent-generic-constructors": off

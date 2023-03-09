@@ -1,4 +1,4 @@
-# DOS Contracts
+# Supa Contracts
 
 the infra of defi
 
@@ -47,7 +47,7 @@ Then
 yarn setupLocalhost
 ```
 
-Check the deployments folder for the updated addresses. If they have changed make use to take the DOS address and put it in the subgraph folder: subgraph.yaml and networks.json
+Check the deployments folder for the updated addresses. If they have changed make use to take the Supa address and put it in the subgraph folder: subgraph.yaml and networks.json
 
 Now run
 
@@ -67,7 +67,7 @@ Then run
 yarn deploy-local
 ```
 
-On the dos-frontend repo make sure to copy and paste the contract addresses to the addresses.json file.
+On the supa-frontend repo make sure to copy and paste the contract addresses to the addresses.json file.
 
 run
 

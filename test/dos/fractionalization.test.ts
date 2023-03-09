@@ -3,22 +3,22 @@ import {loadFixture} from "@nomicfoundation/hardhat-network-helpers";
 import {expect} from "chai";
 
 import {
-  DSafeLogic__factory,
+  WalletLogic__factory,
   TestERC20__factory,
   WETH9__factory,
   TestNFT__factory,
   MockNFTOracle__factory,
 } from "../../typechain-types";
 import {toWei} from "../../lib/numbers";
-import {createDSafe, makeCall, getMaximumWithdrawableOfERC20} from "../../lib/calls";
-import {Chainlink, deployDos, deployFixedAddressForTests} from "../../lib/deploy";
+import {createWallet, makeCall, getMaximumWithdrawableOfERC20} from "../../lib/calls";
+import {Chainlink, deploySupa, deployFixedAddressForTests} from "../../lib/deploy";
 
 const USDC_DECIMALS = 6;
 const ETH_DECIMALS = 18;
 const CHAINLINK_DECIMALS = 8;
 
 describe("Fractionalization", () => {
-  async function deployDOSFixture() {
+  async function deploySupaFixture() {
     const [owner, user, user2] = await ethers.getSigners();
 
     const {anyswapCreate2Deployer} = await deployFixedAddressForTests(owner);
@@ -53,19 +53,19 @@ describe("Fractionalization", () => {
 
     await nftOracle.setPrice(1, toWei(100));
 
-    const {iDos, dos, versionManager} = await deployDos(
+    const {iSupa, supa, versionManager} = await deploySupa(
       owner.address,
       anyswapCreate2Deployer,
       "0x3",
       owner,
     );
-    const proxyLogic = await new DSafeLogic__factory(owner).deploy(iDos.address);
+    const proxyLogic = await new WalletLogic__factory(owner).deploy(iSupa.address);
     await versionManager.addVersion(2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
-    const treasurySafe = await createDSafe(iDos, owner);
+    const treasurySafe = await createWallet(iSupa, owner);
 
-    await iDos.setConfig({
+    await iSupa.setConfig({
       treasurySafe: treasurySafe.address,
       treasuryInterestFraction: toWei(0.05),
       maxSolvencyCheckGasCost: 1e6,
@@ -74,7 +74,7 @@ describe("Fractionalization", () => {
     });
 
     // no interest which would include time sensitive calculations
-    await iDos.addERC20Info(
+    await iSupa.addERC20Info(
       usdc.address,
       "USD Coin",
       "USDC",
@@ -85,7 +85,7 @@ describe("Fractionalization", () => {
       0,
       0,
     );
-    await iDos.addERC20Info(
+    await iSupa.addERC20Info(
       weth.address,
       "Wrapped ETH",
       "WETH",
@@ -105,8 +105,8 @@ describe("Fractionalization", () => {
       weth,
       nft,
       nftOracle,
-      iDos,
-      dos,
+      iSupa,
+      supa,
     };
   }
 
@@ -114,67 +114,67 @@ describe("Fractionalization", () => {
 
   describe("Fractional Reserve Leverage tests", () => {
     it("Check fractional reserve after user borrows", async () => {
-      const {user, user2, iDos, dos, usdc, weth} = await loadFixture(deployDOSFixture);
+      const {user, user2, iSupa, supa, usdc, weth} = await loadFixture(deploySupaFixture);
 
       // setup 1st user
-      const dSafe1 = await createDSafe(iDos, user);
-      expect(await dSafe1.owner()).to.equal(user.address);
-      await usdc.mint(dSafe1.address, oneHundredUsdc);
-      await dSafe1.executeBatch([makeCall(iDos).depositERC20(usdc.address, oneHundredUsdc)]); // deposits 100 USDC
+      const wallet1 = await createWallet(iSupa, user);
+      expect(await wallet1.owner()).to.equal(user.address);
+      await usdc.mint(wallet1.address, oneHundredUsdc);
+      await wallet1.executeBatch([makeCall(iSupa).depositERC20(usdc.address, oneHundredUsdc)]); // deposits 100 USDC
 
       // setup 2nd user
-      const dSafe2 = await createDSafe(iDos, user2);
-      expect(await dSafe2.owner()).to.equal(user2.address);
-      await weth.mint(dSafe2.address, toWei(2));
-      await dSafe2.executeBatch([makeCall(iDos).depositERC20(weth.address, toWei(2))]);
+      const wallet2 = await createWallet(iSupa, user2);
+      expect(await wallet2.owner()).to.equal(user2.address);
+      await weth.mint(wallet2.address, toWei(2));
+      await wallet2.executeBatch([makeCall(iSupa).depositERC20(weth.address, toWei(2))]);
 
       // check what the max to borrow of USDC is (90 USDC)
-      const maxBorrowable = await getMaximumWithdrawableOfERC20(dos, usdc.address);
+      const maxBorrowable = await getMaximumWithdrawableOfERC20(supa, usdc.address);
 
       // borrow 90 USDC
-      await dSafe2.executeBatch([
-        makeCall(iDos).withdrawERC20(usdc.address, maxBorrowable), // to borrow use negative
+      await wallet2.executeBatch([
+        makeCall(iSupa).withdrawERC20(usdc.address, maxBorrowable), // to borrow use negative
       ]);
 
       // check to see if there is anything left
-      const maxBorrowablePost = await getMaximumWithdrawableOfERC20(dos, usdc.address);
+      const maxBorrowablePost = await getMaximumWithdrawableOfERC20(supa, usdc.address);
 
       expect(maxBorrowablePost).to.equal("0");
     });
 
     it("Fractional reserve check should fail after borrow and rate is set below threshold", async () => {
-      // setup 2 users dSafes
-      const {user, user2, iDos, dos, usdc, weth} = await loadFixture(deployDOSFixture);
+      // setup 2 users wallets
+      const {user, user2, iSupa, supa, usdc, weth} = await loadFixture(deploySupaFixture);
 
       // setup first user
-      const dSafe1 = await createDSafe(iDos, user);
-      expect(await dSafe1.owner()).to.equal(user.address);
-      await usdc.mint(dSafe1.address, oneHundredUsdc);
-      await dSafe1.executeBatch([makeCall(iDos).depositERC20(usdc.address, oneHundredUsdc)]); // deposits 100 USDC
+      const wallet1 = await createWallet(iSupa, user);
+      expect(await wallet1.owner()).to.equal(user.address);
+      await usdc.mint(wallet1.address, oneHundredUsdc);
+      await wallet1.executeBatch([makeCall(iSupa).depositERC20(usdc.address, oneHundredUsdc)]); // deposits 100 USDC
 
       // setup 2nd user
-      const dSafe2 = await createDSafe(iDos, user2);
-      expect(await dSafe2.owner()).to.equal(user2.address);
-      await weth.mint(dSafe2.address, toWei(2));
-      await dSafe2.executeBatch([makeCall(iDos).depositERC20(weth.address, toWei(2))]);
+      const wallet2 = await createWallet(iSupa, user2);
+      expect(await wallet2.owner()).to.equal(user2.address);
+      await weth.mint(wallet2.address, toWei(2));
+      await wallet2.executeBatch([makeCall(iSupa).depositERC20(weth.address, toWei(2))]);
 
-      const maxBorrowableUSDC = await getMaximumWithdrawableOfERC20(dos, usdc.address);
+      const maxBorrowableUSDC = await getMaximumWithdrawableOfERC20(supa, usdc.address);
 
       // user 2 borrows 90 USDC
-      await dSafe2.executeBatch([
-        makeCall(iDos).withdrawERC20(usdc.address, maxBorrowableUSDC), // to borrow use negative
+      await wallet2.executeBatch([
+        makeCall(iSupa).withdrawERC20(usdc.address, maxBorrowableUSDC), // to borrow use negative
       ]);
 
       // vote for FDR to change
-      await iDos.setConfig({
-        treasurySafe: dSafe1.address,
+      await iSupa.setConfig({
+        treasurySafe: wallet1.address,
         treasuryInterestFraction: toWei(0.05),
         maxSolvencyCheckGasCost: 1e6,
         liqFraction: toWei(0.8),
         fractionalReserveLeverage: 8,
       });
 
-      const maxBorrowableUSDCPost = await getMaximumWithdrawableOfERC20(dos, usdc.address);
+      const maxBorrowableUSDCPost = await getMaximumWithdrawableOfERC20(supa, usdc.address);
 
       expect(maxBorrowableUSDCPost).is.lessThan(0);
     });
@@ -184,44 +184,44 @@ describe("Fractionalization", () => {
       // vote on increasing maximum
       // borrow more
 
-      const {user, user2, iDos, dos, usdc, weth} = await loadFixture(deployDOSFixture);
+      const {user, user2, iSupa, supa, usdc, weth} = await loadFixture(deploySupaFixture);
 
       // setup 1st user
-      const dSafe1 = await createDSafe(iDos, user);
-      expect(await dSafe1.owner()).to.equal(user.address);
-      await usdc.mint(dSafe1.address, oneHundredUsdc);
-      await dSafe1.executeBatch([makeCall(iDos).depositERC20(usdc.address, oneHundredUsdc)]); // deposits 100 USDC
+      const wallet1 = await createWallet(iSupa, user);
+      expect(await wallet1.owner()).to.equal(user.address);
+      await usdc.mint(wallet1.address, oneHundredUsdc);
+      await wallet1.executeBatch([makeCall(iSupa).depositERC20(usdc.address, oneHundredUsdc)]); // deposits 100 USDC
 
       // setup 2nd user
-      const dSafe2 = await createDSafe(iDos, user2);
-      expect(await dSafe2.owner()).to.equal(user2.address);
-      await weth.mint(dSafe2.address, toWei(2));
-      await dSafe2.executeBatch([makeCall(iDos).depositERC20(weth.address, toWei(2))]);
+      const wallet2 = await createWallet(iSupa, user2);
+      expect(await wallet2.owner()).to.equal(user2.address);
+      await weth.mint(wallet2.address, toWei(2));
+      await wallet2.executeBatch([makeCall(iSupa).depositERC20(weth.address, toWei(2))]);
 
-      const maxBorrowableUSDC = await getMaximumWithdrawableOfERC20(dos, usdc.address);
+      const maxBorrowableUSDC = await getMaximumWithdrawableOfERC20(supa, usdc.address);
 
       // borrow 90 USDC // Max borrow for FRL
-      await dSafe2.executeBatch([
-        makeCall(iDos).withdrawERC20(usdc.address, maxBorrowableUSDC), // to borrow use negative
+      await wallet2.executeBatch([
+        makeCall(iSupa).withdrawERC20(usdc.address, maxBorrowableUSDC), // to borrow use negative
       ]);
 
       // //vote for FDR to change
-      await iDos.setConfig({
-        treasurySafe: dSafe1.address,
+      await iSupa.setConfig({
+        treasurySafe: wallet1.address,
         treasuryInterestFraction: toWei(0.05),
         maxSolvencyCheckGasCost: 1e6,
         liqFraction: toWei(0.8),
         fractionalReserveLeverage: 10,
       });
 
-      const maxBorrowableUSDCPostVote = await getMaximumWithdrawableOfERC20(dos, usdc.address);
+      const maxBorrowableUSDCPostVote = await getMaximumWithdrawableOfERC20(supa, usdc.address);
 
       // borrow 0.909091 USDC
-      await dSafe2.executeBatch([
-        makeCall(iDos).withdrawERC20(usdc.address, maxBorrowableUSDCPostVote), // to borrow use negative
+      await wallet2.executeBatch([
+        makeCall(iSupa).withdrawERC20(usdc.address, maxBorrowableUSDCPostVote), // to borrow use negative
       ]);
 
-      expect(await getMaximumWithdrawableOfERC20(dos, usdc.address)).to.equal("0");
+      expect(await getMaximumWithdrawableOfERC20(supa, usdc.address)).to.equal("0");
     });
   });
 });

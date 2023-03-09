@@ -29,6 +29,7 @@
     "not-rely-on-block-hash": "error",
     "not-rely-on-time": "off",
     "reentrancy": "error",
-    "state-visibility": "off"
+    "state-visibility": "off",
+    "no-console": "off"
   }
 }

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "./FsUtils.sol";
-import "./GitCommitHash.sol";
+import {FsUtils} from "./FsUtils.sol";
+import {GitCommitHash} from "./GitCommitHash.sol";
 
 /// @title ImmutableVersion
 /// @dev This contract is meant to be inherited by other contracts, to version them.
