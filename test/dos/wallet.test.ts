@@ -244,7 +244,6 @@ describe("WalletProxy", () => {
     expect(await weth.balanceOf(wallet2.address)).to.equal(oneEth);
   });
 
-  // nOTE: the following tests were moved to foundry
   it("should be able to upgrade to a new version", async () => {
     const {iSupa, wallet, versionManager} = await loadFixture(deploySupaFixture);
     const recommendedVersion = await versionManager.getRecommendedVersion();
