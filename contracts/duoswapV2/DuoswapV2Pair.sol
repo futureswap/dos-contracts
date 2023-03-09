@@ -15,7 +15,7 @@ import {DuoswapV2ERC20} from "./DuoswapV2ERC20.sol";
 
 import {ISupa} from "../interfaces/ISupa.sol";
 import {Call} from "../lib/Call.sol";
-import {ISafe} from "../interfaces/ISafe.sol";
+import {IWallet} from "../interfaces/IWallet.sol";
 
 //solhint-disable func-name-mixedcase
 //solhint-disable avoid-low-level-calls
@@ -76,7 +76,7 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
             })
         );
 
-        ISafe(wallet).executeBatch(call);
+        IWallet(wallet).executeBatch(call);
         // (bool success, bytes memory data) = token.call(
         //     abi.encodeWithSelector(IERC20.transferFrom.selector, wallet,to, value)
         // );
@@ -172,7 +172,7 @@ contract DuoswapV2Pair is IDuoswapV2Pair, DuoswapV2ERC20 {
         require(liquidity > 0, "UniswapV2: INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(address(this), liquidity); // mint to this address
         _approve(address(this), address(supa), liquidity);
-        ISupa(supa).depositERC20ForSafe(address(this), to, liquidity); // deposit LP tokens into Supa
+        ISupa(supa).depositERC20ForWallet(address(this), to, liquidity); // deposit LP tokens into Supa
 
         _update(balance0, balance1, _reserve0, _reserve1);
         if (feeOn) kLast = uint256(reserve0) * reserve1; // reserve0 and reserve1 are up-to-date

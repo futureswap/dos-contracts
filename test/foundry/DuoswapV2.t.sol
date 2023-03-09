@@ -35,8 +35,8 @@ contract DuoswapV2Test is Test {
 
     Supa public supa;
     SupaConfig public supaConfig;
-    WalletProxy public userSafe;
-    address public pairSafe;
+    WalletProxy public userWallet;
+    address public pairWallet;
     WalletLogic public logic;
 
     IWETH9 public weth = IWETH9(payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
@@ -66,7 +66,7 @@ contract DuoswapV2Test is Test {
 
         ISupaConfig(address(supa)).setConfig(
             ISupaConfig.Config({
-                treasurySafe: address(0),
+                treasuryWallet: address(0),
                 treasuryInterestFraction: 0,
                 maxSolvencyCheckGasCost: 10_000_000,
                 liqFraction: 8e17,
@@ -132,17 +132,17 @@ contract DuoswapV2Test is Test {
         uint256 amount0 = uint256(_amount0) + 1e18;
         uint256 amount1 = uint256(_amount1) + 1e18;
 
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         _depositTokens(amount0 * 100, amount1 * 100);
 
         // create a safe for the air
         pair = _createPair(address(token0), address(token1));
-        pairSafe = pair.wallet();
+        pairWallet = pair.wallet();
 
         // mint tokens to safe
-        token0.mint(address(userSafe), amount0);
-        token1.mint(address(userSafe), amount1);
+        token0.mint(address(userWallet), amount0);
+        token1.mint(address(userWallet), amount1);
 
         // construct call for executeBatch
         Call[] memory calls = new Call[](1);
@@ -155,7 +155,7 @@ contract DuoswapV2Test is Test {
             amount1,
             0,
             0,
-            address(userSafe),
+            address(userWallet),
             block.timestamp
         );
 
@@ -179,7 +179,7 @@ contract DuoswapV2Test is Test {
                 value: 0
             })
         );
-        WalletLogic(address(userSafe)).executeBatch(calls);
+        WalletLogic(address(userWallet)).executeBatch(calls);
     }
 
     function testDepositTokens() public {
@@ -188,15 +188,15 @@ contract DuoswapV2Test is Test {
         token1.mint(address(this), 1e21);
 
         // deposit tokens to portfolios
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
-        token0.transfer(address(userSafe), 1e21);
-        token1.transfer(address(userSafe), 1e21);
+        token0.transfer(address(userWallet), 1e21);
+        token1.transfer(address(userWallet), 1e21);
 
-        uint256 userSafeBalance0 = token0.balanceOf(address(userSafe));
-        uint256 userSafeBalance1 = token1.balanceOf(address(userSafe));
-        assertEq(userSafeBalance0, 1e21);
-        assertEq(userSafeBalance1, 1e21);
+        uint256 userWalletBalance0 = token0.balanceOf(address(userWallet));
+        uint256 userWalletBalance1 = token1.balanceOf(address(userWallet));
+        assertEq(userWalletBalance0, 1e21);
+        assertEq(userWalletBalance1, 1e21);
 
         Call[] memory calls = new Call[](4);
         calls[0] = (
@@ -205,7 +205,7 @@ contract DuoswapV2Test is Test {
                 callData: abi.encodeWithSignature(
                     "approve(address,uint256)",
                     address(supa),
-                    userSafeBalance0
+                    userWalletBalance0
                 ),
                 value: 0
             })
@@ -217,7 +217,7 @@ contract DuoswapV2Test is Test {
                 callData: abi.encodeWithSignature(
                     "approve(address,uint256)",
                     address(supa),
-                    userSafeBalance1
+                    userWalletBalance1
                 ),
                 value: 0
             })
@@ -247,18 +247,18 @@ contract DuoswapV2Test is Test {
             })
         );
 
-        WalletLogic(address(userSafe)).executeBatch(calls);
+        WalletLogic(address(userWallet)).executeBatch(calls);
     }
 
     function testSwap() public {
         // deposit tokens to portfolios
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         _depositTokens(1e30, 1e30);
 
         // mint tokens
-        token0.mint(address(userSafe), 1e21);
-        token1.mint(address(userSafe), 1e21);
+        token0.mint(address(userWallet), 1e21);
+        token1.mint(address(userWallet), 1e21);
 
         _addLiquidity(1e23, 1e23);
 
@@ -267,12 +267,12 @@ contract DuoswapV2Test is Test {
         path[1] = address(token1);
         uint256 swapAmount = 1e21;
 
-        int256 userSafeBalance0Before = ISupaConfig(address(supa)).getCreditAccountERC20(
-            address(userSafe),
+        int256 userWalletBalance0Before = ISupaConfig(address(supa)).getCreditAccountERC20(
+            address(userWallet),
             token0
         );
-        int256 userSafeBalance1Before = ISupaConfig(address(supa)).getCreditAccountERC20(
-            address(userSafe),
+        int256 userWalletBalance1Before = ISupaConfig(address(supa)).getCreditAccountERC20(
+            address(userWallet),
             token1
         );
 
@@ -281,7 +281,7 @@ contract DuoswapV2Test is Test {
             swapAmount,
             0,
             path,
-            address(userSafe),
+            address(userWallet),
             block.timestamp
         );
 
@@ -299,32 +299,32 @@ contract DuoswapV2Test is Test {
         Call[] memory calls = new Call[](1);
         calls[0] = (Call({to: address(supa), callData: callData, value: 0}));
 
-        WalletLogic(address(userSafe)).executeBatch(calls);
+        WalletLogic(address(userWallet)).executeBatch(calls);
 
-        int256 userSafeBalance0After = ISupaConfig(address(supa)).getCreditAccountERC20(
-            address(userSafe),
+        int256 userWalletBalance0After = ISupaConfig(address(supa)).getCreditAccountERC20(
+            address(userWallet),
             IERC20(token0)
         );
-        int256 userSafeBalance1After = ISupaConfig(address(supa)).getCreditAccountERC20(
-            address(userSafe),
+        int256 userWalletBalance1After = ISupaConfig(address(supa)).getCreditAccountERC20(
+            address(userWallet),
             IERC20(token1)
         );
 
-        int256 userSafeBalance0Diff = userSafeBalance0After - userSafeBalance0Before;
-        int256 userSafeBalance1Diff = userSafeBalance1After - userSafeBalance1Before;
+        int256 userWalletBalance0Diff = userWalletBalance0After - userWalletBalance0Before;
+        int256 userWalletBalance1Diff = userWalletBalance1After - userWalletBalance1Before;
 
-        assertEq(userSafeBalance0After, userSafeBalance0Before - int256(swapAmount));
-        assert(userSafeBalance1After > userSafeBalance1Before);
-        assert(userSafeBalance1Diff > 0);
-        assert(userSafeBalance0Diff < 0);
+        assertEq(userWalletBalance0After, userWalletBalance0Before - int256(swapAmount));
+        assert(userWalletBalance1After > userWalletBalance1Before);
+        assert(userWalletBalance1Diff > 0);
+        assert(userWalletBalance0Diff < 0);
     }
 
     function _addLiquidity(uint256 _amount0, uint256 _amount1) public {
         pair = _createPair(address(token0), address(token1));
-        pairSafe = pair.wallet();
+        pairWallet = pair.wallet();
 
-        token0.mint(address(userSafe), _amount0);
-        token1.mint(address(userSafe), _amount1);
+        token0.mint(address(userWallet), _amount0);
+        token1.mint(address(userWallet), _amount1);
 
         bytes memory callData = abi.encodeWithSignature(
             "addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256)",
@@ -334,7 +334,7 @@ contract DuoswapV2Test is Test {
             _amount1,
             0,
             0,
-            address(userSafe),
+            address(userWallet),
             block.timestamp
         );
 
@@ -360,13 +360,13 @@ contract DuoswapV2Test is Test {
                 value: 0
             })
         );
-        WalletLogic(address(userSafe)).executeBatch(calls);
+        WalletLogic(address(userWallet)).executeBatch(calls);
     }
 
     function _depositTokens(uint256 _amount0, uint256 _amount1) public {
         // mint tokens
-        token0.mint(address(userSafe), _amount0);
-        token1.mint(address(userSafe), _amount1);
+        token0.mint(address(userWallet), _amount0);
+        token1.mint(address(userWallet), _amount1);
 
         Call[] memory calls = new Call[](4);
         calls[0] = (
@@ -417,7 +417,7 @@ contract DuoswapV2Test is Test {
             })
         );
 
-        WalletLogic(address(userSafe)).executeBatch(calls);
+        WalletLogic(address(userWallet)).executeBatch(calls);
     }
 
     function _createPair(address _token0, address _token1) public returns (DuoswapV2Pair _pair) {

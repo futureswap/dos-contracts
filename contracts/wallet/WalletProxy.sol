@@ -12,7 +12,7 @@ import {FsUtils} from "../lib/FsUtils.sol";
 import {CallLib, Call} from "../lib/Call.sol";
 
 /// @title Wallet Proxy
-/// @notice Proxy contract for Supa Safes
+/// @notice Proxy contract for Supa Wallets
 // Inspired by TransparentUpdatableProxy
 contract WalletProxy is WalletState, Proxy {
     modifier ifSupa() {

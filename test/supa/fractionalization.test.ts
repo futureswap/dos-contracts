@@ -63,10 +63,10 @@ describe("Fractionalization", () => {
     await versionManager.addVersion(2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
-    const treasurySafe = await createWallet(iSupa, owner);
+    const treasuryWallet = await createWallet(iSupa, owner);
 
     await iSupa.setConfig({
-      treasurySafe: treasurySafe.address,
+      treasuryWallet: treasuryWallet.address,
       treasuryInterestFraction: toWei(0.05),
       maxSolvencyCheckGasCost: 1e6,
       liqFraction: toWei(0.8),
@@ -167,7 +167,7 @@ describe("Fractionalization", () => {
 
       // vote for FDR to change
       await iSupa.setConfig({
-        treasurySafe: wallet1.address,
+        treasuryWallet: wallet1.address,
         treasuryInterestFraction: toWei(0.05),
         maxSolvencyCheckGasCost: 1e6,
         liqFraction: toWei(0.8),
@@ -207,7 +207,7 @@ describe("Fractionalization", () => {
 
       // //vote for FDR to change
       await iSupa.setConfig({
-        treasurySafe: wallet1.address,
+        treasuryWallet: wallet1.address,
         treasuryInterestFraction: toWei(0.05),
         maxSolvencyCheckGasCost: 1e6,
         liqFraction: toWei(0.8),

@@ -189,7 +189,7 @@ contract DuoswapV2Router is IDuoswapV2Router {
         );
         ISupa(supa).transferFromERC20(
             path[0],
-            to, // changed to userSafe
+            to, // changed to userWallet
             IDuoswapV2Pair(DuoswapV2Library.pairFor(factory, path[0], path[1])).wallet(), // changed to pairWallet
             amounts[0]
         );
@@ -207,7 +207,7 @@ contract DuoswapV2Router is IDuoswapV2Router {
         require(amounts[0] <= amountInMax, "UniswapV2Router: EXCESSIVE_INPUT_AMOUNT");
         ISupa(supa).transferFromERC20(
             path[0],
-            to, // changed to userSafe
+            to, // changed to userWallet
             IDuoswapV2Pair(DuoswapV2Library.pairFor(factory, path[0], path[1])).wallet(), // changed to pairWallet
             amounts[0]
         );

@@ -12,7 +12,7 @@ import {WalletState} from "./WalletState.sol";
 import {Liquifier} from "../supa/Liquifier.sol";
 import {IVersionManager} from "../interfaces/IVersionManager.sol";
 import {ITransferReceiver2} from "../interfaces/ITransferReceiver2.sol";
-import {ISafe} from "../interfaces/ISafe.sol";
+import {IWallet} from "../interfaces/IWallet.sol";
 import {IERC1363SpenderExtended} from "../interfaces/IERC1363-extended.sol";
 import {CallLib, Call} from "../lib/Call.sol";
 import {NonceMapLib, NonceMap} from "../lib/NonceMap.sol";
@@ -27,7 +27,7 @@ contract WalletLogic is
     IERC1271,
     ITransferReceiver2,
     EIP712,
-    ISafe,
+    IWallet,
     Liquifier,
     IERC1363SpenderExtended
 {

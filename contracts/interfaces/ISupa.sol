@@ -55,7 +55,7 @@ interface ISupaERC20 is IERC20 {
 
 interface ISupaConfig {
     struct Config {
-        address treasurySafe; // The address of the treasury safe
+        address treasuryWallet; // The address of the treasury safe
         uint256 treasuryInterestFraction; // Fraction of interest to send to treasury
         uint256 maxSolvencyCheckGasCost;
         int256 liqFraction; // Fraction for the user
@@ -297,7 +297,7 @@ interface ISupaCore {
     /// @notice Emitted when a wallet is liquidated
     /// @param wallet The address of the liquidated wallet
     /// @param liquidator The address of the liquidator
-    event SafeLiquidated(
+    event WalletLiquidated(
         address indexed wallet,
         address indexed liquidator,
         int256 collateral,
@@ -313,7 +313,7 @@ interface ISupaCore {
 
     function withdrawERC20(IERC20 erc20, uint256 amount) external;
 
-    function depositERC20ForSafe(address erc20, address to, uint256 amount) external;
+    function depositERC20ForWallet(address erc20, address to, uint256 amount) external;
 
     function depositFull(IERC20[] calldata erc20s) external;
 
@@ -325,7 +325,7 @@ interface ISupaCore {
 
     function depositERC721(address nftContract, uint256 tokenId) external;
 
-    function depositERC721ForSafe(address nftContract, address to, uint256 tokenId) external;
+    function depositERC721ForWallet(address nftContract, address to, uint256 tokenId) external;
 
     function withdrawERC721(address erc721, uint256 tokenId) external;
 
