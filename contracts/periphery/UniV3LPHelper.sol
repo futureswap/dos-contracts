@@ -89,4 +89,66 @@ contract UniV3LPHelper {
         // deposit LP token to credit account
         supa.depositERC721ForWallet(nonfungiblePositionManager, msg.sender, tokenId);
     }
+
+    function quickWithdraw(uint256 tokenId) external {
+        // transfer LP token to this contract
+        IERC721(address(nonfungiblePositionManager)).transferFrom(
+            msg.sender,
+            address(this),
+            tokenId
+        );
+
+        // get current position values
+        (
+            ,
+            ,
+            address token0,
+            address token1,
+            ,
+            ,
+            ,
+            uint128 liquidity,
+            ,
+            ,
+            ,
+
+        ) = INonfungiblePositionManager(nonfungiblePositionManager).positions(tokenId);
+
+        // remove liquidity
+        INonfungiblePositionManager(nonfungiblePositionManager).decreaseLiquidity(
+            INonfungiblePositionManager.DecreaseLiquidityParams({
+                tokenId: tokenId,
+                liquidity: liquidity,
+                amount0Min: 0,
+                amount1Min: 0,
+                deadline: block.timestamp
+            })
+        );
+
+        // collect tokens
+        (uint256 amount0, uint256 amount1) = INonfungiblePositionManager(nonfungiblePositionManager)
+            .collect(
+                INonfungiblePositionManager.CollectParams({
+                    tokenId: tokenId,
+                    recipient: address(this),
+                    amount0Max: type(uint128).max,
+                    amount1Max: type(uint128).max
+                })
+            );
+
+        // approve tokens to supa
+        IERC20(token0).approve(address(supa), amount0);
+        IERC20(token1).approve(address(supa), amount1);
+
+        // deposit tokens to credit account
+        supa.depositERC20ForWallet(token0, msg.sender, amount0);
+        supa.depositERC20ForWallet(token1, msg.sender, amount1);
+
+        // transfer lp token to msg.sender
+        IERC721(address(nonfungiblePositionManager)).transferFrom(
+            address(this),
+            msg.sender,
+            tokenId
+        );
+    }
 }

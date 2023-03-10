@@ -77,6 +77,10 @@ contract UniV3LPHelperTest is Test {
         usdcOracle.setPrice(1e18, 18, 18);
         usdcOracle.setRiskFactors(9e17, 9e17);
 
+        daiOracle = new MockERC20Oracle(owner);
+        daiOracle.setPrice(1e18, 18, 18);
+        daiOracle.setRiskFactors(9e17, 9e17);
+
         wethOracle = new MockERC20Oracle(owner);
         wethOracle.setPrice(1e18, 18, 18);
         wethOracle.setRiskFactors(9e17, 9e17);
@@ -93,7 +97,7 @@ contract UniV3LPHelperTest is Test {
             8e17 // targetUtilization
         );
         ISupaConfig(address(supa)).addERC20Info(
-            address(usdc),
+            address(dai),
             "Dai Stablecoin",
             "Dai",
             18,
@@ -204,68 +208,7 @@ contract UniV3LPHelperTest is Test {
         // create user wallet
         userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
-        uint256 usdcAmount = 10_000 * 10 ** 6;
-        uint256 wethAmount = 10 ether;
-
-        // load USDC and WETH into userWallet
-        deal({token: address(usdc), to: address(userWallet), give: usdcAmount});
-        deal({token: address(weth), to: address(userWallet), give: wethAmount});
-
-        // Create a position and deposit LP token to supa
-        Call[] memory calls = new Call[](3);
-
-        INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager
-            .MintParams({
-                token0: address(usdc),
-                token1: address(weth),
-                fee: 500,
-                tickLower: -887220,
-                tickUpper: 887220,
-                amount0Desired: usdcAmount,
-                amount1Desired: wethAmount,
-                amount0Min: 0,
-                amount1Min: 0,
-                recipient: address(userWallet),
-                deadline: block.timestamp + 1000
-            });
-
-        // (1) approve usdc
-        calls[0] = Call({
-            to: address(usdc),
-            callData: abi.encodeWithSignature(
-                "approve(address,uint256)",
-                address(uniV3LPHelper),
-                type(uint256).max
-            ),
-            value: 0
-        });
-        // (2) approve weth
-        calls[1] = Call({
-            to: address(weth),
-            callData: abi.encodeWithSignature(
-                "approve(address,uint256)",
-                address(uniV3LPHelper),
-                type(uint256).max
-            ),
-            value: 0
-        });
-        // (3) mint and deposit LP token
-        calls[2] = Call({
-            to: address(uniV3LPHelper),
-            callData: abi.encodeWithSignature(
-                "mintAndDeposit((address,address,uint24,int24,int24,uint256,uint256,uint256,uint256,address,uint256))",
-                params
-            ),
-            value: 0
-        });
-        userWallet.executeBatch(calls);
-
-        ISupaConfig.NFTData[] memory nftData = ISupaConfig(address(supa)).getCreditAccountERC721(
-            address(userWallet)
-        );
-
-        // Get the LP token ID
-        uint256 tokenId = nftData[0].tokenId;
+        uint256 tokenId = _mintAndDeposit();
 
         // Get the initial liquidity
         (, , , , , , , uint128 liquidity, , , , ) = nonfungiblePositionManager.positions(tokenId);
@@ -312,7 +255,9 @@ contract UniV3LPHelperTest is Test {
         userWallet.executeBatch(reinvestCalls);
 
         // Check that the fees were reinvested
-        nftData = ISupaConfig(address(supa)).getCreditAccountERC721(address(userWallet));
+        ISupaConfig.NFTData[] memory nftData = ISupaConfig(address(supa)).getCreditAccountERC721(
+            address(userWallet)
+        );
         assertEq(nftData.length, 1);
 
         (, , , , , , , uint128 newLiquidity, , , , ) = nonfungiblePositionManager.positions(
@@ -413,5 +358,128 @@ contract UniV3LPHelperTest is Test {
         });
         vm.expectRevert();
         userWallet.executeBatch(reinvestCalls);
+    }
+
+    function testQuickWithdraw() public {
+        // create user wallet
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+
+        int256 usdcBalanceBefore = ISupaConfig(address(supa)).getCreditAccountERC20(
+            address(userWallet),
+            usdc
+        );
+        int256 wethBalanceBefore = ISupaConfig(address(supa)).getCreditAccountERC20(
+            address(userWallet),
+            weth
+        );
+
+        uint256 tokenId = _mintAndDeposit();
+
+        // Quick withdraw
+        Call[] memory calls = new Call[](3);
+        calls[0] = Call({
+            to: address(supa),
+            callData: abi.encodeWithSelector(
+                Supa.withdrawERC721.selector,
+                address(nonfungiblePositionManager),
+                tokenId
+            ),
+            value: 0
+        });
+        calls[1] = Call({
+            to: address(nonfungiblePositionManager),
+            callData: abi.encodeWithSignature(
+                "approve(address,uint256)",
+                address(uniV3LPHelper),
+                tokenId
+            ),
+            value: 0
+        });
+        calls[2] = Call({
+            to: address(uniV3LPHelper),
+            callData: abi.encodeWithSignature("quickWithdraw(uint256)", tokenId),
+            value: 0
+        });
+
+        userWallet.executeBatch(calls);
+
+        int256 usdcBalanceAfter = ISupaConfig(address(supa)).getCreditAccountERC20(
+            address(userWallet),
+            usdc
+        );
+        int256 wethBalanceAfter = ISupaConfig(address(supa)).getCreditAccountERC20(
+            address(userWallet),
+            weth
+        );
+
+        assert(usdcBalanceAfter > usdcBalanceBefore);
+        assert(wethBalanceAfter > wethBalanceBefore);
+    }
+
+    function _mintAndDeposit() internal returns (uint256 tokenId) {
+        uint256 usdcAmount = 10_000 * 10 ** 6;
+        uint256 wethAmount = 10 ether;
+
+        // load USDC and WETH into userWallet
+        deal({token: address(usdc), to: address(userWallet), give: usdcAmount});
+        deal({token: address(weth), to: address(userWallet), give: wethAmount});
+
+        // Create a position and deposit LP token to supa
+        Call[] memory calls = new Call[](3);
+
+        INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager
+            .MintParams({
+                token0: address(usdc),
+                token1: address(weth),
+                fee: 500,
+                tickLower: -887220,
+                tickUpper: 887220,
+                amount0Desired: usdcAmount,
+                amount1Desired: wethAmount,
+                amount0Min: 0,
+                amount1Min: 0,
+                recipient: address(userWallet),
+                deadline: block.timestamp + 1000
+            });
+
+        // (1) approve usdc
+        calls[0] = Call({
+            to: address(usdc),
+            callData: abi.encodeWithSignature(
+                "approve(address,uint256)",
+                address(uniV3LPHelper),
+                type(uint256).max
+            ),
+            value: 0
+        });
+        // (2) approve weth
+        calls[1] = Call({
+            to: address(weth),
+            callData: abi.encodeWithSignature(
+                "approve(address,uint256)",
+                address(uniV3LPHelper),
+                type(uint256).max
+            ),
+            value: 0
+        });
+        // (3) mint and deposit LP token
+        calls[2] = Call({
+            to: address(uniV3LPHelper),
+            callData: abi.encodeWithSignature(
+                "mintAndDeposit((address,address,uint24,int24,int24,uint256,uint256,uint256,uint256,address,uint256))",
+                params
+            ),
+            value: 0
+        });
+        userWallet.executeBatch(calls);
+
+        ISupaConfig.NFTData[] memory nftData = ISupaConfig(address(supa)).getCreditAccountERC721(
+            address(userWallet)
+        );
+
+        // Get the LP token ID
+        tokenId = nftData[0].tokenId;
+
+        return tokenId;
     }
 }
