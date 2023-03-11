@@ -126,6 +126,8 @@ describe("Supa swap integration", () => {
     const uniV3LPHelper = await new UniV3LPHelper__factory(owner).deploy(
       iSupa.address,
       nonFungiblePositionManager.address,
+      uniswapV3Factory.address,
+      swapRouter.address,
     );
 
     const price = (ETH_PRICE * 10 ** USDC_DECIMALS) / 10 ** WETH_DECIMALS;

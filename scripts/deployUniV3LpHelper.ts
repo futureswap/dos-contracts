@@ -12,14 +12,14 @@ async function main() {
   const networkContracts = getContracts(networkAddresses, deployer);
   const anyswapCreate2Deployer = networkContracts.anyswapCreate2Deployer as IAnyswapCreate2Deployer;
 
-  const nonfungiblePositionManager = "0xC36442b4a4522E871399CD717aBDD847Ab11FE88";
-
   const uniV3LPHelper = await deployAtFixedAddress(
     new UniV3LPHelper__factory(deployer),
     anyswapCreate2Deployer,
     (BigInt(fsSalt) + 11n).toString(),
     networkContracts.supa.address,
-    nonfungiblePositionManager,
+    networkContracts.nonfungiblePositionManager.address,
+    networkContracts.uniswapV3Factory.address,
+    networkContracts.swapRouter.address,
   );
 
   await saveAddressesForNetwork({uniV3LPHelper});
