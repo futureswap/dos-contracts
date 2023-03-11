@@ -4,9 +4,11 @@ pragma solidity ^0.8.17;
 import "forge-std/Test.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
-import {UniV3LPHelper} from "contracts/periphery/UniV3LPHelper.sol";
+import {UniV3LPHelper, TickMath} from "contracts/periphery/UniV3LPHelper.sol";
 import {Supa} from "contracts/supa/Supa.sol";
 import {SupaConfig, ISupaConfig} from "contracts/supa/SupaConfig.sol";
 import {VersionManager, IVersionManager} from "contracts/supa/VersionManager.sol";
@@ -71,7 +73,12 @@ contract UniV3LPHelperTest is Test {
                 erc721Multiplier: 1
             })
         );
-        uniV3LPHelper = new UniV3LPHelper(address(supa), address(nonfungiblePositionManager));
+        uniV3LPHelper = new UniV3LPHelper(
+            address(supa),
+            address(nonfungiblePositionManager),
+            address(uniswapV3Factory),
+            address(swapRouter)
+        );
 
         usdcOracle = new MockERC20Oracle(owner);
         usdcOracle.setPrice(1e18, 18, 18);
@@ -416,9 +423,99 @@ contract UniV3LPHelperTest is Test {
         assert(wethBalanceAfter > wethBalanceBefore);
     }
 
+    function testRebalance() public {
+        // create user wallet
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+
+        uint256 tokenId = _mintAndDeposit();
+
+        // move the price of the pool
+        uint256 usdcSwapAmount = 10_000_000 * 10 ** 6;
+        deal({token: address(usdc), to: address(this), give: usdcSwapAmount});
+
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+            tokenIn: address(usdc),
+            tokenOut: address(weth),
+            fee: 500,
+            recipient: address(userWallet),
+            deadline: block.timestamp + 1000,
+            amountIn: usdcSwapAmount,
+            amountOutMinimum: 0,
+            sqrtPriceLimitX96: 0
+        });
+
+        usdc.approve(address(swapRouter), usdcSwapAmount);
+        swapRouter.exactInputSingle(params);
+
+        // Rebalance
+        Call[] memory calls = new Call[](3);
+        calls[0] = Call({
+            to: address(supa),
+            callData: abi.encodeWithSelector(
+                Supa.withdrawERC721.selector,
+                address(nonfungiblePositionManager),
+                tokenId
+            ),
+            value: 0
+        });
+        calls[1] = Call({
+            to: address(nonfungiblePositionManager),
+            callData: abi.encodeWithSignature(
+                "approve(address,uint256)",
+                address(uniV3LPHelper),
+                tokenId
+            ),
+            value: 0
+        });
+        calls[2] = Call({
+            to: address(uniV3LPHelper),
+            callData: abi.encodeWithSignature("rebalanceSameTickSizing(uint256)", tokenId),
+            value: 0
+        });
+
+        userWallet.executeBatch(calls);
+    }
+
+    function testRebalanceSameTicks() public {
+        // create user wallet
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+
+        uint256 tokenId = _mintAndDeposit();
+
+        // Rebalance
+        Call[] memory calls = new Call[](3);
+        calls[0] = Call({
+            to: address(supa),
+            callData: abi.encodeWithSelector(
+                Supa.withdrawERC721.selector,
+                address(nonfungiblePositionManager),
+                tokenId
+            ),
+            value: 0
+        });
+        calls[1] = Call({
+            to: address(nonfungiblePositionManager),
+            callData: abi.encodeWithSignature(
+                "approve(address,uint256)",
+                address(uniV3LPHelper),
+                tokenId
+            ),
+            value: 0
+        });
+        calls[2] = Call({
+            to: address(uniV3LPHelper),
+            callData: abi.encodeWithSignature("rebalanceSameTickSizing(uint256)", tokenId),
+            value: 0
+        });
+
+        vm.expectRevert(UniV3LPHelper.PositionAlreadyBalanced.selector);
+        userWallet.executeBatch(calls);
+    }
+
     function _mintAndDeposit() internal returns (uint256 tokenId) {
         uint256 usdcAmount = 10_000 * 10 ** 6;
         uint256 wethAmount = 10 ether;
+        uint24 fee = 500;
 
         // load USDC and WETH into userWallet
         deal({token: address(usdc), to: address(userWallet), give: usdcAmount});
@@ -427,13 +524,29 @@ contract UniV3LPHelperTest is Test {
         // Create a position and deposit LP token to supa
         Call[] memory calls = new Call[](3);
 
+        // get pool
+        IUniswapV3Pool pool = IUniswapV3Pool(
+            IUniswapV3Factory(uniswapV3Factory).getPool(address(usdc), address(weth), fee)
+        );
+
+        // get current tick
+        (, int24 currentTick, , , , , ) = pool.slot0();
+
+        // get tick spacing
+        int24 tickSpacing = pool.tickSpacing();
+
+        // get ticks
+        int24 tickLower = nearestUsableTick(currentTick - tickSpacing, tickSpacing);
+        int24 tickUpper = nearestUsableTick(currentTick + tickSpacing, tickSpacing);
+
+        // Construct mint params
         INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager
             .MintParams({
                 token0: address(usdc),
                 token1: address(weth),
-                fee: 500,
-                tickLower: -887220,
-                tickUpper: 887220,
+                fee: fee,
+                tickLower: tickLower,
+                tickUpper: tickUpper,
                 amount0Desired: usdcAmount,
                 amount1Desired: wethAmount,
                 amount0Min: 0,
@@ -481,5 +594,55 @@ contract UniV3LPHelperTest is Test {
         tokenId = nftData[0].tokenId;
 
         return tokenId;
+    }
+
+    function divRound(int128 x, int128 y) internal pure returns (int128 result) {
+        int128 quot = div(x, y);
+        result = quot >> 64;
+
+        // Check if remainder is greater than 0.5
+        if (quot % 2 ** 64 >= 0x8000000000000000) {
+            result += 1;
+        }
+    }
+
+    /*
+     * Minimum value signed 64.64-bit fixed point number may have.
+     */
+    int128 private constant MIN_64x64 = -0x80000000000000000000000000000000;
+
+    /*
+     * Maximum value signed 64.64-bit fixed point number may have.
+     */
+    int128 private constant MAX_64x64 = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+
+    /**
+     * Calculate x / y rounding towards zero.  Revert on overflow or when y is
+     * zero.
+     *
+     * @param x signed 64.64-bit fixed point number
+     * @param y signed 64.64-bit fixed point number
+     * @return signed 64.64-bit fixed point number
+     */
+    function div(int128 x, int128 y) internal pure returns (int128) {
+        unchecked {
+            require(y != 0);
+            int256 result = (int256(x) << 64) / y;
+            require(result >= MIN_64x64 && result <= MAX_64x64);
+            return int128(result);
+        }
+    }
+
+    function nearestUsableTick(
+        int24 tick_,
+        int24 tickSpacing
+    ) internal pure returns (int24 result) {
+        result = int24(divRound(int128(tick_), int128(tickSpacing))) * int24(tickSpacing);
+
+        if (result < TickMath.MIN_TICK) {
+            result += tickSpacing;
+        } else if (result > TickMath.MAX_TICK) {
+            result -= tickSpacing;
+        }
     }
 }
