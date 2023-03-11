@@ -298,12 +298,12 @@ contract UniV3LPHelper {
     /*
      * Minimum value signed 64.64-bit fixed point number may have.
      */
-    int128 private constant MIN_64x64 = -0x80000000000000000000000000000000;
+    int128 private constant MIN_64X64 = -0x80000000000000000000000000000000;
 
     /*
      * Maximum value signed 64.64-bit fixed point number may have.
      */
-    int128 private constant MAX_64x64 = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+    int128 private constant MAX_64X64 = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 
     /**
      * Calculate x / y rounding towards zero.  Revert on overflow or when y is
@@ -315,9 +315,9 @@ contract UniV3LPHelper {
      */
     function div(int128 x, int128 y) internal pure returns (int128) {
         unchecked {
-            require(y != 0);
+            require(y != 0, "div by 0");
             int256 result = (int256(x) << 64) / y;
-            require(result >= MIN_64x64 && result <= MAX_64x64);
+            require(result >= MIN_64X64 && result <= MAX_64X64, "out of bounds");
             return int128(result);
         }
     }
@@ -452,96 +452,96 @@ library TickMath {
             if (msb >= 128) r = ratio >> (msb - 127);
             else r = ratio << (127 - msb);
 
-            int256 log_2 = (int256(msb) - 128) << 64;
+            int256 _log2 = (int256(msb) - 128) << 64;
 
             assembly {
                 r := shr(127, mul(r, r))
                 let f := shr(128, r)
-                log_2 := or(log_2, shl(63, f))
+                _log2 := or(_log2, shl(63, f))
                 r := shr(f, r)
             }
             assembly {
                 r := shr(127, mul(r, r))
                 let f := shr(128, r)
-                log_2 := or(log_2, shl(62, f))
+                _log2 := or(_log2, shl(62, f))
                 r := shr(f, r)
             }
             assembly {
                 r := shr(127, mul(r, r))
                 let f := shr(128, r)
-                log_2 := or(log_2, shl(61, f))
+                _log2 := or(_log2, shl(61, f))
                 r := shr(f, r)
             }
             assembly {
                 r := shr(127, mul(r, r))
                 let f := shr(128, r)
-                log_2 := or(log_2, shl(60, f))
+                _log2 := or(_log2, shl(60, f))
                 r := shr(f, r)
             }
             assembly {
                 r := shr(127, mul(r, r))
                 let f := shr(128, r)
-                log_2 := or(log_2, shl(59, f))
+                _log2 := or(_log2, shl(59, f))
                 r := shr(f, r)
             }
             assembly {
                 r := shr(127, mul(r, r))
                 let f := shr(128, r)
-                log_2 := or(log_2, shl(58, f))
+                _log2 := or(_log2, shl(58, f))
                 r := shr(f, r)
             }
             assembly {
                 r := shr(127, mul(r, r))
                 let f := shr(128, r)
-                log_2 := or(log_2, shl(57, f))
+                _log2 := or(_log2, shl(57, f))
                 r := shr(f, r)
             }
             assembly {
                 r := shr(127, mul(r, r))
                 let f := shr(128, r)
-                log_2 := or(log_2, shl(56, f))
+                _log2 := or(_log2, shl(56, f))
                 r := shr(f, r)
             }
             assembly {
                 r := shr(127, mul(r, r))
                 let f := shr(128, r)
-                log_2 := or(log_2, shl(55, f))
+                _log2 := or(_log2, shl(55, f))
                 r := shr(f, r)
             }
             assembly {
                 r := shr(127, mul(r, r))
                 let f := shr(128, r)
-                log_2 := or(log_2, shl(54, f))
+                _log2 := or(_log2, shl(54, f))
                 r := shr(f, r)
             }
             assembly {
                 r := shr(127, mul(r, r))
                 let f := shr(128, r)
-                log_2 := or(log_2, shl(53, f))
+                _log2 := or(_log2, shl(53, f))
                 r := shr(f, r)
             }
             assembly {
                 r := shr(127, mul(r, r))
                 let f := shr(128, r)
-                log_2 := or(log_2, shl(52, f))
+                _log2 := or(_log2, shl(52, f))
                 r := shr(f, r)
             }
             assembly {
                 r := shr(127, mul(r, r))
                 let f := shr(128, r)
-                log_2 := or(log_2, shl(51, f))
+                _log2 := or(_log2, shl(51, f))
                 r := shr(f, r)
             }
             assembly {
                 r := shr(127, mul(r, r))
                 let f := shr(128, r)
-                log_2 := or(log_2, shl(50, f))
+                _log2 := or(_log2, shl(50, f))
             }
 
-            int256 log_sqrt10001 = log_2 * 255738958999603826347141; // 128.128 number
+            int256 logSqrt10001 = _log2 * 255738958999603826347141; // 128.128 number
 
-            int24 tickLow = int24((log_sqrt10001 - 3402992956809132418596140100660247210) >> 128);
-            int24 tickHi = int24((log_sqrt10001 + 291339464771989622907027621153398088495) >> 128);
+            int24 tickLow = int24((logSqrt10001 - 3402992956809132418596140100660247210) >> 128);
+            int24 tickHi = int24((logSqrt10001 + 291339464771989622907027621153398088495) >> 128);
 
             tick = tickLow == tickHi ? tickLow : getSqrtRatioAtTick(tickHi) <= sqrtPriceX96
                 ? tickHi
@@ -647,7 +647,7 @@ library FullMath {
 
             // Handle non-overflow cases, 256 by 256 division
             if (prod1 == 0) {
-                require(denominator > 0);
+                require(denominator > 0, "div by 0");
                 assembly {
                     result := div(prod0, denominator)
                 }
@@ -656,7 +656,7 @@ library FullMath {
 
             // Make sure the result is less than 2**256.
             // Also prevents denominator == 0
-            require(denominator > prod1);
+            require(denominator > prod1, "denominator > prod1");
 
             ///////////////////////////////////////////////
             // 512 by 256 division.
@@ -735,7 +735,7 @@ library FullMath {
         unchecked {
             result = mulDiv(a, b, denominator);
             if (mulmod(a, b, denominator) > 0) {
-                require(result < type(uint256).max);
+                require(result < type(uint256).max, "result overflow");
                 result++;
             }
         }
