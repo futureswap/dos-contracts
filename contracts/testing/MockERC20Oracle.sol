@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "../interfaces/IERC20ValueOracle.sol";
-import "../lib/ImmutableGovernance.sol";
+import {IERC20ValueOracle} from "../interfaces/IERC20ValueOracle.sol";
+import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 
 contract MockERC20Oracle is IERC20ValueOracle, ImmutableGovernance {
     int256 public price;

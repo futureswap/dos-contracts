@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/proxy/Proxy.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import {Proxy} from "@openzeppelin/contracts/proxy/Proxy.sol";
+import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ERC721, IERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 
 import {ISupa, ISupaConfig, ISupaCore, ERC20Share, NFTTokenData, ERC20Pool, ERC20Info, ERC721Info, ContractData, ContractKind} from "../interfaces/ISupa.sol";
 import {SupaState} from "./SupaState.sol";

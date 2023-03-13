@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {FsUtils} from "../lib/FsUtils.sol";
 import {IERC20ValueOracle} from "../interfaces/IERC20ValueOracle.sol";
 

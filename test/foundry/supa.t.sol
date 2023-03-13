@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import {Supa, ISupa, WalletLib, SupaState, ISupaCore} from "contracts/supa/Supa.sol";
 import {SupaConfig, ISupaConfig} from "contracts/supa/SupaConfig.sol";

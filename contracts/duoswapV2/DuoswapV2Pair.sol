@@ -3,12 +3,12 @@ pragma solidity ^0.8.7;
 
 //solhint-disable ordering
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
-import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Callee.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IUniswapV2Factory} from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+import {IUniswapV2Callee} from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Callee.sol";
 
-import "./libraries/Math.sol";
-import "./libraries/UQ112x112.sol";
+import {Math} from "./libraries/Math.sol";
+import {UQ112x112} from "./libraries/UQ112x112.sol";
 
 import {IDuoswapV2Pair} from "./interfaces/IDuoswapV2Pair.sol";
 import {DuoswapV2ERC20} from "./DuoswapV2ERC20.sol";

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "../interfaces/INFTValueOracle.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
+import {INFTValueOracle} from "../interfaces/INFTValueOracle.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract MockNFTOracle is INFTValueOracle {
     mapping(uint256 => int256) prices;
