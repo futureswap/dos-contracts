@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import "forge-std/Test.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
@@ -273,6 +274,64 @@ contract UniV3LPHelperTest is Test {
         assert(newLiquidity > liquidity);
     }
 
+    function testReinvestSafeTransfer() public {
+        // create user wallet
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+
+        uint256 tokenId = _mintAndDeposit();
+
+        // Get the initial liquidity
+        (, , , , , , , uint128 liquidity, , , , ) = nonfungiblePositionManager.positions(tokenId);
+
+        // mock accrued swap fees
+        vm.mockCall(
+            address(nonfungiblePositionManager),
+            abi.encodeWithSelector(INonfungiblePositionManager.collect.selector),
+            abi.encode(1_000 * 10 ** 6, 1 ether)
+        );
+
+        // Inject mocked fees into uniV3LPHelper
+        deal({token: address(usdc), to: address(uniV3LPHelper), give: 1_000 * 10 ** 6});
+        deal({token: address(weth), to: address(uniV3LPHelper), give: 1 ether});
+
+        // Create calls to reinvest fees
+        Call[] memory reinvestCalls = new Call[](2);
+        // (1) withdraw LP token to Wallet
+        reinvestCalls[0] = Call({
+            to: address(supa),
+            callData: abi.encodeWithSelector(
+                Supa.withdrawERC721.selector,
+                address(nonfungiblePositionManager),
+                tokenId
+            ),
+            value: 0
+        });
+        // (2) reinvest fees
+        reinvestCalls[1] = Call({
+            to: address(nonfungiblePositionManager),
+            callData: abi.encodeWithSignature(
+                "safeTransferFrom(address,address,uint256,bytes)",
+                address(userWallet),
+                address(uniV3LPHelper),
+                tokenId,
+                abi.encode(0x00)
+            ),
+            value: 0
+        });
+        userWallet.executeBatch(reinvestCalls);
+
+        // Check that the fees were reinvested
+        ISupaConfig.NFTData[] memory nftData = ISupaConfig(address(supa)).getCreditAccountERC721(
+            address(userWallet)
+        );
+        assertEq(nftData.length, 1);
+
+        (, , , , , , , uint128 newLiquidity, , , , ) = nonfungiblePositionManager.positions(
+            tokenId
+        );
+        assert(newLiquidity > liquidity);
+    }
+
     function testReinvestNoAccruedFees() public {
         userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
@@ -421,6 +480,167 @@ contract UniV3LPHelperTest is Test {
 
         assert(usdcBalanceAfter > usdcBalanceBefore);
         assert(wethBalanceAfter > wethBalanceBefore);
+    }
+
+    function testQuickWithdrawNoLiquidity() public {
+        // create user wallet
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+
+        uint256 tokenId = _mintAndDeposit();
+
+        // Quick withdraw
+        Call[] memory calls = new Call[](3);
+        calls[0] = Call({
+            to: address(supa),
+            callData: abi.encodeWithSelector(
+                Supa.withdrawERC721.selector,
+                address(nonfungiblePositionManager),
+                tokenId
+            ),
+            value: 0
+        });
+        calls[1] = Call({
+            to: address(nonfungiblePositionManager),
+            callData: abi.encodeWithSignature(
+                "approve(address,uint256)",
+                address(uniV3LPHelper),
+                tokenId
+            ),
+            value: 0
+        });
+        calls[2] = Call({
+            to: address(uniV3LPHelper),
+            callData: abi.encodeWithSignature("quickWithdraw(uint256)", tokenId),
+            value: 0
+        });
+
+        userWallet.executeBatch(calls);
+
+        // Quick withdraw
+        Call[] memory secondCalls = new Call[](2);
+        secondCalls[0] = Call({
+            to: address(nonfungiblePositionManager),
+            callData: abi.encodeWithSignature(
+                "approve(address,uint256)",
+                address(uniV3LPHelper),
+                tokenId
+            ),
+            value: 0
+        });
+        secondCalls[1] = Call({
+            to: address(uniV3LPHelper),
+            callData: abi.encodeWithSignature("quickWithdraw(uint256)", tokenId),
+            value: 0
+        });
+
+        vm.expectRevert();
+        userWallet.executeBatch(calls);
+    }
+
+    function testQuickWithdrawSafeTransfer() public {
+        // create user wallet
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+
+        int256 usdcBalanceBefore = ISupaConfig(address(supa)).getCreditAccountERC20(
+            address(userWallet),
+            usdc
+        );
+        int256 wethBalanceBefore = ISupaConfig(address(supa)).getCreditAccountERC20(
+            address(userWallet),
+            weth
+        );
+
+        uint256 tokenId = _mintAndDeposit();
+        bytes memory data = new bytes(1);
+        data[0] = 0x01;
+
+        // Quick withdraw
+        Call[] memory calls = new Call[](2);
+        calls[0] = Call({
+            to: address(supa),
+            callData: abi.encodeWithSelector(
+                Supa.withdrawERC721.selector,
+                address(nonfungiblePositionManager),
+                tokenId
+            ),
+            value: 0
+        });
+        calls[1] = Call({
+            to: address(nonfungiblePositionManager),
+            callData: abi.encodeWithSignature(
+                "safeTransferFrom(address,address,uint256,bytes)",
+                address(userWallet),
+                address(uniV3LPHelper),
+                tokenId,
+                data
+            ),
+            value: 0
+        });
+
+        userWallet.executeBatch(calls);
+
+        int256 usdcBalanceAfter = ISupaConfig(address(supa)).getCreditAccountERC20(
+            address(userWallet),
+            usdc
+        );
+        int256 wethBalanceAfter = ISupaConfig(address(supa)).getCreditAccountERC20(
+            address(userWallet),
+            weth
+        );
+
+        assert(usdcBalanceAfter > usdcBalanceBefore);
+        assert(wethBalanceAfter > wethBalanceBefore);
+    }
+
+    function testQuickWithdrawSafeTransferNoLiquidity() public {
+        // create user wallet
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+
+        uint256 tokenId = _mintAndDeposit();
+        bytes memory data = new bytes(1);
+        data[0] = 0x01;
+
+        // Quick withdraw
+        Call[] memory calls = new Call[](2);
+        calls[0] = Call({
+            to: address(supa),
+            callData: abi.encodeWithSelector(
+                Supa.withdrawERC721.selector,
+                address(nonfungiblePositionManager),
+                tokenId
+            ),
+            value: 0
+        });
+        calls[1] = Call({
+            to: address(nonfungiblePositionManager),
+            callData: abi.encodeWithSignature(
+                "safeTransferFrom(address,address,uint256,bytes)",
+                address(userWallet),
+                address(uniV3LPHelper),
+                tokenId,
+                data
+            ),
+            value: 0
+        });
+
+        userWallet.executeBatch(calls);
+
+        // Quick withdraw
+        Call[] memory secondCalls = new Call[](1);
+        secondCalls[0] = Call({
+            to: address(nonfungiblePositionManager),
+            callData: abi.encodeWithSignature(
+                "safeTransferFrom(address,address,uint256,bytes)",
+                address(userWallet),
+                address(uniV3LPHelper),
+                tokenId,
+                abi.encode(0x01)
+            ),
+            value: 0
+        });
+
+        vm.expectRevert();
+        userWallet.executeBatch(secondCalls);
     }
 
     function testRebalance() public {

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
@@ -12,19 +13,34 @@ import {ISupa} from "contracts/interfaces/ISupa.sol";
 import {FixedPoint96} from "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 
 /// @title Supa UniswapV3 LP Position Helper
-contract UniV3LPHelper {
+contract UniV3LPHelper is IERC721Receiver {
+    /// @notice The supa contract
     ISupa public supa;
+    /// @notice The UniswapV3 NFT manager
     address public manager;
+    /// @notice The UniswapV3 factory
     address public factory;
+    /// @notice The UniswapV3 swap router
     address public swapRouter;
 
+    /// @notice The position is already balanced
     error PositionAlreadyBalanced();
+    /// @notice ERC20 transfer failed
+    error TransferFailed();
+    /// @notice ERC20 approval failed
+    error ApprovalFailed();
+    /// @notice NFT is not a UniswapV3 LP token
+    error InvalidManager();
+    /// @notice Invalid data
+    error InvalidData();
 
     constructor(address _supa, address _manager, address _factory, address _swapRouter) {
         supa = ISupa(_supa);
         manager = _manager;
         factory = _factory;
         swapRouter = _swapRouter;
+
+        IERC721(manager).setApprovalForAll(_supa, true);
     }
 
     /// @notice Mint and deposit LP token to credit account
@@ -33,21 +49,26 @@ contract UniV3LPHelper {
         INonfungiblePositionManager.MintParams memory params
     ) external payable returns (uint256 tokenId) {
         // Transfer tokens to this contract
-        IERC20(params.token0).transferFrom(msg.sender, address(this), params.amount0Desired);
-        IERC20(params.token1).transferFrom(msg.sender, address(this), params.amount1Desired);
+        if (
+            !IERC20(params.token0).transferFrom(msg.sender, address(this), params.amount0Desired) ||
+            !IERC20(params.token1).transferFrom(msg.sender, address(this), params.amount1Desired)
+        ) {
+            revert TransferFailed();
+        }
 
         // Approve tokens to manager
-        IERC20(params.token0).approve(manager, params.amount0Desired);
-        IERC20(params.token1).approve(manager, params.amount1Desired);
+        if (
+            !IERC20(params.token0).approve(manager, params.amount0Desired) ||
+            !IERC20(params.token1).approve(manager, params.amount1Desired)
+        ) {
+            revert ApprovalFailed();
+        }
 
         // Update recipient to this contract
         params.recipient = address(this);
 
         // Mint LP token
         (tokenId, , , ) = INonfungiblePositionManager(manager).mint(params);
-
-        // Approve LP token to Supa
-        IERC721(address(manager)).approve(address(supa), tokenId);
 
         // Deposit LP token to credit account
         supa.depositERC721ForWallet(manager, msg.sender, tokenId);
@@ -58,38 +79,8 @@ contract UniV3LPHelper {
     function reinvest(uint256 tokenId) external {
         // transfer LP token to this contract
         IERC721(address(manager)).transferFrom(msg.sender, address(this), tokenId);
-        // collect accrued fees
-        (uint256 amount0, uint256 amount1) = INonfungiblePositionManager(manager).collect(
-            INonfungiblePositionManager.CollectParams({
-                tokenId: tokenId,
-                recipient: address(this),
-                amount0Max: type(uint128).max,
-                amount1Max: type(uint128).max
-            })
-        );
 
-        // get token addresses
-        (, , address token0, address token1, , , , , , , , ) = INonfungiblePositionManager(manager)
-            .positions(tokenId);
-
-        // approve tokens to manager
-        IERC20(token0).approve(manager, amount0);
-        IERC20(token1).approve(manager, amount1);
-
-        // reinvest
-        INonfungiblePositionManager(manager).increaseLiquidity(
-            INonfungiblePositionManager.IncreaseLiquidityParams({
-                tokenId: tokenId,
-                amount0Desired: amount0,
-                amount1Desired: amount1,
-                amount0Min: 0,
-                amount1Min: 0,
-                deadline: block.timestamp
-            })
-        );
-
-        // approve LP token to Supa
-        IERC721(address(manager)).approve(address(supa), tokenId);
+        _reinvest(tokenId); // increase gas cost
 
         // deposit LP token to credit account
         supa.depositERC721ForWallet(manager, msg.sender, tokenId);
@@ -101,55 +92,14 @@ contract UniV3LPHelper {
         // transfer LP token to this contract
         IERC721(address(manager)).transferFrom(msg.sender, address(this), tokenId);
 
-        // get current position values
-        (
-            ,
-            ,
-            address token0,
-            address token1,
-            ,
-            ,
-            ,
-            uint128 liquidity,
-            ,
-            ,
-            ,
-
-        ) = INonfungiblePositionManager(manager).positions(tokenId);
-
-        // remove liquidity
-        INonfungiblePositionManager(manager).decreaseLiquidity(
-            INonfungiblePositionManager.DecreaseLiquidityParams({
-                tokenId: tokenId,
-                liquidity: liquidity,
-                amount0Min: 0,
-                amount1Min: 0,
-                deadline: block.timestamp
-            })
-        );
-
-        // collect tokens
-        (uint256 amount0, uint256 amount1) = INonfungiblePositionManager(manager).collect(
-            INonfungiblePositionManager.CollectParams({
-                tokenId: tokenId,
-                recipient: address(this),
-                amount0Max: type(uint128).max,
-                amount1Max: type(uint128).max
-            })
-        );
-
-        // approve tokens to supa
-        IERC20(token0).approve(address(supa), amount0);
-        IERC20(token1).approve(address(supa), amount1);
-
-        // deposit tokens to credit account
-        supa.depositERC20ForWallet(token0, msg.sender, amount0);
-        supa.depositERC20ForWallet(token1, msg.sender, amount1);
+        _quickWithdraw(tokenId, msg.sender);
 
         // transfer lp token to msg.sender
         IERC721(address(manager)).transferFrom(address(this), msg.sender, tokenId);
     }
 
+    /// @notice Rebalance position using the same tick spacing at the current price
+    /// @param tokenId LP token ID
     function rebalanceSameTickSizing(uint256 tokenId) external {
         // transfer LP token to this contract
         IERC721(address(manager)).transferFrom(msg.sender, address(this), tokenId);
@@ -235,7 +185,9 @@ contract UniV3LPHelper {
                 amountOutMinimum: 0,
                 sqrtPriceLimitX96: 0
             });
-            IERC20(token0).approve(swapRouter, params.amountIn);
+            if (!IERC20(token0).approve(swapRouter, params.amountIn)) {
+                revert ApprovalFailed();
+            }
         } else if (amount1 > amount1Desired) {
             // swap token1 for token0
             params = ISwapRouter.ExactInputSingleParams({
@@ -248,18 +200,26 @@ contract UniV3LPHelper {
                 amountOutMinimum: 0,
                 sqrtPriceLimitX96: 0
             });
-            IERC20(token1).approve(swapRouter, params.amountIn);
+            if (!IERC20(token1).approve(swapRouter, params.amountIn)) {
+                revert ApprovalFailed();
+            }
         } else {
             revert PositionAlreadyBalanced();
         }
 
         // swap tokens
-        IERC20(params.tokenIn).approve(swapRouter, params.amountIn);
+        if (!IERC20(params.tokenIn).approve(swapRouter, params.amountIn)) {
+            revert ApprovalFailed();
+        }
         ISwapRouter(swapRouter).exactInputSingle(params);
 
         // approve tokens to manager
-        IERC20(token0).approve(manager, amount0Desired);
-        IERC20(token1).approve(manager, amount1Desired);
+        if (
+            !IERC20(token0).approve(manager, amount0Desired) ||
+            !IERC20(token1).approve(manager, amount1Desired)
+        ) {
+            revert ApprovalFailed();
+        }
 
         // reinvest
         (uint256 newTokenId, , , ) = INonfungiblePositionManager(manager).mint(
@@ -278,11 +238,122 @@ contract UniV3LPHelper {
             })
         );
 
-        // approve LP token to Supa
-        IERC721(address(manager)).approve(address(supa), newTokenId);
-
         // deposit LP token to credit account
         supa.depositERC721ForWallet(manager, msg.sender, newTokenId);
+    }
+
+    /// @param tokenId The tokenId
+    /// @param data The additional data passed with the call
+    function onERC721Received(
+        address, // operator
+        address from, // from
+        uint256 tokenId,
+        bytes calldata data
+    ) external returns (bytes4) {
+        if (msg.sender != address(manager)) {
+            revert InvalidManager();
+        }
+        if (data[0] == 0x00) {
+            // reinvest
+            _reinvest(tokenId);
+            // deposit LP token to credit account
+            supa.depositERC721ForWallet(manager, from, tokenId);
+        } else if (data[0] == 0x01) {
+            // quick withdraw
+            _quickWithdraw(tokenId, from);
+            // transfer lp token to msg.sender
+            IERC721(address(manager)).transferFrom(address(this), from, tokenId);
+        } else if (data[0] == 0x02) {
+            // rebalance
+        }
+
+        return this.onERC721Received.selector;
+    }
+
+    function _reinvest(uint256 tokenId) internal {
+        // collect accrued fees
+        (uint256 amount0, uint256 amount1) = INonfungiblePositionManager(manager).collect(
+            INonfungiblePositionManager.CollectParams({
+                tokenId: tokenId,
+                recipient: address(this),
+                amount0Max: type(uint128).max,
+                amount1Max: type(uint128).max
+            })
+        );
+
+        // get token addresses
+        (, , address token0, address token1, , , , , , , , ) = INonfungiblePositionManager(manager)
+            .positions(tokenId);
+
+        // approve tokens to manager
+        if (
+            !IERC20(token0).approve(manager, amount0) || !IERC20(token1).approve(manager, amount1)
+        ) {
+            revert ApprovalFailed();
+        }
+
+        // reinvest
+        INonfungiblePositionManager(manager).increaseLiquidity(
+            INonfungiblePositionManager.IncreaseLiquidityParams({
+                tokenId: tokenId,
+                amount0Desired: amount0,
+                amount1Desired: amount1,
+                amount0Min: 0,
+                amount1Min: 0,
+                deadline: block.timestamp
+            })
+        );
+    }
+
+    function _quickWithdraw(uint256 tokenId, address from) internal {
+        // get current position values
+        (
+            ,
+            ,
+            address token0,
+            address token1,
+            ,
+            ,
+            ,
+            uint128 liquidity,
+            ,
+            ,
+            ,
+
+        ) = INonfungiblePositionManager(manager).positions(tokenId);
+
+        // remove liquidity
+        INonfungiblePositionManager(manager).decreaseLiquidity(
+            INonfungiblePositionManager.DecreaseLiquidityParams({
+                tokenId: tokenId,
+                liquidity: liquidity,
+                amount0Min: 0,
+                amount1Min: 0,
+                deadline: block.timestamp
+            })
+        );
+
+        // collect tokens
+        (uint256 amount0, uint256 amount1) = INonfungiblePositionManager(manager).collect(
+            INonfungiblePositionManager.CollectParams({
+                tokenId: tokenId,
+                recipient: address(this),
+                amount0Max: type(uint128).max,
+                amount1Max: type(uint128).max
+            })
+        );
+
+        // approve tokens to supa
+        if (
+            !IERC20(token0).approve(address(supa), amount0) ||
+            !IERC20(token1).approve(address(supa), amount1)
+        ) {
+            revert ApprovalFailed();
+        }
+
+        // deposit tokens to credit account
+        supa.depositERC20ForWallet(token0, from, amount0);
+        supa.depositERC20ForWallet(token1, from, amount1);
     }
 
     function divRound(int128 x, int128 y) internal pure returns (int128 result) {
