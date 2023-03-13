@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 import {IERC20ValueOracle} from "../interfaces/IERC20ValueOracle.sol";

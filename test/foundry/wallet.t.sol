@@ -18,7 +18,7 @@ import {Call, CallLib} from "contracts/lib/Call.sol";
 import {ITransferReceiver2} from "contracts/interfaces/ITransferReceiver2.sol";
 
 import {SigUtils, ECDSA} from "test/foundry/utils/SigUtils.sol";
-import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 contract WalletTest is Test {
     IPermit2 public permit2;

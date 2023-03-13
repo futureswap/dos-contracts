@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/utils/Address.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {FsUtils} from "../lib/FsUtils.sol";
 import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";
 import {CallLib, CallWithoutValue} from "../lib/Call.sol";

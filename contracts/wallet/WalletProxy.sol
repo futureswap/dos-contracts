@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/proxy/Proxy.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {Proxy} from "@openzeppelin/contracts/proxy/Proxy.sol";
 
 import {WalletState} from "./WalletState.sol";
 import {ITransferReceiver2, TRANSFER_AND_CALL2} from "../interfaces/ITransferReceiver2.sol";

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {GovernanceProxy} from "./GovernanceProxy.sol";
 import {Governance} from "./Governance.sol";
 import {ImmutableGovernance} from "../lib/ImmutableGovernance.sol";

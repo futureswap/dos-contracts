@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
+import {ERC1155Burnable, ERC1155} from "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 
 /// @title HashNFT a NFT for cryptographic proof of ownership.
 /// @notice A generic ownerless contract that allows fine grained access control,
