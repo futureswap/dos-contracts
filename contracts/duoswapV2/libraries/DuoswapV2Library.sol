@@ -31,7 +31,7 @@ library DuoswapV2Library {
                             bytes1(0xff),
                             factory,
                             keccak256(abi.encodePacked(token0, token1)),
-                            hex"FABF00ED9314E03F4A2447749D7E395B473DE7DB96808DF2DF2A5AA5DE8EC17B" // NOTE: need to replace with actual init code hash every time the pair code is updated
+                            hex"65CC2FF723DDBE58DDA8C277FAEAFF6BDF9EF235346C7537EF5F0E4983BC4BE9" // NOTE: need to replace with actual init code hash every time the pair code is updated
                         )
                     )
                 )

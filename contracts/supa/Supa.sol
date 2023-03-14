@@ -368,6 +368,7 @@ contract Supa is SupaState, ISupaCore, IERC721Receiver, Proxy {
     /// @dev Operator can execute batch of transactions on behalf of wallet owner
     function addOperator(address operator) external override onlyWallet {
         operatorApprovals[msg.sender][operator] = true;
+        emit OperatorAdded(msg.sender, operator);
     }
 
     /// @notice Remove an operator for wallet
@@ -375,6 +376,7 @@ contract Supa is SupaState, ISupaCore, IERC721Receiver, Proxy {
     /// @dev Operator can execute batch of transactions on behalf of wallet owner
     function removeOperator(address operator) external override onlyWallet {
         operatorApprovals[msg.sender][operator] = false;
+        emit OperatorRemoved(msg.sender, operator);
     }
 
     /// @notice Execute a batch of calls

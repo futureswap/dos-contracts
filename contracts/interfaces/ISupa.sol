@@ -294,6 +294,16 @@ interface ISupaCore {
         bool approved
     );
 
+    /// @dev Emitted when an operator is added to a wallet
+    /// @param wallet The address of the wallet
+    /// @param operator The address of the operator
+    event OperatorAdded(address indexed wallet, address indexed operator);
+
+    /// @dev Emitted when an operator is removed from a wallet
+    /// @param wallet The address of the wallet
+    /// @param operator The address of the operator
+    event OperatorRemoved(address indexed wallet, address indexed operator);
+
     /// @notice Emitted when a wallet is liquidated
     /// @param wallet The address of the liquidated wallet
     /// @param liquidator The address of the liquidator
