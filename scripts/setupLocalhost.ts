@@ -1,9 +1,9 @@
+import type {Contract} from "ethers";
+import type {Api} from "hardhat-ethernal/dist/api";
 import "hardhat-ethernal/dist/type-extensions"; // types only
 
-import type {Api} from "hardhat-ethernal/dist/api";
-
 import {FormatTypes} from "@ethersproject/abi";
-import hre, {ethers} from "hardhat";
+import {ethers, ethernal} from "hardhat";
 
 import {deployLocalhostEnvironment, setupLocalhost} from "../lib/deploy";
 import {saveAddressesForNetwork} from "../lib/deployment";
@@ -14,17 +14,26 @@ async function main() {
   const contracts = await setupLocalhost(deployer, env);
   await saveAddressesForNetwork(contracts);
 
-  await hre.ethernal.startListening();
+  process.env.ETHERNAL_EMAIL && process.env.ETHERNAL_PASSWORD
+    ? await startEthernal(contracts)
+    : console.log(
+        "Ethernal will not be started because credentials are not provided. " +
+          "If you want it to be started, ensure having ETHERNAL_EMAIL and ETHERNAL_PASSWORD in your .env",
+      );
+}
+
+async function startEthernal(contracts: Record<string, Contract>) {
+  await ethernal.startListening();
   await Promise.all(
-    Object.entries(contracts).map(([key, value]) =>
-      // `api` is a private key of hre.ethernal, so it's not present on the type
-      (hre.ethernal as typeof hre.ethernal & {api: Api}).api.syncContractData(
-        key,
-        value.address,
+    Object.entries(contracts).map(([contractName, contract]) =>
+      // `api` is a private key of ethernal, so it's not present on the type
+      (ethernal as typeof ethernal & {api: Api}).api.syncContractData(
+        contractName,
+        contract.address,
         // @ts-expect-error -- the expected type is `any[]`, but `.format(FormatTypes.json)`
         // returns string of JSON with array. Considering that this argument will be sent over the
         // network, these values are equivalent
-        value.interface.format(FormatTypes.json),
+        contract.interface.format(FormatTypes.json),
         undefined,
       ),
     ),
