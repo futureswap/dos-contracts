@@ -6,7 +6,7 @@ the infra of defi
 
 clone the project and make sure you have a Node version > 16
 
-## To complie
+## To compile
 
 ```bash
 npx hardhat compile
