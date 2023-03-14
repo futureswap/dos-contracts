@@ -74,19 +74,17 @@ type WrappedContract<Contract extends ethers.Contract> = {
 };
 
 export function makeCall<Contract extends ethers.Contract>(
-  to: Contract,
-  value?: BigNumberish,
+  contract: Contract,
+  value: BigNumberish = 0,
 ): WrappedContract<Contract> {
-  const funcKeys = Object.entries(to.functions).map(([key]) => key);
-
   /* eslint-disable -- embedded types for fromEntries are not expressive enough to express this */
   return Object.fromEntries(
-    funcKeys.map(funcKey => [
-      funcKey,
+    Object.keys(contract).map(functionName => [
+      functionName,
       (...args: unknown[]): Call => ({
-        to: to.address,
-        callData: to.interface.encodeFunctionData(funcKey, args),
-        value: BigNumber.from(value ?? 0).toBigInt(),
+        to: contract.address,
+        callData: contract.interface.encodeFunctionData(functionName, args),
+        value: BigNumber.from(value).toBigInt(),
       }),
     ]),
   ) as any;
@@ -158,12 +156,10 @@ export const createWallet = async (supa: ISupa, signer: ethers.Signer): Promise<
 export const sortTransfers = (
   transfers: {token: string; amount: bigint}[],
 ): {token: string; amount: bigint}[] => {
-  return transfers
-    .sort((a, b) => {
-      const diff = BigInt(a.token) - BigInt(b.token);
-      return diff > 0 ? 1 : diff < 0 ? -1 : 0;
-    })
-    .map(({token, amount}) => ({token, amount: ethers.BigNumber.from(amount).toBigInt()}));
+  return transfers.sort((a, b) => {
+    const diff = BigInt(a.token) - BigInt(b.token);
+    return diff > 0 ? 1 : diff < 0 ? -1 : 0;
+  });
 };
 
 const updateTransfers = (
