@@ -384,7 +384,7 @@ contract Supa is SupaState, ISupaCore, IERC721Receiver, Proxy {
     /// @param calls An array of transaction calls
     function executeBatch(Call[] memory calls) external override onlyWallet whenNotPaused {
         WalletProxy(payable(msg.sender)).executeBatch(calls);
-        if (!_isSolvent(msg.sender)) {
+        if (!isSolvent(msg.sender)) {
             revert Insolvent();
         }
     }
@@ -567,6 +567,34 @@ contract Supa is SupaState, ISupaCore, IERC721Receiver, Proxy {
         return int96(int256(ir));
     }
 
+    /// @notice Checks if the account's positions are overcollateralized
+    /// @dev checks the eventual state of `executeBatch` function execution:
+    /// * `wallet` must have collateral >= debt
+    /// * Supa must have sufficient balance of deposits and loans for each ERC20 token
+    /// @dev when called by the end of `executeBatch`, isSolvent checks the potential target state
+    /// of Supa. Calling this function separately would check current state of Supa, that is always
+    /// solvable, and so the return value would always be `true`, unless the `wallet` is liquidatable
+    /// @param wallet The address of a wallet who performed the `executeBatch`
+    /// @return Whether the position is solvent.
+    function isSolvent(address wallet) public view returns (bool) {
+        uint gasBefore = gasleft();
+        int256 leverage = config.fractionalReserveLeverage;
+        for (uint256 i = 0; i < erc20Infos.length; i++) {
+            int256 totalDebt = erc20Infos[i].debt.tokens;
+            int256 reserve = erc20Infos[i].collateral.tokens + totalDebt;
+            FsUtils.Assert(
+                IERC20(erc20Infos[i].erc20Contract).balanceOf(address(this)) >= uint256(reserve)
+            );
+            if (reserve < -totalDebt / leverage) {
+                revert InsufficientReserves();
+            }
+        }
+        (, int256 collateral, int256 debt) = getRiskAdjustedPositionValues(wallet);
+        if (gasBefore - gasleft() > config.maxSolvencyCheckGasCost)
+            revert SolvencyCheckTooExpensive();
+        return collateral >= debt;
+    }
+
     function _approve(
         address _owner,
         address spender,
@@ -743,34 +771,6 @@ contract Supa is SupaState, ISupaCore, IERC721Receiver, Proxy {
         erc20Info.collateral.tokens += interest - treasuryInterest; // add interest to collateral (increase)
 
         _creditAccountERC20ChangeBy(config.treasurySafe, erc20Idx, treasuryInterest); // add treasury interest to treasury
-    }
-
-    /// @notice Checks if the account's positions are overcollateralized
-    /// @dev checks the eventual state of `executeBatch` function execution:
-    /// * `wallet` must have collateral >= debt
-    /// * Supa must have sufficient balance of deposits and loans for each ERC20 token
-    /// @dev when called by the end of `executeBatch`, _isSolvent checks the potential target state
-    /// of Supa. Calling this function separately would check current state of Supa, that is always
-    /// solvable, and so the return value would always be `true`, unless the `wallet` is liquidatable
-    /// @param wallet The address of a wallet who performed the `executeBatch`
-    /// @return Whether the position is solvent.
-    function _isSolvent(address wallet) internal view returns (bool) {
-        uint gasBefore = gasleft();
-        int256 leverage = config.fractionalReserveLeverage;
-        for (uint256 i = 0; i < erc20Infos.length; i++) {
-            int256 totalDebt = erc20Infos[i].debt.tokens;
-            int256 reserve = erc20Infos[i].collateral.tokens + totalDebt;
-            FsUtils.Assert(
-                IERC20(erc20Infos[i].erc20Contract).balanceOf(address(this)) >= uint256(reserve)
-            );
-            if (reserve < -totalDebt / leverage) {
-                revert InsufficientReserves();
-            }
-        }
-        (, int256 collateral, int256 debt) = getRiskAdjustedPositionValues(wallet);
-        if (gasBefore - gasleft() > config.maxSolvencyCheckGasCost)
-            revert SolvencyCheckTooExpensive();
-        return collateral >= debt;
     }
 
     function _tokenStorageCheck(address walletAddress) internal view {

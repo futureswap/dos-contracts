@@ -398,6 +398,8 @@ interface ISupaCore {
     function getImplementation(address wallet) external view returns (address);
 
     function getWalletOwner(address wallet) external view returns (address);
+
+    function isSolvent(address wallet) external view returns (bool);
 }
 
 interface ISupa is ISupaCore, ISupaConfig {}
