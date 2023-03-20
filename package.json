@@ -11,7 +11,7 @@
     "test:forge": "forge test",
     "test:withTypesCheck": "yarn tsc --noEmit && yarn hardhat test",
     "pairHashCode": "forge script script/PairHashCode.s.sol:PairHashCodeScript",
-    "start": "yarn run pm2 start 'npx hardhat node' --name localhostNode",
+    "start": "yarn stop || true && yarn run pm2 start 'npx hardhat node' --name localhostNode",
     "setupLocalhost": "yarn run hardhat run scripts/setupLocalhost.ts --network localhost",
     "stop": "yarn run pm2 delete all",
     "coverage": "yarn hardhat coverage",

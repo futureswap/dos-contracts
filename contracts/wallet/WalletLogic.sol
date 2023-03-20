@@ -72,6 +72,8 @@ contract WalletLogic is
     error OnlyOwner();
     /// @notice Only this address can call this function
     error OnlyThisAddress();
+    /// @notice The wallet is insolvent
+    error Insolvent();
 
     modifier onlyOwner() {
         if (supa.getWalletOwner(address(this)) != msg.sender) {
@@ -116,8 +118,12 @@ contract WalletLogic is
     function executeBatch(Call[] memory calls) external payable onlyOwnerOrOperator {
         bool saveForwardNFT = forwardNFT;
         forwardNFT = false;
-        supa.executeBatch(calls);
+        CallLib.executeBatch(calls);
         forwardNFT = saveForwardNFT;
+
+        if (!supa.isSolvent(address(this))) {
+            revert Insolvent();
+        }
     }
 
     function executeSignedBatch(
