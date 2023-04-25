@@ -260,7 +260,10 @@ contract UniV3LPHelper is IERC721Receiver {
             supa.depositERC721ForWallet(manager, from, tokenId);
         } else if (data[0] == 0x01) {
             // quick withdraw
-            _quickWithdraw(tokenId, from);
+            bool success = _quickWithdraw(tokenId, from);
+            if (!success) {
+                revert("Quick withdraw failed");
+            }
             // transfer lp token to msg.sender
             IERC721(address(manager)).transferFrom(address(this), from, tokenId);
         } else if (data[0] == 0x02) {
@@ -305,7 +308,7 @@ contract UniV3LPHelper is IERC721Receiver {
         );
     }
 
-    function _quickWithdraw(uint256 tokenId, address from) internal {
+    function _quickWithdraw(uint256 tokenId, address from) internal returns (bool) {
         // get current position values
         (
             ,
@@ -343,17 +346,30 @@ contract UniV3LPHelper is IERC721Receiver {
             })
         );
 
-        // approve tokens to supa
-        if (
-            !IERC20(token0).approve(address(supa), amount0) ||
-            !IERC20(token1).approve(address(supa), amount1)
-        ) {
-            revert ApprovalFailed();
+        // // approve tokens to supa
+        // if (
+        //     !IERC20(token0).approve(address(supa), amount0) ||
+        //     !IERC20(token1).approve(address(supa), amount1)
+        // ) {
+        //     revert ApprovalFailed();
+        // }
+
+        // // deposit tokens to credit account
+        // if (amount0 > 0) {
+        //     supa.depositERC20ForWallet(token0, from, amount0);
+        // }
+        // if (amount1 > 0) {
+        //     supa.depositERC20ForWallet(token1, from, amount1);
+        // }
+
+        if (amount0 > 0) {
+            IERC20(token0).transfer(from, amount0);
+        }
+        if (amount1 > 0) {
+            IERC20(token1).transfer(from, amount0);
         }
 
-        // deposit tokens to credit account
-        supa.depositERC20ForWallet(token0, from, amount0);
-        supa.depositERC20ForWallet(token1, from, amount1);
+        return true;
     }
 
     function divRound(int128 x, int128 y) internal pure returns (int128 result) {
