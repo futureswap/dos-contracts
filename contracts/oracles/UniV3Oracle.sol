@@ -86,6 +86,7 @@ contract UniV3Oracle is ImmutableGovernance, INFTValueOracle {
 
     function setCollateralFactor(int256 _collateralFactor) external onlyGovernance {
         collateralFactor = _collateralFactor;
+        emit CollateralFactorSet(_collateralFactor);
     }
 
     function calcValue(uint256 tokenId) external view override returns (int256, int256) {
