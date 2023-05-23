@@ -8,14 +8,14 @@ pragma solidity ^0.8.7;
 //solhint-disable reason-string
 //solhint-disable ordering
 
-import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
-import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+import {TransferHelper} from "@uniswap/lib/contracts/libraries/TransferHelper.sol";
+import {IUniswapV2Factory} from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "./interfaces/IDuoswapV2Router.sol";
-import "./libraries/DuoswapV2Library.sol";
-import "../external/interfaces/IWETH9.sol";
+import {IDuoswapV2Router} from "./interfaces/IDuoswapV2Router.sol";
+import {DuoswapV2Library} from "./libraries/DuoswapV2Library.sol";
+import {IWETH9} from "../external/interfaces/IWETH9.sol";
 
 import {IDuoswapV2Pair} from "./interfaces/IDuoswapV2Pair.sol";
 import {ISupa} from "../interfaces/ISupa.sol";
@@ -189,7 +189,7 @@ contract DuoswapV2Router is IDuoswapV2Router {
         );
         ISupa(supa).transferFromERC20(
             path[0],
-            to, // changed to userSafe
+            to, // changed to userWallet
             IDuoswapV2Pair(DuoswapV2Library.pairFor(factory, path[0], path[1])).wallet(), // changed to pairWallet
             amounts[0]
         );
@@ -207,7 +207,7 @@ contract DuoswapV2Router is IDuoswapV2Router {
         require(amounts[0] <= amountInMax, "UniswapV2Router: EXCESSIVE_INPUT_AMOUNT");
         ISupa(supa).transferFromERC20(
             path[0],
-            to, // changed to userSafe
+            to, // changed to userWallet
             IDuoswapV2Pair(DuoswapV2Library.pairFor(factory, path[0], path[1])).wallet(), // changed to pairWallet
             amounts[0]
         );

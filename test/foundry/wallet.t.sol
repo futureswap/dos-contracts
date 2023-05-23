@@ -18,7 +18,7 @@ import {Call, CallLib} from "contracts/lib/Call.sol";
 import {ITransferReceiver2} from "contracts/interfaces/ITransferReceiver2.sol";
 
 import {SigUtils, ECDSA} from "test/foundry/utils/SigUtils.sol";
-import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 contract WalletTest is Test {
     IPermit2 public permit2;
@@ -39,8 +39,8 @@ contract WalletTest is Test {
     VersionManager public versionManager;
     WalletLogic public proxyLogic;
 
-    WalletProxy public treasurySafe;
-    WalletProxy public userSafe;
+    WalletProxy public treasuryWallet;
+    WalletProxy public userWallet;
 
     bytes32 fsSALT = bytes32(0x1234567890123456789012345678901234567890123456789012345678901234);
 
@@ -66,7 +66,7 @@ contract WalletTest is Test {
 
         ISupaConfig(address(supa)).setConfig(
             ISupaConfig.Config({
-                treasurySafe: address(0),
+                treasuryWallet: address(0),
                 treasuryInterestFraction: 0,
                 maxSolvencyCheckGasCost: 10_000_000,
                 liqFraction: 8e17,
@@ -90,13 +90,13 @@ contract WalletTest is Test {
         address user = vm.addr(userPrivateKey);
         console.log("user: %s", user);
         vm.prank(user);
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         Call[] memory calls = new Call[](0);
         uint256 nonce = 0;
         uint256 deadline = type(uint256).max;
 
-        bytes32 digest = sigUtils.getTypedDataHash(address(userSafe), calls, nonce, deadline);
+        bytes32 digest = sigUtils.getTypedDataHash(address(userWallet), calls, nonce, deadline);
         console.log("digest");
         console.logBytes32(digest);
 
@@ -107,7 +107,7 @@ contract WalletTest is Test {
         console.log("recovered");
         console.logAddress(recovered);
 
-        WalletLogic(address(userSafe)).executeSignedBatch(calls, nonce, deadline, signature);
+        WalletLogic(address(userWallet)).executeSignedBatch(calls, nonce, deadline, signature);
     }
 
     function test_transferAndCall2ToProxy() public {
@@ -117,7 +117,7 @@ contract WalletTest is Test {
 
         deal({token: address(weth), to: address(this), give: 1 * 1 ether});
 
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         ITransferReceiver2.Transfer[] memory transfers = new ITransferReceiver2.Transfer[](2);
 
@@ -128,7 +128,7 @@ contract WalletTest is Test {
         _sortTransfers(transfers);
 
         bytes memory data = bytes("0x");
-        transferAndCall2.transferAndCall2(address(userSafe), transfers, data);
+        transferAndCall2.transferAndCall2(address(userWallet), transfers, data);
     }
 
     function test_transferAndCall2ToSupa() public {
@@ -140,13 +140,13 @@ contract WalletTest is Test {
     }
 
     function test_upgradeVersion() public {
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
         _upgradeWalletImplementation(versionName);
     }
 
     function test_upgradeInvalidVersion(string memory invalidVersionName) public {
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         if (
             keccak256(abi.encodePacked(invalidVersionName)) == keccak256(abi.encodePacked(version))
         ) {
@@ -157,7 +157,7 @@ contract WalletTest is Test {
     }
 
     function test_upgradeDeprecatedVersion() public {
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
         versionManager.updateVersion(
             versionName,
@@ -169,7 +169,7 @@ contract WalletTest is Test {
     }
 
     function test_upgradeLowBugVersion() public {
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
         versionManager.updateVersion(
             versionName,
@@ -181,7 +181,7 @@ contract WalletTest is Test {
     }
 
     function test_upgradeMedBugVersion() public {
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
         versionManager.updateVersion(
             versionName,
@@ -193,7 +193,7 @@ contract WalletTest is Test {
     }
 
     function test_upgradeHighBugVersion() public {
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
         versionManager.updateVersion(
             versionName,
@@ -205,7 +205,7 @@ contract WalletTest is Test {
     }
 
     function test_upgradeCriticalBugVersion() public {
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         (string memory versionName, , , , ) = versionManager.getRecommendedVersion();
         versionManager.updateVersion(
             versionName,
@@ -217,46 +217,48 @@ contract WalletTest is Test {
     }
 
     function test_proposeTransferWalletOwnership(address newOwner) public {
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         Call[] memory calls = new Call[](1);
         calls[0] = Call({
             to: address(supa),
             callData: abi.encodeWithSignature("proposeTransferWalletOwnership(address)", newOwner),
             value: 0
         });
-        userSafe.executeBatch(calls);
-        address proposedOwner = SupaConfig(address(supa)).walletProposedNewOwner(address(userSafe));
+        userWallet.executeBatch(calls);
+        address proposedOwner = SupaConfig(address(supa)).walletProposedNewOwner(
+            address(userWallet)
+        );
         assert(proposedOwner == newOwner);
     }
 
     function test_executeTransferWalletOwnership(address newOwner) public {
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         Call[] memory calls = new Call[](1);
         calls[0] = Call({
             to: address(supa),
             callData: abi.encodeWithSignature("proposeTransferWalletOwnership(address)", newOwner),
             value: 0
         });
-        userSafe.executeBatch(calls);
+        userWallet.executeBatch(calls);
 
         vm.prank(newOwner);
-        ISupa(address(supa)).executeTransferWalletOwnership(address(userSafe));
+        ISupa(address(supa)).executeTransferWalletOwnership(address(userWallet));
 
-        address actualOwner = ISupa(address(supa)).getWalletOwner(address(userSafe));
+        address actualOwner = ISupa(address(supa)).getWalletOwner(address(userWallet));
         assert(actualOwner == newOwner);
     }
 
     function test_executeInvalidOwnershipTransfer(address newOwner) public {
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         vm.prank(newOwner);
         vm.expectRevert();
-        ISupa(address(supa)).executeTransferWalletOwnership(address(userSafe));
+        ISupa(address(supa)).executeTransferWalletOwnership(address(userWallet));
     }
 
-    function _setupSafes() internal {
-        treasurySafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+    function _setupWallets() internal {
+        treasuryWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
     }
 
     function _upgradeWalletImplementation(string memory versionName) internal {
@@ -266,7 +268,7 @@ contract WalletTest is Test {
             callData: abi.encodeWithSignature("upgradeWalletImplementation(string)", versionName),
             value: 0
         });
-        userSafe.executeBatch(calls);
+        userWallet.executeBatch(calls);
     }
 
     function _sortTransfers(ITransferReceiver2.Transfer[] memory transfers) internal pure {

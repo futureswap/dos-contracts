@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 import {WalletState} from "./WalletState.sol";
 import {Liquifier} from "../supa/Liquifier.sol";
 import {IVersionManager} from "../interfaces/IVersionManager.sol";
 import {ITransferReceiver2} from "../interfaces/ITransferReceiver2.sol";
-import {ISafe} from "../interfaces/ISafe.sol";
+import {IWallet} from "../interfaces/IWallet.sol";
 import {IERC1363SpenderExtended} from "../interfaces/IERC1363-extended.sol";
 import {CallLib, Call} from "../lib/Call.sol";
 import {NonceMapLib, NonceMap} from "../lib/NonceMap.sol";
@@ -27,7 +27,7 @@ contract WalletLogic is
     IERC1271,
     ITransferReceiver2,
     EIP712,
-    ISafe,
+    IWallet,
     Liquifier,
     IERC1363SpenderExtended
 {

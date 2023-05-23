@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "../lib/FsMath.sol";
+import {FsMath} from "../lib/FsMath.sol";
 
 contract TestFsMath {
     function abs(int256 value) external pure returns (uint256) {

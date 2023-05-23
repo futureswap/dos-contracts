@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/proxy/Proxy.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import {Proxy} from "@openzeppelin/contracts/proxy/Proxy.sol";
+import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ERC721, IERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 
 import {ISupa, ISupaConfig, ISupaCore, ERC20Share, NFTTokenData, ERC20Pool, ERC20Info, ERC721Info, ContractData, ContractKind} from "../interfaces/ISupa.sol";
 import {SupaState} from "./SupaState.sol";
@@ -120,7 +120,7 @@ contract Supa is SupaState, ISupaCore, IERC721Receiver, Proxy {
     /// @param erc20 Address of the ERC20 token to be transferred
     /// @param to Address of the wallet that creditAccount should be top up
     /// @param amount The amount of `erc20` to be sent
-    function depositERC20ForSafe(
+    function depositERC20ForWallet(
         address erc20,
         address to,
         uint256 amount
@@ -223,7 +223,7 @@ contract Supa is SupaState, ISupaCore, IERC721Receiver, Proxy {
     /// @param erc721Contract The address of the ERC721 contract that the token belongs to
     /// @param to The wallet address for which the NFT will be deposited
     /// @param tokenId The id of the token to be transferred
-    function depositERC721ForSafe(
+    function depositERC721ForWallet(
         address erc721Contract,
         address to,
         uint256 tokenId
@@ -360,7 +360,7 @@ contract Supa is SupaState, ISupaCore, IERC721Receiver, Proxy {
                 leftover
             );
         }
-        emit ISupaCore.SafeLiquidated(wallet, msg.sender, collateral, debt);
+        emit ISupaCore.WalletLiquidated(wallet, msg.sender, collateral, debt);
     }
 
     /// @notice Add an operator for wallet
@@ -368,6 +368,7 @@ contract Supa is SupaState, ISupaCore, IERC721Receiver, Proxy {
     /// @dev Operator can execute batch of transactions on behalf of wallet owner
     function addOperator(address operator) external override onlyWallet {
         operatorApprovals[msg.sender][operator] = true;
+        emit OperatorAdded(msg.sender, operator);
     }
 
     /// @notice Remove an operator for wallet
@@ -375,6 +376,7 @@ contract Supa is SupaState, ISupaCore, IERC721Receiver, Proxy {
     /// @dev Operator can execute batch of transactions on behalf of wallet owner
     function removeOperator(address operator) external override onlyWallet {
         operatorApprovals[msg.sender][operator] = false;
+        emit OperatorRemoved(msg.sender, operator);
     }
 
     /// @notice Execute a batch of calls
@@ -770,7 +772,7 @@ contract Supa is SupaState, ISupaCore, IERC721Receiver, Proxy {
         erc20Info.debt.tokens -= interest; // subtract interest from debt (increase)
         erc20Info.collateral.tokens += interest - treasuryInterest; // add interest to collateral (increase)
 
-        _creditAccountERC20ChangeBy(config.treasurySafe, erc20Idx, treasuryInterest); // add treasury interest to treasury
+        _creditAccountERC20ChangeBy(config.treasuryWallet, erc20Idx, treasuryInterest); // add treasury interest to treasury
     }
 
     function _tokenStorageCheck(address walletAddress) internal view {

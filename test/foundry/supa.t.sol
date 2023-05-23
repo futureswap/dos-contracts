@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import {Supa, ISupa, WalletLib, SupaState, ISupaCore} from "contracts/supa/Supa.sol";
 import {SupaConfig, ISupaConfig} from "contracts/supa/SupaConfig.sol";
@@ -29,7 +29,7 @@ contract SupaTest is Test {
     SupaConfig public supaConfig;
     WalletLogic public logic;
 
-    WalletProxy public userSafe;
+    WalletProxy public userWallet;
 
     // IWETH9 public weth = IWETH9(payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)); // Mainnet WETH
 
@@ -58,7 +58,7 @@ contract SupaTest is Test {
 
         ISupaConfig(address(supa)).setConfig(
             ISupaConfig.Config({
-                treasurySafe: address(0),
+                treasuryWallet: address(0),
                 treasuryInterestFraction: 5e16,
                 maxSolvencyCheckGasCost: 1e6,
                 liqFraction: 8e17,
@@ -122,14 +122,14 @@ contract SupaTest is Test {
 
     function test_CreateWallet() public {
         vm.startPrank(user);
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         vm.stopPrank();
     }
 
     function test_DepositERC20(uint96 _amount0, uint96 _amount1) public {
         vm.startPrank(user);
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
-        _mintTokens(address(userSafe), _amount0, _amount1);
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        _mintTokens(address(userWallet), _amount0, _amount1);
 
         // construct calls
         Call[] memory calls = new Call[](4);
@@ -184,13 +184,13 @@ contract SupaTest is Test {
         );
 
         // execute batch
-        WalletLogic(address(userSafe)).executeBatch(calls);
+        WalletLogic(address(userWallet)).executeBatch(calls);
         vm.stopPrank();
     }
 
-    function test_DepositERC20ForSafe(uint96 _amount0, uint96 _amount1) public {
+    function test_depositERC20ForWallet(uint96 _amount0, uint96 _amount1) public {
         vm.startPrank(user);
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         vm.stopPrank();
 
         _mintTokens(address(this), _amount0, _amount1);
@@ -199,18 +199,18 @@ contract SupaTest is Test {
         token0.approve(address(supa), _amount0);
         token1.approve(address(supa), _amount1);
 
-        supa.depositERC20ForSafe(address(token0), address(userSafe), _amount0);
-        supa.depositERC20ForSafe(address(token1), address(userSafe), _amount1);
+        supa.depositERC20ForWallet(address(token0), address(userWallet), _amount0);
+        supa.depositERC20ForWallet(address(token1), address(userWallet), _amount1);
     }
 
     /// @dev using uint96 to avoid arithmetic overflow in uint -> int conversion
     function test_TransferERC20(uint96 _amount0) public {
         vm.startPrank(user);
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
-        WalletProxy userSafe2 = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        WalletProxy userWallet2 = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         // mint tokens to user's wallet
-        token0.mint(address(userSafe), _amount0);
+        token0.mint(address(userWallet), _amount0);
 
         // construct calls
         Call[] memory calls = new Call[](3);
@@ -244,24 +244,24 @@ contract SupaTest is Test {
                 callData: abi.encodeWithSignature(
                     "transferERC20(address,address,uint256)",
                     token0,
-                    address(userSafe2),
+                    address(userWallet2),
                     uint256(_amount0)
                 ),
                 value: 0
             })
         );
 
-        userSafe.executeBatch(calls);
+        userWallet.executeBatch(calls);
         vm.stopPrank();
     }
 
     function test_DepositThenTransfer(uint96 _amount0) public {
         vm.startPrank(user);
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
-        WalletProxy userSafe2 = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        WalletProxy userWallet2 = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         // mint tokens to user's wallet
-        token0.mint(address(userSafe), _amount0);
+        token0.mint(address(userWallet), _amount0);
 
         // construct calls
         Call[] memory calls = new Call[](3);
@@ -284,7 +284,7 @@ contract SupaTest is Test {
                 callData: abi.encodeWithSignature(
                     "transferERC20(address,address,uint256)",
                     token0,
-                    address(userSafe2),
+                    address(userWallet2),
                     uint256(_amount0)
                 ),
                 value: 0
@@ -302,19 +302,19 @@ contract SupaTest is Test {
             })
         );
 
-        userSafe.executeBatch(calls);
+        userWallet.executeBatch(calls);
         vm.stopPrank();
     }
 
     function test_TransferMoreThanBalance(uint96 _amount, uint96 _extraAmount) public {
         vm.assume(_amount > 1 ether);
         vm.assume(_extraAmount > 1);
-        WalletProxy otherSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        WalletProxy otherWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         vm.startPrank(user);
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
 
         // mint tokens to user's wallet
-        token0.mint(address(userSafe), _amount);
+        token0.mint(address(userWallet), _amount);
 
         // construct calls
         Call[] memory calls = new Call[](3);
@@ -348,7 +348,7 @@ contract SupaTest is Test {
                 callData: abi.encodeWithSignature(
                     "transferERC20(address,address,uint256)",
                     token0,
-                    address(otherSafe),
+                    address(otherWallet),
                     uint256(_amount) + uint256(_extraAmount)
                 ),
                 value: 0
@@ -356,19 +356,19 @@ contract SupaTest is Test {
         );
 
         vm.expectRevert();
-        userSafe.executeBatch(calls);
+        userWallet.executeBatch(calls);
         vm.stopPrank();
     }
 
     function test_depositERC20IncreaseTokenCounter(uint256 amount) public {
         amount = bound(amount, 0, uint256(type(int256).max));
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
-        (, int256 tokenCounter) = SupaState(supa).wallets(address(userSafe));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        (, int256 tokenCounter) = SupaState(supa).wallets(address(userWallet));
         assertEq(tokenCounter, 0);
         _mintTokens(address(this), amount, 0);
         token0.approve(address(supa), amount);
-        supa.depositERC20ForSafe(address(token0), address(userSafe), amount);
-        (, tokenCounter) = SupaState(supa).wallets(address(userSafe));
+        supa.depositERC20ForWallet(address(token0), address(userWallet), amount);
+        (, tokenCounter) = SupaState(supa).wallets(address(userWallet));
         if (amount == 0) {
             assertEq(tokenCounter, 0);
         } else {
@@ -378,15 +378,15 @@ contract SupaTest is Test {
 
     function test_depositERC20IncreaseTokenCounter2(uint256 amount) public {
         amount = bound(amount, 0, uint256(type(int256).max));
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
-        (, int256 tokenCounter) = SupaState(supa).wallets(address(userSafe));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        (, int256 tokenCounter) = SupaState(supa).wallets(address(userWallet));
         assertEq(tokenCounter, 0);
         _mintTokens(address(this), amount, amount);
         token0.approve(address(supa), amount);
         token1.approve(address(supa), amount);
-        supa.depositERC20ForSafe(address(token0), address(userSafe), amount);
-        supa.depositERC20ForSafe(address(token1), address(userSafe), amount);
-        (, tokenCounter) = SupaState(supa).wallets(address(userSafe));
+        supa.depositERC20ForWallet(address(token0), address(userWallet), amount);
+        supa.depositERC20ForWallet(address(token1), address(userWallet), amount);
+        (, tokenCounter) = SupaState(supa).wallets(address(userWallet));
         if (amount == 0) {
             assertEq(tokenCounter, 0);
         } else {
@@ -397,13 +397,13 @@ contract SupaTest is Test {
     function test_withdrawERC20DecreaseTokenCounter(uint256 amount) public {
         // NOTE: reverts with some amount > 2^96
         amount = bound(amount, 0, uint256(int256(type(int96).max)));
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
-        (, int256 tokenCounter) = SupaState(supa).wallets(address(userSafe));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        (, int256 tokenCounter) = SupaState(supa).wallets(address(userWallet));
         assertEq(tokenCounter, 0);
         _mintTokens(address(this), amount, 0);
         token0.approve(address(supa), amount);
-        supa.depositERC20ForSafe(address(token0), address(userSafe), amount);
-        (, tokenCounter) = SupaState(supa).wallets(address(userSafe));
+        supa.depositERC20ForWallet(address(token0), address(userWallet), amount);
+        (, tokenCounter) = SupaState(supa).wallets(address(userWallet));
         if (amount == 0) {
             assertEq(tokenCounter, 0);
         } else {
@@ -420,20 +420,20 @@ contract SupaTest is Test {
                     value: 0
                 })
             );
-            userSafe.executeBatch(calls);
-            (, tokenCounter) = SupaState(supa).wallets(address(userSafe));
+            userWallet.executeBatch(calls);
+            (, tokenCounter) = SupaState(supa).wallets(address(userWallet));
             assertEq(tokenCounter, 0);
         }
     }
 
     function test_depositERC721IncreaseNftCounter() public {
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         nft0Oracle.setPrice(0, 1 ether);
         uint256 nftCounter = SupaConfig(address(supa)).getCreditAccountERC721Counter(
-            address(userSafe)
+            address(userWallet)
         );
         assertEq(nftCounter, 0);
-        nft0.mint(address(userSafe));
+        nft0.mint(address(userWallet));
         Call[] memory calls = new Call[](1);
         calls[0] = (
             Call({
@@ -446,19 +446,19 @@ contract SupaTest is Test {
                 value: 0
             })
         );
-        userSafe.executeBatch(calls);
-        nftCounter = SupaConfig(address(supa)).getCreditAccountERC721Counter(address(userSafe));
+        userWallet.executeBatch(calls);
+        nftCounter = SupaConfig(address(supa)).getCreditAccountERC721Counter(address(userWallet));
         assertEq(nftCounter, 1);
     }
 
     function test_withdrawERC721DecreaseNftCounter() public {
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         nft0Oracle.setPrice(0, 1 ether);
         uint256 nftCounter = SupaConfig(address(supa)).getCreditAccountERC721Counter(
-            address(userSafe)
+            address(userWallet)
         );
         assertEq(nftCounter, 0);
-        nft0.mint(address(userSafe));
+        nft0.mint(address(userWallet));
         Call[] memory calls = new Call[](1);
         calls[0] = (
             Call({
@@ -471,8 +471,8 @@ contract SupaTest is Test {
                 value: 0
             })
         );
-        userSafe.executeBatch(calls);
-        nftCounter = SupaConfig(address(supa)).getCreditAccountERC721Counter(address(userSafe));
+        userWallet.executeBatch(calls);
+        nftCounter = SupaConfig(address(supa)).getCreditAccountERC721Counter(address(userWallet));
         assertEq(nftCounter, 1);
         calls[0] = (
             Call({
@@ -485,8 +485,8 @@ contract SupaTest is Test {
                 value: 0
             })
         );
-        userSafe.executeBatch(calls);
-        nftCounter = SupaConfig(address(supa)).getCreditAccountERC721Counter(address(userSafe));
+        userWallet.executeBatch(calls);
+        nftCounter = SupaConfig(address(supa)).getCreditAccountERC721Counter(address(userWallet));
         assertEq(nftCounter, 0);
     }
 
@@ -499,13 +499,13 @@ contract SupaTest is Test {
             })
         );
 
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         _mintTokens(address(this), 100 * 1 ether, 100 * 1 ether);
         token0.approve(address(supa), 100 * 1 ether);
         token1.approve(address(supa), 100 * 1 ether);
-        supa.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
+        supa.depositERC20ForWallet(address(token0), address(userWallet), 100 * 1 ether);
         vm.expectRevert(Supa.TokenStorageExceeded.selector);
-        supa.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
+        supa.depositERC20ForWallet(address(token1), address(userWallet), 100 * 1 ether);
     }
 
     function test_exceedMaxTokenStorageNFT() public {
@@ -517,13 +517,13 @@ contract SupaTest is Test {
             })
         );
 
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         _mintTokens(address(this), 100 * 1 ether, 100 * 1 ether);
         token0.approve(address(supa), 100 * 1 ether);
         token1.approve(address(supa), 100 * 1 ether);
-        supa.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
+        supa.depositERC20ForWallet(address(token0), address(userWallet), 100 * 1 ether);
 
-        nft0.mint(address(userSafe));
+        nft0.mint(address(userWallet));
         Call[] memory calls = new Call[](1);
         calls[0] = (
             Call({
@@ -537,7 +537,7 @@ contract SupaTest is Test {
             })
         );
         vm.expectRevert(Supa.TokenStorageExceeded.selector);
-        userSafe.executeBatch(calls);
+        userWallet.executeBatch(calls);
     }
 
     function test_increaseMaxTokenStorage() public {
@@ -549,13 +549,13 @@ contract SupaTest is Test {
             })
         );
 
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         _mintTokens(address(this), 100 * 1 ether, 100 * 1 ether);
         token0.approve(address(supa), 100 * 1 ether);
         token1.approve(address(supa), 100 * 1 ether);
-        supa.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
+        supa.depositERC20ForWallet(address(token0), address(userWallet), 100 * 1 ether);
         vm.expectRevert(Supa.TokenStorageExceeded.selector);
-        supa.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
+        supa.depositERC20ForWallet(address(token1), address(userWallet), 100 * 1 ether);
 
         ISupaConfig(address(supa)).setTokenStorageConfig(
             ISupaConfig.TokenStorageConfig({
@@ -564,7 +564,7 @@ contract SupaTest is Test {
                 erc721Multiplier: 1
             })
         );
-        supa.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
+        supa.depositERC20ForWallet(address(token1), address(userWallet), 100 * 1 ether);
     }
 
     function test_decreaseMaxTokenStorage() public {
@@ -576,12 +576,12 @@ contract SupaTest is Test {
             })
         );
 
-        userSafe = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
+        userWallet = WalletProxy(payable(ISupaConfig(address(supa)).createWallet()));
         _mintTokens(address(this), 100 * 1 ether, 100 * 1 ether);
         token0.approve(address(supa), 100 * 1 ether);
         token1.approve(address(supa), 100 * 1 ether);
-        supa.depositERC20ForSafe(address(token0), address(userSafe), 100 * 1 ether);
-        supa.depositERC20ForSafe(address(token1), address(userSafe), 100 * 1 ether);
+        supa.depositERC20ForWallet(address(token0), address(userWallet), 100 * 1 ether);
+        supa.depositERC20ForWallet(address(token1), address(userWallet), 100 * 1 ether);
 
         ISupaConfig(address(supa)).setTokenStorageConfig(
             ISupaConfig.TokenStorageConfig({
@@ -590,7 +590,7 @@ contract SupaTest is Test {
                 erc721Multiplier: 1
             })
         );
-        nft0.mint(address(userSafe));
+        nft0.mint(address(userWallet));
         Call[] memory calls = new Call[](1);
         calls[0] = (
             Call({
@@ -604,7 +604,7 @@ contract SupaTest is Test {
             })
         );
         vm.expectRevert(Supa.TokenStorageExceeded.selector);
-        userSafe.executeBatch(calls);
+        userWallet.executeBatch(calls);
     }
 
     function _mintTokens(address to, uint256 amount0, uint256 amount1) internal {

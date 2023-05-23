@@ -5,7 +5,7 @@ pragma solidity >=0.5.0;
 
 //solhint-disable func-name-mixedcase
 
-import "@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol";
+import {IUniswapV2ERC20} from "@uniswap/v2-core/contracts/interfaces/IUniswapV2ERC20.sol";
 
 interface IDuoswapV2Pair is IUniswapV2ERC20 {
     event Mint(address indexed sender, uint256 amount0, uint256 amount1);

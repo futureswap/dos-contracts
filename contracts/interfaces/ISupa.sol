@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.7;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Call} from "../lib/Call.sol";
 import {IERC20ValueOracle} from "./IERC20ValueOracle.sol";
 import {INFTValueOracle} from "./INFTValueOracle.sol";
@@ -55,7 +55,7 @@ interface ISupaERC20 is IERC20 {
 
 interface ISupaConfig {
     struct Config {
-        address treasurySafe; // The address of the treasury safe
+        address treasuryWallet; // The address of the treasury safe
         uint256 treasuryInterestFraction; // Fraction of interest to send to treasury
         uint256 maxSolvencyCheckGasCost;
         int256 liqFraction; // Fraction for the user
@@ -294,10 +294,20 @@ interface ISupaCore {
         bool approved
     );
 
+    /// @dev Emitted when an operator is added to a wallet
+    /// @param wallet The address of the wallet
+    /// @param operator The address of the operator
+    event OperatorAdded(address indexed wallet, address indexed operator);
+
+    /// @dev Emitted when an operator is removed from a wallet
+    /// @param wallet The address of the wallet
+    /// @param operator The address of the operator
+    event OperatorRemoved(address indexed wallet, address indexed operator);
+
     /// @notice Emitted when a wallet is liquidated
     /// @param wallet The address of the liquidated wallet
     /// @param liquidator The address of the liquidator
-    event SafeLiquidated(
+    event WalletLiquidated(
         address indexed wallet,
         address indexed liquidator,
         int256 collateral,
@@ -313,7 +323,7 @@ interface ISupaCore {
 
     function withdrawERC20(IERC20 erc20, uint256 amount) external;
 
-    function depositERC20ForSafe(address erc20, address to, uint256 amount) external;
+    function depositERC20ForWallet(address erc20, address to, uint256 amount) external;
 
     function depositFull(IERC20[] calldata erc20s) external;
 
@@ -325,7 +335,7 @@ interface ISupaCore {
 
     function depositERC721(address nftContract, uint256 tokenId) external;
 
-    function depositERC721ForSafe(address nftContract, address to, uint256 tokenId) external;
+    function depositERC721ForWallet(address nftContract, address to, uint256 tokenId) external;
 
     function withdrawERC721(address erc721, uint256 tokenId) external;
 

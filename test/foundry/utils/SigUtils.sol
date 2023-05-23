@@ -3,8 +3,8 @@ pragma solidity ^0.8.13;
 
 import "forge-std/console.sol";
 
-import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {Call, CallLib} from "contracts/lib/Call.sol";
 import {WalletLogic} from "contracts/wallet/WalletLogic.sol";
 

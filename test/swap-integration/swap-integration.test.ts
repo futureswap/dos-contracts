@@ -78,10 +78,10 @@ describe("Supa swap integration", () => {
     await versionManager.addVersion(2, proxyLogic.address);
     await versionManager.markRecommendedVersion("1.0.0");
 
-    const treasurySafe = await createWallet(iSupa, owner);
+    const treasuryWallet = await createWallet(iSupa, owner);
 
     await iSupa.setConfig({
-      treasurySafe: treasurySafe.address,
+      treasuryWallet: treasuryWallet.address,
       treasuryInterestFraction: toWei(0.05),
       maxSolvencyCheckGasCost: 1e6,
       liqFraction: toWei(0.8),
@@ -126,6 +126,8 @@ describe("Supa swap integration", () => {
     const uniV3LPHelper = await new UniV3LPHelper__factory(owner).deploy(
       iSupa.address,
       nonFungiblePositionManager.address,
+      uniswapV3Factory.address,
+      swapRouter.address,
     );
 
     const price = (ETH_PRICE * 10 ** USDC_DECIMALS) / 10 ** WETH_DECIMALS;

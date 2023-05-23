@@ -176,7 +176,7 @@ const updateTransfers = (
   transfers.push({token: weth, amount: value});
 };
 
-export const depositIntoSafe = async (
+export const depositIntoWallet = async (
   transferAndCall2: TransferAndCall2,
   safe: WalletLogic,
   transfers: {token: string; amount: bigint}[],
@@ -216,7 +216,7 @@ export const depositIntoSupa = async (
   }
 };
 
-export const depositIntoSafeAndCall = async (
+export const depositIntoWalletAndCall = async (
   transferAndCall2: TransferAndCall2,
   safe: WalletLogic,
   transfers: {token: string; amount: bigint}[],
