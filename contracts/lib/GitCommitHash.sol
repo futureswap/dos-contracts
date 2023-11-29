@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MIT.1
 pragma solidity ^0.8.17;
 
 // Contracts deriving from this contract will have a public pure function
