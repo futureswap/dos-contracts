@@ -121,6 +121,8 @@ interface IDOSConfig {
     /// @param owner The address of the owner
     event DSafeCreated(address dSafe, address owner);
 
+    // @audit-info Does not revert if version is valid
+    // @audit-info Reverts if version is invalid
     function upgradeDSafeImplementation(string calldata version) external;
 
     function proposeTransferDSafeOwnership(address newOwner) external;
@@ -269,14 +271,24 @@ interface IDOSCore {
 
     function liquidate(address dSafe) external;
 
+    // @audit-info never reverts if valid assets and amount
+    // @audit-info always reverts if amount == 0, amount < user balance, erc20 is not whitelisted
     function depositERC20(IERC20 erc20, uint256 amount) external;
 
+    // @audit-info never reverts if collateral >= new debt
+    // @audit-info
     function withdrawERC20(IERC20 erc20, uint256 amount) external;
 
+    // @audit-info never reverts if valid asset, valid dSafe, amount > 0, amount >= user balance
+    // @audit-info always reverts otherwise
     function depositERC20ForSafe(address erc20, address to, uint256 amount) external;
 
+    // @audit-info never reverts if valid assets and amounts
+    // @audit-info always reverts otherwise
     function depositFull(IERC20[] calldata erc20s) external;
 
+    // @audit-info never reverts if asset is in dAccount list and collateral >= debt
+    // @audit-info always reverts otherwise
     function withdrawFull(IERC20[] calldata erc20s) external;
 
     function executeBatch(Call[] memory calls) external;

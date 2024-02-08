@@ -183,6 +183,17 @@ describe("DOS", () => {
       expect(await usdc.balanceOf(iDos.address)).to.equal(tenThousandUsdc);
     });
 
+    it.only("Test overflow when depositing", async () => {
+      const {user, iDos, weth, getBalances} = await loadFixture(deployDOSFixture);
+      const dSafe = await createDSafe(iDos, user);
+      const amount = toWei(240615969168004511545);
+
+      await depositERC20(iDos, dSafe, weth, amount);
+
+      expect((await getBalances(dSafe)).weth).to.equal(amount);
+      expect(await weth.balanceOf(iDos.address)).to.equal(amount);
+    });
+
     it("User can transfer money", async () => {
       const {user, user2, iDos, usdc, getBalances} = await loadFixture(deployDOSFixture);
       const sender = await createDSafe(iDos, user);
